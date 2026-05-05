@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.2-STABLE] - 2026-05-04
+
+### Added
+- **Pre-cotización (descuentos en desglose pliego):** Al editar subtotales en el detalle, el pie (subtotal, margen, IVA, ISR, bono, total y totales por línea) se recalcula en vivo antes de **Guardar descuentos**, con la misma lógica que el servidor (porcentajes sobre subtotal de líneas; «Margen total» incluye margen adicional fijo).
+
 ## [3.117.1-STABLE] - 2026-05-04
 
 ### Changed

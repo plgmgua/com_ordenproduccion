@@ -21,6 +21,7 @@ use Joomla\CMS\Session\Session;
 
 $item  = $this->item ?? null;
 $lines = $this->lines ?? [];
+$precotJsLiveTotalsPayload = null;
 $listUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador');
 $addLineTask = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addLine');
 $editLineTask = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.editLine');
@@ -639,7 +640,7 @@ $solicitarDescuentoAction   = Route::_(
                             <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento || $isTercerizado ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
                             <td><?php echo ($isEnvio || $isTercerizado) ? '—' : ($isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
-                            <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
+                            <td class="text-end precot-line-total-cell" data-line-id="<?php echo (int) $line->id; ?>"><span class="precot-line-total-amt">Q <?php echo number_format((float) $line->total, 2); ?></span></td>
                             <td class="text-end">
                                 <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
                                 <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
@@ -680,21 +681,31 @@ $solicitarDescuentoAction   = Route::_(
                         <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
                             <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
-                                    <table class="table table-sm table-bordered mb-0" style="max-width: 920px;">
-                                        <?php
-                                        $breakdown = $line->breakdown ?? [];
-                                        $precotRowModel = $this->precotizacionModel ?? null;
-                                        $hasBreakdownOverrideCols = $canSaveImpresionOverride && $precotRowModel;
-                                        if ($hasBreakdownOverrideCols) {
-                                            $hasBreakdownOverrideCols = false;
-                                            foreach ($breakdown as $bi => $_br) {
-                                                if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi) !== null) {
-                                                    $hasBreakdownOverrideCols = true;
-                                                    break;
-                                                }
+                                    <?php
+                                    $breakdown = $line->breakdown ?? [];
+                                    $precotRowModel = $this->precotizacionModel ?? null;
+                                    $hasBreakdownOverrideCols = $canSaveImpresionOverride && $precotRowModel;
+                                    if ($hasBreakdownOverrideCols) {
+                                        $hasBreakdownOverrideCols = false;
+                                        foreach ($breakdown as $bi => $_br) {
+                                            if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi) !== null) {
+                                                $hasBreakdownOverrideCols = true;
+                                                break;
                                             }
                                         }
-                                        ?>
+                                    }
+                                    $precotBreakdownFixedSubtotal = 0.0;
+                                    if ($canSeePrecotInternalTax && $hasBreakdownOverrideCols && $precotRowModel) {
+                                        foreach ($breakdown as $biFix => $rowFix) {
+                                            if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $biFix) === null) {
+                                                $precotBreakdownFixedSubtotal += (float) ($rowFix['subtotal'] ?? 0);
+                                            }
+                                        }
+                                    }
+                                    ?>
+                                    <table class="table table-sm table-bordered mb-0 precot-pliego-breakdown-table" style="max-width: 920px;"
+                                        data-precot-line-id="<?php echo (int) $line->id; ?>"
+                                        data-precot-fixed-subtotal="<?php echo htmlspecialchars(number_format($precotBreakdownFixedSubtotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php if ($canSeePrecotInternalTax) : ?>
                                         <thead>
                                             <tr>
@@ -752,7 +763,7 @@ $solicitarDescuentoAction   = Route::_(
                                         <tfoot>
                                             <tr class="table-secondary fw-bold">
                                                 <td colspan="2"><?php echo Text::_('COM_ORDENPRODUCCION_CALC_TOTAL'); ?></td>
-                                                <td class="text-end">Q <?php echo number_format((float) $line->total, 2); ?></td>
+                                                <td class="text-end precot-line-detail-total" data-for-line-id="<?php echo (int) $line->id; ?>"><span class="precot-line-detail-total-amt">Q <?php echo number_format((float) $line->total, 2); ?></span></td>
                                                 <?php if ($hasBreakdownOverrideCols) : ?>
                                                 <td></td>
                                                 <?php endif; ?>
@@ -813,48 +824,48 @@ $solicitarDescuentoAction   = Route::_(
                     <?php $tfootLabelSpan = 5; ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
-                        <td class="text-end">Q <?php echo number_format($linesSubtotal, 2); ?></td>
+                        <td class="text-end"><span id="precot-footer-subtotal">Q <?php echo number_format($linesSubtotal, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
                     <?php $margenTotal = $margenAmount + $margenAdicional; ?>
                     <tr class="margen-total-row">
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?> Q <?php echo number_format($margenTotal, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
-                        <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?> Q <span id="precot-footer-margen-combined"><?php echo number_format($margenTotal, 2); ?></span>) <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
+                        <td class="text-end"><span id="precot-footer-margen-amt">Q <?php echo number_format($margenAmount, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($precotFooterShowIva) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?><?php echo $paramIva != 0 ? ' (' . number_format($paramIva, 1) . '%)' : ''; ?></td>
-                        <td class="text-end">Q <?php echo number_format($ivaAmount, 2); ?></td>
+                        <td class="text-end"><span id="precot-footer-iva-amt">Q <?php echo number_format($ivaAmount, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($precotFooterShowIsr) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_ISR'); ?><?php echo $paramIsr != 0 ? ' (' . number_format($paramIsr, 1) . '%)' : ''; ?></td>
-                        <td class="text-end">Q <?php echo number_format($isrAmount, 2); ?></td>
+                        <td class="text-end"><span id="precot-footer-isr-amt">Q <?php echo number_format($isrAmount, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($paramComision != 0) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BONO_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
-                        <td class="text-end">Q <?php echo number_format($comisionAmount, 2); ?></td>
+                        <td class="text-end"><span id="precot-footer-bono-amt">Q <?php echo number_format($comisionAmount, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
                     <?php if ($margenAdicional > 0) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?></td>
-                        <td class="text-end">Q <?php echo number_format($margenAdicional, 2); ?></td>
+                        <td class="text-end"><span id="precot-footer-margen-adicional-amt">Q <?php echo number_format($margenAdicional, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
-                        <td class="text-end">Q <?php echo number_format($displayTotal, 2); ?></td>
+                        <td class="text-end"><span id="precot-footer-grand-total">Q <?php echo number_format($displayTotal, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php if ($tcCuotasSel > 0 && $totalConTarjeta !== null && $totalConTarjeta > 0) : ?>
@@ -874,8 +885,8 @@ $solicitarDescuentoAction   = Route::_(
                     <?php if ($comisionMargenAdicionalAmount > 0) : ?>
                     <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
                     <tr class="comision-margen-adicional-row">
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> Q <?php echo number_format($totalComision, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
-                        <td class="text-end">Q <?php echo number_format($comisionMargenAdicionalAmount, 2); ?></td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> Q <span id="precot-footer-total-comision-sum"><?php echo number_format($totalComision, 2); ?></span>) <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
+                        <td class="text-end"><span id="precot-footer-comision-ma-amt">Q <?php echo number_format($comisionMargenAdicionalAmount, 2); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
@@ -886,6 +897,29 @@ $solicitarDescuentoAction   = Route::_(
         .comision-margen-adicional-row td { background-color: #e7f1ff !important; color: #004085; font-weight: 500; }
         .margen-total-row td { background-color: #d4edda !important; color: #155724; font-weight: 500; }
         </style>
+    <?php
+    if (!empty($lines) && !empty($canSeePrecotInternalTax) && !empty($hasAnyBreakdownOverrideRows)) {
+        $precotLt = [];
+        foreach ($lines as $_ln) {
+            $precotLt[(string) (int) $_ln->id] = round((float) ($_ln->total ?? 0), 2);
+        }
+        $precotJsLiveTotalsPayload = [
+            'facturar' => (bool) $facturar,
+            'paramMargen' => (float) $paramMargen,
+            'paramIva' => (float) $paramIva,
+            'paramIsr' => (float) $paramIsr,
+            'paramComision' => (float) $paramComision,
+            'margenAdicional' => (float) $margenAdicional,
+            'lineTotals' => $precotLt,
+            'showMargenRow' => $canSeePrecotInternalTax && $paramMargen != 0,
+            'showIvaRow' => (bool) $precotFooterShowIva,
+            'showIsrRow' => (bool) $precotFooterShowIsr,
+            'showBonoRow' => $paramComision != 0,
+            'showComisionMaRow' => $comisionMargenAdicionalAmount > 0,
+            'comisionMargenAdicionalAmount' => (float) $comisionMargenAdicionalAmount,
+        ];
+    }
+    ?>
     <?php endif; ?>
 
     <?php
@@ -945,6 +979,96 @@ $solicitarDescuentoAction   = Route::_(
     <?php endif; ?>
     <?php endif; ?>
 </div>
+
+<?php if ($precotJsLiveTotalsPayload !== null) : ?>
+<script>
+(function() {
+    'use strict';
+    window.precotLiveCalc = <?php echo json_encode($precotJsLiveTotalsPayload, JSON_UNESCAPED_UNICODE); ?>;
+    function precotParseDecimal(el) {
+        if (!el) return 0;
+        var raw = String(el.value != null ? el.value : el.textContent || '').replace(/,/g, '.').replace(/[^\d.\-]/g, '');
+        var v = parseFloat(raw, 10);
+        return isNaN(v) ? 0 : v;
+    }
+    function precotFmtQ(v) {
+        return 'Q ' + (Math.round(v * 100) / 100).toFixed(2);
+    }
+    function recalcPrecotLiveTotals() {
+        var cfg = window.precotLiveCalc;
+        if (!cfg || !cfg.lineTotals) return;
+        var lineTotals = {};
+        for (var id in cfg.lineTotals) {
+            if (Object.prototype.hasOwnProperty.call(cfg.lineTotals, id)) {
+                lineTotals[id] = cfg.lineTotals[id];
+            }
+        }
+        document.querySelectorAll('.precot-pliego-breakdown-table').forEach(function(tbl) {
+            if (!tbl.querySelector('.breakdown-row-override-input')) return;
+            var lid = tbl.getAttribute('data-precot-line-id');
+            if (!lid) return;
+            var fixed = precotParseDecimal({ value: tbl.getAttribute('data-precot-fixed-subtotal') });
+            var sumOv = 0;
+            tbl.querySelectorAll('.breakdown-row-override-input').forEach(function(inp) {
+                sumOv += precotParseDecimal(inp);
+            });
+            lineTotals[lid] = Math.round((fixed + sumOv) * 100) / 100;
+        });
+        var linesSubtotal = 0;
+        for (var k in lineTotals) {
+            if (Object.prototype.hasOwnProperty.call(lineTotals, k)) {
+                linesSubtotal += lineTotals[k];
+            }
+        }
+        linesSubtotal = Math.round(linesSubtotal * 100) / 100;
+        var margenAmount = linesSubtotal * (cfg.paramMargen / 100);
+        var ivaAmount = cfg.facturar ? (linesSubtotal * (cfg.paramIva / 100)) : 0;
+        var isrAmount = cfg.facturar ? (linesSubtotal * (cfg.paramIsr / 100)) : 0;
+        var comisionAmount = linesSubtotal * (cfg.paramComision / 100);
+        var linesTotal = linesSubtotal + margenAmount + ivaAmount + isrAmount + comisionAmount;
+        linesTotal = Math.round(linesTotal * 100) / 100;
+        var displayTotal = Math.round((linesTotal + cfg.margenAdicional) * 100) / 100;
+        var margenCombined = Math.round((margenAmount + cfg.margenAdicional) * 100) / 100;
+        var el;
+        el = document.getElementById('precot-footer-subtotal');
+        if (el) el.textContent = precotFmtQ(linesSubtotal);
+        el = document.getElementById('precot-footer-margen-amt');
+        if (el && cfg.showMargenRow) el.textContent = precotFmtQ(margenAmount);
+        el = document.getElementById('precot-footer-margen-combined');
+        if (el && cfg.showMargenRow) el.textContent = margenCombined.toFixed(2);
+        el = document.getElementById('precot-footer-iva-amt');
+        if (el && cfg.showIvaRow) el.textContent = precotFmtQ(ivaAmount);
+        el = document.getElementById('precot-footer-isr-amt');
+        if (el && cfg.showIsrRow) el.textContent = precotFmtQ(isrAmount);
+        el = document.getElementById('precot-footer-bono-amt');
+        if (el && cfg.showBonoRow) el.textContent = precotFmtQ(comisionAmount);
+        el = document.getElementById('precot-footer-grand-total');
+        if (el) el.textContent = precotFmtQ(displayTotal);
+        if (cfg.showComisionMaRow) {
+            var totalComision = Math.round((comisionAmount + cfg.comisionMargenAdicionalAmount) * 100) / 100;
+            el = document.getElementById('precot-footer-total-comision-sum');
+            if (el) el.textContent = totalComision.toFixed(2);
+        }
+        for (var lid2 in lineTotals) {
+            if (!Object.prototype.hasOwnProperty.call(lineTotals, lid2)) continue;
+            var amt = lineTotals[lid2];
+            document.querySelectorAll('.precot-line-total-cell[data-line-id="' + lid2 + '"] .precot-line-total-amt').forEach(function(span) {
+                span.textContent = precotFmtQ(amt);
+            });
+            document.querySelectorAll('.precot-line-detail-total[data-for-line-id="' + lid2 + '"] .precot-line-detail-total-amt').forEach(function(span) {
+                span.textContent = precotFmtQ(amt);
+            });
+        }
+    }
+    document.querySelectorAll('.breakdown-row-override-input').forEach(function(inp) {
+        ['input', 'change'].forEach(function(ev) {
+            inp.addEventListener(ev, recalcPrecotLiveTotals);
+        });
+    });
+    recalcPrecotLiveTotals();
+})();
+</script>
+<?php endif; ?>
 
 <?php if (!empty($lines)) : ?>
 <script>
