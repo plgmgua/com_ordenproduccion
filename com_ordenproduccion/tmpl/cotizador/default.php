@@ -140,6 +140,10 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                         <input type="text" name="filter_quotation" id="filter_quotation" class="form-control form-control-sm" value="<?php echo htmlspecialchars($fv('quotation')); ?>" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FILTER_PLACEHOLDER_QUOTATION')); ?>">
                     </div>
                     <div class="col-12 col-md-6 col-lg-4">
+                        <label for="filter_orden_trabajo" class="form-label small mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FILTER_ORDEN_TRABAJO'); ?></label>
+                        <input type="text" name="filter_orden_trabajo" id="filter_orden_trabajo" class="form-control form-control-sm" value="<?php echo htmlspecialchars($fv('orden_trabajo')); ?>" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FILTER_PLACEHOLDER_ORDEN_TRABAJO')); ?>">
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-4">
                         <label for="filter_has_cotizacion" class="form-label small mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FILTER_HAS_QUOTATION'); ?></label>
                         <select name="filter_has_cotizacion" id="filter_has_cotizacion" class="form-select form-select-sm">
                             <option value=""<?php echo $fv('has_cotizacion') === '' ? ' selected' : ''; ?>><?php echo htmlspecialchars(Text::_('JALL')); ?></option>

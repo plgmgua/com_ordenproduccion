@@ -54,7 +54,7 @@ class PrecotizacionModel extends ListModel
     protected function getStoreId($id = '')
     {
         $id .= ':' . $this->getState('filter.search');
-        foreach (['number', 'descripcion', 'oferta', 'facturar', 'created_from', 'created_to', 'created_by', 'has_cotizacion', 'quotation', 'client'] as $fk) {
+        foreach (['number', 'descripcion', 'oferta', 'facturar', 'created_from', 'created_to', 'created_by', 'has_cotizacion', 'quotation', 'client', 'orden_trabajo'] as $fk) {
             $id .= ':' . (string) $this->getState('filter.' . $fk, '');
         }
 
@@ -104,7 +104,7 @@ class PrecotizacionModel extends ListModel
         $this->setState('list.direction', $listOrder);
 
         if ((int) $app->input->get('filter_reset', 0) === 1) {
-            foreach (['search', 'number', 'descripcion', 'oferta', 'facturar', 'created_from', 'created_to', 'has_cotizacion', 'quotation', 'client'] as $fk) {
+            foreach (['search', 'number', 'descripcion', 'oferta', 'facturar', 'created_from', 'created_to', 'has_cotizacion', 'quotation', 'client', 'orden_trabajo'] as $fk) {
                 $app->setUserState($this->context . '.filter.' . $fk, '');
             }
             $app->setUserState($this->context . '.filter.created_by', 0);
@@ -152,6 +152,10 @@ class PrecotizacionModel extends ListModel
         $this->setState(
             'filter.client',
             $app->getUserStateFromRequest($this->context . '.filter.client', 'filter_client', '', 'string')
+        );
+        $this->setState(
+            'filter.orden_trabajo',
+            $app->getUserStateFromRequest($this->context . '.filter.orden_trabajo', 'filter_orden_trabajo', '', 'string')
         );
     }
 
@@ -298,6 +302,33 @@ class PrecotizacionModel extends ListModel
                 . ' AND ' . $db->quoteName('q.state') . ' = 1'
                 . ' WHERE ' . $db->quoteName('qi.pre_cotizacion_id') . ' = a.id AND ' . $db->quoteName('q.client_name') . ' LIKE ' . $like . ')'
             );
+        }
+
+        $ordenTrabajoF = trim((string) $this->getState('filter.orden_trabajo', ''));
+        if ($ordenTrabajoF !== '') {
+            $otCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $otCols = is_array($otCols) ? array_change_key_case($otCols, CASE_LOWER) : [];
+            if (isset($otCols['pre_cotizacion_id'])) {
+                $like = $db->quote('%' . $db->escape($ordenTrabajoF, true) . '%');
+                $ot  = $db->quoteName('#__ordenproduccion_ordenes', 'otf');
+                $wc  = [
+                    $db->quoteName('otf.pre_cotizacion_id') . ' = a.id',
+                    $db->quoteName('otf.state') . ' = 1',
+                ];
+                $numLike = [];
+                if (isset($otCols['order_number'])) {
+                    $numLike[] = $db->quoteName('otf.order_number') . ' LIKE ' . $like;
+                }
+                if (isset($otCols['orden_de_trabajo'])) {
+                    $numLike[] = $db->quoteName('otf.orden_de_trabajo') . ' LIKE ' . $like;
+                }
+                if ($numLike !== []) {
+                    $query->where(
+                        'EXISTS (SELECT 1 FROM ' . $ot . ' WHERE ' . implode(' AND ', $wc)
+                        . ' AND (' . implode(' OR ', $numLike) . '))'
+                    );
+                }
+            }
         }
 
         $orderCol = $this->state->get('list.ordering', 'id');

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.3-STABLE] - 2026-05-05
+
+### Added
+- **Pre-cotizaciones (listado):** Filtro por **orden de trabajo** vinculada (coincidencia parcial en `order_number` y `orden_de_trabajo` de órdenes activas con `pre_cotizacion_id`).
+
 ## [3.117.2-STABLE] - 2026-05-04
 
 ### Added
