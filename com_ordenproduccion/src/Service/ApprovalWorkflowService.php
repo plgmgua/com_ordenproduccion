@@ -48,6 +48,13 @@ class ApprovalWorkflowService
      */
     public const ENTITY_CREACION_ORDEN_TRABAJO = 'creacion_orden_trabajo';
 
+    /**
+     * Línea pre-cotización tipo tercerizado: entity_id = #__ordenproduccion_pre_cotizacion_line.id (metadata: pre_cotizacion_id, …).
+     *
+     * @since  3.117.0
+     */
+    public const ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS = 'servicios_elementos_externos';
+
     /** @var DatabaseInterface */
     protected $db;
 
@@ -208,6 +215,37 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Pending servicios/externos request still points at a published tercerizado line.
+     *
+     * @since   3.117.0
+     */
+    private function serviciosExternosPendingLineStillValid(int $lineId): bool
+    {
+        if ($lineId < 1) {
+            return false;
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select('1')
+                ->from($this->db->quoteName('#__ordenproduccion_pre_cotizacion_line', 'l'))
+                ->innerJoin(
+                    $this->db->quoteName('#__ordenproduccion_pre_cotizacion', 'pc')
+                    . ' ON ' . $this->db->quoteName('pc.id') . ' = ' . $this->db->quoteName('l.pre_cotizacion_id')
+                )
+                ->where($this->db->quoteName('l.id') . ' = ' . $lineId)
+                ->where($this->db->quoteName('l.line_type') . ' = ' . $this->db->quote('tercerizado'))
+                ->where($this->db->quoteName('pc.state') . ' = 1')
+                ->setLimit(1);
+            $this->db->setQuery($q);
+
+            return (int) $this->db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Pending approval rows for a user (for UI).
      *
      * Rows tied to a deleted or unpublished pre-cotización (discount / vendor-quote) are cancelled
@@ -262,6 +300,20 @@ class ApprovalWorkflowService
                     if ($rid > 0) {
                         try {
                             $this->cancelRequest($rid, $userId, 'pre_cotizacion_missing');
+                        } catch (\Throwable $e) {
+                        }
+                    }
+
+                    continue;
+                }
+            }
+            if ($et === self::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+                $lid = (int) ($row->entity_id ?? 0);
+                if ($lid < 1 || !$this->serviciosExternosPendingLineStillValid($lid)) {
+                    $rid = (int) ($row->id ?? 0);
+                    if ($rid > 0) {
+                        try {
+                            $this->cancelRequest($rid, $userId, $lid < 1 ? 'entity_missing' : 'pre_cotizacion_missing');
                         } catch (\Throwable $e) {
                         }
                     }
@@ -1033,6 +1085,30 @@ class ApprovalWorkflowService
             if ($rid > 0 && $this->cancelRequest($rid, $actorUserId, 'pre_cotizacion_deleted')) {
                 $n++;
             }
+        }
+
+        try {
+            $lq = $this->db->getQuery(true)
+                ->select($this->db->quoteName('id'))
+                ->from($this->db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->where($this->db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
+                ->where($this->db->quoteName('line_type') . ' = ' . $this->db->quote('tercerizado'));
+            $this->db->setQuery($lq);
+            $lineIds = $this->db->loadColumn() ?: [];
+            foreach ($lineIds as $lid) {
+                $lid = (int) $lid;
+                if ($lid < 1) {
+                    continue;
+                }
+                $pr = $this->getOpenPendingRequest(self::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS, $lid);
+                if ($pr !== null) {
+                    $rid = (int) ($pr->id ?? 0);
+                    if ($rid > 0 && $this->cancelRequest($rid, $actorUserId, 'pre_cotizacion_deleted')) {
+                        $n++;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
         }
 
         return $n;

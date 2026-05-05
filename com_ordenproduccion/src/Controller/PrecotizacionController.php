@@ -547,6 +547,25 @@ class PrecotizacionController extends BaseController
         }
 
         $model = $this->getModel('Precotizacion', 'Site');
+        $line  = $model->getLine($lineId);
+        if ($line && (isset($line->line_type) ? (string) $line->line_type : '') === 'tercerizado') {
+            try {
+                $wf = new ApprovalWorkflowService();
+                if ($wf->hasSchema()) {
+                    $pending = $wf->getOpenPendingRequest(
+                        ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS,
+                        $lineId
+                    );
+                    if ($pending !== null) {
+                        $rid = (int) ($pending->id ?? 0);
+                        if ($rid > 0) {
+                            $wf->cancelRequest($rid, (int) $user->id, 'line_deleted');
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+        }
         if (!$model->deleteLine($lineId)) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_DELETE_LINE'), 'error');
         } else {
@@ -774,10 +793,24 @@ class PrecotizacionController extends BaseController
         $lineId          = (int) $app->input->post->getInt('line_id', 0);
         $tipoElemento    = trim($app->input->post->getString('tipo_elemento', ''));
         $producto        = trim($app->input->post->getString('tercerizado_producto', ''));
-        $totalRaw        = $app->input->post->get('total', null, 'raw');
-        $total           = is_numeric($totalRaw) ? round((float) $totalRaw, 2) : -1.0;
+        $canSetImporte   = AccessHelper::canSetTercerizadoImporte();
 
-        if ($preCotizacionId < 1 || $tipoElemento === '' || $producto === '' || $total < 0) {
+        if ($canSetImporte) {
+            $totalRaw = $app->input->post->get('total', null, 'raw');
+            $total    = is_numeric($totalRaw) ? round((float) $totalRaw, 2) : -1.0;
+            if ($total < 0) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
+                $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . max(1, $preCotizacionId), false));
+
+                return false;
+            }
+            $importePendiente = ($total <= 0.0) ? 1 : 0;
+        } else {
+            $total            = 0.0;
+            $importePendiente = 1;
+        }
+
+        if ($preCotizacionId < 1 || $tipoElemento === '' || $producto === '') {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . max(1, $preCotizacionId), false));
 
@@ -815,25 +848,75 @@ class PrecotizacionController extends BaseController
 
                 return false;
             }
+            if (!$canSetImporte) {
+                $total            = 0.0;
+                $importePendiente = 1;
+            }
+
             $ok = $model->updateLine($lineId, [
-                'tipo_elemento'        => $tipoElemento,
-                'tercerizado_producto' => $producto,
-                'total'                => $total,
+                'tipo_elemento'                  => $tipoElemento,
+                'tercerizado_producto'           => $producto,
+                'total'                          => $total,
+                'tercerizado_importe_pendiente'  => $importePendiente,
             ]);
             if (!$ok) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_EDIT_LINE'), 'error');
             } else {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_UPDATED'));
+                if ($canSetImporte && $total > 0.0) {
+                    try {
+                        $wf = new ApprovalWorkflowService();
+                        if ($wf->hasSchema()) {
+                            $pending = $wf->getOpenPendingRequest(
+                                ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS,
+                                $lineId
+                            );
+                            if ($pending !== null) {
+                                $rid = (int) ($pending->id ?? 0);
+                                if ($rid > 0) {
+                                    $wf->cancelRequest($rid, (int) $user->id, 'tercerizado_importe_set');
+                                }
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                    }
+                }
             }
         } else {
             $newId = $model->addLine($preCotizacionId, [
-                'line_type'            => 'tercerizado',
-                'tipo_elemento'        => $tipoElemento,
-                'tercerizado_producto' => $producto,
-                'total'                => $total,
+                'line_type'                       => 'tercerizado',
+                'tipo_elemento'                   => $tipoElemento,
+                'tercerizado_producto'            => $producto,
+                'total'                           => $total,
+                'tercerizado_importe_pendiente'   => $importePendiente,
             ]);
+            $submittedWf = false;
+            if ($newId !== false && !$canSetImporte && $importePendiente === 1 && AccessHelper::isInVentasGroup()) {
+                try {
+                    $wf = new ApprovalWorkflowService();
+                    if ($wf->hasSchema() && $wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS)) {
+                        $preItem = $model->getItem($preCotizacionId);
+                        $meta    = json_encode([
+                            'pre_cotizacion_id'      => $preCotizacionId,
+                            'pre_cotizacion_number'  => (string) ($preItem->number ?? ''),
+                            'tipo_elemento'          => $tipoElemento,
+                            'tercerizado_producto'   => $producto,
+                        ], JSON_UNESCAPED_UNICODE);
+                        $rid = $wf->createRequest(
+                            ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS,
+                            (int) $newId,
+                            (int) $user->id,
+                            $meta ?: null
+                        );
+                        $submittedWf = $rid > 0;
+                    }
+                } catch (\Throwable $e) {
+                }
+            }
             if ($newId === false) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_ADD_LINE'), 'error');
+            } elseif ($submittedWf) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_TERCERIZADO_APPROVAL_SUBMITTED'), 'success');
             } else {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_ADDED'));
             }

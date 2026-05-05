@@ -31,6 +31,7 @@ $entityLabel = static function (string $entityType): string {
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
         'orden_compra'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_COMPRA',
         'creacion_orden_trabajo'  => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_CREACION_ORDEN_TRABAJO',
+        'servicios_elementos_externos' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
 
@@ -79,6 +80,11 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             if ($refDisplay === '') {
                                 $refDisplay = (string) (int) $eid;
                             }
+                        } elseif ($etype === 'servicios_elementos_externos') {
+                            $refDisplay = (string) ($row->precotizacion_number ?? '');
+                            if ($refDisplay === '') {
+                                $refDisplay = (string) (int) $eid;
+                            }
                         } elseif ($etype === 'orden_compra') {
                             $refDisplay = trim((string) ($row->orden_compra_number ?? ''));
                             if ($refDisplay === '') {
@@ -88,6 +94,19 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             $refDisplay = (string) (int) $eid;
                         }
                         $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $eid, false);
+                        if ($etype === 'servicios_elementos_externos') {
+                            $metaDoc = isset($row->metadata) ? trim((string) $row->metadata) : '';
+                            $preFromMeta = 0;
+                            if ($metaDoc !== '') {
+                                $dec = json_decode($metaDoc, true);
+                                if (is_array($dec) && isset($dec['pre_cotizacion_id'])) {
+                                    $preFromMeta = (int) $dec['pre_cotizacion_id'];
+                                }
+                            }
+                            if ($preFromMeta > 0) {
+                                $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preFromMeta, false);
+                            }
+                        }
                         $subName = isset($row->submitter_name) ? trim((string) $row->submitter_name) : '';
                         $subUser = isset($row->submitter_username) ? trim((string) $row->submitter_username) : '';
                         if ($subUser !== '') {
@@ -104,7 +123,7 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="approval-col-doc text-nowrap"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td style="min-width:260px;">
-                                <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion' || $etype === 'creacion_orden_trabajo') : ?>
+                                <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion' || $etype === 'creacion_orden_trabajo' || $etype === 'servicios_elementos_externos') : ?>
                                 <div class="d-flex flex-wrap gap-1 align-items-center">
                                     <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>

@@ -70,6 +70,14 @@ final class RecordLink
             case ApprovalWorkflowService::ENTITY_ORDEN_COMPRA:
                 return 'index.php?option=com_ordenproduccion&view=ordencompra&id=' . $eid;
 
+            case ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS:
+                $meta = self::decodeMetadata($row);
+                $preId = isset($meta['pre_cotizacion_id']) ? (int) $meta['pre_cotizacion_id'] : 0;
+
+                return $preId > 0
+                    ? 'index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preId
+                    : null;
+
             default:
                 return null;
         }

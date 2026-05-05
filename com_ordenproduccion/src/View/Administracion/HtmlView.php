@@ -1620,6 +1620,17 @@ class HtmlView extends BaseHtmlView
                             if ($oid > 0) {
                                 $ocIds[$oid] = true;
                             }
+                        } elseif ($et === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+                            $mr0 = isset($prow->metadata) ? trim((string) $prow->metadata) : '';
+                            if ($mr0 !== '') {
+                                $dm0 = json_decode($mr0, true);
+                                if (is_array($dm0) && isset($dm0['pre_cotizacion_id'])) {
+                                    $ppk = (int) $dm0['pre_cotizacion_id'];
+                                    if ($ppk > 0) {
+                                        $preCotIds[$ppk] = true;
+                                    }
+                                }
+                            }
                         }
                     }
                     if ($preCotIds !== []) {
@@ -1652,6 +1663,18 @@ class HtmlView extends BaseHtmlView
                                         $eid = (int) ($prow->entity_id ?? 0);
                                         $prow->precotizacion_number = $eid > 0
                                             ? ($byId[$eid] ?? ('PRE-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT)))
+                                            : '';
+                                    } elseif ($et === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+                                        $prePk = 0;
+                                        $mr    = isset($prow->metadata) ? trim((string) $prow->metadata) : '';
+                                        if ($mr !== '') {
+                                            $dm = json_decode($mr, true);
+                                            if (is_array($dm) && isset($dm['pre_cotizacion_id'])) {
+                                                $prePk = (int) $dm['pre_cotizacion_id'];
+                                            }
+                                        }
+                                        $prow->precotizacion_number = $prePk > 0
+                                            ? ($byId[$prePk] ?? ('PRE-' . str_pad((string) $prePk, 5, '0', STR_PAD_LEFT)))
                                             : '';
                                     }
                                 }

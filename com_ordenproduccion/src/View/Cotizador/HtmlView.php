@@ -103,6 +103,14 @@ class HtmlView extends BaseHtmlView
     protected $canSaveImpresionOverride = false;
 
     /**
+     * Document: user may enter Importe (Q) on líneas servicio tercerizado (Aprobaciones Ventas / super user).
+     *
+     * @var    bool
+     * @since  3.117.0
+     */
+    protected $canSetTercerizadoImporte = false;
+
+    /**
      * Document: solicitud de descuento workflow is installed and published.
      *
      * @var    bool
@@ -371,6 +379,7 @@ class HtmlView extends BaseHtmlView
                     $this->precotizacionDocumentEditable = $precotModel->canUserEditPreCotizacionDocument((int) $id)
                         && !$this->precotizacionLocked;
                     $this->canSaveImpresionOverride = $precotModel->canUserSaveImpresionOverrideOnPreCotizacion((int) $id);
+                    $this->canSetTercerizadoImporte  = AccessHelper::canSetTercerizadoImporte();
                     $this->discountWorkflowAvailable   = false;
                     $this->pendingSolicitudDescuento     = false;
                     $this->canRequestSolicitudDescuento  = false;
@@ -479,6 +488,7 @@ class HtmlView extends BaseHtmlView
                         $this->pendingCreacionOtRequestId           = 0;
                         $this->canCompleteCreacionOtApprovalHere    = false;
                         $this->pendingCreacionOtDefaultFechaYmd       = '';
+                        $this->canSetTercerizadoImporte               = false;
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
                         && $precotModel->canUserSubmitPreCotizacionWorkflowRequests((int) $id)

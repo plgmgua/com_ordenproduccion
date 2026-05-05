@@ -116,6 +116,39 @@ class ApprovalEmailQueueHelper
             return 'ORC-' . str_pad((string) $pk, 5, '0', STR_PAD_LEFT);
         }
 
+        if ($type === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+            try {
+                $q = $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('pc.id', 'pre_cotizacion_id'),
+                        $db->quoteName('pc.number', 'precot_number'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line', 'l'))
+                    ->innerJoin(
+                        $db->quoteName('#__ordenproduccion_pre_cotizacion', 'pc')
+                        . ' ON ' . $db->quoteName('pc.id') . ' = ' . $db->quoteName('l.pre_cotizacion_id')
+                    )
+                    ->where($db->quoteName('l.id') . ' = ' . $pk)
+                    ->where($db->quoteName('l.line_type') . ' = ' . $db->quote('tercerizado'))
+                    ->setLimit(1);
+                $db->setQuery($q);
+                $row = $db->loadObject();
+                if ($row !== null) {
+                    $preId = (int) ($row->pre_cotizacion_id ?? 0);
+                    $num   = trim((string) ($row->precot_number ?? ''));
+                    if ($num !== '') {
+                        return $num;
+                    }
+                    if ($preId > 0) {
+                        return 'PRE-' . str_pad((string) $preId, 5, '0', STR_PAD_LEFT);
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+
+            return 'L' . (string) $pk;
+        }
+
         if (
             $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
             && $type !== ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
@@ -428,6 +461,37 @@ class ApprovalEmailQueueHelper
                 $precotAbs    = $root . '/' . ltrim((string) $precotDocRel, '/');
                 $vars['approval_url']         = $precotAbs;
                 $vars['precot_document_url']    = $precotAbs;
+            }
+        }
+        if ($etLink === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+            $precotPkUrl = 0;
+            $metaRawUrl  = isset($request->metadata) ? trim((string) $request->metadata) : '';
+            if ($metaRawUrl !== '') {
+                $metaArr = json_decode($metaRawUrl, true);
+                if (is_array($metaArr) && isset($metaArr['pre_cotizacion_id'])) {
+                    $precotPkUrl = (int) $metaArr['pre_cotizacion_id'];
+                }
+            }
+            if ($precotPkUrl < 1) {
+                $linePk = (int) ($request->entity_id ?? 0);
+                if ($linePk > 0) {
+                    try {
+                        $uq = $db->getQuery(true)
+                            ->select($db->quoteName('pre_cotizacion_id'))
+                            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                            ->where($db->quoteName('id') . ' = ' . $linePk)
+                            ->setLimit(1);
+                        $db->setQuery($uq);
+                        $precotPkUrl = (int) $db->loadResult();
+                    } catch (\Throwable $e) {
+                    }
+                }
+            }
+            if ($precotPkUrl > 0) {
+                $precotDocRel = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $precotPkUrl, false);
+                $precotAbs    = $root . '/' . ltrim((string) $precotDocRel, '/');
+                $vars['approval_url']       = $precotAbs;
+                $vars['precot_document_url'] = $precotAbs;
             }
         }
 

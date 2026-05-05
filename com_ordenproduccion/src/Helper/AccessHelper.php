@@ -174,6 +174,22 @@ class AccessHelper
     }
 
     /**
+     * May set the «Importe (Q)» on líneas tipo tercerizado (servicio tercerizado): Aprobaciones Ventas / configured group or super user.
+     *
+     * @return  bool
+     *
+     * @since   3.117.0
+     */
+    public static function canSetTercerizadoImporte(): bool
+    {
+        if (self::isSuperUser()) {
+            return true;
+        }
+
+        return self::isInAprobacionesVentasGroup();
+    }
+
+    /**
      * Whether the user may view/edit "P.Unit Proveedor" on pre-cotización proveedor externo lines (future PO).
      * Allowed: Joomla groups **12** (Administración) and **16** (Aprobaciones Ventas / configured id).
      *

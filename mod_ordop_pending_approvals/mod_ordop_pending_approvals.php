@@ -77,6 +77,18 @@ if ($rows !== []) {
                 $preCotIds[$eid] = true;
             }
         }
+        if ($et === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+            $rawM = isset($row->metadata) ? trim((string) $row->metadata) : '';
+            if ($rawM !== '') {
+                $dm = json_decode($rawM, true);
+                if (is_array($dm) && isset($dm['pre_cotizacion_id'])) {
+                    $ppk = (int) $dm['pre_cotizacion_id'];
+                    if ($ppk > 0) {
+                        $preCotIds[$ppk] = true;
+                    }
+                }
+            }
+        }
     }
     $ordenCompraIds = [];
     foreach ($rows as $row) {
@@ -130,6 +142,19 @@ if ($rows !== []) {
             $eid = (int) ($row->entity_id ?? 0);
             $row->precotizacion_number = $eid > 0
                 ? ($preCotNumberById[$eid] ?? $formatPreCotDisplayNumber($eid, ''))
+                : '';
+        }
+        if ($et === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+            $prePk = 0;
+            $metaR = isset($row->metadata) ? trim((string) $row->metadata) : '';
+            if ($metaR !== '') {
+                $dm2 = json_decode($metaR, true);
+                if (is_array($dm2) && isset($dm2['pre_cotizacion_id'])) {
+                    $prePk = (int) $dm2['pre_cotizacion_id'];
+                }
+            }
+            $row->precotizacion_number = $prePk > 0
+                ? ($preCotNumberById[$prePk] ?? $formatPreCotDisplayNumber($prePk, ''))
                 : '';
         }
         if ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {

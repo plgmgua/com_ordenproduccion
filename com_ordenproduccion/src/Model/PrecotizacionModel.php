@@ -1820,6 +1820,9 @@ class PrecotizacionModel extends ListModel
             if (isset($columns['tercerizado_producto'])) {
                 $obj->tercerizado_producto = substr($prod, 0, 512);
             }
+            if (isset($columns['tercerizado_importe_pendiente'])) {
+                $obj->tercerizado_importe_pendiente = !empty($data['tercerizado_importe_pendiente']) ? 1 : 0;
+            }
             try {
                 $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
                 $preCotizacionId = (int) $line->pre_cotizacion_id;
@@ -2248,6 +2251,9 @@ class PrecotizacionModel extends ListModel
         if (isset($columns['tercerizado_producto']) && $lineType === 'tercerizado') {
             $tp = trim((string) ($data['tercerizado_producto'] ?? ''));
             $line->tercerizado_producto = $tp !== '' ? substr($tp, 0, 512) : null;
+        }
+        if (isset($columns['tercerizado_importe_pendiente']) && $lineType === 'tercerizado') {
+            $line->tercerizado_importe_pendiente = !empty($data['tercerizado_importe_pendiente']) ? 1 : 0;
         }
         if ($lineType === 'proveedor_externo') {
             if (isset($columns['vendor_descripcion'])) {

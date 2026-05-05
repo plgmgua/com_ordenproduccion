@@ -125,6 +125,7 @@ $totalConTarjeta = isset($item->total_con_tarjeta) && $item->total_con_tarjeta !
     ? (float) $item->total_con_tarjeta
     : null;
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
+$canSetTercerizadoImporte = !empty($this->canSetTercerizadoImporte);
 
 /* IVA/ISR líneas pie: necesitan vista interna + Facturar. Además debe haber tasa global (params iva/isr)
  * distinta de 0, o importe persistido/recalculado no trivial — las opciones del componente (manifest)
@@ -628,9 +629,12 @@ $solicitarDescuentoAction   = Route::_(
                             'breakdown' => $line->breakdown ?? [],
                         ]), ENT_QUOTES, 'UTF-8');
                         $tipoElemento = isset($line->tipo_elemento) && trim((string) $line->tipo_elemento) !== '' ? trim((string) $line->tipo_elemento) : '—';
+                        $terImportePend = $isTercerizado && !empty($line->tercerizado_importe_pendiente);
                         ?>
                         <tr class="line-data-row">
-                            <td><?php echo htmlspecialchars($tipoElemento); ?></td>
+                            <td><?php if ($terImportePend && $canSetTercerizadoImporte) : ?>
+                                <span class="text-warning me-1" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_TERCERIZADO_IMPORTE_PENDIENTE_HINT'), ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-circle-exclamation" aria-hidden="true"></i></span>
+                                <?php endif; ?><?php echo htmlspecialchars($tipoElemento); ?></td>
                             <td><?php echo (int) $line->quantity; ?></td>
                             <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento || $isTercerizado ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
@@ -652,12 +656,14 @@ $solicitarDescuentoAction   = Route::_(
                                         $teEd = isset($line->tipo_elemento) ? (string) $line->tipo_elemento : '';
                                         $prEd = isset($line->tercerizado_producto) ? (string) $line->tercerizado_producto : '';
                                         $toEd = isset($line->total) ? (float) $line->total : 0;
+                                        $pendEd = !empty($line->tercerizado_importe_pendiente) ? '1' : '0';
                                         ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary tercerizado-edit-line-btn"
                                         data-line-id="<?php echo (int) $line->id; ?>"
                                         data-tipo-elemento="<?php echo htmlspecialchars($teEd, ENT_QUOTES, 'UTF-8'); ?>"
                                         data-tercerizado-producto="<?php echo htmlspecialchars($prEd, ENT_QUOTES, 'UTF-8'); ?>"
-                                        data-total="<?php echo htmlspecialchars(number_format($toEd, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                        data-total="<?php echo htmlspecialchars(number_format($toEd, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-importe-pendiente="<?php echo htmlspecialchars($pendEd, ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                     </button>
                                     <?php endif; ?>
@@ -1399,13 +1405,18 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
                         <label for="tercerizado_modal_producto" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_PRODUCTO_LABEL'); ?></label>
                         <input type="text" name="tercerizado_producto" id="tercerizado_modal_producto" class="form-control" maxlength="512" required autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_PRODUCTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
-                    <div class="mb-3">
+                    <?php if ($canSetTercerizadoImporte) : ?>
+                    <div class="mb-3" id="tercerizado-importe-field-wrap">
                         <label for="tercerizado_modal_total" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_IMPORTE'); ?></label>
                         <div class="input-group">
                             <span class="input-group-text">Q</span>
                             <input type="number" name="total" id="tercerizado_modal_total" class="form-control" min="0" step="0.01" value="0.00" required>
                         </div>
                     </div>
+                    <?php else : ?>
+                    <input type="hidden" name="total" id="tercerizado_modal_total_hidden" value="0">
+                    <p class="small text-muted mb-0" id="tercerizado-importe-ventas-note"><?php echo Text::_('COM_ORDENPRODUCCION_TERCERIZADO_IMPORTE_SOLO_APROBACIONES'); ?></p>
+                    <?php endif; ?>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
@@ -1423,11 +1434,13 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
     var tipoInp = document.getElementById('tercerizado_modal_tipo_elemento');
     var prodInp = document.getElementById('tercerizado_modal_producto');
     var totInp = document.getElementById('tercerizado_modal_total');
+    var totHidden = document.getElementById('tercerizado_modal_total_hidden');
     function resetAdd() {
         if (lineIdInp) lineIdInp.value = '0';
         if (tipoInp) tipoInp.value = '';
         if (prodInp) prodInp.value = '';
         if (totInp) totInp.value = '0.00';
+        if (totHidden) totHidden.value = '0';
     }
     modalEl.addEventListener('show.bs.modal', function(ev) {
         var t = ev.relatedTarget;
@@ -1439,7 +1452,9 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         if (lineIdInp) lineIdInp.value = String(t.getAttribute('data-line-id') || '0');
         if (tipoInp) tipoInp.value = t.getAttribute('data-tipo-elemento') || '';
         if (prodInp) prodInp.value = t.getAttribute('data-tercerizado-producto') || '';
-        if (totInp) totInp.value = t.getAttribute('data-total') || '0.00';
+        var tv = t.getAttribute('data-total') || '0.00';
+        if (totInp) totInp.value = tv;
+        if (totHidden) totHidden.value = tv;
     });
     var openAdd = document.getElementById('btnTercerizadoLineOpen');
     if (openAdd) {
