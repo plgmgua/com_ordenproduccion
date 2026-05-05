@@ -60,6 +60,49 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Start «servicios_elementos_externos» approval when Ventas saves a tercerizado line without importe (add or edit).
+     *
+     * @param   object  $model            Precotizacion site model
+     * @param   int  $importePendiente    1 when line awaits Aprobaciones Ventas importe
+     *
+     * @return  bool  True if a new request row was created
+     *
+     * @since   3.117.1
+     */
+    private function tryCreateServiciosExternosApprovalRequest($model, int $preCotizacionId, int $lineId, int $submitterId, string $tipoElemento, string $tercerizadoProducto, int $importePendiente): bool
+    {
+        if ($lineId < 1 || $submitterId < 1 || $importePendiente !== 1) {
+            return false;
+        }
+        if (!AccessHelper::isInVentasGroup() || AccessHelper::canSetTercerizadoImporte()) {
+            return false;
+        }
+
+        try {
+            $wf = new ApprovalWorkflowService();
+            if (!$wf->hasSchema() || !$wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS)) {
+                return false;
+            }
+            $preItem = $model->getItem($preCotizacionId);
+            $meta    = json_encode([
+                'pre_cotizacion_id'      => $preCotizacionId,
+                'pre_cotizacion_number'  => (string) ($preItem->number ?? ''),
+                'tipo_elemento'          => $tipoElemento,
+                'tercerizado_producto'   => $tercerizadoProducto,
+            ], JSON_UNESCAPED_UNICODE);
+
+            return $wf->createRequest(
+                ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS,
+                $lineId,
+                $submitterId,
+                $meta ?: null
+            ) > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Document mode for a pre-cotización header (pliego vs proveedor_externo).
      *
      * @since  3.112.0
@@ -862,7 +905,20 @@ class PrecotizacionController extends BaseController
             if (!$ok) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_EDIT_LINE'), 'error');
             } else {
-                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_UPDATED'));
+                $submittedWf = $this->tryCreateServiciosExternosApprovalRequest(
+                    $model,
+                    $preCotizacionId,
+                    $lineId,
+                    (int) $user->id,
+                    $tipoElemento,
+                    $producto,
+                    $importePendiente
+                );
+                if ($submittedWf) {
+                    $this->setMessage(Text::_('COM_ORDENPRODUCCION_TERCERIZADO_APPROVAL_SUBMITTED'), 'success');
+                } else {
+                    $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_UPDATED'));
+                }
                 if ($canSetImporte && $total > 0.0) {
                     try {
                         $wf = new ApprovalWorkflowService();
@@ -890,29 +946,15 @@ class PrecotizacionController extends BaseController
                 'total'                           => $total,
                 'tercerizado_importe_pendiente'   => $importePendiente,
             ]);
-            $submittedWf = false;
-            if ($newId !== false && !$canSetImporte && $importePendiente === 1 && AccessHelper::isInVentasGroup()) {
-                try {
-                    $wf = new ApprovalWorkflowService();
-                    if ($wf->hasSchema() && $wf->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS)) {
-                        $preItem = $model->getItem($preCotizacionId);
-                        $meta    = json_encode([
-                            'pre_cotizacion_id'      => $preCotizacionId,
-                            'pre_cotizacion_number'  => (string) ($preItem->number ?? ''),
-                            'tipo_elemento'          => $tipoElemento,
-                            'tercerizado_producto'   => $producto,
-                        ], JSON_UNESCAPED_UNICODE);
-                        $rid = $wf->createRequest(
-                            ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS,
-                            (int) $newId,
-                            (int) $user->id,
-                            $meta ?: null
-                        );
-                        $submittedWf = $rid > 0;
-                    }
-                } catch (\Throwable $e) {
-                }
-            }
+            $submittedWf = $newId !== false && $this->tryCreateServiciosExternosApprovalRequest(
+                $model,
+                $preCotizacionId,
+                (int) $newId,
+                (int) $user->id,
+                $tipoElemento,
+                $producto,
+                $importePendiente
+            );
             if ($newId === false) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_ADD_LINE'), 'error');
             } elseif ($submittedWf) {

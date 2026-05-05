@@ -1420,7 +1420,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
-                    <button type="submit" class="btn btn-primary"><?php echo Text::_('JSAVE'); ?></button>
+                    <button type="submit" class="btn btn-primary"><?php echo $canSetTercerizadoImporte ? Text::_('JSAVE') : Text::_('COM_ORDENPRODUCCION_TERCERIZADO_SOLICITAR_PRECIO_BTN'); ?></button>
                 </div>
             </form>
         </div>

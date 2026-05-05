@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.1-STABLE] - 2026-05-04
+
+### Changed
+- **Servicio tercerizado (Ventas):** Botón del modal **Solicitar Precio**; la solicitud de flujo «Servicios y elementos externos» se crea al guardar también al **editar** la línea (si aún no hay solicitud pendiente).
+
 ## [3.115.17-STABLE] - 2026-04-27
 
 ### Changed
