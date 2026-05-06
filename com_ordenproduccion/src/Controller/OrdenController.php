@@ -670,20 +670,17 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($labelColWpdf, $hClienteRowMm, Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES') . ':', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
-        if ($cantidadPdf !== '') {
-            $valAreaMm     = max(10.0, $innerPdfW - $labelColWpdf);
-            $cantLabelMm   = 36.0;
-            $cantValMinMm  = 22.0;
-            $medidasValMm  = max(30.0, $valAreaMm - $cantLabelMm - $cantValMinMm);
-            $cantidadValMm = max($cantValMinMm, $valAreaMm - $medidasValMm - $cantLabelMm);
-            $pdf->Cell($medidasValMm, $hClienteRowMm, $medidasPdf, 1, 0, 'L');
-            $pdf->SetFont('Arial', 'B', 9);
-            $pdf->Cell($cantLabelMm, $hClienteRowMm, $fixSpanishChars(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_CANTIDAD_TOTAL')) . ':', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell($cantidadValMm, $hClienteRowMm, $cantidadPdf, 1, 1, 'L');
-        } else {
-            $pdf->Cell(0, $hClienteRowMm, $medidasPdf, 1, 1, 'L');
-        }
+        $valAreaMm     = max(10.0, $innerPdfW - $labelColWpdf);
+        $cantLabelMm   = 36.0;
+        $cantValMinMm  = 22.0;
+        $medidasValMm  = max(30.0, $valAreaMm - $cantLabelMm - $cantValMinMm);
+        $cantidadValMm = max($cantValMinMm, $valAreaMm - $medidasValMm - $cantLabelMm);
+        $cantidadCellPdf = $cantidadPdf !== '' ? $cantidadPdf : '-';
+        $pdf->Cell($medidasValMm, $hClienteRowMm, $medidasPdf, 1, 0, 'L');
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->Cell($cantLabelMm, $hClienteRowMm, $fixSpanishChars(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_CANTIDAD_TOTAL')) . ':', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell($cantidadValMm, $hClienteRowMm, $cantidadCellPdf, 1, 1, 'L');
 
         OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(
             $pdf,
@@ -735,20 +732,17 @@ class OrdenController extends BaseController
         $medidasSpec = $fixSpanishChars($medidasSpec);
         $cantidadSpec = trim($this->resolveCantidadTotalForWorkOrderPdf($workOrderData));
         $cantidadSpec = $cantidadSpec !== '' ? $fixSpanishChars($cantidadSpec) : '';
+        $cantidadSpecCell = $cantidadSpec !== '' ? $cantidadSpec : '-';
         $pdf->SetFont('Arial', '', 9);
-        if ($cantidadSpec !== '') {
-            $wRestSpec   = (float) $pdf->GetPageWidth() - 30.0 - 80.0;
-            $cantLblSpec = 36.0;
-            $medWSpec    = max(25.0, $wRestSpec - $cantLblSpec - 22.0);
-            $cantWSpec   = max(22.0, $wRestSpec - $medWSpec - $cantLblSpec);
-            $pdf->Cell($medWSpec, 8, $medidasSpec, 1, 0, 'L');
-            $pdf->SetFont('Arial', 'B', 9);
-            $pdf->Cell($cantLblSpec, 8, $fixSpanishChars(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_CANTIDAD_TOTAL')) . ':', 1, 0, 'L');
-            $pdf->SetFont('Arial', '', 9);
-            $pdf->Cell($cantWSpec, 8, $cantidadSpec, 1, 1, 'L');
-        } else {
-            $pdf->Cell(0, 8, $medidasSpec, 1, 1, 'L');
-        }
+        $wRestSpec   = (float) $pdf->GetPageWidth() - 30.0 - 80.0;
+        $cantLblSpec = 36.0;
+        $medWSpec    = max(25.0, $wRestSpec - $cantLblSpec - 22.0);
+        $cantWSpec   = max(22.0, $wRestSpec - $medWSpec - $cantLblSpec);
+        $pdf->Cell($medWSpec, 8, $medidasSpec, 1, 0, 'L');
+        $pdf->SetFont('Arial', 'B', 9);
+        $pdf->Cell($cantLblSpec, 8, $fixSpanishChars(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_CANTIDAD_TOTAL')) . ':', 1, 0, 'L');
+        $pdf->SetFont('Arial', '', 9);
+        $pdf->Cell($cantWSpec, 8, $cantidadSpecCell, 1, 1, 'L');
         
         $pdf->Ln(5);
         

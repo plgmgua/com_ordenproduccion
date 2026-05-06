@@ -298,7 +298,6 @@ function displayYesNoBadge($value) {
                             $ordenInformacionMedidasValor = ($ordenMedidasPrecot !== '') ? $ordenMedidasPrecot : $ordenMedidasDims;
                             $ordenCantidadPrecot = isset($item->orden_view_pre_cantidad_total) ? trim((string) $item->orden_view_pre_cantidad_total) : '';
                             ?>
-                            <?php if ($ordenInformacionMedidasValor !== '' || $ordenCantidadPrecot !== '') : ?>
                             <tr>
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_MEDIDAS'); ?>:</strong></td>
                                 <td>
@@ -306,16 +305,13 @@ function displayYesNoBadge($value) {
                                         <div class="flex-grow-1" style="min-width: 8rem;">
                                             <?php echo $ordenInformacionMedidasValor !== '' ? htmlspecialchars($ordenInformacionMedidasValor) : '<span class="text-muted">—</span>'; ?>
                                         </div>
-                                        <?php if ($ordenCantidadPrecot !== '') : ?>
                                         <div class="flex-shrink-0">
                                             <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CANTIDAD_TOTAL'); ?>:</strong>
-                                            <?php echo htmlspecialchars($ordenCantidadPrecot); ?>
+                                            <?php echo $ordenCantidadPrecot !== '' ? htmlspecialchars($ordenCantidadPrecot) : '<span class="text-muted">—</span>'; ?>
                                         </div>
-                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
-                            <?php endif; ?>
                             <?php if (!$isVendorPrePresentation && !$isPrecotPliegoElementosPresentation) : ?>
                             <tr>
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_MATERIAL'); ?>:</strong></td>
