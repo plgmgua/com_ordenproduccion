@@ -907,6 +907,10 @@ class ProductosModel extends BaseDatabaseModel
             }
             $p1 = (float) ($row['price_1_to_1000'] ?? $row['price'] ?? 0);
             $p2 = (float) ($row['price_1001_plus'] ?? 0);
+            // Match product list UI: when rango 2 is unset/zero, show same as rango 1 / legacy price.
+            if ($p2 <= 0) {
+                $p2 = $p1;
+            }
             return $qty <= $ceiling ? $p1 : $p2;
         }
         $row = array_change_key_case((array) $el, CASE_LOWER);

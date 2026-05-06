@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.3-STABLE] - 2026-05-06
+
+### Fixed
+- **Otros elementos (pre-cotización):** Quantities above **Rango 1 hasta** used only `price_1001_plus`. If that column was still **0** (common after migration when only legacy `price` / rango 1 was set), the total was **Q 0.00** even though the productos list showed a non-zero “Precio rango 2” (it falls back to legacy `price` for display). `ProductosModel::getElementoUnitPrice` now uses the rango 1 unit price when rango 2 is zero, consistent with the list and with typical “same price both ranges” setups.
+
 ## [3.118.2-STABLE] - 2026-05-06
 
 ### Added
