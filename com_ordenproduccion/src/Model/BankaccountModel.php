@@ -43,6 +43,38 @@ class BankaccountModel extends BaseDatabaseModel
     }
 
     /**
+     * Resolve display names for bank account ids (any state).
+     *
+     * @param   array<int>  $ids
+     *
+     * @return  array<int, string>  id => trimmed name
+     *
+     * @since   3.118.2
+     */
+    public function getNamesByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static function ($v) {
+            return $v > 0;
+        })));
+        if ($ids === []) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $q = $db->getQuery(true)
+            ->select([$db->quoteName('id'), $db->quoteName('name')])
+            ->from($db->quoteName('#__ordenproduccion_bank_accounts'))
+            ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+        $db->setQuery($q);
+        $rows = $db->loadObjectList() ?: [];
+        $out = [];
+        foreach ($rows as $r) {
+            $out[(int) $r->id] = trim((string) ($r->name ?? ''));
+        }
+
+        return $out;
+    }
+
+    /**
      * Active default account (for forms / display), if any.
      *
      * @return  object|null

@@ -489,7 +489,7 @@ use Joomla\CMS\Session\Session;
                         <h6 class="small fw-bold">Líneas de pago</h6>
                         <div class="table-responsive mb-3">
                             <table class="table table-sm table-striped" id="modalLinesTable">
-                                <thead><tr><th>Tipo</th><th>Banco</th><th>No. Doc.</th><th class="text-end">Monto</th></tr></thead>
+                                <thead><tr><th>Tipo</th><th>Banco</th><th>Cuenta</th><th>No. Doc.</th><th class="text-end">Monto</th></tr></thead>
                                 <tbody id="modalLinesBody"></tbody>
                             </table>
                         </div>
@@ -649,12 +649,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     tbody.innerHTML = '';
                     (d.lines || []).forEach(function(l) {
                         var tr = document.createElement('tr');
-                        tr.innerHTML = '<td>' + (l.payment_type_label || '-') + '</td><td>' + (l.bank_label || l.bank || '-') + '</td><td>' + (l.document_number || '-') + '</td><td class="text-end">Q ' + (l.amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2}) + '</td>';
+                        tr.innerHTML = '<td>' + (l.payment_type_label || '-') + '</td><td>' + (l.bank_label || l.bank || '-') + '</td><td>' + (l.bank_account_label || '-') + '</td><td>' + (l.document_number || '-') + '</td><td class="text-end">Q ' + (l.amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2}) + '</td>';
                         tbody.appendChild(tr);
                     });
                     if (!d.lines || d.lines.length === 0) {
                         var tr = document.createElement('tr');
-                        tr.innerHTML = '<td colspan="4" class="text-muted">Sin líneas detalladas</td>';
+                        tr.innerHTML = '<td colspan="5" class="text-muted">Sin líneas detalladas</td>';
                         tbody.appendChild(tr);
                     }
                     var obody = document.getElementById('modalOrdersBody');

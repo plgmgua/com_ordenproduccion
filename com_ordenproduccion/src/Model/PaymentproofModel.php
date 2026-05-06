@@ -154,7 +154,8 @@ class PaymentproofModel extends ItemModel
                 $type = trim((string) ($line['payment_type'] ?? ''));
                 $bank = trim((string) ($line['bank'] ?? ''));
                 $doc = trim((string) ($line['document_number'] ?? ''));
-                if ($type !== '' && $doc !== '' && $this->documentCombinationExists($type, $bank, $doc)) {
+                $baId = (int) ($line['bank_account_id'] ?? 0);
+                if ($type !== '' && $doc !== '' && $this->documentCombinationExists($type, $bank, $doc, $baId)) {
                     $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DOCUMENT_ALREADY_EXISTS'));
                     return false;
                 }
@@ -237,6 +238,7 @@ class PaymentproofModel extends ItemModel
                 $pplCols = $db->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
                 $pplCols = is_array($pplCols) ? array_change_key_case($pplCols, CASE_LOWER) : [];
                 $hasDocumentDate = isset($pplCols['document_date']);
+                $hasBankAccountId = isset($pplCols['bank_account_id']);
                 $ordering     = 0;
                 $lineFileIdx  = 0;
                 $createdBy    = (int) ($data['created_by'] ?? 0);
@@ -254,6 +256,11 @@ class PaymentproofModel extends ItemModel
                         $docDate = trim($line['document_date'] ?? '');
                         $columns[] = 'document_date';
                         $values .= ',' . ($docDate !== '' ? $db->quote($docDate) : 'NULL');
+                    }
+                    if ($hasBankAccountId) {
+                        $columns[] = 'bank_account_id';
+                        $baIns = (int) ($line['bank_account_id'] ?? 0);
+                        $values .= ',' . ($baIns > 0 ? (string) $baIns : 'NULL');
                     }
                     $insertLine = $db->getQuery(true)
                         ->insert($db->quoteName('#__ordenproduccion_payment_proof_lines'))
@@ -436,6 +443,7 @@ class PaymentproofModel extends ItemModel
                 $lines[] = [
                     'payment_type' => $type,
                     'bank' => $line['bank'] ?? '',
+                    'bank_account_id' => max(0, (int) ($line['bank_account_id'] ?? 0)),
                     'document_number' => $doc,
                     'document_date' => trim($line['document_date'] ?? ''),
                     'amount' => $amount
@@ -448,6 +456,7 @@ class PaymentproofModel extends ItemModel
                 $lines[] = [
                     'payment_type' => $data['payment_type'],
                     'bank' => $data['bank'] ?? '',
+                    'bank_account_id' => max(0, (int) ($data['bank_account_id'] ?? 0)),
                     'document_number' => trim($data['document_number']),
                     'document_date' => trim($data['document_date'] ?? ''),
                     'amount' => $amt
@@ -461,18 +470,20 @@ class PaymentproofModel extends ItemModel
      * Check if the combination (payment_type, bank, document_number) already exists in payment_proofs or payment_proof_lines.
      * Only considers non-deleted records (state = 1); deleted payment proofs are ignored so the same document can be reused.
      *
-     * @param   string  $paymentType    Payment type (e.g. transferencia, cheque)
-     * @param   string  $bank           Bank code/name (can be empty)
-     * @param   string  $documentNumber Document number (e.g. cheque number, reference)
+     * @param   string  $paymentType      Payment type (e.g. transferencia, cheque)
+     * @param   string  $bank             Bank code/name (can be empty)
+     * @param   string  $documentNumber   Document number (e.g. cheque number, reference)
+     * @param   int     $bankAccountId    Company bank account row id (0 = none / legacy)
      *
      * @return  bool  True if a record with this combination already exists (active proofs only)
      */
-    protected function documentCombinationExists($paymentType, $bank, $documentNumber)
+    protected function documentCombinationExists($paymentType, $bank, $documentNumber, $bankAccountId = 0)
     {
         $db = $this->getDatabase();
         $type = trim($paymentType);
         $bankVal = trim($bank);
         $doc = trim($documentNumber);
+        $baId = (int) $bankAccountId;
         if ($type === '' || $doc === '') {
             return false;
         }
@@ -498,14 +509,48 @@ class PaymentproofModel extends ItemModel
                     $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = ppl.payment_proof_id AND pp.state = 1'
                 )
                 ->where('ppl.' . $db->quoteName('payment_type') . ' = ' . $db->quote($type))
-                ->where('ppl.' . $db->quoteName('document_number') . ' = ' . $db->quote($doc))
-                ->where('(COALESCE(ppl.' . $db->quoteName('bank') . ', \'\') = ' . $db->quote($bankNorm) . ')');
+                ->where('ppl.' . $db->quoteName('document_number') . ' = ' . $db->quote($doc));
+            if ($this->paymentProofLinesHasBankAccountIdColumn()) {
+                if ($baId > 0) {
+                    $q2->where('COALESCE(ppl.' . $db->quoteName('bank_account_id') . ', 0) = ' . $baId);
+                } else {
+                    $q2->where('COALESCE(ppl.' . $db->quoteName('bank_account_id') . ', 0) = 0')
+                        ->where('(COALESCE(ppl.' . $db->quoteName('bank') . ', \'\') = ' . $db->quote($bankNorm) . ')');
+                }
+            } else {
+                $q2->where('(COALESCE(ppl.' . $db->quoteName('bank') . ', \'\') = ' . $db->quote($bankNorm) . ')');
+            }
             $db->setQuery($q2);
             if ($db->loadResult()) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Whether payment_proof_lines has bank_account_id (3.118.2+).
+     *
+     * @return  bool
+     *
+     * @since   3.118.2
+     */
+    protected function paymentProofLinesHasBankAccountIdColumn(): bool
+    {
+        static $has = null;
+        if ($has !== null) {
+            return $has;
+        }
+        if (!$this->hasPaymentProofLinesTable()) {
+            $has = false;
+
+            return false;
+        }
+        $cols = $this->getDatabase()->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $has = isset($cols['bank_account_id']);
+
+        return $has;
     }
 
     /**

@@ -226,14 +226,34 @@ class PaymentsController extends BaseController
             'orders' => [],
         ];
 
+        $bankAccountIds = [];
+        foreach ($details->lines as $line) {
+            $aid = (int) ($line->bank_account_id ?? 0);
+            if ($aid > 0) {
+                $bankAccountIds[] = $aid;
+            }
+        }
+        $bankAccountIds = array_values(array_unique($bankAccountIds));
+        $bankAccountNamesById = [];
+        if ($bankAccountIds !== []) {
+            $baModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+            if ($baModel !== null && method_exists($baModel, 'getNamesByIds')) {
+                $bankAccountNamesById = $baModel->getNamesByIds($bankAccountIds);
+            }
+        }
+
         foreach ($details->lines as $line) {
             $amount = isset($line->amount) ? (float) $line->amount : (float) ($line->payment_amount ?? 0);
             $lineBank = $line->bank ?? '';
+            $accId = (int) ($line->bank_account_id ?? 0);
             $data['lines'][] = [
                 'payment_type' => $line->payment_type ?? '',
                 'payment_type_label' => $this->translatePaymentType($line->payment_type ?? $details->proof->payment_type ?? ''),
                 'bank' => $lineBank,
                 'bank_label' => $this->translateBank($lineBank),
+                'bank_account_id' => $accId,
+                'bank_account_label' => $accId > 0 ? ($bankAccountNamesById[$accId] ?? '') : '',
                 'document_number' => $line->document_number ?? '',
                 'amount' => $amount,
             ];

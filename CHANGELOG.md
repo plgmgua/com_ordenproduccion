@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.118.1-STABLE] - 2026-05-06
+## [3.118.2-STABLE] - 2026-05-06
+
+### Added
+- **Registro de comprobante de pago:** Each payment line includes a **company bank account** dropdown (active accounts from Herramientas). The default account is pre-selected. Column `bank_account_id` on `#__ordenproduccion_payment_proof_lines`; cash (`efectivo`) lines hide and clear bank and account fields. Existing-payment list, delete-preview modal, and JSON details include the account name where applicable.
 
 ### Added
 - **Cuentas bancarias:** Column `is_default` (single default per component data). Checkbox in add/edit modal; list column with badge or **Set default** button; `task=setDefault` JSON; `BankaccountModel::getDefaultBankAccount()` for active+default row (use in forms later).

@@ -22,6 +22,37 @@ $order = $this->order;
 $orderId = $this->orderId;
 $existingPayments = $this->existingPayments ?? [];
 
+$bankAccountOptionsForPayment = [];
+$defaultBankAccountIdForPayment = 0;
+$bankAccountNameByIdForLabel = [];
+try {
+    $baMdl = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+    if ($baMdl !== null && method_exists($baMdl, 'getBankAccounts')) {
+        foreach ($baMdl->getBankAccounts() as $acc) {
+            $bid = (int) ($acc->id ?? 0);
+            if ($bid < 1) {
+                continue;
+            }
+            $bankAccountNameByIdForLabel[$bid] = trim((string) ($acc->name ?? ''));
+            if ((int) ($acc->state ?? 0) !== 1) {
+                continue;
+            }
+            $bankAccountOptionsForPayment[$bid] = $bankAccountNameByIdForLabel[$bid];
+            if (!empty($acc->is_default)) {
+                $defaultBankAccountIdForPayment = $bid;
+            }
+        }
+    }
+} catch (\Throwable $e) {
+    // Optional until DB migration
+}
+
+$bankAccountColumnLabel = AsistenciaHelper::safeText(
+    'COM_ORDENPRODUCCION_PAYMENT_LINE_BANK_ACCOUNT',
+    'Bank account',
+    'Cuenta bancaria'
+);
+
 if (empty($order)) :
     $labelTitle = $this->labelPaymentProofTitle ?? 'Registro de Comprobante de Pago';
     $labelBack  = $this->labelBackToOrder ?? 'Volver a Control de Pagos';
@@ -83,6 +114,7 @@ if (empty($order)) :
                                         <tr>
                                             <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
                                             <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
+                                            <th><?php echo htmlspecialchars($bankAccountColumnLabel); ?></th>
                                             <th style="width: 140px;">Doc. No</th>
                                             <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
                                             <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
@@ -108,6 +140,14 @@ if (empty($order)) :
                                                     <?php endforeach; ?>
                                                 </select>
                                             </td>
+                                            <td class="bank-account-cell">
+                                                <select name="payment_lines[0][bank_account_id]" class="form-control form-control-sm payment-line-bank-account" required>
+                                                    <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_BANK_ACCOUNT', 'Select bank account', 'Seleccionar cuenta'); ?></option>
+                                                    <?php foreach ($bankAccountOptionsForPayment as $accId => $accName) : ?>
+                                                    <option value="<?php echo (int) $accId; ?>"<?php echo ((int) $defaultBankAccountIdForPayment === (int) $accId) ? ' selected' : ''; ?>><?php echo htmlspecialchars($accName); ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </td>
                                             <td><input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars($this->labelDocumentNumberPlaceholder ?? 'ej. Número de cheque'); ?>" maxlength="255" required></td>
                                             <td><input type="date" name="payment_lines[0][document_date]" class="form-control form-control-sm payment-line-document-date"></td>
                                             <td><input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required></td>
@@ -122,7 +162,7 @@ if (empty($order)) :
                                     </tbody>
                                     <tfoot>
                                         <tr class="table-info">
-                                            <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
+                                            <td colspan="5" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                             <td><strong id="payment-lines-total">Q. 0.00</strong></td>
                                             <td></td>
                                             <td class="text-end">
@@ -231,12 +271,35 @@ document.addEventListener('DOMContentLoaded', function() {
     var lineIndex = 1;
     var bankOpts = <?php echo json_encode($bankOptions); ?>;
     var defaultBank = <?php echo json_encode($defaultBankCode ?? ''); ?>;
+    var defaultBankAccountId = <?php echo (int) $defaultBankAccountIdForPayment; ?>;
     var typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
     var typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
     function toggleBankCell(row) {
         var typeSel = row && row.querySelector('.payment-line-type');
         var bankCell = row && row.querySelector('.bank-cell');
-        if (bankCell) bankCell.style.visibility = (typeSel && typeSel.value === 'efectivo') ? 'hidden' : 'visible';
+        var accCell = row && row.querySelector('.bank-account-cell');
+        var bankSel = row && row.querySelector('.payment-line-bank');
+        var accSel = row && row.querySelector('.payment-line-bank-account');
+        var isCash = typeSel && typeSel.value === 'efectivo';
+        if (bankCell) bankCell.style.visibility = isCash ? 'hidden' : 'visible';
+        if (accCell) accCell.style.visibility = isCash ? 'hidden' : 'visible';
+        if (bankSel) {
+            bankSel.disabled = !!isCash;
+            if (isCash) {
+                bankSel.value = '';
+            } else if (!bankSel.value && defaultBank) {
+                bankSel.value = defaultBank;
+            }
+        }
+        if (accSel) {
+            accSel.disabled = !!isCash;
+            accSel.required = !isCash;
+            if (isCash) {
+                accSel.value = '';
+            } else if (!accSel.value && defaultBankAccountId) {
+                accSel.value = String(defaultBankAccountId);
+            }
+        }
     }
     function updateLinesTotal() {
         var sum = 0;
@@ -258,7 +321,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (lastTd) lastTd.innerHTML = '<button type="button" class="btn btn-sm btn-danger remove-payment-line-btn"><i class="fas fa-minus"></i></button>';
             clone.querySelectorAll('select, input').forEach(function(el) {
                 var m = el.name && el.name.match(/payment_lines\[\d+\]\[(\w+)\]/);
-                if (m) { el.name = 'payment_lines[' + lineIndex + '][' + m[1] + ']'; if (m[1] === 'amount' || m[1] === 'document_number' || m[1] === 'document_date') el.value = ''; }
+                if (m) {
+                    el.name = 'payment_lines[' + lineIndex + '][' + m[1] + ']';
+                    if (m[1] === 'amount' || m[1] === 'document_number' || m[1] === 'document_date' || m[1] === 'payment_type') el.value = '';
+                    if (m[1] === 'bank') el.value = defaultBank || '';
+                    if (m[1] === 'bank_account_id') el.value = defaultBankAccountId ? String(defaultBankAccountId) : '';
+                }
                 if (el.classList && el.classList.contains('payment-line-file-input')) {
                     el.name = 'payment_line_files[' + lineIndex + '][]';
                     el.value = '';
@@ -276,7 +344,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.querySelectorAll('.payment-line-type').forEach(function(el) { el.addEventListener('change', function() { toggleBankCell(el.closest('tr')); }); });
     document.querySelectorAll('.payment-line-amount').forEach(function(el) { el.addEventListener('input', updateLinesTotal); });
-    toggleBankCell(document.querySelector('.payment-line-row'));
+    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r); });
     updateLinesTotal();
 });
 window.validateFiles = function(input) {
@@ -401,6 +469,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelDocumentNumberShort ?? 'Doc. No'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelDocumentDate ?? 'Fecha Doc.'); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
+                                    <th><?php echo htmlspecialchars($bankAccountColumnLabel); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
                                     <th class="text-nowrap"><?php echo htmlspecialchars($this->labelEstado ?? 'Estado'); ?></th>
                                     <th style="width: 200px;"><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILES_COLUMN', 'Attached files', 'Archivos adjuntos')); ?></th>
@@ -440,6 +509,12 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         } else { echo '—'; }
                                     ?></td>
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
+                                    <td><?php
+                                        $lineBaId = (int) ($line->bank_account_id ?? 0);
+                                        echo $lineBaId > 0
+                                            ? htmlspecialchars($bankAccountNameByIdForLabel[$lineBaId] ?? '—')
+                                            : '—';
+                                    ?></td>
                                     <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
                                     <td class="text-nowrap"><?php
                                         if ($isFirstLine) {
@@ -535,6 +610,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td class="text-nowrap">—</td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
+                                    <td>—</td>
                                     <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
                                     <td class="text-nowrap"><?php
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
@@ -612,7 +688,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $currentNote = trim((string)($epf->mismatch_note ?? ''));
                                 ?>
                                 <tr class="edit-note-form-row" id="edit-note-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="9" class="bg-white py-2 px-3">
+                                    <td colspan="10" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateMismatchNote'); ?>" method="post" class="d-flex align-items-start gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -630,7 +706,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     $availableOrders = method_exists($proofModel, 'getOrdersNotLinkedToProof') ? $proofModel->getOrdersNotLinkedToProof($epf->id ?? 0, 150) : [];
                                 ?>
                                 <tr class="add-order-form-row" id="add-order-row-<?php echo (int)($epf->id ?? 0); ?>" style="display:none;">
-                                    <td colspan="9" class="bg-white py-2 px-3">
+                                    <td colspan="10" class="bg-white py-2 px-3">
                                         <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=paymentproof.addOrderToProof'); ?>" method="post" class="d-flex align-items-center gap-2 flex-wrap">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="proof_id" value="<?php echo (int)($epf->id ?? 0); ?>">
@@ -660,6 +736,8 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <tr class="table-info fw-bold">
                                     <td></td>
                                     <td colspan="2" class="text-end"><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?></td>
+                                    <td></td>
+                                    <td></td>
                                     <td>Q <?php echo number_format($totalMonto, 2); ?></td>
                                     <td></td>
                                     <td></td>
@@ -1345,6 +1423,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                 <tr>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
+                                                    <th><?php echo htmlspecialchars($bankAccountColumnLabel); ?></th>
                                                     <th style="width: 140px;">Doc. No</th>
                                                     <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
                                                     <th style="width: 110px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_AMOUNT', 'Amount', 'Monto'); ?></th>
@@ -1370,6 +1449,14 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                                             <?php endforeach; ?>
                                                         </select>
                                                     </td>
+                                                    <td class="bank-account-cell">
+                                                        <select name="payment_lines[0][bank_account_id]" class="form-control form-control-sm payment-line-bank-account" required>
+                                                            <option value=""><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_SELECT_BANK_ACCOUNT', 'Select bank account', 'Seleccionar cuenta'); ?></option>
+                                                            <?php foreach ($bankAccountOptionsForPayment as $accId => $accName) : ?>
+                                                            <option value="<?php echo (int) $accId; ?>"<?php echo ((int) $defaultBankAccountIdForPayment === (int) $accId) ? ' selected' : ''; ?>><?php echo htmlspecialchars($accName); ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </td>
                                                     <td>
                                                         <input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars($this->labelDocumentNumberPlaceholder ?? 'ej. Número de cheque, referencia'); ?>" maxlength="255" required>
                                                     </td>
@@ -1390,7 +1477,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             </tbody>
                                             <tfoot>
                                                 <tr class="table-info">
-                                                    <td colspan="4" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
+                                                    <td colspan="5" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
                                                     <td><strong id="payment-lines-total">Q. 0.00</strong></td>
                                                     <td></td>
                                                     <td class="text-end">
@@ -1638,6 +1725,7 @@ document.addEventListener('DOMContentLoaded', function () {
 (function() {
     const bankOpts = <?php echo json_encode($bankOptions); ?>;
     const defaultBank = <?php echo json_encode($defaultBankCode ?? ''); ?>;
+    const defaultBankAccountId = <?php echo (int) $defaultBankAccountIdForPayment; ?>;
     const typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
     const typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
     let lineIndex = 1;
@@ -1645,9 +1733,30 @@ document.addEventListener('DOMContentLoaded', function () {
     function toggleBankCell(row) {
         const typeSel = row.querySelector('.payment-line-type');
         const bankCell = row.querySelector('.bank-cell');
-        if (!typeSel || !bankCell) return;
-        // Use visibility instead of display:none so column layout stays fixed
-        bankCell.style.visibility = (typeSel.value === 'efectivo') ? 'hidden' : 'visible';
+        const accCell = row.querySelector('.bank-account-cell');
+        const bankSel = row.querySelector('.payment-line-bank');
+        const accSel = row.querySelector('.payment-line-bank-account');
+        if (!typeSel) return;
+        const isCash = (typeSel.value === 'efectivo');
+        if (bankCell) bankCell.style.visibility = isCash ? 'hidden' : 'visible';
+        if (accCell) accCell.style.visibility = isCash ? 'hidden' : 'visible';
+        if (bankSel) {
+            bankSel.disabled = isCash;
+            if (isCash) {
+                bankSel.value = '';
+            } else if (!bankSel.value && defaultBank) {
+                bankSel.value = defaultBank;
+            }
+        }
+        if (accSel) {
+            accSel.disabled = isCash;
+            accSel.required = !isCash;
+            if (isCash) {
+                accSel.value = '';
+            } else if (!accSel.value && defaultBankAccountId) {
+                accSel.value = String(defaultBankAccountId);
+            }
+        }
     }
 
     function updateLinesTotal() {
@@ -1677,6 +1786,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 else if (m[1] === 'document_number') el.value = '';
                 else if (m[1] === 'document_date') el.value = '';
                 else if (m[1] === 'payment_type') el.value = '';
+                else if (m[1] === 'bank') el.value = defaultBank || '';
+                else if (m[1] === 'bank_account_id') el.value = defaultBankAccountId ? String(defaultBankAccountId) : '';
             }
             if (el.classList && el.classList.contains('payment-line-file-input')) {
                 el.name = 'payment_line_files[' + lineIndex + '][]';
@@ -1708,7 +1819,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateLinesTotal();
         });
     });
-    toggleBankCell(document.querySelector('.payment-line-row'));
+    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r); });
     updateLinesTotal();
 })();
 </script>

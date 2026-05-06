@@ -367,6 +367,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         errorMessage += '• Banco es requerido para pagos no efectivo\n';
                         break;
                     }
+                    const accSel = row && row.querySelector('.payment-line-bank-account');
+                    if (!accSel || !String(accSel.value || '').trim()) {
+                        isValid = false;
+                        errorMessage += '• Cuenta bancaria es requerida para pagos no efectivo\n';
+                        break;
+                    }
                 }
                 if (!docInp || !docInp.value.trim()) {
                     isValid = false;

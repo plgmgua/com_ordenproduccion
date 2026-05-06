@@ -97,6 +97,7 @@ class PaymentproofController extends BaseController
                         $validatedLines[] = [
                             'payment_type' => $type,
                             'bank' => trim($line['bank'] ?? ''),
+                            'bank_account_id' => max(0, (int) ($line['bank_account_id'] ?? 0)),
                             'document_number' => $doc,
                             'document_date' => trim($line['document_date'] ?? ''),
                             'amount' => $amount
@@ -115,6 +116,7 @@ class PaymentproofController extends BaseController
                     $validatedLines[] = [
                         'payment_type' => $paymentType,
                         'bank' => $bank,
+                        'bank_account_id' => max(0, $this->input->getInt('bank_account_id', 0)),
                         'document_number' => $documentNumber,
                         'document_date' => trim($this->input->getString('document_date', '')),
                         'amount' => $paymentAmount
