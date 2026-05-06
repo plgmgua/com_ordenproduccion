@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.1-STABLE] - 2026-05-06
+
+### Added
+- **Cuentas bancarias:** Column `is_default` (single default per component data). Checkbox in add/edit modal; list column with badge or **Set default** button; `task=setDefault` JSON; `BankaccountModel::getDefaultBankAccount()` for active+default row (use in forms later).
+
 ## [3.118.0-STABLE] - 2026-05-06
 
 ### Added
