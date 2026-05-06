@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.9-STABLE] - 2026-05-06
+
+### Changed
+- **Orden de trabajo / PDF (instrucciones pliego):** Si la instrucción sale del desglose (`calculation_breakdown`), se omite el monto en quetzales (p. ej. **Corte** muestra el rango tarifario `1–1000` sin `: Q 25.00`). El texto guardado por el usuario en **detalles por concepto** no se modifica.
+
 ## [3.117.8-STABLE] - 2026-05-06
 
 ### Fixed

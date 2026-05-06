@@ -72,6 +72,36 @@ class OrdenPrecotSectionsHelper
     }
 
     /**
+     * Quitar montos en quetzales del texto "Detalle" del desglose para instrucciones de OT/PDF (no afecta lo guardado en BD).
+     *
+     * Ej.: "1–1000: Q 25.00" → "1–1000"; "Q 4.45" → ""; "10 × Q 5.00" → "10".
+     *
+     * @since  3.117.9
+     */
+    private static function stripPricingFromBreakdownDetailText(string $detail): string
+    {
+        $s = trim($detail);
+        if ($s === '') {
+            return '';
+        }
+
+        // Rango tarifario + precio: "1-1000: Q 25.00", "1001+: Q 10,00", "1–1000: …"
+        $s = (string) (preg_replace('/\s*:\s*Q\s*[\d.,]+\s*$/u', '', $s) ?? $s);
+        $s = trim($s);
+
+        // Cantidad × precio unitario
+        $s = (string) (preg_replace('/\s*×\s*Q\s*[\d.,]+.*$/u', '', $s) ?? $s);
+        $s = (string) (preg_replace('/\s*x\s*Q\s*[\d.,]+.*$/iu', '', $s) ?? $s);
+        $s = trim($s);
+
+        if (preg_match('/^Q\s*[\d.,]+\s*$/iu', $s) === 1) {
+            return '';
+        }
+
+        return trim($s);
+    }
+
+    /**
      * One structured card per línea PRE (metadata + instrucciones por concepto; sin precios).
      *
      * @param   int  $preCotizacionId  Pre-cotización id
@@ -319,7 +349,10 @@ class OrdenPrecotSectionsHelper
                 if ($detTxt === '' && $lineType === 'pliego' && $key !== '' && isset($breakdownDetailByKey[$key])) {
                     $fb = trim((string) $breakdownDetailByKey[$key]);
                     if ($fb !== '') {
-                        $detTxt = Utf8DisplayHelper::normalizeUserFacing($fb);
+                        $stripped = self::stripPricingFromBreakdownDetailText($fb);
+                        if ($stripped !== '') {
+                            $detTxt = Utf8DisplayHelper::normalizeUserFacing($stripped);
+                        }
                     }
                 }
 
@@ -353,7 +386,8 @@ class OrdenPrecotSectionsHelper
                         continue;
                     }
                     $bdet = trim((string) $bRow['detail']);
-                    $btxt = $bdet !== '' ? Utf8DisplayHelper::normalizeUserFacing($bdet) : Utf8DisplayHelper::normalizeUserFacing('—');
+                    $stripped = self::stripPricingFromBreakdownDetailText($bdet);
+                    $btxt     = $stripped !== '' ? Utf8DisplayHelper::normalizeUserFacing($stripped) : Utf8DisplayHelper::normalizeUserFacing('—');
                     $instructions[] = ['label' => $blab, 'text' => $btxt];
                     if ($bk !== '') {
                         $instructionKeysSeen[$bk] = true;
