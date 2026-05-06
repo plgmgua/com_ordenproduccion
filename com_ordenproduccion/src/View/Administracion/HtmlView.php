@@ -340,6 +340,22 @@ class HtmlView extends BaseHtmlView
     protected $solicitudOrdenUrl = '';
 
     /**
+     * Certificador de Fact (FEL) settings for Ajustes > Certificador de Fact (without clave values in layout).
+     *
+     * @var    array<string, array<string, string>>
+     * @since  3.118.4
+     */
+    protected $certificadorFactSettings = [];
+
+    /**
+     * Whether clave is already stored per environment (for password placeholder hints).
+     *
+     * @var    array{test: bool, prod: bool}
+     * @since  3.118.4
+     */
+    protected $certificadorFactClaveSet = ['test' => false, 'prod' => false];
+
+    /**
      * Work order numbering settings (next_order_number, order_prefix, order_format) for ajustes > numeracion_ordenes.
      *
      * @var    \stdClass|null
@@ -1878,6 +1894,42 @@ class HtmlView extends BaseHtmlView
                 $this->solicitudOrdenUrl = $statsModel->getSolicitudOrdenUrl();
             } catch (\Exception $e) {
                 $this->solicitudOrdenUrl = '';
+            }
+        }
+
+        $this->certificadorFactSettings = ['test' => [], 'prod' => []];
+        $this->certificadorFactClaveSet = ['test' => false, 'prod' => false];
+        if ($activeTab === 'ajustes' && $activeSubTab === 'certificador_fact') {
+            try {
+                $full = $statsModel->getCertificadorFactSettings();
+                foreach (['test', 'prod'] as $env) {
+                    $this->certificadorFactClaveSet[$env] = trim((string) ($full[$env]['clave'] ?? '')) !== '';
+                    $full[$env]['clave'] = '';
+                    $this->certificadorFactSettings[$env] = $full[$env];
+                }
+            } catch (\Throwable $e) {
+                $this->certificadorFactSettings = [
+                    'test' => [
+                        'url_autenticacion' => '',
+                        'url_info' => '',
+                        'url_cert_cf' => '',
+                        'url_cert_nit' => '',
+                        'url_cert_cui' => '',
+                        'nit' => '',
+                        'usuario' => '',
+                        'clave' => '',
+                    ],
+                    'prod' => [
+                        'url_autenticacion' => '',
+                        'url_info' => '',
+                        'url_cert_cf' => '',
+                        'url_cert_nit' => '',
+                        'url_cert_cui' => '',
+                        'nit' => '',
+                        'usuario' => '',
+                        'clave' => '',
+                    ],
+                ];
             }
         }
 

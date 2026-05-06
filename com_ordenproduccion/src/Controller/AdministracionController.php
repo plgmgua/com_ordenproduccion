@@ -847,6 +847,53 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Save Certificador de Fact (FEL) URLs and credentials for test and production.
+     *
+     * @return  void
+     *
+     * @since   3.118.4
+     */
+    public function saveCertificadorFact()
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=certificador_fact', false));
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $block = isset($jform['certificador']) && is_array($jform['certificador']) ? $jform['certificador'] : [];
+
+        try {
+            $model = $this->getModel('Administracion');
+            $model->saveCertificadorFactSettings($block);
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SAVED'), 'success');
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=certificador_fact', false));
+    }
+
+    /**
      * Save work order numbering (next sequence, prefix, format) — Ajustes → Numeración órdenes.
      *
      * @return  void

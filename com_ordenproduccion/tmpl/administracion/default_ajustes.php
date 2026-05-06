@@ -61,6 +61,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-link"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_SOLICITUD_ORDEN'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=certificador_fact'); ?>"
+       class="ajustes-subtab <?php echo $activeSubTab === 'certificador_fact' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-file-signature"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_CERTIFICADOR_FACT'); ?>
+    </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=numeracion_ordenes'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'numeracion_ordenes' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-sort-numeric-up"></i>
@@ -97,6 +102,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php include __DIR__ . '/default_ajustes_ajustes_cotizacion.php'; ?>
     <?php elseif ($activeSubTab === 'solicitud_orden'): ?>
         <?php include __DIR__ . '/default_ajustes_solicitud_orden.php'; ?>
+    <?php elseif ($activeSubTab === 'certificador_fact'): ?>
+        <?php include __DIR__ . '/default_ajustes_certificador_fact.php'; ?>
     <?php elseif ($activeSubTab === 'numeracion_ordenes'): ?>
         <?php include __DIR__ . '/default_ajustes_numeracion_ordenes.php'; ?>
     <?php elseif ($activeSubTab === 'creacion_logs'): ?>

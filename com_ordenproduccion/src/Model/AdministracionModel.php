@@ -3369,6 +3369,162 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Certificador de facturación (FEL): test + production URLs and credentials.
+     * Stored in #__ordenproduccion_config as certificador_fact_{test|prod}_*.
+     *
+     * @return  array{test: array<string, string>, prod: array<string, string>}
+     *
+     * @since   3.118.4
+     */
+    public function getCertificadorFactSettings()
+    {
+        $db = Factory::getDbo();
+        $keys = [];
+        foreach (['test', 'prod'] as $env) {
+            $p = 'certificador_fact_' . $env . '_';
+            $keys[] = $p . 'url_autenticacion';
+            $keys[] = $p . 'url_info';
+            $keys[] = $p . 'url_cert_cf';
+            $keys[] = $p . 'url_cert_nit';
+            $keys[] = $p . 'url_cert_cui';
+            $keys[] = $p . 'nit';
+            $keys[] = $p . 'usuario';
+            $keys[] = $p . 'clave';
+        }
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['setting_key', 'setting_value']))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->whereIn($db->quoteName('setting_key'), array_map([$db, 'quote'], $keys));
+        $db->setQuery($query);
+        $rows = $db->loadObjectList('setting_key') ?: [];
+        $out = [
+            'test' => [
+                'url_autenticacion' => '',
+                'url_info' => '',
+                'url_cert_cf' => '',
+                'url_cert_nit' => '',
+                'url_cert_cui' => '',
+                'nit' => '',
+                'usuario' => '',
+                'clave' => '',
+            ],
+            'prod' => [
+                'url_autenticacion' => '',
+                'url_info' => '',
+                'url_cert_cf' => '',
+                'url_cert_nit' => '',
+                'url_cert_cui' => '',
+                'nit' => '',
+                'usuario' => '',
+                'clave' => '',
+            ],
+        ];
+        $fieldKeys = [
+            'url_autenticacion',
+            'url_info',
+            'url_cert_cf',
+            'url_cert_nit',
+            'url_cert_cui',
+            'nit',
+            'usuario',
+            'clave',
+        ];
+        foreach (['test', 'prod'] as $env) {
+            $prefix = 'certificador_fact_' . $env . '_';
+            foreach ($fieldKeys as $fk) {
+                $sk = $prefix . $fk;
+                if (isset($rows[$sk]) && $rows[$sk]->setting_value !== null) {
+                    $out[$env][$fk] = (string) $rows[$sk]->setting_value;
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Save certificador de facturación settings. Empty password fields leave existing clave unchanged.
+     *
+     * @param   array  $data  From jform[certificador][test|prod][field]
+     *
+     * @return  bool
+     *
+     * @since   3.118.4
+     */
+    public function saveCertificadorFactSettings(array $data)
+    {
+        $existing = $this->getCertificadorFactSettings();
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+        $fieldKeys = [
+            'url_autenticacion',
+            'url_info',
+            'url_cert_cf',
+            'url_cert_nit',
+            'url_cert_cui',
+            'nit',
+            'usuario',
+            'clave',
+        ];
+
+        foreach (['test', 'prod'] as $env) {
+            $block = isset($data[$env]) && is_array($data[$env]) ? $data[$env] : [];
+            foreach ($fieldKeys as $fk) {
+                if ($fk === 'clave') {
+                    $raw = isset($block['clave']) ? trim((string) $block['clave']) : '';
+                    if ($raw === '') {
+                        $value = $existing[$env]['clave'] ?? '';
+                    } else {
+                        $value = $raw;
+                    }
+                } else {
+                    $value = isset($block[$fk]) ? trim((string) $block[$fk]) : '';
+                }
+                $settingKey = 'certificador_fact_' . $env . '_' . $fk;
+                $query = $db->getQuery(true)
+                    ->select('id')
+                    ->from($db->quoteName('#__ordenproduccion_config'))
+                    ->where($db->quoteName('setting_key') . ' = ' . $db->quote($settingKey));
+                $db->setQuery($query);
+                $id = $db->loadResult();
+                if ($id) {
+                    $query = $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_config'))
+                        ->set($db->quoteName('setting_value') . ' = ' . $db->quote($value))
+                        ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                        ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                        ->where($db->quoteName('id') . ' = ' . (int) $id);
+                    $db->setQuery($query);
+                    $db->execute();
+                } else {
+                    $query = $db->getQuery(true)
+                        ->insert($db->quoteName('#__ordenproduccion_config'))
+                        ->columns([
+                            $db->quoteName('setting_key'),
+                            $db->quoteName('setting_value'),
+                            $db->quoteName('state'),
+                            $db->quoteName('created_by'),
+                            $db->quoteName('modified'),
+                            $db->quoteName('modified_by'),
+                        ])
+                        ->values(
+                            $db->quote($settingKey) . ',' .
+                            $db->quote($value) . ',1,' .
+                            (int) $user->id . ',' .
+                            $db->quote($now) . ',' .
+                            (int) $user->id
+                        );
+                    $db->setQuery($query);
+                    $db->execute();
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Find a work order by orden_de_trabajo or order_number (case-insensitive).
      * Used by Ajustes > Anular orden to resolve user input (e.g. "ord-006448").
      *

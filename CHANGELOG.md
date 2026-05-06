@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.4-STABLE] - 2026-05-06
+
+### Added
+- **Control de Ventas → Ajustes → Certificador de Fact:** Sub-tab to configure FEL/invoicing engine URLs and credentials for **Ambiente de Prueba** and **Producción** (authentication, info, CF/NIT/CUI certification URLs, NIT, user, password). Values stored in `#__ordenproduccion_config` (`certificador_fact_test_*` / `certificador_fact_prod_*`). Password fields omit existing values in the form; leave blank on save to keep the stored password.
+
 ## [3.118.3-STABLE] - 2026-05-06
 
 ### Fixed
