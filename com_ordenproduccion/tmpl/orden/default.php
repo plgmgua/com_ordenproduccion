@@ -296,11 +296,24 @@ function displayYesNoBadge($value) {
                             $ordenMedidasDims   = isset($item->dimensions) ? trim((string) $item->dimensions) : '';
                             /** Prefer PRE cabecera "Medidas" when orden is linked to a pre-cotización */
                             $ordenInformacionMedidasValor = ($ordenMedidasPrecot !== '') ? $ordenMedidasPrecot : $ordenMedidasDims;
+                            $ordenCantidadPrecot = isset($item->orden_view_pre_cantidad_total) ? trim((string) $item->orden_view_pre_cantidad_total) : '';
                             ?>
-                            <?php if ($ordenInformacionMedidasValor !== '') : ?>
+                            <?php if ($ordenInformacionMedidasValor !== '' || $ordenCantidadPrecot !== '') : ?>
                             <tr>
                                 <td><strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_MEDIDAS'); ?>:</strong></td>
-                                <td><?php echo htmlspecialchars($ordenInformacionMedidasValor); ?></td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-3 align-items-start">
+                                        <div class="flex-grow-1" style="min-width: 8rem;">
+                                            <?php echo $ordenInformacionMedidasValor !== '' ? htmlspecialchars($ordenInformacionMedidasValor) : '<span class="text-muted">—</span>'; ?>
+                                        </div>
+                                        <?php if ($ordenCantidadPrecot !== '') : ?>
+                                        <div class="flex-shrink-0">
+                                            <strong><?php echo Text::_('COM_ORDENPRODUCCION_ORDEN_CANTIDAD_TOTAL'); ?>:</strong>
+                                            <?php echo htmlspecialchars($ordenCantidadPrecot); ?>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
                             </tr>
                             <?php endif; ?>
                             <?php if (!$isVendorPrePresentation && !$isPrecotPliegoElementosPresentation) : ?>

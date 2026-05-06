@@ -341,6 +341,17 @@ class OrdenController extends BaseController
             $workOrder->eav_data = [];
         }
 
+        try {
+            $ordenModel = $this->app->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('Orden', 'Site', ['ignore_request' => true]);
+            if ($ordenModel instanceof OrdenModel) {
+                $ordenModel->attachPrecotHeaderFieldsForPdf($workOrder);
+            }
+        } catch (\Throwable $e) {
+            // PDF can still render without PRE header enrichment
+        }
+
         return $workOrder;
     }
 
@@ -380,6 +391,46 @@ class OrdenController extends BaseController
             $decoded = json_decode((string) $wd->orden_source_json, true);
             if (\is_array($decoded) && isset($decoded['pre_medidas'])) {
                 $m = trim((string) $decoded['pre_medidas']);
+                if ($m !== '') {
+                    return $m;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * PRE cabecera cantidad total for OT PDF (mirrors orden vista / snapshot JSON).
+     */
+    private function resolveCantidadTotalForWorkOrderPdf(object $wd): string
+    {
+        if (isset($wd->orden_view_pre_cantidad_total) && trim((string) $wd->orden_view_pre_cantidad_total) !== '') {
+            return trim((string) $wd->orden_view_pre_cantidad_total);
+        }
+
+        $preId = isset($wd->pre_cotizacion_id) ? (int) $wd->pre_cotizacion_id : 0;
+        if ($preId >= 1) {
+            try {
+                $db = Factory::getDbo();
+                $q = $db->getQuery(true)
+                    ->select($db->quoteName('cantidad_total'))
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                    ->where($db->quoteName('id') . ' = ' . $preId);
+
+                $db->setQuery($q);
+                $raw = $db->loadResult();
+                if ($raw !== null && trim((string) $raw) !== '') {
+                    return trim((string) $raw);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if (!empty($wd->orden_source_json)) {
+            $decoded = json_decode((string) $wd->orden_source_json, true);
+            if (\is_array($decoded) && isset($decoded['pre_cantidad_total'])) {
+                $m = trim((string) $decoded['pre_cantidad_total']);
                 if ($m !== '') {
                     return $m;
                 }
@@ -606,6 +657,9 @@ class OrdenController extends BaseController
         }
         $medidasPdf = $fixSpanishChars($medidasPdf);
 
+        $cantidadPdf = trim($this->resolveCantidadTotalForWorkOrderPdf($workOrderData));
+        $cantidadPdf = $cantidadPdf !== '' ? $fixSpanishChars($cantidadPdf) : '';
+
         // TRABAJO: aligned label/value row (avoid overlap); MEDIDAS same fixed height as CLIENTE (Cell rows).
         $innerPdfW    = (float) $pdf->GetPageWidth() - 30.0;
         $valueColWpdf = max(80.0, $innerPdfW - $labelColWpdf);
@@ -616,7 +670,20 @@ class OrdenController extends BaseController
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($labelColWpdf, $hClienteRowMm, Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_MEDIDAS_FINALES') . ':', 1, 0, 'L');
         $pdf->SetFont('Arial', '', 9);
-        $pdf->Cell(0, $hClienteRowMm, $medidasPdf, 1, 1, 'L');
+        if ($cantidadPdf !== '') {
+            $valAreaMm     = max(10.0, $innerPdfW - $labelColWpdf);
+            $cantLabelMm   = 36.0;
+            $cantValMinMm  = 22.0;
+            $medidasValMm  = max(30.0, $valAreaMm - $cantLabelMm - $cantValMinMm);
+            $cantidadValMm = max($cantValMinMm, $valAreaMm - $medidasValMm - $cantLabelMm);
+            $pdf->Cell($medidasValMm, $hClienteRowMm, $medidasPdf, 1, 0, 'L');
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->Cell($cantLabelMm, $hClienteRowMm, $fixSpanishChars(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_CANTIDAD_TOTAL')) . ':', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell($cantidadValMm, $hClienteRowMm, $cantidadPdf, 1, 1, 'L');
+        } else {
+            $pdf->Cell(0, $hClienteRowMm, $medidasPdf, 1, 1, 'L');
+        }
 
         OrdenTrabajoPdfPrecotSectionsHelper::drawLabelValueRowTwoColumn(
             $pdf,
@@ -661,11 +728,27 @@ class OrdenController extends BaseController
         
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell(80, 8, 'MEDIDAS:', 1, 0, 'L');
-        // Get medidas from main table (dimensions)
-        $medidas = $workOrderData->dimensions ?? 'N/A';
-        $medidas = $fixSpanishChars($medidas);
+        $medidasSpec = trim($this->resolveMedidasFinalesForWorkOrderPdf($workOrderData));
+        if ($medidasSpec === '') {
+            $medidasSpec = $workOrderData->dimensions ?? 'N/A';
+        }
+        $medidasSpec = $fixSpanishChars($medidasSpec);
+        $cantidadSpec = trim($this->resolveCantidadTotalForWorkOrderPdf($workOrderData));
+        $cantidadSpec = $cantidadSpec !== '' ? $fixSpanishChars($cantidadSpec) : '';
         $pdf->SetFont('Arial', '', 9);
-        $pdf->Cell(0, 8, $medidas, 1, 1, 'L');
+        if ($cantidadSpec !== '') {
+            $wRestSpec   = (float) $pdf->GetPageWidth() - 30.0 - 80.0;
+            $cantLblSpec = 36.0;
+            $medWSpec    = max(25.0, $wRestSpec - $cantLblSpec - 22.0);
+            $cantWSpec   = max(22.0, $wRestSpec - $medWSpec - $cantLblSpec);
+            $pdf->Cell($medWSpec, 8, $medidasSpec, 1, 0, 'L');
+            $pdf->SetFont('Arial', 'B', 9);
+            $pdf->Cell($cantLblSpec, 8, $fixSpanishChars(Text::_('COM_ORDENPRODUCCION_ORDEN_PDF_CANTIDAD_TOTAL')) . ':', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 9);
+            $pdf->Cell($cantWSpec, 8, $cantidadSpec, 1, 1, 'L');
+        } else {
+            $pdf->Cell(0, 8, $medidasSpec, 1, 1, 'L');
+        }
         
         $pdf->Ln(5);
         

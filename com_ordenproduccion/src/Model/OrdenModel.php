@@ -179,6 +179,7 @@ class OrdenModel extends ItemModel
                 $this->normalizeLegacyQuotationWorkDescriptionBlob($data);
                 $this->enrichOrdenViewPresentationType($data);
                 $this->enrichOrdenPrecotHeaderMedidasForView($data);
+                $this->enrichOrdenPrecotHeaderCantidadTotalForView($data);
 
                 // Check user access to this order
                 $this->checkUserAccess($data);
@@ -458,6 +459,71 @@ class OrdenModel extends ItemModel
                 }
             }
         }
+    }
+
+    /**
+     * Cabecera PRE "Cantidad total" for display in orden Información del trabajo (alongside medidas).
+     *
+     * @param   object  $data  Row from #__ordenproduccion_ordenes (mutated)
+     *
+     * @return  void
+     *
+     * @since   3.117.5
+     */
+    protected function enrichOrdenPrecotHeaderCantidadTotalForView(object $data): void
+    {
+        $data->orden_view_pre_cantidad_total = '';
+
+        $preId = isset($data->pre_cotizacion_id) ? (int) $data->pre_cotizacion_id : 0;
+        if ($preId < 1) {
+            return;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $q  = $db->getQuery(true)
+                ->select($db->quoteName('cantidad_total'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' = ' . $preId);
+
+            $db->setQuery($q);
+            $raw = $db->loadResult();
+            if ($raw !== null && trim((string) $raw) !== '') {
+                $data->orden_view_pre_cantidad_total = trim((string) $raw);
+
+                return;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        if (!empty($data->orden_source_json)) {
+            $decoded = json_decode((string) $data->orden_source_json, true);
+            if (\is_array($decoded) && isset($decoded['pre_cantidad_total'])) {
+                $m = trim((string) $decoded['pre_cantidad_total']);
+                if ($m !== '') {
+                    $data->orden_view_pre_cantidad_total = $m;
+                }
+            }
+        }
+    }
+
+    /**
+     * Populate PRE snapshot header fields (medidas, cantidad total) on a loaded orden row (e.g. PDF data load).
+     *
+     * @param   object  $data  Row from #__ordenproduccion_ordenes
+     *
+     * @return  void
+     *
+     * @since   3.117.5
+     */
+    public function attachPrecotHeaderFieldsForPdf(object $data): void
+    {
+        if (!\is_object($data)) {
+            return;
+        }
+
+        $this->enrichOrdenPrecotHeaderMedidasForView($data);
+        $this->enrichOrdenPrecotHeaderCantidadTotalForView($data);
     }
 
     /**

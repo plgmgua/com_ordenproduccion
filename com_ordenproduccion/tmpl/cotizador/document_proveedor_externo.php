@@ -122,6 +122,15 @@ if (strpos($placeholderMedidas, 'COM_ORDENPRODUCCION_') === 0) {
     $placeholderMedidas = 'ingrese medidas en pulgadas';
 }
 $medidasValue = isset($item->medidas) ? (string) $item->medidas : '';
+$labelCantidadTotal = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CANTIDAD_TOTAL');
+if (strpos($labelCantidadTotal, 'COM_ORDENPRODUCCION_') === 0) {
+    $labelCantidadTotal = 'Cantidad total';
+}
+$placeholderCantidadTotal = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CANTIDAD_TOTAL_PLACEHOLDER');
+if (strpos($placeholderCantidadTotal, 'COM_ORDENPRODUCCION_') === 0) {
+    $placeholderCantidadTotal = '';
+}
+$cantidadTotalValue = isset($item->cantidad_total) ? (string) $item->cantidad_total : '';
 
 $saveVendorLinesUrl     = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveProveedorExternoLines');
 $saveVendorQuoteEventCondicionesUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveVendorQuoteEventCondiciones', false, Route::TLS_IGNORE, true);
@@ -428,9 +437,15 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
         <?php if ($precotizacionLocked || !$canEditDocument) : ?>
             <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
-            <div class="mt-2">
-                <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelMedidas); ?></span>
-                <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $medidasValue !== '' ? htmlspecialchars($medidasValue) : '<span class="text-muted">—</span>'; ?></div>
+            <div class="mt-2 row g-2">
+                <div class="col-md-6">
+                    <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelMedidas); ?></span>
+                    <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $medidasValue !== '' ? htmlspecialchars($medidasValue) : '<span class="text-muted">—</span>'; ?></div>
+                </div>
+                <div class="col-md-6">
+                    <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelCantidadTotal); ?></span>
+                    <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $cantidadTotalValue !== '' ? htmlspecialchars($cantidadTotalValue) : '<span class="text-muted">—</span>'; ?></div>
+                </div>
             </div>
         <?php else : ?>
         <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" id="precotizacion-desc-medidas-form" class="mb-0" style="min-width: 0;">
@@ -445,6 +460,12 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     <textarea name="medidas" id="precotizacion-medidas" class="form-control flex-grow-1" rows="3" autocomplete="off" maxlength="512"
                               placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
                               style="min-height: 5.5rem; resize:vertical;" required><?php echo htmlspecialchars($medidasValue); ?></textarea>
+                </div>
+                <div class="d-flex flex-column flex-grow-1" style="min-width: 140px; max-width: 260px;">
+                    <label class="form-label fw-bold mb-1" for="precotizacion-cantidad-total"><?php echo htmlspecialchars($labelCantidadTotal); ?></label>
+                    <input type="text" name="cantidad_total" id="precotizacion-cantidad-total" class="form-control" maxlength="128" autocomplete="off"
+                           placeholder="<?php echo htmlspecialchars($placeholderCantidadTotal); ?>"
+                           value="<?php echo htmlspecialchars($cantidadTotalValue); ?>" style="min-height: 5.5rem;">
                 </div>
             </div>
             <div class="text-end mt-2">

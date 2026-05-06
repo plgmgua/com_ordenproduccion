@@ -278,6 +278,7 @@ class OrdenFromQuotationService
             'wizard_tipo_entrega'   => isset($wizard['tipo_entrega']) ? (string) $wizard['tipo_entrega'] : null,
             'ot_fecha_entrega'       => $deliveryDateYmd,
             'pre_medidas'           => isset($preItem->medidas) ? trim((string) $preItem->medidas) : '',
+            'pre_cantidad_total'    => isset($preItem->cantidad_total) ? trim((string) $preItem->cantidad_total) : '',
         ];
 
         $ordenSourceJson = json_encode($jsonPayload, JSON_UNESCAPED_UNICODE);

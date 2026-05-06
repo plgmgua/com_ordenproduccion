@@ -373,6 +373,9 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['medidas'])) {
             $cols[] = 'a.medidas';
         }
+        if (isset($tableCols['cantidad_total'])) {
+            $cols[] = 'a.cantidad_total';
+        }
         if (isset($tableCols['facturar'])) {
             $cols[] = 'a.facturar';
         }
@@ -2096,6 +2099,9 @@ class PrecotizacionModel extends ListModel
         }
         if (isset($tableCols['medidas'])) {
             $newRow->medidas = isset($template->medidas) ? (string) $template->medidas : '';
+        }
+        if (isset($tableCols['cantidad_total'])) {
+            $newRow->cantidad_total = isset($template->cantidad_total) ? (string) $template->cantidad_total : '';
         }
         if (isset($tableCols['document_mode'])) {
             $newRow->document_mode = isset($template->document_mode) && (string) $template->document_mode !== ''

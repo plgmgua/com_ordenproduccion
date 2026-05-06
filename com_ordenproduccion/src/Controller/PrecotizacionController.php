@@ -1738,6 +1738,10 @@ class PrecotizacionController extends BaseController
         if (strlen($medidas) > 512) {
             $medidas = substr($medidas, 0, 512);
         }
+        $cantidadTotal = trim((string) $this->input->get('cantidad_total', '', 'string'));
+        if (strlen($cantidadTotal) > 128) {
+            $cantidadTotal = substr($cantidadTotal, 0, 128);
+        }
 
         if ($id < 1) {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID'), 'error');
@@ -1795,6 +1799,9 @@ class PrecotizacionController extends BaseController
         ];
         if (isset($tableCols['medidas'])) {
             $obj->medidas = $medidas;
+        }
+        if (isset($tableCols['cantidad_total'])) {
+            $obj->cantidad_total = $cantidadTotal;
         }
         $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
 
