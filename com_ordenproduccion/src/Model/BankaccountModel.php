@@ -43,33 +43,6 @@ class BankaccountModel extends BaseDatabaseModel
     }
 
     /**
-     * @param   int  $id  Primary key
-     *
-     * @return  object|null
-     *
-     * @since   3.118.0
-     */
-    public function getBankAccount(int $id): ?object
-    {
-        if ($id < 1) {
-            return null;
-        }
-
-        $db = $this->getDatabase();
-
-        $query = $db->getQuery(true)
-            ->select('*')
-            ->from($db->quoteName('#__ordenproduccion_bank_accounts'))
-            ->where($db->quoteName('id') . ' = ' . $id);
-
-        $db->setQuery($query);
-
-        $row = $db->loadObject();
-
-        return $row ?: null;
-    }
-
-    /**
      * @param   array  $data  keys: id?, name, state
      *
      * @return  int|false  New or updated id
