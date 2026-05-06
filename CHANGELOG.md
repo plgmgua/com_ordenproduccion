@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.13-STABLE] - 2026-05-06
+
+### Changed
+- **Administración → Aprobaciones:** Cada fila con URL resuelta abre el documento al clic (excepto botones, enlaces y formularios). La columna **Doc #** es un enlace. Los tipos que antes solo mostraban aprobar/rechazar (p. ej. etiqueta **Otro** / confirmación de cotización, comprobante, hoja de tiempo, orden) incluyen **Abrir registro relacionado** cuando `ApprovalWorkflowService::resolvePendingApprovalDocumentUrl` puede derivar la ruta (también por metadatos `quotation_id`, `pre_cotizacion_id`, etc.).
+
 ## [3.117.12-STABLE] - 2026-05-06
 
 ### Fixed

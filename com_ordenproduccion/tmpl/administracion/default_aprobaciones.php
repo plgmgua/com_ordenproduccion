@@ -93,20 +93,7 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         } else {
                             $refDisplay = (string) (int) $eid;
                         }
-                        $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $eid, false);
-                        if ($etype === 'servicios_elementos_externos') {
-                            $metaDoc = isset($row->metadata) ? trim((string) $row->metadata) : '';
-                            $preFromMeta = 0;
-                            if ($metaDoc !== '') {
-                                $dec = json_decode($metaDoc, true);
-                                if (is_array($dec) && isset($dec['pre_cotizacion_id'])) {
-                                    $preFromMeta = (int) $dec['pre_cotizacion_id'];
-                                }
-                            }
-                            if ($preFromMeta > 0) {
-                                $precotDocUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preFromMeta, false);
-                            }
-                        }
+                        $docUrl = ApprovalWorkflowService::resolvePendingApprovalDocumentUrl($row);
                         $subName = isset($row->submitter_name) ? trim((string) $row->submitter_name) : '';
                         $subUser = isset($row->submitter_username) ? trim((string) $row->submitter_username) : '';
                         if ($subUser !== '') {
@@ -117,18 +104,20 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             $submitterDisplay = '—';
                         }
                         ?>
-                        <tr>
+                        <tr<?php echo $docUrl !== '' ? ' class="com-ordenproduccion-approval-row-link" data-approval-doc-url="' . htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8') . '" style="cursor:pointer;"' : ''; ?>>
                             <td class="text-nowrap small"><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($typeDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
-                            <td class="approval-col-doc text-nowrap"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="approval-col-doc text-nowrap"><?php if ($docUrl !== '') : ?><a href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></a><?php else : ?><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></td>
                             <td style="min-width:260px;">
                                 <?php if ($etype === 'solicitud_cotizacion') : ?>
                                 <div class="d-flex flex-column gap-2">
                                     <div class="d-flex flex-wrap gap-1 align-items-center">
-                                        <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?php if ($docUrl !== '') : ?>
+                                        <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>">
                                             <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
                                         </a>
+                                        <?php endif; ?>
                                         <form method="post" action="<?php echo $cancelAction; ?>" class="d-inline" onsubmit="return confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISS_CONFIRM')); ?>);">
                                             <?php echo HTMLHelper::_('form.token'); ?>
                                             <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
@@ -152,20 +141,22 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                 </div>
                                 <?php elseif ($etype === 'solicitud_descuento' || $etype === 'creacion_orden_trabajo' || $etype === 'servicios_elementos_externos') : ?>
                                 <div class="d-flex flex-wrap gap-1 align-items-center">
-                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <?php if ($docUrl !== '') : ?>
+                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
                                     </a>
+                                    <?php endif; ?>
                                     <form method="post" action="<?php echo $cancelAction; ?>" class="d-inline" onsubmit="return confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISS_CONFIRM')); ?>);">
                                         <?php echo HTMLHelper::_('form.token'); ?>
                                         <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_DISMISS'); ?></button>
                                     </form>
                                 </div>
-                                <?php elseif ($etype === 'orden_compra') :
-                                    $ocOpenUrl = Route::_('index.php?option=com_ordenproduccion&view=ordencompra&id=' . (int) $eid, false);
-                                    ?>
+                                <?php elseif ($etype === 'orden_compra') : ?>
                                 <div class="d-flex flex-wrap gap-1 align-items-center">
-                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($ocOpenUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_ORDEN_COMPRA'); ?></a>
+                                    <?php if ($docUrl !== '') : ?>
+                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_ORDEN_COMPRA'); ?></a>
+                                    <?php endif; ?>
                                     <form method="post" action="<?php echo $cancelAction; ?>" class="d-inline" onsubmit="return confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISS_CONFIRM')); ?>);">
                                         <?php echo HTMLHelper::_('form.token'); ?>
                                         <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
@@ -173,6 +164,11 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                     </form>
                                 </div>
                                 <?php else : ?>
+                                <?php if ($docUrl !== '') : ?>
+                                <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_DOCUMENT'); ?></a>
+                                </div>
+                                <?php endif; ?>
                                 <form method="post" action="<?php echo $approveAction; ?>" class="mb-2">
                                     <?php echo HTMLHelper::_('form.token'); ?>
                                     <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
@@ -203,3 +199,18 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
     max-width: 1%;
 }
 </style>
+<script>
+(function () {
+  document.querySelectorAll('tr.com-ordenproduccion-approval-row-link').forEach(function (tr) {
+    tr.addEventListener('click', function (e) {
+      if (e.target.closest('a, button, input, textarea, label, form')) {
+        return;
+      }
+      var u = tr.getAttribute('data-approval-doc-url');
+      if (u) {
+        window.location.href = u;
+      }
+    });
+  });
+})();
+</script>

@@ -14,6 +14,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalAuditHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalEmailQueueHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Router\Route;
 use Joomla\CMS\User\User;
 use Joomla\Database\DatabaseInterface;
 
@@ -91,6 +92,129 @@ class ApprovalWorkflowService
         }
 
         return $t;
+    }
+
+    /**
+     * Relative site URL to open the record this pending approval refers to (for Administración → Aprobaciones links).
+     *
+     * @param   object  $row  Row from {@see self::getMyPendingApprovalRows()} (entity_type, entity_id, metadata)
+     *
+     * @return  string  Path-only URL suitable for Route-generated links, or "" if unknown
+     *
+     * @since   3.117.13
+     */
+    public static function resolvePendingApprovalDocumentUrl(object $row): string
+    {
+        $etype   = self::normalizeEntityType((string) ($row->entity_type ?? ''));
+        $eid     = (int) ($row->entity_id ?? 0);
+        $metaRaw = isset($row->metadata) ? trim((string) $row->metadata) : '';
+        $meta    = [];
+
+        if ($metaRaw !== '') {
+            $dec = json_decode($metaRaw, true);
+
+            if (\is_array($dec)) {
+                $meta = $dec;
+            }
+        }
+
+        switch ($etype) {
+            case self::ENTITY_SOLICITUD_DESCUENTO:
+            case self::ENTITY_SOLICITUD_COTIZACION:
+            case self::ENTITY_CREACION_ORDEN_TRABAJO:
+                if ($eid > 0) {
+                    return Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $eid, false);
+                }
+
+                break;
+
+            case self::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS:
+                $preId = (int) ($meta['pre_cotizacion_id'] ?? 0);
+
+                if ($preId < 1 && $eid > 0) {
+                    try {
+                        $db = Factory::getContainer()->get(DatabaseInterface::class);
+                        $q  = $db->getQuery(true)
+                            ->select($db->quoteName('pre_cotizacion_id'))
+                            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                            ->where($db->quoteName('id') . ' = ' . $eid)
+                            ->setLimit(1);
+                        $db->setQuery($q);
+                        $preId = (int) $db->loadResult();
+                    } catch (\Throwable $e) {
+                        $preId = 0;
+                    }
+                }
+
+                if ($preId > 0) {
+                    return Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preId, false);
+                }
+
+                break;
+
+            case self::ENTITY_ORDEN_COMPRA:
+                if ($eid > 0) {
+                    return Route::_('index.php?option=com_ordenproduccion&view=ordencompra&id=' . $eid, false);
+                }
+
+                break;
+
+            case self::ENTITY_COTIZACION_CONFIRMATION:
+                if ($eid > 0) {
+                    return Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $eid, false);
+                }
+
+                break;
+
+            case self::ENTITY_PAYMENT_PROOF:
+                if ($eid > 0) {
+                    return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&id=' . $eid, false);
+                }
+
+                break;
+
+            case self::ENTITY_TIMESHEET:
+                $week = trim((string) ($meta['week_start'] ?? $meta['date_from'] ?? ''));
+
+                if ($week !== '') {
+                    return Route::_('index.php?option=com_ordenproduccion&view=timesheets&week_start=' . rawurlencode($week), false);
+                }
+
+                break;
+
+            case self::ENTITY_ORDEN_STATUS:
+                if ($eid > 0) {
+                    return Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $eid, false);
+                }
+
+                break;
+        }
+
+        $qid = (int) ($meta['quotation_id'] ?? 0);
+
+        if ($qid > 0) {
+            return Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $qid, false);
+        }
+
+        $preMeta = (int) ($meta['pre_cotizacion_id'] ?? 0);
+
+        if ($preMeta > 0) {
+            return Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preMeta, false);
+        }
+
+        $proofId = (int) ($meta['payment_proof_id'] ?? 0);
+
+        if ($proofId > 0) {
+            return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&id=' . $proofId, false);
+        }
+
+        $orderId = (int) ($meta['order_id'] ?? 0);
+
+        if ($orderId > 0) {
+            return Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $orderId, false);
+        }
+
+        return '';
     }
 
     public function __construct(?DatabaseInterface $db = null)
