@@ -2510,6 +2510,30 @@ class CotizacionController extends BaseController
         return $v !== null ? trim((string) $v) : '';
     }
 
+    /**
+     * Apply optional PDF table origin (Ajustes cotización). If table_y is set, never move the cursor
+     * upward past already rendered encabezado—long client blocks must push the price table down.
+     *
+     * @param   \FPDF  $pdf
+     * @param   float  $tableX    0 = keep current X (typically left margin)
+     * @param   float  $tableY    0 = use current Y
+     * @param   float  $marginL   Left margin when table_x is 0
+     *
+     * @return  void
+     *
+     * @since   3.117.11
+     */
+    private function applyCotizacionPdfTableOrigin($pdf, float $tableX, float $tableY, float $marginL = 15): void
+    {
+        if ($tableY <= 0.0 && $tableX <= 0.0) {
+            return;
+        }
+
+        $cursorY = $pdf->GetY();
+        $ty      = $tableY > 0.0 ? max($cursorY, $tableY) : $cursorY;
+        $tx      = $tableX > 0.0 ? $tableX : $marginL;
+        $pdf->SetXY($tx, $ty);
+    }
 
     /**
      * Generate cotización PDF with FPDF (same pattern as OrdenController work order / envio).
@@ -2589,10 +2613,7 @@ class CotizacionController extends BaseController
 
         $pdf->Ln(4);
 
-        // Table: Codigo (pre-cotizacion number), Cantidad, Descripción, Precio unit., Subtotal
-        if ($tableY > 0 || $tableX > 0) {
-            $pdf->SetXY($tableX > 0 ? $tableX : 15, $tableY > 0 ? $tableY : $pdf->GetY());
-        }
+        $this->applyCotizacionPdfTableOrigin($pdf, $tableX, $tableY, 15);
         $colCodigo = 16;
         $colCant   = 16;
         $colDesc   = 102;
@@ -2825,11 +2846,7 @@ class CotizacionController extends BaseController
         $colSub    = 28;
         $lineH     = 6;
 
-        if ($tableY > 0 || $tableX > 0) {
-            $pdf->SetXY($tableX > 0 ? $tableX : 15, $tableY > 0 ? $tableY : $pdf->GetY());
-        }
-
-        // Table header row (lighter compatible colour)
+        $this->applyCotizacionPdfTableOrigin($pdf, $tableX, $tableY, 15);
         $pdf->SetFillColor($tableHeaderR, $tableHeaderG, $tableHeaderB);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('Arial', 'B', 8);

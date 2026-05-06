@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.11-STABLE] - 2026-05-06
+
+### Fixed
+- **PDF cotización (formato 1 y 2):** Si en Ajustes se fija `table_y`, la tabla de precios ya no se dibuja en una Y absoluta que queda *por encima* del encabezado cuando el nombre del cliente u otros bloques ocupan muchas líneas. La posición efectiva es `max(cursor actual después del encabezado, table_y)`, evitando que el texto introductorio se superponga a los encabezados de columna.
+
 ## [3.117.10-STABLE] - 2026-05-06
 
 ### Changed
