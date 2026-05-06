@@ -123,7 +123,34 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="approval-col-doc text-nowrap"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td style="min-width:260px;">
-                                <?php if ($etype === 'solicitud_descuento' || $etype === 'solicitud_cotizacion' || $etype === 'creacion_orden_trabajo' || $etype === 'servicios_elementos_externos') : ?>
+                                <?php if ($etype === 'solicitud_cotizacion') : ?>
+                                <div class="d-flex flex-column gap-2">
+                                    <div class="d-flex flex-wrap gap-1 align-items-center">
+                                        <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                                            <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>
+                                        </a>
+                                        <form method="post" action="<?php echo $cancelAction; ?>" class="d-inline" onsubmit="return confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_APPROVAL_DISMISS_CONFIRM')); ?>);">
+                                            <?php echo HTMLHelper::_('form.token'); ?>
+                                            <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_DISMISS'); ?></button>
+                                        </form>
+                                    </div>
+                                    <form method="post" action="<?php echo $approveAction; ?>" class="mb-0">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                        <label class="form-label small mb-0" for="approval-approve-sc-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
+                                        <textarea class="form-control form-control-sm mb-1" id="approval-approve-sc-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'); ?>"></textarea>
+                                        <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
+                                    </form>
+                                    <form method="post" action="<?php echo $rejectAction; ?>" class="mb-0">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                        <label class="form-label small mb-0" for="approval-reject-sc-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
+                                        <textarea class="form-control form-control-sm mb-1" id="approval-reject-sc-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'); ?>"></textarea>
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
+                                    </form>
+                                </div>
+                                <?php elseif ($etype === 'solicitud_descuento' || $etype === 'creacion_orden_trabajo' || $etype === 'servicios_elementos_externos') : ?>
                                 <div class="d-flex flex-wrap gap-1 align-items-center">
                                     <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($precotDocUrl, ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_PRE_COT'); ?>

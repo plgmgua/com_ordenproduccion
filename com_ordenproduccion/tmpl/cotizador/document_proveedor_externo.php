@@ -191,6 +191,13 @@ if (strpos($labelOrdenCompraViewPdf, 'COM_ORDENPRODUCCION_') === 0) {
 $ordenCompraLatestByProveedor = isset($this->ordenCompraLatestByProveedor) && is_array($this->ordenCompraLatestByProveedor)
     ? $this->ordenCompraLatestByProveedor : [];
 $token = Session::getFormToken();
+$pendingSolicitudCotReqIdDoc = isset($this->pendingSolicitudCotizacionRequestId) ? (int) $this->pendingSolicitudCotizacionRequestId : 0;
+$canActSolicitudCotWfHere = !empty($this->canCompleteSolicitudCotizacionApprovalHere) && $pendingSolicitudCotReqIdDoc > 0;
+$precotDocReturnB64VendorWf = base64_encode(
+    Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . (int) $preCotizacionId, false, Route::TLS_IGNORE, true)
+);
+$wfVendorQuoteApproveUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.approveApprovalWorkflow', false, Route::TLS_IGNORE, true);
+$wfVendorQuoteRejectUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectApprovalWorkflow', false, Route::TLS_IGNORE, true);
 $vendorQuoteProveedoresUrl = Route::_(
     'index.php?option=com_ordenproduccion&task=precotizacion.vendorQuoteProveedoresJson&format=json&' . $token . '=1',
     false,
@@ -362,6 +369,34 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         }
     ?>
     <div class="alert alert-warning mb-3"><?php echo htmlspecialchars($msgOfertaRo); ?></div>
+    <?php endif; ?>
+
+    <?php if ($solicitudCotWf && $pendingSolicitudCot && $canActSolicitudCotWfHere) : ?>
+    <div class="alert alert-warning border border-warning mb-3 precot-vendor-quote-wf-approval-banner">
+        <p class="mb-2 fw-semibold"><?php echo Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_WORKFLOW_APPROVAL_BANNER'); ?></p>
+        <div class="row g-3">
+            <div class="col-12 col-lg-6">
+                <form method="post" action="<?php echo htmlspecialchars($wfVendorQuoteApproveUrl, ENT_QUOTES, 'UTF-8'); ?>" class="border rounded p-2 bg-white">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="request_id" value="<?php echo (int) $pendingSolicitudCotReqIdDoc; ?>">
+                    <input type="hidden" name="return" value="<?php echo htmlspecialchars($precotDocReturnB64VendorWf, ENT_QUOTES, 'UTF-8'); ?>">
+                    <label class="form-label small mb-0" for="vendor-quote-wf-approve-cmt"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
+                    <textarea class="form-control form-control-sm mb-2" name="comment" id="vendor-quote-wf-approve-cmt" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
+                    <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
+                </form>
+            </div>
+            <div class="col-12 col-lg-6">
+                <form method="post" action="<?php echo htmlspecialchars($wfVendorQuoteRejectUrl, ENT_QUOTES, 'UTF-8'); ?>" class="border rounded p-2 bg-white">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="request_id" value="<?php echo (int) $pendingSolicitudCotReqIdDoc; ?>">
+                    <input type="hidden" name="return" value="<?php echo htmlspecialchars($precotDocReturnB64VendorWf, ENT_QUOTES, 'UTF-8'); ?>">
+                    <label class="form-label small mb-0" for="vendor-quote-wf-reject-cmt"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
+                    <textarea class="form-control form-control-sm mb-2" name="comment" id="vendor-quote-wf-reject-cmt" rows="2" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>"></textarea>
+                    <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
+                </form>
+            </div>
+        </div>
+    </div>
     <?php endif; ?>
 
     <div class="precotizacion-descripcion mb-3">

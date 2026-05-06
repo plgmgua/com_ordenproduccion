@@ -159,6 +159,24 @@ class HtmlView extends BaseHtmlView
     protected $pendingSolicitudCotizacion = false;
 
     /**
+     * Open solicitud de cotización request id (proveedor externo), or 0.
+     *
+     * @var    int
+     *
+     * @since   3.117.4
+     */
+    protected $pendingSolicitudCotizacionRequestId = 0;
+
+    /**
+     * Current user is assignee for the pending solicitud de cotización step (may approve/reject on document).
+     *
+     * @var    bool
+     *
+     * @since   3.117.4
+     */
+    protected $canCompleteSolicitudCotizacionApprovalHere = false;
+
+    /**
      * Document: user may submit a new solicitud de cotización (proveedor externo).
      *
      * @var    bool
@@ -386,6 +404,8 @@ class HtmlView extends BaseHtmlView
                     $this->solicitudDescuentoLatestNote  = '';
                     $this->solicitudCotizacionWorkflowAvailable = false;
                     $this->pendingSolicitudCotizacion           = false;
+                    $this->pendingSolicitudCotizacionRequestId  = 0;
+                    $this->canCompleteSolicitudCotizacionApprovalHere = false;
                     $this->canRequestSolicitudCotizacion        = false;
                     $this->vendorQuoteSolicitudApproved         = false;
                     $this->ordenCompraWorkflowAvailable         = false;
@@ -451,10 +471,21 @@ class HtmlView extends BaseHtmlView
                                 $this->solicitudCotizacionWorkflowAvailable = $wf->isWorkflowPublishedForEntity(
                                     ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
                                 );
-                                $this->pendingSolicitudCotizacion = $wf->getOpenPendingRequest(
+                                $this->pendingSolicitudCotizacionRequestId = 0;
+                                $this->canCompleteSolicitudCotizacionApprovalHere = false;
+                                $pendingSc = $wf->getOpenPendingRequest(
                                     ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION,
                                     (int) $id
-                                ) !== null;
+                                );
+                                $this->pendingSolicitudCotizacion = $pendingSc !== null;
+                                if ($pendingSc !== null) {
+                                    $this->pendingSolicitudCotizacionRequestId = (int) ($pendingSc->id ?? 0);
+                                    $this->canCompleteSolicitudCotizacionApprovalHere = $this->pendingSolicitudCotizacionRequestId > 0
+                                        && $wf->canUserActOnPendingStep(
+                                            $this->pendingSolicitudCotizacionRequestId,
+                                            (int) $user->id
+                                        );
+                                }
                                 $this->vendorQuoteSolicitudApproved = $wf->hasApprovedRequestForEntity(
                                     ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION,
                                     (int) $id
@@ -477,6 +508,8 @@ class HtmlView extends BaseHtmlView
                         $this->pendingSolicitudDescuento    = false;
                         $this->solicitudCotizacionWorkflowAvailable = false;
                         $this->pendingSolicitudCotizacion           = false;
+                        $this->pendingSolicitudCotizacionRequestId  = 0;
+                        $this->canCompleteSolicitudCotizacionApprovalHere = false;
                         $this->vendorQuoteSolicitudApproved           = false;
                         $this->ordenCompraWorkflowAvailable           = false;
                         $this->ordenCompraTablesAvailable             = false;

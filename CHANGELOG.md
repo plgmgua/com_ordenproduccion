@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.4-STABLE] - 2026-05-05
+
+### Fixed
+- **Aprobaciones — solicitud de cotización (proveedor externo):** Botones **Aprobar** y **Rechazar** en la pestaña Aprobaciones y en el documento de pre-cot proveedor externo cuando el usuario es el aprobador asignado; la decisión usa `administracion.approveApprovalWorkflow` / `rejectApprovalWorkflow` y redirige de vuelta al documento si aplica.
+
 ## [3.117.3-STABLE] - 2026-05-05
 
 ### Added
