@@ -65,6 +65,7 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     opacity: 1;
 }
 .subtab-content { margin-top: 0; }
+</style>
 <div class="ajustes-subtabs">
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'ajustes_cotizacion' ? 'subtab-active' : ''; ?>">
