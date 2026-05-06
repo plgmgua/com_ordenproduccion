@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.10-STABLE] - 2026-05-06
+
+### Changed
+- **Orden de trabajo / PDF (instrucciones pliego):** La columna **Instrucciones** usa únicamente el texto guardado en el paso de **instrucciones** (tabla `pre_cotizacion_line_detalles`). Ya no se rellena con datos del desglose ni con etiquetas de rango tarifario (p. ej. 1–1000). Si no hay texto, se muestra **—**.
+
 ## [3.117.9-STABLE] - 2026-05-06
 
 ### Changed
