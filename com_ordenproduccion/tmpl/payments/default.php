@@ -489,7 +489,7 @@ use Joomla\CMS\Session\Session;
                         <h6 class="small fw-bold">Líneas de pago</h6>
                         <div class="table-responsive mb-3">
                             <table class="table table-sm table-striped" id="modalLinesTable">
-                                <thead><tr><th>Tipo</th><th>Banco</th><th>Cuenta</th><th>No. Doc.</th><th class="text-end">Monto</th></tr></thead>
+                                <thead><tr><th><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE')); ?></th><th><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_LINE_BANK_ORIGIN')); ?></th><th><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_LINE_BANK_ACCOUNT')); ?></th><th>No. Doc.</th><th class="text-end">Monto</th></tr></thead>
                                 <tbody id="modalLinesBody"></tbody>
                             </table>
                         </div>

@@ -49,8 +49,8 @@ try {
 
 $bankAccountColumnLabel = AsistenciaHelper::safeText(
     'COM_ORDENPRODUCCION_PAYMENT_LINE_BANK_ACCOUNT',
-    'Bank account',
-    'Cuenta bancaria'
+    'Destination account',
+    'Cuenta Destino'
 );
 
 if (empty($order)) :
@@ -113,7 +113,7 @@ if (empty($order)) :
                                     <thead>
                                         <tr>
                                             <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
-                                            <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
+                                            <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_BANK_ORIGIN', 'Origin bank', 'Banco Origen'); ?></th>
                                             <th><?php echo htmlspecialchars($bankAccountColumnLabel); ?></th>
                                             <th style="width: 140px;">Doc. No</th>
                                             <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
@@ -1422,7 +1422,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             <thead>
                                                 <tr>
                                                     <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_TYPE', 'Payment Type', 'Tipo de pago'); ?></th>
-                                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_BANK', 'Bank', 'Banco'); ?></th>
+                                                    <th><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_BANK_ORIGIN', 'Origin bank', 'Banco Origen'); ?></th>
                                                     <th><?php echo htmlspecialchars($bankAccountColumnLabel); ?></th>
                                                     <th style="width: 140px;">Doc. No</th>
                                                     <th style="width: 130px;"><?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_DOCUMENT_DATE', 'Document Date', 'Fecha del Documento'); ?></th>
