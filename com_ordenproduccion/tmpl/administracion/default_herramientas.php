@@ -443,26 +443,39 @@ $tokenName = Session::getFormToken();
 
 .herramientas-subtabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 0;
     border-bottom: 2px solid #dee2e6;
-    margin-bottom: 30px;
+    margin-bottom: 18px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 .herramientas-subtab {
-    padding: 12px 24px;
+    padding: 7px 12px;
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 500;
     color: #666;
     text-decoration: none;
-    transition: all 0.3s;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 0;
+    text-align: center;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.herramientas-subtab i {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 2px;
 }
 
 .herramientas-subtab:hover {
@@ -471,9 +484,10 @@ $tokenName = Session::getFormToken();
     background: rgba(102, 126, 234, 0.05);
 }
 
-.subtab-active {
+.herramientas-subtab.subtab-active {
     color: #667eea;
     border-bottom-color: #667eea;
     background: rgba(102, 126, 234, 0.05);
+    font-weight: 600;
 }
 </style>

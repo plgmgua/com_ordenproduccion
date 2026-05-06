@@ -67,10 +67,41 @@ $facturarSiNo = static function ($r): string {
 };
 ?>
 <style>
-.financiero-subtabs { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 2px solid #dee2e6; margin-bottom: 18px; }
-.financiero-subtab { padding: 10px 20px; background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; text-decoration: none; }
-.financiero-subtab:hover { color: #667eea; text-decoration: none; }
-.financiero-subtab.subtab-active { color: #667eea; border-bottom-color: #667eea; }
+.financiero-subtabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 18px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.financiero-subtab {
+    padding: 7px 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 500;
+    color: #666;
+    text-decoration: none;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.25;
+    white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.financiero-subtab i {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+.financiero-subtab:hover { color: #667eea; text-decoration: none; background: rgba(102, 126, 234, 0.05); }
+.financiero-subtab.subtab-active { color: #667eea; border-bottom-color: #667eea; font-weight: 600; }
 .table-financiero { font-size: 12px; }
 .table-financiero th { white-space: nowrap; }
 .bg-margen-total-row { background: rgba(144, 238, 144, 0.25); }

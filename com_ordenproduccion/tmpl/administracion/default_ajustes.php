@@ -23,22 +23,34 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 <style>
 .ajustes-subtabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 0;
     border-bottom: 2px solid #dee2e6;
-    margin-bottom: 24px;
+    margin-bottom: 18px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 .ajustes-subtab {
-    padding: 12px 24px;
+    padding: 7px 12px;
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.25;
     color: #666;
     text-decoration: none;
-    transition: all 0.2s;
+    transition: color 0.2s, border-color 0.2s;
+    text-align: center;
+    white-space: nowrap;
+}
+.ajustes-subtab i {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 2px;
+    line-height: 1;
+    opacity: 0.92;
 }
 .ajustes-subtab:hover {
     color: #667eea;
@@ -47,9 +59,12 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 .ajustes-subtab.subtab-active {
     color: #667eea;
     border-bottom-color: #667eea;
+    font-weight: 600;
+}
+.ajustes-subtab.subtab-active i {
+    opacity: 1;
 }
 .subtab-content { margin-top: 0; }
-</style>
 <div class="ajustes-subtabs">
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=ajustes_cotizacion'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'ajustes_cotizacion' ? 'subtab-active' : ''; ?>">

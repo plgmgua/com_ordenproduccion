@@ -55,21 +55,23 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     flex-wrap: wrap;
     gap: 0;
     border-bottom: 3px solid #dee2e6;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 .admin-tab {
-    padding: 8px 12px;
+    padding: 6px 10px;
     background: transparent;
     border: none;
     border-bottom: 3px solid transparent;
     margin-bottom: -3px;
     cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.25;
     color: #666;
     text-decoration: none;
-    transition: all 0.3s;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
     white-space: nowrap;
     text-align: center;
 }
@@ -81,14 +83,21 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
 
 .admin-tab.active {
     color: #667eea;
+    font-weight: 600;
     border-bottom-color: #667eea;
     background: rgba(102, 126, 234, 0.05);
 }
 
 .admin-tab i {
     display: block;
-    font-size: 14px;
-    margin-bottom: 3px;
+    font-size: 12px;
+    margin-bottom: 2px;
+    line-height: 1;
+    opacity: 0.92;
+}
+
+.admin-tab.active i {
+    opacity: 1;
 }
 
 .tab-content {
