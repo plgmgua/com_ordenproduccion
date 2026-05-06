@@ -412,6 +412,11 @@ $tokenName = Session::getFormToken();
             <i class="fas fa-credit-card"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_PAYMENT_TYPES'); ?>
         </a>
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=herramientas&subtab=bankaccounts'); ?>" 
+           class="herramientas-subtab <?php echo $activeSubTab === 'bankaccounts' ? 'subtab-active' : ''; ?>">
+            <i class="fas fa-piggy-bank"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_BANK_ACCOUNTS'); ?>
+        </a>
     </div>
 
     <!-- Subtab Content -->
@@ -420,6 +425,8 @@ $tokenName = Session::getFormToken();
             <?php include __DIR__ . '/default_herramientas_banks.php'; ?>
         <?php elseif ($activeSubTab === 'paymenttypes'): ?>
             <?php include __DIR__ . '/default_herramientas_paymenttypes.php'; ?>
+        <?php elseif ($activeSubTab === 'bankaccounts'): ?>
+            <?php include __DIR__ . '/default_herramientas_bankaccounts.php'; ?>
         <?php else: ?>
             <div class="empty-state">
                 <p><?php echo Text::_('COM_ORDENPRODUCCION_SUBTAB_NOT_FOUND'); ?></p>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.0-STABLE] - 2026-05-06
+
+### Added
+- **Administración → Herramientas → Cuentas bancarias:** New sub-tab with CRUD for company bank accounts (fields: **ID**, **Nombre**, **Estado** activo/inactivo). Table `#__ordenproduccion_bank_accounts`; JSON save/delete via `BankaccountController`.
+
 ## [3.117.13-STABLE] - 2026-05-06
 
 ### Changed

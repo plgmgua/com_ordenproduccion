@@ -96,6 +96,14 @@ class HtmlView extends BaseHtmlView
     protected $paymentTypes = [];
 
     /**
+     * Bank accounts (cuentas bancarias) for herramientas subtab
+     *
+     * @var    array
+     * @since  3.118.0
+     */
+    protected $bankAccounts = [];
+
+    /**
      * Active subtab for herramientas tab
      *
      * @var    string
@@ -976,6 +984,9 @@ class HtmlView extends BaseHtmlView
         if ($activeTab === 'ajustes' && $activeSubTab === 'cotizaciones') {
             $activeSubTab = 'ajustes_cotizacion';
         }
+        if ($activeTab === 'herramientas' && !in_array($activeSubTab, ['banks', 'paymenttypes', 'bankaccounts'], true)) {
+            $activeSubTab = 'banks';
+        }
         $this->activeSubTab = $activeSubTab;
 
         // Get statistics model and data (filtered by sales agent when Ventas)
@@ -1018,6 +1029,7 @@ class HtmlView extends BaseHtmlView
         $this->invoicesPagination = null;
         $this->state = new \Joomla\Registry\Registry();
         $this->banks = [];
+        $this->bankAccounts = [];
         $this->reportWorkOrders = [];
         $this->reportClients = [];
         $this->clients = [];
@@ -1089,6 +1101,9 @@ class HtmlView extends BaseHtmlView
         // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
             $this->banks = [];
+        }
+        if (!isset($this->bankAccounts) || !is_array($this->bankAccounts)) {
+            $this->bankAccounts = [];
         }
 
         // Load invoices data if invoices tab is active (lista) or match data for conciliar subtab
@@ -1595,6 +1610,25 @@ class HtmlView extends BaseHtmlView
             $this->paymentTypes = [];
         }
 
+        if ($activeTab === 'herramientas' && $activeSubTab === 'bankaccounts') {
+            try {
+                $component = $app->bootComponent('com_ordenproduccion');
+                $mvcFactory = $component->getMVCFactory();
+                $bankAccountModel = $mvcFactory->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+
+                if ($bankAccountModel && method_exists($bankAccountModel, 'getBankAccounts')) {
+                    $this->bankAccounts = $bankAccountModel->getBankAccounts();
+                } else {
+                    $this->bankAccounts = [];
+                }
+            } catch (\Exception $e) {
+                $app->enqueueMessage('Error loading bank accounts: ' . $e->getMessage(), 'warning');
+                $this->bankAccounts = [];
+            }
+        } else {
+            $this->bankAccounts = [];
+        }
+
         if ($activeTab === 'aprobaciones') {
             try {
                 $approvalService = new ApprovalWorkflowService();
@@ -1893,7 +1927,10 @@ class HtmlView extends BaseHtmlView
         if (!isset($this->banks) || !is_array($this->banks)) {
             $this->banks = [];
         }
-        
+        if (!isset($this->bankAccounts) || !is_array($this->bankAccounts)) {
+            $this->bankAccounts = [];
+        }
+
         // Also check via reflection to ensure property is initialized (PHP 7.4+)
         try {
             $reflection = new \ReflectionClass($this);
@@ -1907,6 +1944,18 @@ class HtmlView extends BaseHtmlView
         } catch (\Error $e) {
             // PHP 7.3 compatibility - ReflectionProperty::isInitialized() doesn't exist
             $this->banks = [];
+        }
+
+        try {
+            $reflection = new \ReflectionClass($this);
+            $property = $reflection->getProperty('bankAccounts');
+            if (!$property->isInitialized($this)) {
+                $this->bankAccounts = [];
+            }
+        } catch (\ReflectionException $e) {
+            $this->bankAccounts = [];
+        } catch (\Error $e) {
+            $this->bankAccounts = [];
         }
         
         // Prepare document
