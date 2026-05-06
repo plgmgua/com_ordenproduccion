@@ -103,6 +103,44 @@ class PrecotizacionController extends BaseController
     }
 
     /**
+     * Whether descripción, medidas and cantidad_total (when columns exist) are filled — required before adding pliego/elementos/etc. lines.
+     *
+     * @return string|null Localized error message if incomplete, null if OK.
+     *
+     * @since  3.117.6
+     */
+    protected function getPrecotCabeceraIncompleteMessage(int $preCotizacionId): ?string
+    {
+        if ($preCotizacionId < 1) {
+            return Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID');
+        }
+
+        $model = $this->getModel('Precotizacion', 'Site');
+        $item  = $model->getItem($preCotizacionId);
+        if (!$item) {
+            return Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND');
+        }
+
+        if (trim((string) ($item->descripcion ?? '')) === '') {
+            return Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES');
+        }
+
+        $db   = Factory::getDbo();
+        $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+
+        if (isset($cols['medidas']) && trim((string) ($item->medidas ?? '')) === '') {
+            return Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES');
+        }
+
+        if (isset($cols['cantidad_total']) && trim((string) ($item->cantidad_total ?? '')) === '') {
+            return Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES');
+        }
+
+        return null;
+    }
+
+    /**
      * Document mode for a pre-cotización header (pliego vs proveedor_externo).
      *
      * @since  3.112.0
@@ -341,6 +379,18 @@ class PrecotizacionController extends BaseController
             return false;
         }
         if ($this->denyIfNotEditableDocument($preCotizacionId, $format)) {
+            return false;
+        }
+
+        if (($cabMsg = $this->getPrecotCabeceraIncompleteMessage($preCotizacionId)) !== null) {
+            if ($format === 'json' || $app->input->getBool('ajax')) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode(['success' => false, 'message' => $cabMsg]);
+                $app->close();
+            }
+            $this->setMessage($cabMsg, 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
             return false;
         }
 
@@ -672,6 +722,13 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if (($cabMsg = $this->getPrecotCabeceraIncompleteMessage($preCotizacionId)) !== null) {
+            $this->setMessage($cabMsg, 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+            return false;
+        }
+
         if ($this->documentModeForPrecot($preCotizacionId) === 'proveedor_externo') {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_PROVEEDOR_EXTERNO_NO_PLIEGO'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
@@ -761,6 +818,13 @@ class PrecotizacionController extends BaseController
             return false;
         }
         if ($this->denyIfNotEditableDocument($preCotizacionId, 'html')) {
+            return false;
+        }
+
+        if (($cabMsg = $this->getPrecotCabeceraIncompleteMessage($preCotizacionId)) !== null) {
+            $this->setMessage($cabMsg, 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
             return false;
         }
 
@@ -869,6 +933,13 @@ class PrecotizacionController extends BaseController
 
         if ($this->documentModeForPrecot($preCotizacionId) === 'proveedor_externo') {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_PROVEEDOR_EXTERNO_NO_PLIEGO'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
+
+            return false;
+        }
+
+        if ($lineId < 1 && ($cabMsg = $this->getPrecotCabeceraIncompleteMessage($preCotizacionId)) !== null) {
+            $this->setMessage($cabMsg, 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
 
             return false;
@@ -1782,6 +1853,13 @@ class PrecotizacionController extends BaseController
 
         if (isset($tableCols['medidas']) && $medidas === '') {
             $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_MEDIDAS_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
+        if (isset($tableCols['cantidad_total']) && $cantidadTotal === '') {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_CANTIDAD_TOTAL_REQUIRED'), 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
 
             return false;

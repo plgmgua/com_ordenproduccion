@@ -466,7 +466,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     <label class="form-label fw-bold mb-1" for="precotizacion-cantidad-total"><?php echo htmlspecialchars($labelCantidadTotal); ?></label>
                     <input type="text" name="cantidad_total" id="precotizacion-cantidad-total" class="form-control" maxlength="128" autocomplete="off"
                            placeholder="<?php echo htmlspecialchars($placeholderCantidadTotal); ?>"
-                           value="<?php echo htmlspecialchars($cantidadTotalValue, ENT_QUOTES, 'UTF-8'); ?>">
+                           value="<?php echo htmlspecialchars($cantidadTotalValue, ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
             </div>
             <div class="text-end mt-2">

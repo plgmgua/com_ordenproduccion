@@ -386,7 +386,7 @@ $solicitarDescuentoAction   = Route::_(
                     <label class="form-label fw-bold mb-1" for="precotizacion-cantidad-total"><?php echo htmlspecialchars($labelCantidadTotal); ?></label>
                     <input type="text" name="cantidad_total" id="precotizacion-cantidad-total" class="form-control" maxlength="128" autocomplete="off"
                            placeholder="<?php echo htmlspecialchars($placeholderCantidadTotal); ?>"
-                           value="<?php echo htmlspecialchars($cantidadTotalValue, ENT_QUOTES, 'UTF-8'); ?>">
+                           value="<?php echo htmlspecialchars($cantidadTotalValue, ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
             </div>
         </form>
@@ -1684,6 +1684,44 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
             toggleCustom();
         });
     }
+})();
+</script>
+<?php endif; ?>
+
+<?php if ($canEditDocument) : ?>
+<script>
+(function() {
+    var msg = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    function strip(s) {
+        return (s || '').replace(/^\s+|\s+$/g, '');
+    }
+    function cabeceraOk() {
+        var d = document.getElementById('precotizacion-descripcion');
+        var m = document.getElementById('precotizacion-medidas');
+        var c = document.getElementById('precotizacion-cantidad-total');
+        if (!d || !m) {
+            return true;
+        }
+        return strip(d.value) !== '' && strip(m.value) !== '' && (!c || strip(c.value) !== '');
+    }
+    document.addEventListener('click', function(ev) {
+        var el = ev.target && ev.target.closest ? ev.target.closest('button[data-bs-toggle="modal"][data-bs-target]') : null;
+        if (!el) {
+            return;
+        }
+        var t = el.getAttribute('data-bs-target') || '';
+        if (t !== '#pliegoLineModal' && t !== '#elementosLineModal' && t !== '#tercerizadoLineModal' && t !== '#envioLineModal') {
+            return;
+        }
+        if (!cabeceraOk()) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (typeof ev.stopImmediatePropagation === 'function') {
+                ev.stopImmediatePropagation();
+            }
+            window.alert(msg);
+        }
+    }, true);
 })();
 </script>
 <?php endif; ?>
