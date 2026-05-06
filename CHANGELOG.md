@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.12-STABLE] - 2026-05-06
+
+### Fixed
+- **Aprobaciones (Quitar):** Las solicitudes «Servicios y elementos externos» (`servicios_elementos_externos`) entraban en la lista pero `cancelPendingRequestByApprover` no las incluía en los tipos permitidos, de modo que **Quitar** fallaba siempre. Ahora se pueden retirar igual que descuento, solicitud proveedor, creación OT y orden de compra.
+
 ## [3.117.11-STABLE] - 2026-05-06
 
 ### Fixed

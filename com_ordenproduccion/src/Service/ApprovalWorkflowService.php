@@ -981,7 +981,8 @@ class ApprovalWorkflowService
     /**
      * Cancel a pending request by the assigned approver (Administración → Aprobaciones).
      *
-     * Allowed for pre-cotización discount/quote flows and purchase orders shown with “open only” actions.
+     * Allowed for pre-cotización discount/quote flows, «servicios y elementos externos» (line id), purchase orders
+     * shown with “open only” actions.
      * For {@see self::ENTITY_ORDEN_COMPRA}, sets workflow outcome to rejected (same as rejecting the request).
      *
      * @since  3.114.8
@@ -1008,6 +1009,7 @@ class ApprovalWorkflowService
             self::ENTITY_SOLICITUD_COTIZACION,
             self::ENTITY_CREACION_ORDEN_TRABAJO,
             self::ENTITY_ORDEN_COMPRA,
+            self::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS,
         ];
 
         if (!in_array($type, $allowed, true)) {
