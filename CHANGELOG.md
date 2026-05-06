@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.117.8-STABLE] - 2026-05-06
+
+### Fixed
+- **Orden de trabajo / PDF (bloque pre-cot pliego):** Las **instrucciones de acabados** incluyen todas las filas del desglose del pliego: si no hay texto en `pre_cotizacion_line_detalles`, se usa la columna **Detalle** del `calculation_breakdown` (p. ej. rangos de corte) y se rellenan conceptos que faltaban solo en la tabla de detalles.
+
 ## [3.117.4-STABLE] - 2026-05-05
 
 ### Fixed

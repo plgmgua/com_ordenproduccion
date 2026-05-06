@@ -23,6 +23,55 @@ use Joomla\Database\DatabaseInterface;
 class OrdenPrecotSectionsHelper
 {
     /**
+     * Decode pliego calculation_breakdown JSON into a map concepto_key => detalle (pricing/detail column)
+     * and an ordered list for rows missing from #__ordenproduccion_pre_cotizacion_line_detalles.
+     *
+     * Keys match {@see PrecotizacionModel::getConceptsForLine()} (label slug).
+     *
+     * @return  array{0: array<string, string>, 1: array<int, array{key: string, label: string, detail: string}>}
+     */
+    private static function pliegoBreakdownMapsFromLine(object $line): array
+    {
+        $raw = isset($line->calculation_breakdown) ? trim((string) $line->calculation_breakdown) : '';
+        if ($raw === '') {
+            return [[], []];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!\is_array($decoded)) {
+            return [[], []];
+        }
+
+        $map     = [];
+        $ordered = [];
+        $idx     = 0;
+
+        foreach ($decoded as $row) {
+            if (!\is_array($row)) {
+                continue;
+            }
+
+            $label = isset($row['label']) ? trim((string) $row['label']) : '';
+            if ($label === '') {
+                continue;
+            }
+
+            $key = preg_replace('/[^a-z0-9_]/', '_', strtolower($label));
+            $key = trim(preg_replace('/_+/', '_', $key), '_');
+            if ($key === '') {
+                $key = 'concepto_' . $idx;
+            }
+
+            $detail       = isset($row['detail']) ? trim((string) $row['detail']) : '';
+            $map[$key]    = $detail;
+            $ordered[]    = ['key' => $key, 'label' => $label, 'detail' => $detail];
+            $idx++;
+        }
+
+        return [$map, $ordered];
+    }
+
+    /**
      * One structured card per línea PRE (metadata + instrucciones por concepto; sin precios).
      *
      * @param   int  $preCotizacionId  Pre-cotización id
@@ -252,16 +301,64 @@ class OrdenPrecotSectionsHelper
 
             $instructions = [];
 
+            /** @var array<string, string> $breakdownDetailByKey */
+            /** @var array<int, array{key: string, label: string, detail: string}> $breakdownOrdered */
+            $breakdownDetailByKey = [];
+            $breakdownOrdered     = [];
+            if ($lineType === 'pliego') {
+                [$breakdownDetailByKey, $breakdownOrdered] = self::pliegoBreakdownMapsFromLine($line);
+            }
+
+            $instructionKeysSeen = [];
+
             foreach ($detallesByLine[$lineId] ?? [] as $d) {
+                $key = isset($d['concepto_key']) ? trim((string) $d['concepto_key']) : '';
+                $lab = isset($d['concepto_label']) ? Utf8DisplayHelper::normalizeUserFacing(trim((string) $d['concepto_label'])) : '';
                 $detTxt = isset($d['detalle']) ? Utf8DisplayHelper::normalizeUserFacing(trim((string) $d['detalle'])) : '';
+
+                if ($detTxt === '' && $lineType === 'pliego' && $key !== '' && isset($breakdownDetailByKey[$key])) {
+                    $fb = trim((string) $breakdownDetailByKey[$key]);
+                    if ($fb !== '') {
+                        $detTxt = Utf8DisplayHelper::normalizeUserFacing($fb);
+                    }
+                }
+
+                if ($detTxt === '' && $lineType === 'pliego' && ($key !== '' || $lab !== '')) {
+                    $detTxt = Utf8DisplayHelper::normalizeUserFacing('—');
+                }
+
                 if ($detTxt === '') {
                     continue;
                 }
-                $lab = isset($d['concepto_label']) ? Utf8DisplayHelper::normalizeUserFacing(trim((string) $d['concepto_label'])) : '';
+
                 if ($lab === '') {
                     $lab = Text::_('COM_ORDENPRODUCCION_ORDEN_INSTRUCCIONES');
                 }
+
                 $instructions[] = ['label' => $lab, 'text' => $detTxt];
+
+                if ($key !== '') {
+                    $instructionKeysSeen[$key] = true;
+                }
+            }
+
+            if ($lineType === 'pliego' && $breakdownOrdered !== []) {
+                foreach ($breakdownOrdered as $bRow) {
+                    $bk = $bRow['key'];
+                    if ($bk !== '' && isset($instructionKeysSeen[$bk])) {
+                        continue;
+                    }
+                    $blab = Utf8DisplayHelper::normalizeUserFacing($bRow['label']);
+                    if ($blab === '') {
+                        continue;
+                    }
+                    $bdet = trim((string) $bRow['detail']);
+                    $btxt = $bdet !== '' ? Utf8DisplayHelper::normalizeUserFacing($bdet) : Utf8DisplayHelper::normalizeUserFacing('—');
+                    $instructions[] = ['label' => $blab, 'text' => $btxt];
+                    if ($bk !== '') {
+                        $instructionKeysSeen[$bk] = true;
+                    }
+                }
             }
 
             $sections[] = [
