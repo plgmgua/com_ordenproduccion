@@ -423,6 +423,13 @@
 #payment-lines-table {
     table-layout: fixed;
     width: 100%;
+    /* ~2pt smaller than root for headers and cell content */
+    font-size: calc(1rem - 2pt);
+}
+
+#payment-lines-table .form-control,
+#payment-lines-table .form-select {
+    font-size: 1em;
 }
 
 #payment-lines-table th:nth-child(1),
@@ -480,10 +487,13 @@
         max-width: 100%;
     }
     
+    #payment-lines-table {
+        font-size: calc(13px - 2pt);
+    }
+
     #payment-lines-table th,
     #payment-lines-table td {
         padding: 6px 4px;
-        font-size: 13px;
     }
     
     #payment-lines-table th:nth-child(1),
