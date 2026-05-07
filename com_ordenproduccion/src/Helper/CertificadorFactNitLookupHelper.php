@@ -98,15 +98,7 @@ class CertificadorFactNitLookupHelper
         $queryParams['COUNTRY']  = 'GT';
         $queryParams['TAXID']    = $emissorTaxId;
         $queryParams['USERNAME'] = $apiUsername;
-        $queryParams['DATA1']    = 'SHARED_GETINFONITcom';
         $queryParams['DATA2']    = 'NIT|' . $cleanNit;
-
-        $builtQuery = http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
-        $path       = isset($parts['path']) ? $parts['path'] : '/';
-        $url        = $parts['scheme'] . '://' . $parts['host']
-            . (isset($parts['port']) ? ':' . $parts['port'] : '')
-            . $path
-            . '?' . $builtQuery;
 
         if (!\function_exists('curl_init')) {
             $empty['error'] = 'curl_required';
@@ -114,40 +106,70 @@ class CertificadorFactNitLookupHelper
             return $empty;
         }
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            \CURLOPT_HTTPGET         => true,
-            \CURLOPT_RETURNTRANSFER => true,
-            \CURLOPT_FOLLOWLOCATION => true,
-            \CURLOPT_CONNECTTIMEOUT => 15,
-            \CURLOPT_TIMEOUT        => max(5, min(120, $timeoutSec)),
-            \CURLOPT_SSL_VERIFYPEER => true,
-            \CURLOPT_SSL_VERIFYHOST => 2,
-            \CURLOPT_HTTPHEADER     => [
-                'Authorization: Bearer ' . $bearerToken,
-                'Accept: application/json',
-            ],
-        ]);
-        $rawBody  = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
-        $curlErr  = (string) curl_error($ch);
-        curl_close($ch);
+        // Digifact variants seen in the wild; try .com first, then legacy "com" suffix without dot.
+        $data1Variants = ['SHARED_GETINFONIT.com', 'SHARED_GETINFONITcom'];
+        $decoded       = null;
+        $rawBody       = '';
+        $httpCode      = 0;
+        $mime          = '';
+        $excerpt       = '';
 
-        if ($rawBody === false) {
-            $empty['http_code'] = $httpCode;
-            $empty['error']     = $curlErr !== '' ? $curlErr : 'curl_exec_failed';
+        foreach ($data1Variants as $data1Val) {
+            $queryParams['DATA1'] = $data1Val;
+            $builtQuery           = http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
+            $path                 = isset($parts['path']) ? $parts['path'] : '/';
+            $url                  = $parts['scheme'] . '://' . $parts['host']
+                . (isset($parts['port']) ? ':' . $parts['port'] : '')
+                . $path
+                . '?' . $builtQuery;
 
-            return $empty;
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                \CURLOPT_HTTPGET         => true,
+                \CURLOPT_RETURNTRANSFER => true,
+                \CURLOPT_FOLLOWLOCATION => true,
+                \CURLOPT_CONNECTTIMEOUT => 15,
+                \CURLOPT_TIMEOUT        => max(5, min(120, $timeoutSec)),
+                \CURLOPT_SSL_VERIFYPEER => true,
+                \CURLOPT_SSL_VERIFYHOST => 2,
+                \CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $bearerToken,
+                    'Accept: application/json, text/plain, */*',
+                ],
+            ]);
+            $rawBody  = curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+            $curlErr  = (string) curl_error($ch);
+            $mime     = (string) curl_getinfo($ch, \CURLINFO_CONTENT_TYPE);
+            curl_close($ch);
+
+            if ($rawBody === false) {
+                $empty['http_code'] = $httpCode;
+                $empty['error']     = $curlErr !== '' ? $curlErr : 'curl_exec_failed';
+
+                return $empty;
+            }
+
+            $rawBody = (string) $rawBody;
+            $excerpt = self::excerptBody($rawBody);
+            $decoded = self::decodeJsonResponseBody($rawBody);
+
+            if (\is_array($decoded)) {
+                break;
+            }
         }
-
-        $rawBody = (string) $rawBody;
-        $excerpt = self::excerptBody($rawBody);
-        $decoded = json_decode($rawBody, true);
 
         if (!\is_array($decoded)) {
             $empty['http_code']   = $httpCode;
             $empty['raw_excerpt'] = $excerpt;
-            $empty['error']       = 'invalid_json';
+            $mimeTrim             = trim($mime);
+            $extra                = $mimeTrim !== '' ? ('; ' . $mimeTrim) : '';
+            $empty['error']       = sprintf(
+                'invalid_json (HTTP %d%s): %s',
+                $httpCode,
+                $extra,
+                $excerpt
+            );
 
             return $empty;
         }
@@ -203,6 +225,66 @@ class CertificadorFactNitLookupHelper
             'city'        => $city,
             'raw_excerpt' => '',
         ];
+    }
+
+    /**
+     * Decode API body: trim/BOM, optional UTF-8 fix, extract embedded JSON object.
+     *
+     * @return  array<string, mixed>|null
+     */
+    protected static function decodeJsonResponseBody(string $rawBody): ?array
+    {
+        $rawBody = trim($rawBody);
+        if ($rawBody === '') {
+            return null;
+        }
+        if (strpos($rawBody, "\xEF\xBB\xBF") === 0) {
+            $rawBody = substr($rawBody, 3);
+        }
+
+        $flags = 0;
+        if (\defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+            $flags |= \JSON_INVALID_UTF8_SUBSTITUTE;
+        }
+
+        $decoded = json_decode($rawBody, true, 512, $flags);
+        if (\is_array($decoded)) {
+            return $decoded;
+        }
+
+        $start = strpos($rawBody, '{');
+        if ($start !== false) {
+            $slice = substr($rawBody, $start);
+            $decoded = json_decode($slice, true, 512, $flags);
+            if (\is_array($decoded)) {
+                return $decoded;
+            }
+
+            $depth = 0;
+            $len   = \strlen($slice);
+            $end   = -1;
+            for ($i = 0; $i < $len; $i++) {
+                $c = $slice[$i];
+                if ($c === '{') {
+                    $depth++;
+                } elseif ($c === '}') {
+                    $depth--;
+                    if ($depth === 0) {
+                        $end = $i;
+                        break;
+                    }
+                }
+            }
+            if ($end >= 0) {
+                $json = substr($slice, 0, $end + 1);
+                $decoded = json_decode($json, true, 512, $flags);
+                if (\is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+        }
+
+        return null;
     }
 
     protected static function excerptBody(string $raw, int $max = 400): string
