@@ -327,6 +327,10 @@ function safeGet($array, $key, $default = '') {
                         </button>
                     </div>
                     <div id="nc-nit-msg" class="small mt-2" role="alert"></div>
+                    <div id="nc-nit-debug-wrap" class="mt-2 d-none">
+                        <div class="small text-muted mb-1"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_DEBUG_CURL_TITLE'), ENT_QUOTES, 'UTF-8'); ?></div>
+                        <pre id="nc-nit-debug" class="small mb-0 p-2 bg-light border rounded" style="white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow-y: auto; font-size: 0.75rem;"></pre>
+                    </div>
                 </div>
                 <div id="nc-panel-cf" class="d-none">
                     <p class="small"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_CF_HELP'); ?></p>
@@ -359,7 +363,40 @@ function safeGet($array, $key, $default = '') {
     var nitInput = document.getElementById('nc-nit-input');
     var nitBtn = document.getElementById('nc-nit-verify');
     var nitMsg = document.getElementById('nc-nit-msg');
+    var nitDebugWrap = document.getElementById('nc-nit-debug-wrap');
+    var nitDebugPre = document.getElementById('nc-nit-debug');
     var cfBtn = document.getElementById('nc-cf-continue');
+
+    function clearNitVerifyDebug() {
+        if (nitDebugWrap) {
+            nitDebugWrap.classList.add('d-none');
+        }
+        if (nitDebugPre) {
+            nitDebugPre.textContent = '';
+        }
+    }
+
+    function showNitVerifyDebug(j) {
+        if (!nitDebugWrap || !nitDebugPre || !j || !j.debug || !j.debug.attempts || !j.debug.attempts.length) {
+            return;
+        }
+        var lines = [];
+        j.debug.attempts.forEach(function (a, i) {
+            lines.push('--- Attempt ' + (i + 1) + (a.DATA1 ? ' (DATA1=' + a.DATA1 + ')' : '') + ', HTTP ' + (a.http_code || '') + ' ---');
+            if (a.url) {
+                lines.push('URL: ' + a.url);
+            }
+            lines.push('');
+            lines.push(a.curl || '');
+            lines.push('');
+        });
+        if (j.debug.note) {
+            lines.push(j.debug.note);
+        }
+        nitDebugPre.textContent = lines.join('\n');
+        nitDebugWrap.classList.remove('d-none');
+        nitDebugWrap.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
 
     function syncPanels() {
         var useCf = cfRadio && cfRadio.checked;
@@ -379,6 +416,7 @@ function safeGet($array, $key, $default = '') {
             nitMsg.textContent = '';
             nitMsg.className = 'small mt-2';
         }
+        clearNitVerifyDebug();
         if (nitRadio) {
             nitRadio.checked = true;
         }
@@ -419,6 +457,7 @@ function safeGet($array, $key, $default = '') {
                 nitMsg.textContent = '';
                 nitMsg.className = 'small mt-2';
             }
+            clearNitVerifyDebug();
             var fd = new FormData();
             fd.append('nit', v);
             fd.append(tok, '1');
@@ -431,32 +470,23 @@ function safeGet($array, $key, $default = '') {
                     nitBtn.disabled = false;
                     nitBtn.innerHTML = prevHtml;
                     if (j && j.success && j.data) {
+                        var hadDebug = j.debug && j.debug.attempts && j.debug.attempts.length;
+                        showNitVerifyDebug(j);
                         var u = editBase + (editBase.indexOf('?') >= 0 ? '&' : '?');
                         u += 'df_name=' + encodeURIComponent(j.data.name || '') +
                             '&df_vat=' + encodeURIComponent(j.data.vat || '') +
                             '&df_street=' + encodeURIComponent(j.data.street || '') +
                             '&df_city=' + encodeURIComponent(j.data.city || '');
-                        window.location.href = u;
+                        window.setTimeout(function () {
+                            window.location.href = u;
+                        }, hadDebug ? 1500 : 0);
                         return;
                     }
                     if (nitMsg) {
-                        var detail = '';
-                        if (j && j.debug && j.debug.attempts && j.debug.attempts.length) {
-                            j.debug.attempts.forEach(function (a, i) {
-                                detail += '\n\n--- Attempt ' + (i + 1);
-                                if (a.DATA1) {
-                                    detail += ' (DATA1=' + a.DATA1 + ')';
-                                }
-                                detail += ', HTTP ' + (a.http_code || '') + ' ---\n';
-                                detail += (a.curl || '');
-                            });
-                            if (j.debug.note) {
-                                detail += '\n\n' + j.debug.note;
-                            }
-                        }
-                        nitMsg.textContent = ((j && j.message) ? j.message : 'Error') + detail;
+                        nitMsg.textContent = (j && j.message) ? j.message : 'Error';
                         nitMsg.className = 'small mt-2 text-danger';
                     }
+                    showNitVerifyDebug(j);
                 })
                 .catch(function () {
                     nitBtn.disabled = false;
@@ -465,6 +495,7 @@ function safeGet($array, $key, $default = '') {
                         nitMsg.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_NETWORK'), JSON_UNESCAPED_UNICODE); ?>;
                         nitMsg.className = 'small mt-2 text-danger';
                     }
+                    clearNitVerifyDebug();
                 });
         });
     }
