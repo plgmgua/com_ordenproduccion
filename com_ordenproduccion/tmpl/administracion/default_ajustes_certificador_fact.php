@@ -64,6 +64,7 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
                     <label class="form-label" for="cf_<?php echo $env; ?>_url_cf"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF'); ?></label>
                     <input type="url" class="form-control" name="jform[certificador][<?php echo $env; ?>][url_cert_cf]" id="cf_<?php echo $env; ?>_url_cf"
                            value="<?php echo htmlspecialchars($s['url_cert_cf'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
+                    <div class="form-text small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF_DESC'); ?></div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="cf_<?php echo $env; ?>_url_nit"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_NIT'); ?></label>

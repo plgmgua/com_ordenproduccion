@@ -127,7 +127,8 @@ $digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
 $canSeeFacturaRelacionadaSection = $felEngineAvailable
     && (AccessHelper::isInVentasGroup() || AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser());
 $canDigifactEmitPermission = AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser();
-$digifactCfgOk = trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
+$digifactCfgOk = (trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
+    || trim((string) ($digifactCredsCheck['url_cert_nit'] ?? '')) !== '')
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
 $canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $digifactCfgOk;
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);

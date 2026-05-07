@@ -1360,10 +1360,15 @@ class FelInvoiceIssuanceService
 
     /**
      * Merge TAXID (padded), USERNAME, FORMAT into certificación URL from config.
+     * Uses **URL certificación CF** when set; if empty or invalid, falls back to **URL certificación NIT**
+     * (Digifact `nuc_json` is typically stored there — no duplicate field required).
      */
     public function buildDigifactCertificarRequestUrl(array $creds): string
     {
         $base = trim((string) ($creds['url_cert_cf'] ?? ''));
+        if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
+            $base = trim((string) ($creds['url_cert_nit'] ?? ''));
+        }
         if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
             return '';
         }
@@ -1466,7 +1471,7 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * Issue FEL via Digifact transform API (bypasses mock queue). Requires url_cert_cf + valid stored bearer token.
+     * Issue FEL via Digifact transform API (bypasses mock queue). Requires url_cert_cf or url_cert_nit + valid stored bearer token.
      *
      * @return  array{success:bool, message:string, invoice_id?:int}
      *
@@ -1483,7 +1488,7 @@ class FelInvoiceIssuanceService
         $creds = $this->getActiveCertificadorCredentials();
         $url   = $this->buildDigifactCertificarRequestUrl($creds);
         if ($url === '') {
-            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (url_cert_cf, nit, usuario).'];
+            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación CF or NIT, NIT emisor, usuario).'];
         }
         $bearer = $this->getActiveCertificadorBearerToken();
         if ($bearer === '') {

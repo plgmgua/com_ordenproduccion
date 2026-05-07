@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.32-STABLE] - 2026-05-06
+
+### Fixed
+- **Digifact direct / Factura relacionada:** Build certification request URL from **URL certificación CF**, or when CF is empty use **URL certificación NIT** (e.g. `nuc_json`). Cotización UI `digifactCfgOk` accepts either URL + bearer. Admin certificador form hint explains no extra field is required.
+
 ## [3.118.31-STABLE] - 2026-05-06
 
 ### Changed
