@@ -9,7 +9,6 @@
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -19,9 +18,7 @@ use Joomla\CMS\Session\Session;
 HTMLHelper::_('bootstrap.framework');
 
 $formTokenCliente = Session::getFormToken();
-$digifactNitDebugEnabled = !empty($this->certificadorFactFrontendDebug)
-    || (bool) Factory::getApplication()->get('debug')
-    || (bool) ComponentHelper::getParams('com_ordenproduccion')->get('enable_debug', 0);
+$digifactNitDebugEnabled = $this->certificadorFactFrontendDebug === true;
 $clienteVerifyNitUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactNit&format=json', false);
 $clienteEditNewUrl = Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=0', false);
 

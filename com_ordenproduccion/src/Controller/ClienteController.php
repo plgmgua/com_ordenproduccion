@@ -616,7 +616,9 @@ class ClienteController extends FormController
             $this->app->close();
         }
 
-        $digifactDebugReveal = $this->input->post->getInt('digifact_debug', 0) === 1;
+        $cfgModel             = new AdministracionModel();
+        $allowDigifactDebugUi = $cfgModel->getCertificadorFactFrontendDebug();
+        $digifactDebugReveal  = $allowDigifactDebugUi && ($this->input->post->getInt('digifact_debug', 0) === 1);
 
         try {
             $fel = new FelInvoiceIssuanceService();
@@ -626,7 +628,6 @@ class ClienteController extends FormController
                 $this->app->close();
             }
 
-            $cfgModel = new AdministracionModel();
             $creds    = $cfgModel->getCertificadorFactSettingsForActiveModo();
             $shared   = trim((string) ($creds['url_cert_nit'] ?? ''));
             $taxId    = trim((string) ($creds['nit'] ?? ''));
@@ -635,17 +636,18 @@ class ClienteController extends FormController
             $r = CertificadorFactNitLookupHelper::fetchNitInfo($nit, $shared, $taxId, $usr, $bearer, 45, $digifactDebugReveal);
 
             if (empty($r['ok'])) {
-                $err = trim((string) ($r['error'] ?? ''));
-                $msg = $err !== '' ? $err : Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_VERIFY_FAIL');
-                echo json_encode([
+                $out = [
                     'success' => false,
-                    'message' => $msg,
-                    'debug'   => $r['debug'] ?? ['attempts' => []],
-                ], JSON_UNESCAPED_UNICODE);
+                    'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NIT_NOT_FOUND'),
+                ];
+                if ($allowDigifactDebugUi) {
+                    $out['debug'] = $r['debug'] ?? ['attempts' => []];
+                }
+                echo json_encode($out, JSON_UNESCAPED_UNICODE);
                 $this->app->close();
             }
 
-            echo json_encode([
+            $out = [
                 'success' => true,
                 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_VERIFY_OK'),
                 'data'    => [
@@ -654,10 +656,16 @@ class ClienteController extends FormController
                     'street' => (string) ($r['street'] ?? ''),
                     'city'   => (string) ($r['city'] ?? ''),
                 ],
-                'debug'   => $r['debug'] ?? ['attempts' => []],
-            ], JSON_UNESCAPED_UNICODE);
+            ];
+            if ($allowDigifactDebugUi) {
+                $out['debug'] = $r['debug'] ?? ['attempts' => []];
+            }
+            echo json_encode($out, JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NIT_NOT_FOUND'),
+            ], JSON_UNESCAPED_UNICODE);
         }
 
         $this->app->close();
