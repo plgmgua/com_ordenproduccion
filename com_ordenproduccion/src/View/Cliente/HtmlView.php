@@ -63,7 +63,7 @@ class HtmlView extends BaseHtmlView
             $this->form = $this->get('Form');
             $this->item = $this->get('Item');
             $this->state = $this->get('State');
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // If there's an error, create a default empty item
             $this->item = (object) [
                 'id' => 0,
@@ -77,6 +77,24 @@ class HtmlView extends BaseHtmlView
                 'type' => 'contact'
             ];
         }
+
+        $id = (int) ($this->item->id ?? 0);
+        if ($id === 0) {
+            $in = $app->input;
+            if (trim((string) $in->getString('df_name', '')) !== ''
+                || trim((string) $in->getString('df_vat', '')) !== ''
+                || trim((string) $in->getString('df_street', '')) !== ''
+                || trim((string) $in->getString('df_city', '')) !== '') {
+                $this->item->name   = $in->getString('df_name', '');
+                $this->item->vat    = $in->getString('df_vat', '');
+                $this->item->street = $in->getString('df_street', '');
+                $this->item->city   = $in->getString('df_city', '');
+            }
+        }
+
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $lang->getTag(), true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $lang->getTag(), true);
 
         // Check for errors.
         if (count($errors = $this->get('Errors'))) {

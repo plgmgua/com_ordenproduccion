@@ -9,13 +9,17 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
-use Joomla\CMS\Factory;
 
 HTMLHelper::_('bootstrap.framework');
+
+$formTokenCliente = Session::getFormToken();
+$clienteVerifyNitUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactNit&format=json', false);
+$clienteEditNewUrl = Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=0', false);
 
 // Fallback CSS loading to ensure styles are applied
 $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
@@ -104,10 +108,9 @@ function safeGet($array, $key, $default = '') {
             </div>
             <div class="col-md-5 text-end">
                 <div class="btn-group" role="group">
-                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=0'); ?>" 
-                       class="btn btn-success">
-                        <i class="fas fa-plus"></i> Nuevo Cliente
-                    </a>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#nuevoClienteTipoModal">
+                        <i class="fas fa-plus"></i> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_BUTTON'); ?>
+                    </button>
                     <button type="button" class="btn btn-info" onclick="window.location.reload()">
                         <i class="fas fa-sync-alt"></i> Actualizar
                     </button>
@@ -122,9 +125,8 @@ function safeGet($array, $key, $default = '') {
             <div class="alert alert-info">
                 <h4><i class="fas fa-info-circle"></i> No se Encontraron Contactos</h4>
                 <p>Aún no tienes contactos. Crea tu primer contacto para comenzar.</p>
-                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit'); ?>" 
-                   class="btn btn-primary">
-                    Crear Tu Primer Cliente
+                <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#nuevoClienteTipoModal">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_FIRST'); ?>
                 </a>
             </div>
         <?php else: ?>
@@ -292,6 +294,161 @@ function safeGet($array, $key, $default = '') {
         <?php endif; ?>
     </div>
 </div>
+
+<div class="modal fade" id="nuevoClienteTipoModal" tabindex="-1" aria-labelledby="nuevoClienteTipoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nuevoClienteTipoModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_TITLE'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_INTRO'); ?></p>
+                <div class="mb-3" id="nc-step-tipo">
+                    <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_TIPO_LABEL'); ?></label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="nc_tipo" id="nc-tipo-nit" value="nit" checked>
+                        <label class="form-check-label" for="nc-tipo-nit"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_TIPO_NIT'); ?></label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="nc_tipo" id="nc-tipo-cf" value="cf">
+                        <label class="form-check-label" for="nc-tipo-cf"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_TIPO_CF'); ?></label>
+                    </div>
+                </div>
+                <div id="nc-panel-nit">
+                    <label class="form-label" for="nc-nit-input"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_NIT_LABEL'); ?></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="nc-nit-input" autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_NIT_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="button" class="btn btn-primary" id="nc-nit-verify">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_VERIFY'); ?>
+                        </button>
+                    </div>
+                    <div id="nc-nit-msg" class="small mt-2" role="alert"></div>
+                </div>
+                <div id="nc-panel-cf" class="d-none">
+                    <p class="small"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_CF_HELP'); ?></p>
+                    <button type="button" class="btn btn-success" id="nc-cf-continue">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_CF_CONTINUE'); ?>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var editBase = <?php echo json_encode($clienteEditNewUrl, JSON_UNESCAPED_UNICODE); ?>;
+    var verifyUrl = <?php echo json_encode($clienteVerifyNitUrl, JSON_UNESCAPED_UNICODE); ?>;
+    var tok = <?php echo json_encode($formTokenCliente, JSON_UNESCAPED_UNICODE); ?>;
+    var busy = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_VERIFY_BUSY'), JSON_UNESCAPED_UNICODE); ?>;
+    var modalEl = document.getElementById('nuevoClienteTipoModal');
+    if (!modalEl) {
+        return;
+    }
+    var nitRadio = document.getElementById('nc-tipo-nit');
+    var cfRadio = document.getElementById('nc-tipo-cf');
+    var panelNit = document.getElementById('nc-panel-nit');
+    var panelCf = document.getElementById('nc-panel-cf');
+    var nitInput = document.getElementById('nc-nit-input');
+    var nitBtn = document.getElementById('nc-nit-verify');
+    var nitMsg = document.getElementById('nc-nit-msg');
+    var cfBtn = document.getElementById('nc-cf-continue');
+
+    function syncPanels() {
+        var useCf = cfRadio && cfRadio.checked;
+        if (panelNit) {
+            panelNit.classList.toggle('d-none', useCf);
+        }
+        if (panelCf) {
+            panelCf.classList.toggle('d-none', !useCf);
+        }
+    }
+
+    function resetModal() {
+        if (nitInput) {
+            nitInput.value = '';
+        }
+        if (nitMsg) {
+            nitMsg.textContent = '';
+            nitMsg.className = 'small mt-2';
+        }
+        if (nitRadio) {
+            nitRadio.checked = true;
+        }
+        if (cfRadio) {
+            cfRadio.checked = false;
+        }
+        syncPanels();
+    }
+
+    modalEl.addEventListener('show.bs.modal', resetModal);
+    if (nitRadio) {
+        nitRadio.addEventListener('change', syncPanels);
+    }
+    if (cfRadio) {
+        cfRadio.addEventListener('change', syncPanels);
+    }
+
+    if (cfBtn) {
+        cfBtn.addEventListener('click', function () {
+            window.location.href = editBase;
+        });
+    }
+
+    if (nitBtn && nitInput) {
+        nitBtn.addEventListener('click', function () {
+            var v = nitInput.value.trim();
+            if (!v) {
+                if (nitMsg) {
+                    nitMsg.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NIT_REQUIRED'), JSON_UNESCAPED_UNICODE); ?>;
+                    nitMsg.className = 'small mt-2 text-danger';
+                }
+                return;
+            }
+            nitBtn.disabled = true;
+            var prevHtml = nitBtn.innerHTML;
+            nitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + busy;
+            if (nitMsg) {
+                nitMsg.textContent = '';
+                nitMsg.className = 'small mt-2';
+            }
+            var fd = new FormData();
+            fd.append('nit', v);
+            fd.append(tok, '1');
+            fetch(verifyUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    nitBtn.disabled = false;
+                    nitBtn.innerHTML = prevHtml;
+                    if (j && j.success && j.data) {
+                        var u = editBase + (editBase.indexOf('?') >= 0 ? '&' : '?');
+                        u += 'df_name=' + encodeURIComponent(j.data.name || '') +
+                            '&df_vat=' + encodeURIComponent(j.data.vat || '') +
+                            '&df_street=' + encodeURIComponent(j.data.street || '') +
+                            '&df_city=' + encodeURIComponent(j.data.city || '');
+                        window.location.href = u;
+                        return;
+                    }
+                    if (nitMsg) {
+                        nitMsg.textContent = (j && j.message) ? j.message : 'Error';
+                        nitMsg.className = 'small mt-2 text-danger';
+                    }
+                })
+                .catch(function () {
+                    nitBtn.disabled = false;
+                    nitBtn.innerHTML = prevHtml;
+                    if (nitMsg) {
+                        nitMsg.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_NETWORK'), JSON_UNESCAPED_UNICODE); ?>;
+                        nitMsg.className = 'small mt-2 text-danger';
+                    }
+                });
+        });
+    }
+})();
+</script>
 
 <!-- OT (Orden de Trabajo) Modal - Two Step Wizard -->
 <div class="modal fade" id="otModal" tabindex="-1" aria-labelledby="otModalLabel" aria-hidden="true">

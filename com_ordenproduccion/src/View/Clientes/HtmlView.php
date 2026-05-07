@@ -97,6 +97,11 @@ class HtmlView extends BaseHtmlView
             $this->state = new \Joomla\Registry\Registry();
         }
 
+        $app  = Factory::getApplication();
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $lang->getTag(), true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $lang->getTag(), true);
+
         $this->addToolbar();
         $this->_prepareDocument();
 

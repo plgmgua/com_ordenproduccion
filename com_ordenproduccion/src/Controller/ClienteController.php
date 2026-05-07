@@ -17,6 +17,9 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\FormController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
  * Contact controller class.
@@ -582,6 +585,74 @@ class ClienteController extends FormController
             ]);
         }
         
+        $this->app->close();
+    }
+
+    /**
+     * AJAX: validate client NIT against Digifact SHARED (Bearer + active certificador URLs).
+     *
+     * @return  void
+     *
+     * @since   3.118.11
+     */
+    public function verifyDigifactNit(): void
+    {
+        $this->app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTES_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        $nit = trim((string) $this->input->post->getString('nit', ''));
+        if ($nit === '') {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NIT_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        try {
+            $fel = new FelInvoiceIssuanceService();
+            $bearer = $fel->getActiveCertificadorBearerToken();
+            if ($bearer === '') {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NO_TOKEN')], JSON_UNESCAPED_UNICODE);
+                $this->app->close();
+            }
+
+            $cfgModel = new AdministracionModel();
+            $creds    = $cfgModel->getCertificadorFactSettingsForActiveModo();
+            $shared   = trim((string) ($creds['url_cert_nit'] ?? ''));
+            $taxId    = trim((string) ($creds['nit'] ?? ''));
+            $usr      = trim((string) ($creds['usuario'] ?? ''));
+
+            $r = CertificadorFactNitLookupHelper::fetchNitInfo($nit, $shared, $taxId, $usr, $bearer, 45);
+
+            if (empty($r['ok'])) {
+                $err = trim((string) ($r['error'] ?? ''));
+                $msg = $err !== '' ? $err : Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_VERIFY_FAIL');
+                echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+                $this->app->close();
+            }
+
+            echo json_encode([
+                'success' => true,
+                'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_VERIFY_OK'),
+                'data'    => [
+                    'name'   => (string) ($r['name'] ?? ''),
+                    'vat'    => (string) ($r['nit'] ?? ''),
+                    'street' => (string) ($r['street'] ?? ''),
+                    'city'   => (string) ($r['city'] ?? ''),
+                ],
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+
         $this->app->close();
     }
 }
