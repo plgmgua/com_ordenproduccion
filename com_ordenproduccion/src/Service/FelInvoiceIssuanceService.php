@@ -1171,7 +1171,7 @@ class FelInvoiceIssuanceService
     /**
      * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller name/email from site;
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
-     * AdditionalDocumentInfo: OBSERVACIONES/COTIZACION Value = trimmed quotation_number or ""; Code = COT-{id} only when quotation_number is non-empty, else "".
+     * AdditionalDocumentInfo ADENDA: Code and OBSERVACIONES/COTIZACION values are always empty strings (cotización reference is not sent in NUC JSON).
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
@@ -1308,9 +1308,6 @@ class FelInvoiceIssuanceService
             $branchCountry = 'GT';
         }
 
-        $cotRef = trim((string) ($quotation->quotation_number ?? ''));
-        $adendaCode = $cotRef !== '' ? ('COT-' . (int) ($quotation->id ?? 0)) : '';
-
         return [
             'Version'     => '1.00',
             'CountryCode' => 'GT',
@@ -1373,14 +1370,14 @@ class FelInvoiceIssuanceService
             'AdditionalDocumentInfo' => [
                 'AdditionalInfo' => [
                     [
-                        'Code' => $adendaCode,
+                        'Code' => '',
                         'Type' => 'ADENDA',
                         'AditionalData' => [
                             'Data' => [
                                 [
                                     'Info' => [
-                                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => $cotRef],
-                                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => $cotRef],
+                                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => ''],
+                                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => ''],
                                     ],
                                     'Name' => 'INFORMACION_ADICIONAL',
                                 ],

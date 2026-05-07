@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.39-STABLE] - 2026-05-06
+
+### Changed
+- **Digifact NUC JSON:** **AdditionalDocumentInfo** adenda **Code**, **OBSERVACIONES**, and **COTIZACION** are always **`""`** (no quotation id/number in the payload). **VALIDAR_REFERENCIA_INTERNA** unchanged.
+
 ## [3.118.38-STABLE] - 2026-05-06
 
 ### Changed
