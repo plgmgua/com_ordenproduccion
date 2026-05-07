@@ -3392,6 +3392,24 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * When true, Mis Clientes NIT verification can show Digifact curl debug (Ajustes toggle).
+     *
+     * @since  3.118.17
+     */
+    public function getCertificadorFactFrontendDebug(): bool
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('setting_value'))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote('certificador_fact_frontend_debug'));
+        $db->setQuery($query);
+        $v = strtolower(trim((string) $db->loadResult()));
+
+        return $v === '1' || $v === 'true';
+    }
+
+    /**
      * URLs and credentials for one environment (test or prod), including clave when stored.
      *
      * @param   string  $modo  test|prod (any other value treated as test)

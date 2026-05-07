@@ -888,6 +888,8 @@ class AdministracionController extends BaseController
         try {
             $model = $this->getModel('Administracion');
             $model->saveCertificadorFactSettings($block, $modo);
+            $fed = isset($jform['certificador_frontend_debug']) ? trim((string) $jform['certificador_frontend_debug']) : '0';
+            $model->upsertOrdenproduccionConfigValue('certificador_fact_frontend_debug', ($fed === '1') ? '1' : '0');
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SAVED'), 'success');
         } catch (\Exception $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');

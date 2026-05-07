@@ -19,7 +19,8 @@ use Joomla\CMS\Session\Session;
 HTMLHelper::_('bootstrap.framework');
 
 $formTokenCliente = Session::getFormToken();
-$digifactNitVerifyRevealCurl = (bool) Factory::getApplication()->get('debug')
+$digifactNitDebugEnabled = !empty($this->certificadorFactFrontendDebug)
+    || (bool) Factory::getApplication()->get('debug')
     || (bool) ComponentHelper::getParams('com_ordenproduccion')->get('enable_debug', 0);
 $clienteVerifyNitUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactNit&format=json', false);
 $clienteEditNewUrl = Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=0', false);
@@ -349,7 +350,7 @@ function safeGet($array, $key, $default = '') {
 (function () {
     var editBase = <?php echo json_encode($clienteEditNewUrl, JSON_UNESCAPED_UNICODE); ?>;
     var verifyUrl = <?php echo json_encode($clienteVerifyNitUrl, JSON_UNESCAPED_UNICODE); ?>;
-    var revealDigifactCurl = <?php echo $digifactNitVerifyRevealCurl ? 'true' : 'false'; ?>;
+    var digifactNitDebugEnabled = <?php echo $digifactNitDebugEnabled ? 'true' : 'false'; ?>;
     var tok = <?php echo json_encode($formTokenCliente, JSON_UNESCAPED_UNICODE); ?>;
     var busy = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_VERIFY_BUSY'), JSON_UNESCAPED_UNICODE); ?>;
     var modalEl = document.getElementById('nuevoClienteTipoModal');
@@ -377,6 +378,9 @@ function safeGet($array, $key, $default = '') {
     }
 
     function showNitVerifyDebug(j) {
+        if (!digifactNitDebugEnabled) {
+            return;
+        }
         if (!nitDebugWrap || !nitDebugPre || !j || !j.debug || !j.debug.attempts || !j.debug.attempts.length) {
             return;
         }
@@ -461,7 +465,7 @@ function safeGet($array, $key, $default = '') {
             var fd = new FormData();
             fd.append('nit', v);
             fd.append(tok, '1');
-            if (revealDigifactCurl) {
+            if (digifactNitDebugEnabled) {
                 fd.append('digifact_debug', '1');
             }
             fetch(verifyUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
@@ -479,7 +483,7 @@ function safeGet($array, $key, $default = '') {
                             '&df_city=' + encodeURIComponent(j.data.city || '');
                         window.setTimeout(function () {
                             window.location.href = u;
-                        }, hadDebug ? 1500 : 0);
+                        }, (hadDebug && digifactNitDebugEnabled) ? 1500 : 0);
                         return;
                     }
                     if (nitMsg) {

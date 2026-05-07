@@ -34,6 +34,7 @@ $claveSet = isset($this->certificadorFactClaveSet) && is_array($this->certificad
     ? $this->certificadorFactClaveSet
     : ['test' => false, 'prod' => false];
 $felModo = (isset($this->certificadorFactModo) && $this->certificadorFactModo === 'prod') ? 'prod' : 'test';
+$felFrontendDebug = !empty($this->certificadorFactFrontendDebug);
 $testAuthTaskUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.testCertificadorFactAuth&format=json', false);
 
 $renderSection = static function (string $env, string $headingKey, string $icon) use ($settings, $claveSet) {
@@ -210,10 +211,24 @@ if ($maintAt !== '') {
                 <span id="fel_modo_label_prod" class="small<?php echo $felModo === 'prod' ? ' text-primary fw-semibold' : ' text-muted'; ?>">
                     <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_PRODUCCION'); ?>
                 </span>
+                <span class="vr d-none d-sm-inline align-self-stretch mx-1" style="min-height: 1.5rem;"></span>
+                <span id="fel_frontend_debug_label" class="small<?php echo $felFrontendDebug ? ' text-primary fw-semibold' : ' text-muted'; ?>">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_FRONTEND_DEBUG_LABEL'); ?>
+                </span>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="fel_certificador_frontend_debug_switch"
+                           style="width: 2.75rem; height: 1.35rem; cursor: pointer;"
+                           <?php echo $felFrontendDebug ? 'checked ' : ''; ?>
+                           aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_FRONTEND_DEBUG_ARIA'), ENT_QUOTES, 'UTF-8'); ?>">
+                </div>
+                <input type="hidden" name="jform[certificador_frontend_debug]" id="fel_certificador_frontend_debug_value"
+                       value="<?php echo $felFrontendDebug ? '1' : '0'; ?>">
                 <input type="hidden" name="jform[certificador_modo]" id="fel_certificador_modo_value"
                        value="<?php echo htmlspecialchars($felModo, ENT_QUOTES, 'UTF-8'); ?>">
             </div>
             <p class="form-text mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_HELP'); ?></p>
+            <p class="form-text mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_FRONTEND_DEBUG_HELP'); ?></p>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                 <button type="button" class="btn btn-outline-primary btn-sm" id="fel-test-certificador-auth">
                     <i class="fas fa-plug"></i>
@@ -256,6 +271,23 @@ if ($maintAt !== '') {
     }
     sw.addEventListener('change', syncLabels);
     syncLabels();
+})();
+(function () {
+    var sw = document.getElementById('fel_certificador_frontend_debug_switch');
+    var hidden = document.getElementById('fel_certificador_frontend_debug_value');
+    var lbl = document.getElementById('fel_frontend_debug_label');
+    if (!sw || !hidden) {
+        return;
+    }
+    function syncDbg() {
+        var on = sw.checked;
+        hidden.value = on ? '1' : '0';
+        if (lbl) {
+            lbl.className = 'small' + (on ? ' text-primary fw-semibold' : ' text-muted');
+        }
+    }
+    sw.addEventListener('change', syncDbg);
+    syncDbg();
 })();
 (function () {
     var btn = document.getElementById('fel-test-certificador-auth');

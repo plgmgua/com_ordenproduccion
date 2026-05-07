@@ -16,6 +16,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Component\ComponentHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 
 /**
  * HTML Contacts View class for the Odoo Contacts component
@@ -65,6 +66,14 @@ class HtmlView extends BaseHtmlView
     protected $params;
 
     /**
+     * Ajustes: show Digifact NIT-verify curl debug on this page (from certificador_fact_frontend_debug).
+     *
+     * @var    bool
+     * @since  3.118.17
+     */
+    protected $certificadorFactFrontendDebug = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -101,6 +110,16 @@ class HtmlView extends BaseHtmlView
         $lang = $app->getLanguage();
         $lang->load('com_ordenproduccion', JPATH_SITE, $lang->getTag(), true);
         $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $lang->getTag(), true);
+
+        $this->certificadorFactFrontendDebug = false;
+        try {
+            $admModel = $this->getModel('Administracion');
+            if ($admModel instanceof AdministracionModel) {
+                $this->certificadorFactFrontendDebug = $admModel->getCertificadorFactFrontendDebug();
+            }
+        } catch (\Throwable $e) {
+            $this->certificadorFactFrontendDebug = false;
+        }
 
         $this->addToolbar();
         $this->_prepareDocument();

@@ -364,6 +364,14 @@ class HtmlView extends BaseHtmlView
     protected $certificadorFactModo = 'test';
 
     /**
+     * Show Digifact NIT-verify curl debug on Mis Clientes (Ajustes certificador toggle).
+     *
+     * @var    bool
+     * @since  3.118.17
+     */
+    protected $certificadorFactFrontendDebug = false;
+
+    /**
      * Active modo settings as one map for layouts (same keys as stored fields; clave never included, use clave_configured).
      *
      * @var    array{env: string, url_autenticacion: string, url_info: string, url_cert_cf: string, url_cert_nit: string, url_cert_cui: string, nit: string, usuario: string, clave_configured: bool}
@@ -1967,6 +1975,7 @@ class HtmlView extends BaseHtmlView
         if ($activeTab === 'ajustes' && $activeSubTab === 'certificador_fact') {
             try {
                 $this->certificadorFactModo = $statsModel->getCertificadorFactModo();
+                $this->certificadorFactFrontendDebug = $statsModel->getCertificadorFactFrontendDebug();
                 $full = $statsModel->getCertificadorFactSettings();
                 foreach (['test', 'prod'] as $env) {
                     $this->certificadorFactClaveSet[$env] = trim((string) ($full[$env]['clave'] ?? '')) !== '';
@@ -1975,6 +1984,7 @@ class HtmlView extends BaseHtmlView
                 }
             } catch (\Throwable $e) {
                 $this->certificadorFactModo = 'test';
+                $this->certificadorFactFrontendDebug = false;
                 $this->certificadorFactSettings = [
                     'test' => [
                         'url_autenticacion' => '',
