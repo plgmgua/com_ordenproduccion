@@ -3419,6 +3419,44 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Merge posted certificador[$env] fields with stored config (blank clave keeps saved password).
+     * Used for "Test connection" before save.
+     *
+     * @param   array<string, mixed>  $certificador  jform[certificador] (test/prod sub-arrays)
+     *
+     * @return  array<string, string>
+     *
+     * @since   3.118.7
+     */
+    public function resolveCertificadorPostedEnvForAuth(array $certificador, string $env): array
+    {
+        $env = $env === 'prod' ? 'prod' : 'test';
+        $existing = $this->getCertificadorFactSettings();
+        $block    = isset($certificador[$env]) && is_array($certificador[$env]) ? $certificador[$env] : [];
+        $fieldKeys = [
+            'url_autenticacion',
+            'url_info',
+            'url_cert_cf',
+            'url_cert_nit',
+            'url_cert_cui',
+            'nit',
+            'usuario',
+            'clave',
+        ];
+        $out = [];
+        foreach ($fieldKeys as $fk) {
+            if ($fk === 'clave') {
+                $raw = isset($block['clave']) ? trim((string) $block['clave']) : '';
+                $out['clave'] = $raw === '' ? (string) ($existing[$env]['clave'] ?? '') : $raw;
+            } else {
+                $out[$fk] = isset($block[$fk]) ? trim((string) $block[$fk]) : (string) ($existing[$env][$fk] ?? '');
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Certificador de facturación (FEL): test + production URLs and credentials.
      * Stored in #__ordenproduccion_config as certificador_fact_{test|prod}_*.
      *

@@ -34,6 +34,7 @@ $claveSet = isset($this->certificadorFactClaveSet) && is_array($this->certificad
     ? $this->certificadorFactClaveSet
     : ['test' => false, 'prod' => false];
 $felModo = (isset($this->certificadorFactModo) && $this->certificadorFactModo === 'prod') ? 'prod' : 'test';
+$testAuthTaskUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.testCertificadorFactAuth&format=json', false);
 
 $renderSection = static function (string $env, string $headingKey, string $icon) use ($settings, $claveSet) {
     $s = $settings[$env] ?? [];
@@ -135,6 +136,14 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
                        value="<?php echo htmlspecialchars($felModo, ENT_QUOTES, 'UTF-8'); ?>">
             </div>
             <p class="form-text mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_HELP'); ?></p>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                <button type="button" class="btn btn-outline-primary btn-sm" id="fel-test-certificador-auth">
+                    <i class="fas fa-plug"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_CONNECTION'); ?>
+                </button>
+                <span class="text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_CONNECTION_HINT'); ?></span>
+            </div>
+            <div id="fel-test-certificador-result" class="mt-2 small" hidden></div>
         </div>
     </div>
     <?php
@@ -169,5 +178,79 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
     }
     sw.addEventListener('change', syncLabels);
     syncLabels();
+})();
+(function () {
+    var btn = document.getElementById('fel-test-certificador-auth');
+    var form = document.getElementById('ajustes-certificador-fact-form');
+    var box = document.getElementById('fel-test-certificador-result');
+    if (!btn || !form || !box) {
+        return;
+    }
+    var testUrl = <?php echo json_encode($testAuthTaskUrl); ?>;
+    var busyText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_BUSY')); ?>;
+    var lblExp = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_EXPIRES')); ?>;
+    var lblGranted = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_GRANTED')); ?>;
+    var invalidResp = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_INVALID_RESPONSE')); ?>;
+    var networkErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_NETWORK')); ?>;
+    var origHtml = btn.innerHTML;
+    btn.addEventListener('click', function () {
+        var fd = new FormData(form);
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + busyText;
+        box.hidden = false;
+        box.className = 'mt-2 small alert alert-secondary py-2 mb-0';
+        box.textContent = '';
+        fetch(testUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+                if (!j || typeof j.success === 'undefined') {
+                    box.className = 'mt-2 small alert alert-danger py-2 mb-0';
+                    box.textContent = invalidResp;
+
+                    return;
+                }
+                if (j.success) {
+                    box.className = 'mt-2 small alert alert-success py-2 mb-0';
+                    box.textContent = '';
+                    var p = document.createElement('p');
+                    p.className = 'mb-1 fw-semibold';
+                    p.textContent = j.message || '';
+                    box.appendChild(p);
+                    if (j.data && j.data.token) {
+                        var pre = document.createElement('pre');
+                        pre.className = 'mb-0 mt-1 small text-break user-select-all';
+                        pre.style.whiteSpace = 'pre-wrap';
+                        pre.style.maxHeight = '12rem';
+                        pre.style.overflow = 'auto';
+                        pre.textContent = j.data.token;
+                        box.appendChild(pre);
+                    }
+                    if (j.data && j.data.expira_en) {
+                        var d = document.createElement('div');
+                        d.className = 'mt-1 text-muted';
+                        d.textContent = lblExp + ': ' + j.data.expira_en;
+                        box.appendChild(d);
+                    }
+                    if (j.data && j.data.otorgado_a) {
+                        var g = document.createElement('div');
+                        g.className = 'mt-1 text-muted';
+                        g.textContent = lblGranted + ': ' + j.data.otorgado_a;
+                        box.appendChild(g);
+                    }
+
+                    return;
+                }
+                box.className = 'mt-2 small alert alert-danger py-2 mb-0';
+                box.textContent = j.message || 'Error';
+            })
+            .catch(function () {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+                box.className = 'mt-2 small alert alert-danger py-2 mb-0';
+                box.textContent = networkErr;
+            });
+    });
 })();
 </script>

@@ -19,6 +19,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -893,6 +894,100 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=certificador_fact', false));
+    }
+
+    /**
+     * JSON: test FEL certifier authentication (Token) for the selected ambiente (form values + saved clave if blank).
+     *
+     * @return  void
+     *
+     * @since   3.118.7
+     */
+    public function testCertificadorFactAuth()
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->sendAdministracionJson(false, Text::_('JGLOBAL_AUTH_ALERT'), []);
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $modo  = isset($jform['certificador_modo']) ? trim((string) $jform['certificador_modo']) : 'test';
+        $modo  = ($modo === 'prod') ? 'prod' : 'test';
+        $cert  = isset($jform['certificador']) && is_array($jform['certificador']) ? $jform['certificador'] : [];
+
+        try {
+            $model = $this->getModel('Administracion');
+            if (!$model) {
+                $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), []);
+
+                return;
+            }
+            $creds = $model->resolveCertificadorPostedEnvForAuth($cert, $modo);
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+
+            return;
+        }
+
+        $urlAuth = $creds['url_autenticacion'] ?? '';
+        $nit     = $creds['nit'] ?? '';
+        $usuario = $creds['usuario'] ?? '';
+        $clave   = $creds['clave'] ?? '';
+
+        if (trim($urlAuth) === '' || trim($nit) === '' || trim($usuario) === '' || $clave === '') {
+            $this->sendAdministracionJson(
+                false,
+                Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_MISSING_FIELDS'),
+                []
+            );
+
+            return;
+        }
+
+        $result = CertificadorFactAuthHelper::fetchAuthToken($urlAuth, $nit, $usuario, $clave);
+
+        if (!empty($result['ok'])) {
+            $this->sendAdministracionJson(true, Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_OK'), [
+                'token'      => $result['token'],
+                'expira_en'  => $result['expira_en'],
+                'otorgado_a' => $result['otorgado_a'],
+            ]);
+
+            return;
+        }
+
+        $detail = $result['error'] ?? '';
+        if (($result['raw_excerpt'] ?? '') !== '' && $detail === '') {
+            $detail = $result['raw_excerpt'];
+        }
+        $msg = Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_FAIL');
+        if ($detail !== '') {
+            $msg .= ' ' . $detail;
+        }
+        if (!empty($result['http_code'])) {
+            $msg .= ' (' . Text::sprintf('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_HTTP', (int) $result['http_code']) . ')';
+        }
+
+        $this->sendAdministracionJson(false, trim($msg), [
+            'http_code'   => (int) ($result['http_code'] ?? 0),
+            'raw_excerpt' => (string) ($result['raw_excerpt'] ?? ''),
+        ]);
     }
 
     /**
@@ -2374,5 +2469,37 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect($redirect);
+    }
+
+    /**
+     * JSON response for administracion AJAX tasks (e.g. certifier auth test).
+     *
+     * @param   array<string, mixed>  $data
+     *
+     * @return  void
+     *
+     * @since   3.118.7
+     */
+    protected function sendAdministracionJson(bool $success, string $message, array $data = []): void
+    {
+        $app = Factory::getApplication();
+        while (@ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+        $app->allowCache(false);
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        $app->setHeader('Cache-Control', 'no-cache, must-revalidate', true);
+        try {
+            $app->sendHeaders();
+        } catch (\Throwable $e) {
+            @header('Content-Type: application/json; charset=utf-8', true);
+        }
+
+        echo json_encode([
+            'success' => $success,
+            'message' => $message,
+            'data'    => $data,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $app->close();
     }
 }
