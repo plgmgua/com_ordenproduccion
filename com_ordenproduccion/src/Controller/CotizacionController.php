@@ -32,6 +32,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\OrdenFromQuotationService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 
 /**
  * Cotizacion controller (pliego quote calculation).
@@ -875,10 +876,11 @@ class CotizacionController extends BaseController
 
         if ($wfSvc->hasSchema()) {
             $metaJson = json_encode([
-                'quotation_id'          => $quotationId,
-                'facturacion_modo'      => $facturacionModo,
-                'facturacion_fecha_sql' => $facturacionFechaSql,
-                'submitter_user_id'     => (int) $user->id,
+                'quotation_id'                 => $quotationId,
+                'facturacion_modo'             => $facturacionModo,
+                'facturacion_fecha_sql'        => $facturacionFechaSql,
+                'facturar_cotizacion_exacta'   => $facturarCotizacionExactaDb,
+                'submitter_user_id'            => (int) $user->id,
             ], JSON_UNESCAPED_UNICODE);
 
             $rid = $wfSvc->createRequest(
@@ -911,11 +913,15 @@ class CotizacionController extends BaseController
             $db->setQuery($qConfirm);
             $db->execute();
 
-            if ($facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null) {
+            if ($facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null && $facturarCotizacionExactaDb === 1) {
                 $felSvc = new FelInvoiceIssuanceService();
                 if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
                     $felSvc->scheduleOrUpdateInvoiceFromQuotation($quotationId, (int) $user->id, $facturacionFechaSql);
                 }
+            }
+
+            if ($facturarCotizacionExactaDb === 0) {
+                ApprovalWorkflowEntityHelper::queueCotizacionFacturacionManualApproval($db, $quotationId, (int) $user->id);
             }
 
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
@@ -924,13 +930,15 @@ class CotizacionController extends BaseController
             return;
         }
 
-        // Queue mock FEL for the billing date whenever "fecha específica" + valid date is chosen.
-        // Do not tie this to facturar_cotizacion_exacta (that flag is a billing rule, not "whether to enqueue FEL").
-        if ($facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null) {
+        // Fecha específica + monto exacto: cola FEL. Sin monto exacto: solicitud de facturación manual (si aplica).
+        if ($facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null && $facturarCotizacionExactaDb === 1) {
             $felSvc = new FelInvoiceIssuanceService();
             if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
                 $felSvc->scheduleOrUpdateInvoiceFromQuotation($quotationId, (int) $user->id, $facturacionFechaSql);
             }
+        }
+        if ($facturarCotizacionExactaDb === 0) {
+            ApprovalWorkflowEntityHelper::queueCotizacionFacturacionManualApproval($db, $quotationId, (int) $user->id);
         }
 
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');

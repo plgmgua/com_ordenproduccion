@@ -12,6 +12,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Log\Log;
 use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 /**
  * Applies business-side effects when approval requests are decided.
@@ -256,6 +257,9 @@ class ApprovalWorkflowEntityHelper
             $facturacionFechaSql = (string) $facturacionFechaSql;
         }
 
+        $exactaMeta = isset($meta['facturar_cotizacion_exacta']) ? (int) $meta['facturar_cotizacion_exacta'] : 1;
+        $exactaMeta = $exactaMeta === 0 ? 0 : 1;
+
         $submitterUserId = (int) ($meta['submitter_user_id'] ?? $approvedByUserId);
 
         $q = $db->getQuery(true)
@@ -267,12 +271,79 @@ class ApprovalWorkflowEntityHelper
         $db->setQuery($q);
         $db->execute();
 
-        if ($facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null && $facturacionFechaSql !== '') {
+        if ($exactaMeta === 1 && $facturacionModo === 'fecha_especifica' && $facturacionFechaSql !== null && $facturacionFechaSql !== '') {
             $felSvc = new FelInvoiceIssuanceService();
             if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
                 $felSvc->scheduleOrUpdateInvoiceFromQuotation($quotationId, $submitterUserId, $facturacionFechaSql);
             }
         }
+
+        if ($exactaMeta === 0) {
+            self::queueCotizacionFacturacionManualApproval(
+                $db,
+                $quotationId,
+                $submitterUserId > 0 ? $submitterUserId : $approvedByUserId
+            );
+        }
+    }
+
+    /**
+     * Start manual factura approval when líneas con Facturación activa requieren factura sin monto exacto.
+     *
+     * @since  3.118.26
+     */
+    public static function queueCotizacionFacturacionManualApproval(DatabaseInterface $db, int $quotationId, int $submitterUserId): void
+    {
+        $quotationId     = (int) $quotationId;
+        $submitterUserId = (int) $submitterUserId;
+        if ($quotationId < 1 || $submitterUserId < 1) {
+            return;
+        }
+
+        $app    = Factory::getApplication();
+        $precot = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (!$precot || !\is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])) {
+            return;
+        }
+        if ($precot->getFacturarPreCotizacionesForQuotation($quotationId) === []) {
+            return;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            return;
+        }
+
+        $wfSvc = new ApprovalWorkflowService($db);
+        if (!$wfSvc->hasSchema() || !$wfSvc->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL)) {
+            return;
+        }
+        if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId) !== null) {
+            return;
+        }
+
+        $metaArr = [
+            'quotation_id'               => $quotationId,
+            'facturacion_modo'           => (string) ($row->facturacion_modo ?? 'con_envio'),
+            'facturacion_fecha'          => isset($row->facturacion_fecha) ? (string) $row->facturacion_fecha : '',
+            'instrucciones_facturacion'  => isset($row->instrucciones_facturacion) ? (string) $row->instrucciones_facturacion : '',
+            'facturar_cotizacion_exacta' => (int) ($row->facturar_cotizacion_exacta ?? 0),
+            'submitter_user_id'          => $submitterUserId,
+        ];
+        $wfSvc->createRequest(
+            ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL,
+            $quotationId,
+            $submitterUserId,
+            json_encode($metaArr, JSON_UNESCAPED_UNICODE)
+        );
     }
 
     /**

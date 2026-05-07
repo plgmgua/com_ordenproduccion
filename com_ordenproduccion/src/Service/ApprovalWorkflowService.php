@@ -25,6 +25,9 @@ class ApprovalWorkflowService
 {
     public const ENTITY_COTIZACION_CONFIRMATION = 'cotizacion_confirmation';
 
+    /** Cotización confirmada: factura manual (sin “cotización exacta”). entity_id = quotation id. */
+    public const ENTITY_COTIZACION_FACTURACION_MANUAL = 'cotizacion_facturacion_manual';
+
     public const ENTITY_ORDEN_STATUS = 'orden_status';
 
     public const ENTITY_TIMESHEET = 'timesheet';
@@ -160,6 +163,7 @@ class ApprovalWorkflowService
                 break;
 
             case self::ENTITY_COTIZACION_CONFIRMATION:
+            case self::ENTITY_COTIZACION_FACTURACION_MANUAL:
                 if ($eid > 0) {
                     return Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $eid, false);
                 }
@@ -1272,6 +1276,10 @@ class ApprovalWorkflowService
                     $actorUserId,
                     $meta
                 );
+                break;
+
+            case self::ENTITY_COTIZACION_FACTURACION_MANUAL:
+                /* Record-only workflow; billing is handled manually after approval. */
                 break;
 
             case self::ENTITY_ORDEN_COMPRA:

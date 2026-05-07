@@ -156,6 +156,32 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
         </div>
     </div>
 
+    <?php
+    $pendingFactManual = $this->pendingCotizacionFacturacionManual ?? null;
+    if ($pendingFactManual) :
+        $pmMeta   = [];
+        $pmRaw    = isset($pendingFactManual->metadata) ? trim((string) $pendingFactManual->metadata) : '';
+        if ($pmRaw !== '') {
+            $dec = json_decode($pmRaw, true);
+            $pmMeta = \is_array($dec) ? $dec : [];
+        }
+        $pmInstr = isset($pmMeta['instrucciones_facturacion']) ? trim((string) $pmMeta['instrucciones_facturacion']) : '';
+        if ($pmInstr === '') {
+            $pmInstr = trim($instruccionesFacturacionValue);
+        }
+        ?>
+    <div class="alert alert-warning border mb-3" role="status">
+        <strong><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_TITLE', 'Manual invoicing pending approval', 'Facturación manual — aprobación pendiente')); ?></strong>
+        <div class="small mt-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_DESC', 'Review the billing instructions stored on this quotation. Approve or reject from Administration → Approvals.', 'Revise las instrucciones de facturación de esta cotización. Apruebe o rechace desde Administración → Aprobaciones.')); ?></div>
+        <?php if ($pmInstr !== '') : ?>
+        <div class="mt-2 mb-0">
+            <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></div>
+            <div class="border rounded bg-white p-2 small text-break"><?php echo nl2br(htmlspecialchars($pmInstr, ENT_QUOTES, 'UTF-8')); ?></div>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <?php if ($canEbiPay) : ?>
     <form id="ebipay-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
     <div class="alert alert-info border mb-3" id="ebipay-link-panel">
@@ -1061,13 +1087,23 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                     </script>
                     <?php endif; ?>
                     <?php if ($facturacionUiAvailable && empty($instruccionesBlocks)) : ?>
+                    <div id="confirmar-instrucciones-facturacion-wrapper" class="confirmar-instrucciones-facturacion-wrapper mb-3"<?php echo $facturarCotizacionExacta === 1 ? ' style="display:none;"' : ''; ?>>
+                        <label for="instrucciones_facturacion_confirm" class="form-label"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></label>
+                        <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_confirm" class="form-control form-control-sm" rows="3" maxlength="65535" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    </div>
                     <script>
                     (function() {
                         var hid = document.getElementById('facturar_cotizacion_exacta_post');
                         var cb = document.getElementById('facturar_cotizacion_exacta_cb');
+                        var iWrap = document.getElementById('confirmar-instrucciones-facturacion-wrapper');
                         var modalForm = document.querySelector('#confirmarCotizacionModal form');
                         function syncExacta() {
-                            if (hid && cb) { hid.value = cb.checked ? '1' : '0'; }
+                            if (hid && cb) {
+                                hid.value = cb.checked ? '1' : '0';
+                            }
+                            if (iWrap) {
+                                iWrap.style.display = (cb && cb.checked) ? 'none' : '';
+                            }
                         }
                         if (cb) {
                             cb.addEventListener('change', syncExacta);

@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
@@ -143,7 +144,7 @@ class HtmlView extends BaseHtmlView
     protected $confirmarInstruccionesFacturacionBlocks = [];
 
     /**
-     * Confirmar Cotización UX: omit modal when no linked pre-cot has «Facturar» — nothing to invoice; POST finalizes directly.
+     * Confirmar Cotización UX: omit modal when no linked pre-cot has «Facturar» (invoice fields not required).
      *
      * @var    bool
      *
@@ -198,6 +199,15 @@ class HtmlView extends BaseHtmlView
      * @since  3.115.71
      */
     protected $quotationHasLinkedPreCotizacion = false;
+
+    /**
+     * Open approval request for manual invoicing (entity_id = quotation id), if any.
+     *
+     * @var    object|null
+     *
+     * @since  3.118.26
+     */
+    protected $pendingCotizacionFacturacionManual = null;
 
     /**
      * Display the view
@@ -366,6 +376,17 @@ class HtmlView extends BaseHtmlView
                 if ($sessFlash->get('com_ordenproduccion.ot_creacion_pending_msg', '') === '1') {
                     $sessFlash->remove('com_ordenproduccion.ot_creacion_pending_msg');
                     $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OT_CREACION_APPROVAL_REQUESTED'), 'success');
+                }
+            }
+
+            $this->pendingCotizacionFacturacionManual = null;
+            if ($quotationId > 0) {
+                $wfPending = new ApprovalWorkflowService();
+                if ($wfPending->hasSchema()) {
+                    $this->pendingCotizacionFacturacionManual = $wfPending->getOpenPendingRequest(
+                        ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL,
+                        $quotationId
+                    );
                 }
             }
 
@@ -698,7 +719,7 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Set {@see $confirmarCotizacionSkipModal}: direct finalize when quotation is not confirmed and no PRE requires invoicing modal.
+     * Set {@see $confirmarCotizacionSkipModal}: direct finalize when quotation is not confirmed and no linked pre-cot has Facturar.
      *
      * @since  3.115.61
      */
@@ -718,7 +739,18 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        $this->confirmarCotizacionSkipModal = $this->confirmarInstruccionesFacturacionBlocks === [];
+        $qid = (int) ($this->quotation->id ?? 0);
+        if ($qid < 1) {
+            return;
+        }
+
+        $precotModel = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (!$precotModel || !\is_callable([$precotModel, 'getFacturarPreCotizacionesForQuotation'])) {
+            return;
+        }
+
+        $this->confirmarCotizacionSkipModal = $precotModel->getFacturarPreCotizacionesForQuotation($qid) === [];
     }
 
     /**

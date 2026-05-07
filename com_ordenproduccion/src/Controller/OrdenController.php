@@ -17,6 +17,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OrdenTrabajoPdfPrecotSectionsHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Utf8DisplayHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\OrdenModel;
@@ -213,6 +214,11 @@ class OrdenController extends BaseController
                         ['tipo_envio' => $tipoEnvio, 'tipo_mensajeria' => $tipoMensajeria]
                     );
                     error_log('SHIPPING HISTORY DEBUG - Completo save result: ' . var_export($result, true));
+                    try {
+                        QuotationEnvioFelHelper::maybeIssueFelAfterEnvioCompleto((int) $orderId, (int) $user->id);
+                    } catch (\Throwable $e) {
+                        error_log('QUOTATION_ENVIO_FEL_AFTER_COMPLETO: ' . $e->getMessage());
+                    }
                 } else {
                     // For "parcial", save shipping description if provided
                     if (!empty($descripcionEnvio)) {

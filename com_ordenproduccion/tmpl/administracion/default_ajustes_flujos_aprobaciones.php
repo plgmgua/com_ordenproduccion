@@ -20,6 +20,7 @@ $rows     = isset($this->approvalWorkflowsListSummary) && is_array($this->approv
 $entityLabel = static function (string $entityType): string {
     $map = [
         'cotizacion_confirmation' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_CONFIRMATION',
+        'cotizacion_facturacion_manual' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_FACTURACION_MANUAL',
         'orden_status'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_STATUS',
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
