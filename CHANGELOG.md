@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.30-STABLE] - 2026-05-06
+
+### Fixed
+- **Cotización → Factura relacionada:** Section is shown to **Ventas** as well as Administración/Admon/super users (same audience as the ebi pay block). Direct Digifact issue remains restricted to Administración/Admon/super users; Ventas see an explanatory message after confirmation. Language keys for confirm-first, help text, and emit-admin-only; Digifact controller gate aligned with `isInAdministracionOrAdmonGroup()` or super user.
+
 ## [3.118.4-STABLE] - 2026-05-06
 
 ### Added

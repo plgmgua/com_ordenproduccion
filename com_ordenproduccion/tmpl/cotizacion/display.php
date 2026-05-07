@@ -124,11 +124,12 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 
 $felForDirectCheck = new FelInvoiceIssuanceService();
 $digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
-$canFacturaRelacionadaSection = $quotationConfirmed && $felEngineAvailable
-    && (AccessHelper::canCreateProveedores() || AccessHelper::isSuperUser());
-$canDigifactDirectIssue = $canFacturaRelacionadaSection
-    && trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
+$canSeeFacturaRelacionadaSection = $felEngineAvailable
+    && (AccessHelper::isInVentasGroup() || AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser());
+$canDigifactEmitPermission = AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser();
+$digifactCfgOk = trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
+$canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $quotationConfirmed && $digifactCfgOk;
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
 ?>
 <div class="cotizacion-container cotizacion-display">
@@ -720,10 +721,10 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
     </div>
     <?php endif; ?>
 
-    <?php if ($canFacturaRelacionadaSection) : ?>
+    <?php if ($canSeeFacturaRelacionadaSection) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-factura-relacionada">
         <h3 class="h6 text-uppercase text-muted mb-2"><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_TITLE', 'Related invoice', 'Factura relacionada')); ?></h3>
-        <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Mock engine above creates a test DTE. Use the button below to call Digifact NUC with data from this quotation (IVA 12% on line subtotals). Requires Certificador URL (certify), NIT, user, valid token.', 'El panel superior crea un DTE de prueba. El botón siguiente llama a Digifact NUC con datos de esta cotización (IVA 12% sobre subtotales de línea). Requiere URL de certificación, NIT, usuario y token válido en Ajustes.')); ?></p>
+        <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Related electronic invoice (Digifact direct for Administración / super users). After confirmation, configure Certificador in Administration → Settings. A test DTE panel may appear above once the quotation is confirmed.', 'Factura electrónica relacionada (Digifact directo para Administración / superusuarios). Tras confirmar, requiere Certificador en Administración → Ajustes. El panel de prueba DTE puede aparecer arriba cuando la cotización esté confirmada.')); ?></p>
         <?php if ($felInv) : ?>
         <div class="mb-2 small">
             <span class="text-muted"><?php echo htmlspecialchars(Text::_('JSTATUS')); ?>:</span>
@@ -780,7 +781,11 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
             });
         })();
         </script>
-        <?php elseif ($canFacturaRelacionadaSection && !$canDigifactDirectIssue) : ?>
+        <?php elseif (!$quotationConfirmed) : ?>
+        <p class="small text-info mb-0"><i class="fas fa-info-circle"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_CONFIRM_FIRST', 'Confirm this quotation first; then you can issue FEL via Digifact (direct) when the certifier is configured.', 'Confirme primero esta cotización; luego podrá emitir FEL por Digifact (directo) si el certificador está configurado.')); ?></p>
+        <?php elseif ($quotationConfirmed && !$canDigifactEmitPermission) : ?>
+        <p class="small text-muted mb-0"><i class="fas fa-user-lock"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_EMIT_ADMIN_ONLY', 'Direct Digifact issue is available to Administration / Admon groups or super users.', 'La emisión directa por Digifact está disponible para el grupo Administración / Admon o superusuarios.')); ?></p>
+        <?php elseif ($quotationConfirmed && !$digifactCfgOk) : ?>
         <p class="small text-warning mb-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_NEED_CONFIG', 'Configure «URL certificación / CF» and a valid bearer token in Administration → Settings → Certificador de facturación.', 'Configure «URL certificación / CF» y un token válido en Administración → Ajustes → Certificador de facturación.')); ?></p>
         <?php endif; ?>
     </div>
