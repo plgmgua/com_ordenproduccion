@@ -16,6 +16,7 @@ use Joomla\CMS\Uri\Uri;
 
 /**
  * Build download URLs that survive SEF routing (Route::_ can strip task/token query vars).
+ * Parse stored Digifact NUC request JSON for invoice UI (AdditionalDocumentInfo).
  */
 class FelInvoiceHelper
 {
@@ -48,5 +49,118 @@ class FelInvoiceHelper
         $root = rtrim(Uri::root(false), '/');
 
         return $root . '/index.php?' . http_build_query($params);
+    }
+
+    /**
+     * Rows from NUC JSON AdditionalDocumentInfo for display: each item has label + value (trimmed strings).
+     *
+     * Supports compact Digifact shape (@Name + #text) and legacy nested ADENDA Info (Name + Value).
+     *
+     * @param   string|null  $felRequestJson  Invoice row fel_request_json column
+     *
+     * @return  list<array{label: string, value: string}>
+     *
+     * @since   3.118.43
+     */
+    public static function parseNucAdditionalDocumentRowsFromFelRequest(?string $felRequestJson): array
+    {
+        if ($felRequestJson === null || trim($felRequestJson) === '') {
+            return [];
+        }
+
+        $payload = json_decode($felRequestJson, true);
+        if (!\is_array($payload)) {
+            return [];
+        }
+
+        $list = $payload['AdditionalDocumentInfo']['AdditionalInfo'] ?? null;
+        if (!\is_array($list)) {
+            return [];
+        }
+
+        $out   = [];
+        $seen  = [];
+        $add   = static function (string $label, string $value) use (&$out, &$seen): void {
+            $label = trim($label);
+            $value = trim($value);
+            if ($label === '' && $value === '') {
+                return;
+            }
+            if ($label === '') {
+                $label = '—';
+            }
+            $sig = strtolower($label) . "\0" . $value;
+            if (isset($seen[$sig])) {
+                return;
+            }
+            $seen[$sig] = true;
+            $out[]      = ['label' => $label, 'value' => $value];
+        };
+
+        foreach ($list as $entry) {
+            if (!\is_array($entry)) {
+                continue;
+            }
+
+            if (\array_key_exists('#text', $entry) || \array_key_exists('@Name', $entry)) {
+                $name = trim((string) ($entry['@Name'] ?? ''));
+                $text = trim((string) ($entry['#text'] ?? ''));
+                $add($name !== '' ? $name : 'Cotizacion', $text);
+
+                continue;
+            }
+
+            $code = trim((string) ($entry['Code'] ?? ''));
+            if ($code !== '' && strtoupper((string) ($entry['Type'] ?? '')) === 'ADENDA') {
+                $add('Code', $code);
+            }
+
+            $dataBlocks = $entry['AditionalData']['Data'] ?? null;
+            if (!\is_array($dataBlocks)) {
+                continue;
+            }
+            foreach ($dataBlocks as $block) {
+                if (!\is_array($block)) {
+                    continue;
+                }
+                $infos = $block['Info'] ?? null;
+                if (!\is_array($infos)) {
+                    continue;
+                }
+                foreach ($infos as $info) {
+                    if (!\is_array($info)) {
+                        continue;
+                    }
+                    $n = trim((string) ($info['Name'] ?? ''));
+                    $v = isset($info['Value']) ? trim((string) $info['Value']) : '';
+                    $add($n, $v);
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * One-line summary for invoice list (prefers Cotizacion/COTIZACION row, else first non-empty value).
+     *
+     * @since   3.118.43
+     */
+    public static function nucAdditionalSummaryForList(?string $felRequestJson): string
+    {
+        $rows = self::parseNucAdditionalDocumentRowsFromFelRequest($felRequestJson);
+        foreach ($rows as $row) {
+            $l = $row['label'];
+            if (strcasecmp($l, 'Cotizacion') === 0 || strcasecmp($l, 'COTIZACION') === 0) {
+                return $row['value'];
+            }
+        }
+        foreach ($rows as $row) {
+            if ($row['value'] !== '') {
+                return $row['value'];
+            }
+        }
+
+        return '';
     }
 }

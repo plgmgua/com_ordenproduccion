@@ -13,6 +13,7 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
@@ -162,6 +163,23 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
                     </tr>
                 </tfoot>
             </table>
+        </div>
+        <?php endif; ?>
+
+        <?php
+        $nucAddRows = FelInvoiceHelper::parseNucAdditionalDocumentRowsFromFelRequest(
+            isset($item->fel_request_json) ? (string) $item->fel_request_json : null
+        );
+        if ($nucAddRows !== []) :
+            ?>
+        <div class="border rounded p-2 mb-3 small invoice-nuc-additional">
+            <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_NUC_ADDITIONAL_SECTION'); ?></div>
+            <dl class="row mb-0">
+                <?php foreach ($nucAddRows as $ar) : ?>
+                <dt class="col-sm-3 text-muted"><?php echo htmlspecialchars($ar['label'], ENT_QUOTES, 'UTF-8'); ?></dt>
+                <dd class="col-sm-9 mb-1 text-break"><?php echo htmlspecialchars($ar['value'], ENT_QUOTES, 'UTF-8'); ?></dd>
+                <?php endforeach; ?>
+            </dl>
         </div>
         <?php endif; ?>
 

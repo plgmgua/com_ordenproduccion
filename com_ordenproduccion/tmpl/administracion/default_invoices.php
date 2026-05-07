@@ -604,7 +604,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                             <tbody>
                                 <?php if (empty($sugs)): ?>
                                 <tr>
-                                    <td colspan="7" class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_SUGGESTIONS_FOR_INVOICE'); ?></td>
+                                    <td colspan="8" class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ORDEN_MATCH_NO_SUGGESTIONS_FOR_INVOICE'); ?></td>
                                 </tr>
                                 <?php else: ?>
                                 <?php foreach ($sugs as $row):
@@ -796,6 +796,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                     <th>Serie | Número</th>
                     <th>Fecha de Emisión</th>
                     <th>NIT</th>
+                    <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_NUC_REF'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_TIPO'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_CLIENT_NAME'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_DESCRIPTION'); ?></th>
@@ -835,6 +836,12 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         </td>
                         <td><?php echo $fechaEmision; ?></td>
                         <td><?php echo htmlspecialchars($nit); ?></td>
+                        <td class="small text-break"><?php
+                            $nucRef = FelInvoiceHelper::nucAdditionalSummaryForList(
+                                isset($invoice->fel_request_json) ? (string) $invoice->fel_request_json : null
+                            );
+                        echo $nucRef !== '' ? htmlspecialchars($nucRef, ENT_QUOTES, 'UTF-8') : '—';
+                        ?></td>
                         <td>
                             <?php if ($isCancelled) : ?>
                                 <span class="invoice-tipo-badge invoice-tipo-anulada"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_ANULADA'); ?></span>

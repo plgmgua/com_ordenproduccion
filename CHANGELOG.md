@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.43-STABLE] - 2026-05-07
+
+### Added
+- **Invoice detail & admin list:** Show **NUC `AdditionalDocumentInfo`** parsed from **`fel_request_json`** (compact `@Name`/`#text` and legacy ADENDA `Info` rows). New **`FelInvoiceHelper`** parsers; list column **Cotización (NUC)**.
+
 ## [3.118.42-STABLE] - 2026-05-07
 
 ### Changed
