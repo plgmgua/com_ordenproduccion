@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.40-STABLE] - 2026-05-07
+
+### Fixed
+- **Digifact NUC JSON:** Restore **AdditionalDocumentInfo** adenda **Code** (`COT-{id}`) and **OBSERVACIONES** / **COTIZACION** values (quotation number, with `COT-{id}` fallback). Empty adenda fields caused Digifact schema validation error **3000**.
+
 ## [3.118.39-STABLE] - 2026-05-06
 
 ### Changed

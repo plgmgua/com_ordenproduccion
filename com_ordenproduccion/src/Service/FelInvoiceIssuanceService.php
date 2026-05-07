@@ -1171,7 +1171,7 @@ class FelInvoiceIssuanceService
     /**
      * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller name/email from site;
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
-     * AdditionalDocumentInfo ADENDA: Code and OBSERVACIONES/COTIZACION values are always empty strings (cotización reference is not sent in NUC JSON).
+     * AdditionalDocumentInfo ADENDA: Code is COT-{quotation id}; OBSERVACIONES/COTIZACION Value = trimmed quotation_number, or COT-{id} if blank (Digifact schema requires non-empty InformacionAdicional).
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
@@ -1308,6 +1308,11 @@ class FelInvoiceIssuanceService
             $branchCountry = 'GT';
         }
 
+        $cotRef = trim((string) ($quotation->quotation_number ?? ''));
+        if ($cotRef === '') {
+            $cotRef = 'COT-' . (int) ($quotation->id ?? 0);
+        }
+
         return [
             'Version'     => '1.00',
             'CountryCode' => 'GT',
@@ -1370,14 +1375,14 @@ class FelInvoiceIssuanceService
             'AdditionalDocumentInfo' => [
                 'AdditionalInfo' => [
                     [
-                        'Code' => '',
+                        'Code' => 'COT-' . (int) ($quotation->id ?? 0),
                         'Type' => 'ADENDA',
                         'AditionalData' => [
                             'Data' => [
                                 [
                                     'Info' => [
-                                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => ''],
-                                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => ''],
+                                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => $cotRef],
+                                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => $cotRef],
                                     ],
                                     'Name' => 'INFORMACION_ADICIONAL',
                                 ],
