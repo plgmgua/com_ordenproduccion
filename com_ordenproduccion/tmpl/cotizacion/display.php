@@ -129,7 +129,7 @@ $canSeeFacturaRelacionadaSection = $felEngineAvailable
 $canDigifactEmitPermission = AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser();
 $digifactCfgOk = trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
-$canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $quotationConfirmed && $digifactCfgOk;
+$canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $digifactCfgOk;
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
 ?>
 <div class="cotizacion-container cotizacion-display">
@@ -724,7 +724,7 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
     <?php if ($canSeeFacturaRelacionadaSection) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-factura-relacionada">
         <h3 class="h6 text-uppercase text-muted mb-2"><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_TITLE', 'Related invoice', 'Factura relacionada')); ?></h3>
-        <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Related electronic invoice (Digifact direct for Administración / super users). After confirmation, configure Certificador in Administration → Settings. A test DTE panel may appear above once the quotation is confirmed.', 'Factura electrónica relacionada (Digifact directo para Administración / superusuarios). Tras confirmar, requiere Certificador en Administración → Ajustes. El panel de prueba DTE puede aparecer arriba cuando la cotización esté confirmada.')); ?></p>
+        <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Related invoice (Digifact): Administration/Admon or super users can emit without confirming the quotation. Configure Certificador in Administration → Settings.', 'Factura relacionada (Digifact): Administración/Admon o superusuarios pueden emitir sin confirmar la cotización. Configure el Certificador en Administración → Ajustes.')); ?></p>
         <?php if ($felInv) : ?>
         <div class="mb-2 small">
             <span class="text-muted"><?php echo htmlspecialchars(Text::_('JSTATUS')); ?>:</span>
@@ -781,11 +781,11 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
             });
         })();
         </script>
-        <?php elseif (!$quotationConfirmed) : ?>
-        <p class="small text-info mb-0"><i class="fas fa-info-circle"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_CONFIRM_FIRST', 'Confirm this quotation first; then you can issue FEL via Digifact (direct) when the certifier is configured.', 'Confirme primero esta cotización; luego podrá emitir FEL por Digifact (directo) si el certificador está configurado.')); ?></p>
-        <?php elseif ($quotationConfirmed && !$canDigifactEmitPermission) : ?>
+        <?php elseif ($felStatus === 'completed') : ?>
+        <?php /* Issued; PDF/XML above */ ?>
+        <?php elseif (!$canDigifactEmitPermission) : ?>
         <p class="small text-muted mb-0"><i class="fas fa-user-lock"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_EMIT_ADMIN_ONLY', 'Direct Digifact issue is available to Administration / Admon groups or super users.', 'La emisión directa por Digifact está disponible para el grupo Administración / Admon o superusuarios.')); ?></p>
-        <?php elseif ($quotationConfirmed && !$digifactCfgOk) : ?>
+        <?php elseif (!$digifactCfgOk) : ?>
         <p class="small text-warning mb-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_NEED_CONFIG', 'Configure «URL certificación / CF» and a valid bearer token in Administration → Settings → Certificador de facturación.', 'Configure «URL certificación / CF» y un token válido en Administración → Ajustes → Certificador de facturación.')); ?></p>
         <?php endif; ?>
     </div>

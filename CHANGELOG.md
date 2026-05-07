@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.31-STABLE] - 2026-05-06
+
+### Changed
+- **Cotización → Factura relacionada (Digifact direct):** Emit no longer requires **Confirmar cotización** (`cotizacion_confirmada`). Supports manual invoicing from draft quotations. Controller gate removed; UI help strings updated.
+
 ## [3.118.30-STABLE] - 2026-05-06
 
 ### Fixed

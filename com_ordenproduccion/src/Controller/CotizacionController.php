@@ -1140,11 +1140,6 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
-        if ((int) ($row->cotizacion_confirmada ?? 0) !== 1) {
-            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_REQUIRES_CONFIRMED')], JSON_UNESCAPED_UNICODE);
-            $app->close();
-        }
-
         if (!AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
             $app->close();
