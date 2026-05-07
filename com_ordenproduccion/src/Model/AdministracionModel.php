@@ -3390,6 +3390,35 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * URLs and credentials for one environment (test or prod), including clave when stored.
+     *
+     * @param   string  $modo  test|prod (any other value treated as test)
+     *
+     * @return  array<string, string>
+     *
+     * @since   3.118.6
+     */
+    public function getCertificadorFactSettingsForModo(string $modo): array
+    {
+        $modo = $modo === 'prod' ? 'prod' : 'test';
+        $all  = $this->getCertificadorFactSettings();
+
+        return $all[$modo];
+    }
+
+    /**
+     * Same as getCertificadorFactSettingsForModo for the currently selected modo (Ajustes toggle).
+     *
+     * @return  array<string, string>
+     *
+     * @since   3.118.6
+     */
+    public function getCertificadorFactSettingsForActiveModo(): array
+    {
+        return $this->getCertificadorFactSettingsForModo($this->getCertificadorFactModo());
+    }
+
+    /**
      * Certificador de facturación (FEL): test + production URLs and credentials.
      * Stored in #__ordenproduccion_config as certificador_fact_{test|prod}_*.
      *

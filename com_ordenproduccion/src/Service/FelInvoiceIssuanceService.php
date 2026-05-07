@@ -61,6 +61,33 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Full credential block for the active modo (includes clave). For server-side / API use only.
+     *
+     * @return  array<string, string>
+     *
+     * @since   3.118.6
+     */
+    public function getActiveCertificadorCredentials(): array
+    {
+        try {
+            $model = new AdministracionModel();
+
+            return $model->getCertificadorFactSettingsForActiveModo();
+        } catch (\Throwable $e) {
+            return [
+                'url_autenticacion' => '',
+                'url_info'          => '',
+                'url_cert_cf'       => '',
+                'url_cert_nit'      => '',
+                'url_cert_cui'      => '',
+                'nit'               => '',
+                'usuario'           => '',
+                'clave'             => '',
+            ];
+        }
+    }
+
+    /**
      * Whether issuance columns exist (migration 3.101.50 applied).
      */
     public function isEngineAvailable(): bool

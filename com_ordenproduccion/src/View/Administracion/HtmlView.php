@@ -364,6 +364,51 @@ class HtmlView extends BaseHtmlView
     protected $certificadorFactModo = 'test';
 
     /**
+     * Active modo settings as one map for layouts (same keys as stored fields; clave never included, use clave_configured).
+     *
+     * @var    array{env: string, url_autenticacion: string, url_info: string, url_cert_cf: string, url_cert_nit: string, url_cert_cui: string, nit: string, usuario: string, clave_configured: bool}
+     * @since  3.118.6
+     */
+    protected $certificadorFactActive = [];
+
+    /**
+     * Active modo (duplicate of certificadorFactModo while on Certificador page); empty string elsewhere.
+     *
+     * @var    string
+     * @since  3.118.6
+     */
+    protected $certificadorFactActiveEnv = '';
+
+    /** @var string @since 3.118.6 */
+    protected $certificadorFactActiveUrlAutenticacion = '';
+
+    /** @var string @since 3.118.6 */
+    protected $certificadorFactActiveUrlInfo = '';
+
+    /** @var string @since 3.118.6 */
+    protected $certificadorFactActiveUrlCertCf = '';
+
+    /** @var string @since 3.118.6 */
+    protected $certificadorFactActiveUrlCertNit = '';
+
+    /** @var string @since 3.118.6 */
+    protected $certificadorFactActiveUrlCertCui = '';
+
+    /** @var string @since 3.118.6 */
+    protected $certificadorFactActiveNit = '';
+
+    /** @var string @since 3.118.6 */
+    protected $certificadorFactActiveUsuario = '';
+
+    /**
+     * Whether clave is stored for the active modo (never expose the value on the view).
+     *
+     * @var    bool
+     * @since  3.118.6
+     */
+    protected $certificadorFactActiveClaveConfigured = false;
+
+    /**
      * Work order numbering settings (next_order_number, order_prefix, order_format) for ajustes > numeracion_ordenes.
      *
      * @var    \stdClass|null
@@ -1942,6 +1987,9 @@ class HtmlView extends BaseHtmlView
                     ],
                 ];
             }
+            $this->syncCertificadorFactActiveViewFields();
+        } else {
+            $this->resetCertificadorFactActiveViewFields();
         }
 
         $this->workOrderNumbering   = null;
@@ -2025,6 +2073,64 @@ class HtmlView extends BaseHtmlView
         $this->_prepareDocument();
 
         parent::display($tpl);
+    }
+
+    /**
+     * Clear flattened Certificador FEL variables (not on Ajustes > Certificador).
+     *
+     * @return  void
+     *
+     * @since   3.118.6
+     */
+    protected function resetCertificadorFactActiveViewFields(): void
+    {
+        $this->certificadorFactActive                = [];
+        $this->certificadorFactActiveEnv             = '';
+        $this->certificadorFactActiveUrlAutenticacion = '';
+        $this->certificadorFactActiveUrlInfo         = '';
+        $this->certificadorFactActiveUrlCertCf       = '';
+        $this->certificadorFactActiveUrlCertNit      = '';
+        $this->certificadorFactActiveUrlCertCui      = '';
+        $this->certificadorFactActiveNit             = '';
+        $this->certificadorFactActiveUsuario         = '';
+        $this->certificadorFactActiveClaveConfigured = false;
+    }
+
+    /**
+     * Fill certificadorFactActive* from certificadorFactModo + certificadorFactSettings (no clave value).
+     *
+     * @return  void
+     *
+     * @since   3.118.6
+     */
+    protected function syncCertificadorFactActiveViewFields(): void
+    {
+        $env = ($this->certificadorFactModo === 'prod') ? 'prod' : 'test';
+        $b   = isset($this->certificadorFactSettings[$env]) && is_array($this->certificadorFactSettings[$env])
+            ? $this->certificadorFactSettings[$env]
+            : [];
+
+        $this->certificadorFactActiveEnv             = $env;
+        $this->certificadorFactActiveUrlAutenticacion = (string) ($b['url_autenticacion'] ?? '');
+        $this->certificadorFactActiveUrlInfo         = (string) ($b['url_info'] ?? '');
+        $this->certificadorFactActiveUrlCertCf       = (string) ($b['url_cert_cf'] ?? '');
+        $this->certificadorFactActiveUrlCertNit      = (string) ($b['url_cert_nit'] ?? '');
+        $this->certificadorFactActiveUrlCertCui      = (string) ($b['url_cert_cui'] ?? '');
+        $this->certificadorFactActiveNit             = (string) ($b['nit'] ?? '');
+        $this->certificadorFactActiveUsuario         = (string) ($b['usuario'] ?? '');
+        $this->certificadorFactActiveClaveConfigured = !empty($this->certificadorFactClaveSet[$env]);
+
+        $this->certificadorFactActive = [
+            'env'               => $env,
+            'url_autenticacion' => $this->certificadorFactActiveUrlAutenticacion,
+            'url_info'          => $this->certificadorFactActiveUrlInfo,
+            'url_cert_cf'       => $this->certificadorFactActiveUrlCertCf,
+            'url_cert_nit'      => $this->certificadorFactActiveUrlCertNit,
+            'url_cert_cui'      => $this->certificadorFactActiveUrlCertCui,
+            'nit'               => $this->certificadorFactActiveNit,
+            'usuario'           => $this->certificadorFactActiveUsuario,
+            'clave_configured'  => $this->certificadorFactActiveClaveConfigured,
+        ];
     }
 
     /**

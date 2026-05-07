@@ -2,6 +2,12 @@
 /**
  * Ajustes > Certificador de Fact: URLs and credentials (test + production).
  *
+ * Layout can use flattened active-modo variables from the view, e.g. $this->certificadorFactActiveNit,
+ * $this->certificadorFactActiveUsuario, $this->certificadorFactActiveUrlAutenticacion, or the map
+ * $this->certificadorFactActive (clave is never on the view; use certificadorFactActiveClaveConfigured).
+ * For API code needing the stored clave, use AdministracionModel::getCertificadorFactSettingsForActiveModo()
+ * or FelInvoiceIssuanceService::getActiveCertificadorCredentials() server-side only.
+ *
  * @package     Joomla.Site
  * @subpackage  com_ordenproduccion
  */
