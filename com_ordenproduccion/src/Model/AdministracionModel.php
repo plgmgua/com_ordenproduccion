@@ -3459,6 +3459,13 @@ class AdministracionModel extends BaseDatabaseModel
             'url_cert_cf',
             'url_cert_nit',
             'url_cert_cui',
+            'branch_code',
+            'branch_name',
+            'branch_address',
+            'branch_city',
+            'branch_district',
+            'branch_state',
+            'branch_country',
             'nit',
             'usuario',
             'clave',
@@ -3734,6 +3741,13 @@ class AdministracionModel extends BaseDatabaseModel
             $keys[] = $p . 'url_cert_cf';
             $keys[] = $p . 'url_cert_nit';
             $keys[] = $p . 'url_cert_cui';
+            $keys[] = $p . 'branch_code';
+            $keys[] = $p . 'branch_name';
+            $keys[] = $p . 'branch_address';
+            $keys[] = $p . 'branch_city';
+            $keys[] = $p . 'branch_district';
+            $keys[] = $p . 'branch_state';
+            $keys[] = $p . 'branch_country';
             $keys[] = $p . 'nit';
             $keys[] = $p . 'usuario';
             $keys[] = $p . 'clave';
@@ -3751,6 +3765,13 @@ class AdministracionModel extends BaseDatabaseModel
                 'url_cert_cf' => '',
                 'url_cert_nit' => '',
                 'url_cert_cui' => '',
+                'branch_code' => '',
+                'branch_name' => '',
+                'branch_address' => '',
+                'branch_city' => '',
+                'branch_district' => '',
+                'branch_state' => '',
+                'branch_country' => '',
                 'nit' => '',
                 'usuario' => '',
                 'clave' => '',
@@ -3761,6 +3782,13 @@ class AdministracionModel extends BaseDatabaseModel
                 'url_cert_cf' => '',
                 'url_cert_nit' => '',
                 'url_cert_cui' => '',
+                'branch_code' => '',
+                'branch_name' => '',
+                'branch_address' => '',
+                'branch_city' => '',
+                'branch_district' => '',
+                'branch_state' => '',
+                'branch_country' => '',
                 'nit' => '',
                 'usuario' => '',
                 'clave' => '',
@@ -3772,6 +3800,13 @@ class AdministracionModel extends BaseDatabaseModel
             'url_cert_cf',
             'url_cert_nit',
             'url_cert_cui',
+            'branch_code',
+            'branch_name',
+            'branch_address',
+            'branch_city',
+            'branch_district',
+            'branch_state',
+            'branch_country',
             'nit',
             'usuario',
             'clave',
@@ -3851,6 +3886,13 @@ class AdministracionModel extends BaseDatabaseModel
             'url_cert_cf',
             'url_cert_nit',
             'url_cert_cui',
+            'branch_code',
+            'branch_name',
+            'branch_address',
+            'branch_city',
+            'branch_district',
+            'branch_state',
+            'branch_country',
             'nit',
             'usuario',
             'clave',

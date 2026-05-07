@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.37-STABLE] - 2026-05-06
+
+### Added
+- **Certificador FEL:** Editable **issuer branch** (`Seller.BranchInfo` for Digifact NUC JSON) per test and production in **Ajustes → Certificador de facturación**, stored as `certificador_fact_{env}_branch_*`; issuance reads the active environment’s values with the previous hard-coded Guatemala defaults when fields are empty.
+
 ## [3.118.36-STABLE] - 2026-05-07
 
 ### Added

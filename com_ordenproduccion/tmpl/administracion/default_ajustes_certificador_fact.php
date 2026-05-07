@@ -1,6 +1,6 @@
 <?php
 /**
- * Ajustes > Certificador de Fact: URLs and credentials (test + production).
+ * Ajustes > Certificador de Fact: URLs, issuer branch (NUC JSON), and credentials (test + production).
  *
  * Layout can use flattened active-modo variables from the view, e.g. $this->certificadorFactActiveNit,
  * $this->certificadorFactActiveUsuario, $this->certificadorFactActiveUrlAutenticacion, or the map
@@ -75,6 +75,46 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
                     <label class="form-label" for="cf_<?php echo $env; ?>_url_cui"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CUI'); ?></label>
                     <input type="url" class="form-control" name="jform[certificador][<?php echo $env; ?>][url_cert_cui]" id="cf_<?php echo $env; ?>_url_cui"
                            value="<?php echo htmlspecialchars($s['url_cert_cui'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
+                </div>
+                <div class="col-12">
+                    <hr class="my-2">
+                    <h4 class="h6 text-secondary mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_SECTION'); ?></h4>
+                    <p class="form-text small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_SECTION_HELP'); ?></p>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_code"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_CODE'); ?></label>
+                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_code]" id="cf_<?php echo $env; ?>_branch_code"
+                           value="<?php echo htmlspecialchars($s['branch_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_name"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_NAME'); ?></label>
+                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_name]" id="cf_<?php echo $env; ?>_branch_name"
+                           value="<?php echo htmlspecialchars($s['branch_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="organization">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_address"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_ADDRESS'); ?></label>
+                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_address]" id="cf_<?php echo $env; ?>_branch_address"
+                           value="<?php echo htmlspecialchars($s['branch_address'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="street-address">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_city"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_CITY'); ?></label>
+                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_city]" id="cf_<?php echo $env; ?>_branch_city"
+                           value="<?php echo htmlspecialchars($s['branch_city'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_district"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_DISTRICT'); ?></label>
+                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_district]" id="cf_<?php echo $env; ?>_branch_district"
+                           value="<?php echo htmlspecialchars($s['branch_district'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_state"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_STATE'); ?></label>
+                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_state]" id="cf_<?php echo $env; ?>_branch_state"
+                           value="<?php echo htmlspecialchars($s['branch_state'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_country"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_COUNTRY'); ?></label>
+                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_country]" id="cf_<?php echo $env; ?>_branch_country"
+                           value="<?php echo htmlspecialchars($s['branch_country'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" maxlength="3" autocomplete="off">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="cf_<?php echo $env; ?>_nit"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_NIT'); ?></label>

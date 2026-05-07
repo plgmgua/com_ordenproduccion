@@ -82,6 +82,13 @@ class FelInvoiceIssuanceService
                 'url_cert_cf'       => '',
                 'url_cert_nit'      => '',
                 'url_cert_cui'      => '',
+                'branch_code'       => '',
+                'branch_name'       => '',
+                'branch_address'    => '',
+                'branch_city'       => '',
+                'branch_district'   => '',
+                'branch_state'      => '',
+                'branch_country'    => '',
                 'nit'               => '',
                 'usuario'           => '',
                 'clave'             => '',
@@ -1162,7 +1169,8 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller from credentials + site name.
+     * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller name/email from site;
+     * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
@@ -1270,6 +1278,35 @@ class FelInvoiceIssuanceService
         $nitSellerDigits = $this->digitsOnly($creds['nit'] ?? '');
         $nitSellerJson   = $nitSellerDigits !== '' ? ltrim($nitSellerDigits, '0') ?: $nitSellerDigits : '000000000';
 
+        $branchCode = trim((string) ($creds['branch_code'] ?? ''));
+        if ($branchCode === '') {
+            $branchCode = '1';
+        }
+        $branchName = trim((string) ($creds['branch_name'] ?? ''));
+        if ($branchName === '') {
+            $branchName = $site;
+        }
+        $branchAddr = trim((string) ($creds['branch_address'] ?? ''));
+        if ($branchAddr === '') {
+            $branchAddr = 'Ciudad';
+        }
+        $branchCity = trim((string) ($creds['branch_city'] ?? ''));
+        if ($branchCity === '') {
+            $branchCity = '01001';
+        }
+        $branchDistrict = trim((string) ($creds['branch_district'] ?? ''));
+        if ($branchDistrict === '') {
+            $branchDistrict = 'Guatemala';
+        }
+        $branchState = trim((string) ($creds['branch_state'] ?? ''));
+        if ($branchState === '') {
+            $branchState = 'Guatemala';
+        }
+        $branchCountry = strtoupper(trim((string) ($creds['branch_country'] ?? '')));
+        if ($branchCountry === '') {
+            $branchCountry = 'GT';
+        }
+
         $cotRef = trim((string) ($quotation->quotation_number ?? ''));
         if ($cotRef === '') {
             $cotRef = 'COT-' . (int) ($quotation->id ?? 0);
@@ -1297,14 +1334,14 @@ class FelInvoiceIssuanceService
                     ['Name' => 'Escenario', 'Data' => '1', 'Value' => '2'],
                 ],
                 'BranchInfo' => [
-                    'Code' => '1',
-                    'Name' => $site,
+                    'Code' => $branchCode,
+                    'Name' => $branchName,
                     'AddressInfo' => [
-                        'Address'  => 'Ciudad',
-                        'City'     => '01001',
-                        'District' => 'Guatemala',
-                        'State'    => 'Guatemala',
-                        'Country'  => 'GT',
+                        'Address'  => $branchAddr,
+                        'City'     => $branchCity,
+                        'District' => $branchDistrict,
+                        'State'    => $branchState,
+                        'Country'  => $branchCountry,
                     ],
                 ],
             ],

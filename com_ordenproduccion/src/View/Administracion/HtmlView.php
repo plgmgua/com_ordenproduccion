@@ -374,7 +374,7 @@ class HtmlView extends BaseHtmlView
     /**
      * Active modo settings as one map for layouts (same keys as stored fields; clave never included, use clave_configured).
      *
-     * @var    array{env: string, url_autenticacion: string, url_info: string, url_cert_cf: string, url_cert_nit: string, url_cert_cui: string, nit: string, usuario: string, clave_configured: bool}
+     * @var    array{env: string, url_autenticacion: string, url_info: string, url_cert_cf: string, url_cert_nit: string, url_cert_cui: string, branch_code: string, branch_name: string, branch_address: string, branch_city: string, branch_district: string, branch_state: string, branch_country: string, nit: string, usuario: string, clave_configured: bool}
      * @since  3.118.6
      */
     protected $certificadorFactActive = [];
@@ -1992,6 +1992,13 @@ class HtmlView extends BaseHtmlView
                         'url_cert_cf' => '',
                         'url_cert_nit' => '',
                         'url_cert_cui' => '',
+                        'branch_code' => '',
+                        'branch_name' => '',
+                        'branch_address' => '',
+                        'branch_city' => '',
+                        'branch_district' => '',
+                        'branch_state' => '',
+                        'branch_country' => '',
                         'nit' => '',
                         'usuario' => '',
                         'clave' => '',
@@ -2002,6 +2009,13 @@ class HtmlView extends BaseHtmlView
                         'url_cert_cf' => '',
                         'url_cert_nit' => '',
                         'url_cert_cui' => '',
+                        'branch_code' => '',
+                        'branch_name' => '',
+                        'branch_address' => '',
+                        'branch_city' => '',
+                        'branch_district' => '',
+                        'branch_state' => '',
+                        'branch_country' => '',
                         'nit' => '',
                         'usuario' => '',
                         'clave' => '',
@@ -2160,6 +2174,13 @@ class HtmlView extends BaseHtmlView
             'url_cert_cf'       => $this->certificadorFactActiveUrlCertCf,
             'url_cert_nit'      => $this->certificadorFactActiveUrlCertNit,
             'url_cert_cui'      => $this->certificadorFactActiveUrlCertCui,
+            'branch_code'       => (string) ($b['branch_code'] ?? ''),
+            'branch_name'       => (string) ($b['branch_name'] ?? ''),
+            'branch_address'    => (string) ($b['branch_address'] ?? ''),
+            'branch_city'       => (string) ($b['branch_city'] ?? ''),
+            'branch_district'   => (string) ($b['branch_district'] ?? ''),
+            'branch_state'      => (string) ($b['branch_state'] ?? ''),
+            'branch_country'    => (string) ($b['branch_country'] ?? ''),
             'nit'               => $this->certificadorFactActiveNit,
             'usuario'           => $this->certificadorFactActiveUsuario,
             'clave_configured'  => $this->certificadorFactActiveClaveConfigured,
