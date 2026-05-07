@@ -706,26 +706,85 @@ class CotizacionController extends BaseController
         $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
         $maxSize = 5 * 1024 * 1024;
 
+        $skipModalFacturacion = (int) $app->input->post->get('confirmar_sin_modal_facturacion', 0) === 1;
+
+        if (!$skipModalFacturacion) {
+            $choiceCot = strtolower((string) $app->input->post->getCmd('confirmar_adjunta_cotizacion_firmada', ''));
+            $choiceOc  = strtolower((string) $app->input->post->getCmd('confirmar_adjunta_orden_compra', ''));
+
+            if (!\in_array($choiceCot, ['si', 'no'], true) || !\in_array($choiceOc, ['si', 'no'], true)) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DOC_CHOICE_REQUIRED'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+                return;
+            }
+        } else {
+            $choiceCot = null;
+            $choiceOc  = null;
+        }
+
         $pathAprobada = $this->getObjectProperty($row, 'cotizacion_aprobada_path');
         $pathOrden    = $this->getObjectProperty($row, 'orden_compra_path');
+        $pathAprobada = \is_string($pathAprobada) ? $pathAprobada : '';
+        $pathOrden    = \is_string($pathOrden) ? $pathOrden : '';
 
-        $pathAprobada = $this->processOptionalQuotationConfirmUpload(
-            $app->input->files->get('cotizacion_aprobada', [], 'array'),
-            $quotationId,
-            'aprobada',
-            $uploadDir,
-            $allowed,
-            $maxSize
-        ) ?? $pathAprobada;
+        if ($choiceCot === 'no') {
+            $pathAprobada = '';
+        } elseif ($choiceCot === 'si') {
+            $pathAprobada = $this->processOptionalQuotationConfirmUpload(
+                $app->input->files->get('cotizacion_aprobada', [], 'array'),
+                $quotationId,
+                'aprobada',
+                $uploadDir,
+                $allowed,
+                $maxSize
+            ) ?? $pathAprobada;
 
-        $pathOrden = $this->processOptionalQuotationConfirmUpload(
-            $app->input->files->get('orden_compra', [], 'array'),
-            $quotationId,
-            'orden_compra',
-            $uploadDir,
-            $allowed,
-            $maxSize
-        ) ?? $pathOrden;
+            if (trim($pathAprobada) === '') {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_COTIZACION_FIRMADA_FILE_REQUIRED'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+                return;
+            }
+        } else {
+            $pathAprobada = $this->processOptionalQuotationConfirmUpload(
+                $app->input->files->get('cotizacion_aprobada', [], 'array'),
+                $quotationId,
+                'aprobada',
+                $uploadDir,
+                $allowed,
+                $maxSize
+            ) ?? $pathAprobada;
+        }
+
+        if ($choiceOc === 'no') {
+            $pathOrden = '';
+        } elseif ($choiceOc === 'si') {
+            $pathOrden = $this->processOptionalQuotationConfirmUpload(
+                $app->input->files->get('orden_compra', [], 'array'),
+                $quotationId,
+                'orden_compra',
+                $uploadDir,
+                $allowed,
+                $maxSize
+            ) ?? $pathOrden;
+
+            if (trim($pathOrden) === '') {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_ORDEN_COMPRA_FILE_REQUIRED'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+                return;
+            }
+        } else {
+            $pathOrden = $this->processOptionalQuotationConfirmUpload(
+                $app->input->files->get('orden_compra', [], 'array'),
+                $quotationId,
+                'orden_compra',
+                $uploadDir,
+                $allowed,
+                $maxSize
+            ) ?? $pathOrden;
+        }
 
         $instruccionesFacturacion = $this->collectInstruccionesFacturacionFromPost($quotationId);
         if ($instruccionesFacturacion !== null && strlen($instruccionesFacturacion) > 65535) {

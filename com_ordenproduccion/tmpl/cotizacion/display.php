@@ -783,8 +783,11 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         var strCliente = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_CLIENTE', 'Client', 'Cliente'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
                         var strDash = '—';
                         var strFetchErr = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_FETCH_ERROR', 'Could not load verification.', 'No se pudo cargar la verificación.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-                        var strFinalizarDisabledHint = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Wait until billing ID validation finishes above. Reload the page if loading fails.', 'Espere a que termine la validación de NIT a facturar arriba. Recargue la página si no carga.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var strFinalizarDisabledHint = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Complete billing ID validation and document choices below. Attach files when you choose Sí.', 'Complete la validación de NIT y las opciones de documentos. Adjunte archivos si eligió Sí.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
                         var finalizarBtn = modal.querySelector('#cotizacion-confirm-finalizar-btn');
+                        var hasExistAprobada = <?php echo $pathCotAprobada !== '' ? 'true' : 'false'; ?>;
+                        var hasExistOrdenCompra = <?php echo $pathOrdenCompra !== '' ? 'true' : 'false'; ?>;
+                        var digifactOk = false;
 
                         function esc(s) {
                             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -810,23 +813,91 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                 noteEl.style.display = 'none';
                             }
                         }
-                        function setFinalizarEnabled(ok) {
+                        function syncDocPanels() {
+                            var rCot = modal.querySelector('input[name="confirmar_adjunta_cotizacion_firmada"]:checked');
+                            var wCot = document.getElementById('confirmar-wrap-cotizacion-aprobada');
+                            var fCot = document.getElementById('cotizacion_aprobada_file');
+                            if (wCot) {
+                                wCot.style.display = (rCot && rCot.value === 'si') ? '' : 'none';
+                                if (!rCot || rCot.value === 'no') {
+                                    if (fCot) {
+                                        fCot.value = '';
+                                    }
+                                }
+                            }
+                            var rOc = modal.querySelector('input[name="confirmar_adjunta_orden_compra"]:checked');
+                            var wOc = document.getElementById('confirmar-wrap-orden-compra');
+                            var fOc = document.getElementById('orden_compra_file');
+                            if (wOc) {
+                                wOc.style.display = (rOc && rOc.value === 'si') ? '' : 'none';
+                                if (!rOc || rOc.value === 'no') {
+                                    if (fOc) {
+                                        fOc.value = '';
+                                    }
+                                }
+                            }
+                        }
+                        function siFileOk(radioName, fileInputId, hasExisting) {
+                            var r = modal.querySelector('input[name="' + radioName + '"]:checked');
+                            if (!r || r.value === 'no') {
+                                return true;
+                            }
+                            var f = document.getElementById(fileInputId);
+                            return hasExisting || (f && f.files && f.files.length > 0);
+                        }
+                        function applyFinalizarState() {
                             if (!finalizarBtn) {
                                 return;
                             }
-                            finalizarBtn.disabled = !ok;
-                            finalizarBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
-                            if (ok) {
+                            var ready = digifactOk;
+                            var c1 = modal.querySelector('input[name="confirmar_adjunta_cotizacion_firmada"]:checked');
+                            var c2 = modal.querySelector('input[name="confirmar_adjunta_orden_compra"]:checked');
+                            if (!c1 || !c2) {
+                                ready = false;
+                            } else {
+                                if (!siFileOk('confirmar_adjunta_cotizacion_firmada', 'cotizacion_aprobada_file', hasExistAprobada)) {
+                                    ready = false;
+                                }
+                                if (!siFileOk('confirmar_adjunta_orden_compra', 'orden_compra_file', hasExistOrdenCompra)) {
+                                    ready = false;
+                                }
+                            }
+                            finalizarBtn.disabled = !ready;
+                            finalizarBtn.setAttribute('aria-disabled', ready ? 'false' : 'true');
+                            if (ready) {
                                 finalizarBtn.removeAttribute('title');
                             } else {
                                 finalizarBtn.setAttribute('title', strFinalizarDisabledHint);
                             }
                         }
+                        function resetDocumentChoices() {
+                            modal.querySelectorAll('input[name="confirmar_adjunta_cotizacion_firmada"]').forEach(function(r) {
+                                r.checked = false;
+                            });
+                            modal.querySelectorAll('input[name="confirmar_adjunta_orden_compra"]').forEach(function(r) {
+                                r.checked = false;
+                            });
+                            syncDocPanels();
+                        }
+                        modal.addEventListener('change', function(ev) {
+                            var t = ev.target;
+                            if (!t) {
+                                return;
+                            }
+                            if (t.name === 'confirmar_adjunta_cotizacion_firmada' || t.name === 'confirmar_adjunta_orden_compra') {
+                                syncDocPanels();
+                            }
+                            if (t.name === 'confirmar_adjunta_cotizacion_firmada' || t.name === 'confirmar_adjunta_orden_compra' || t.type === 'file') {
+                                applyFinalizarState();
+                            }
+                        });
                         modal.addEventListener('shown.bs.modal', function() {
                             if (!bodyEl) {
                                 return;
                             }
-                            setFinalizarEnabled(false);
+                            digifactOk = false;
+                            resetDocumentChoices();
+                            applyFinalizarState();
                             bodyEl.textContent = strLoading;
                             setNote('', false);
                             var fd = new FormData();
@@ -837,7 +908,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                 .then(function(data) {
                                     if (!data || data.success === false) {
                                         bodyEl.textContent = (data && data.message) ? String(data.message) : strFetchErr;
-                                        setFinalizarEnabled(false);
+                                        digifactOk = false;
+                                        applyFinalizarState();
                                         return;
                                     }
                                     var idLbl = (data.kind === 'cui') ? strCui : strNit;
@@ -847,17 +919,30 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                     } else if (data.message) {
                                         setNote(String(data.message), true);
                                     }
-                                    setFinalizarEnabled(true);
+                                    digifactOk = true;
+                                    applyFinalizarState();
                                 })
                                 .catch(function() {
                                     bodyEl.textContent = strFetchErr;
-                                    setFinalizarEnabled(false);
+                                    digifactOk = false;
+                                    applyFinalizarState();
                                 });
                         });
                     })();
                     </script>
-                    <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Optional files. You can finish without attaching documents.', 'Archivos opcionales. Puede finalizar sin adjuntar documentos.'); ?></p>
-                    <div class="mb-3">
+                    <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Use Sí/No for each document type. If you choose Sí, attach the file before finishing.', 'Indique Sí o No en cada pregunta. Si elige Sí, adjunte el archivo antes de finalizar.'); ?></p>
+                    <fieldset class="mb-3 border-0 p-0">
+                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_COTIZACION_FIRMADA', 'Do you have a signed confirmation quotation?', '¿Tiene una cotización firmada de confirmación?')); ?> <span class="text-danger">*</span></legend>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="confirmar_adjunta_cotizacion_firmada" id="confirmar_cot_firmada_no" value="no">
+                            <label class="form-check-label" for="confirmar_cot_firmada_no"><?php echo htmlspecialchars($l('JNO', 'No', 'No')); ?></label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="confirmar_adjunta_cotizacion_firmada" id="confirmar_cot_firmada_si" value="si">
+                            <label class="form-check-label" for="confirmar_cot_firmada_si"><?php echo htmlspecialchars($l('JYES', 'Yes', 'Sí')); ?></label>
+                        </div>
+                    </fieldset>
+                    <div id="confirmar-wrap-cotizacion-aprobada" class="mb-3" style="display:none;">
                         <label for="cotizacion_aprobada_file" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_COTIZACION_APROBADA_FILE', 'Approved quotation', 'Cotización aprobada'); ?></label>
                         <input type="file" name="cotizacion_aprobada" id="cotizacion_aprobada_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
                         <?php if ($pathCotAprobada !== '') :
@@ -869,7 +954,18 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                             </div>
                         <?php endif; ?>
                     </div>
-                    <div class="mb-3">
+                    <fieldset class="mb-3 border-0 p-0">
+                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_ORDEN_COMPRA', 'Do you have a purchase order?', '¿Tiene una orden de compra?')); ?> <span class="text-danger">*</span></legend>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="confirmar_adjunta_orden_compra" id="confirmar_orden_compra_no" value="no">
+                            <label class="form-check-label" for="confirmar_orden_compra_no"><?php echo htmlspecialchars($l('JNO', 'No', 'No')); ?></label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="confirmar_adjunta_orden_compra" id="confirmar_orden_compra_si" value="si">
+                            <label class="form-check-label" for="confirmar_orden_compra_si"><?php echo htmlspecialchars($l('JYES', 'Yes', 'Sí')); ?></label>
+                        </div>
+                    </fieldset>
+                    <div id="confirmar-wrap-orden-compra" class="mb-3" style="display:none;">
                         <label for="orden_compra_file" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_ORDEN_COMPRA_FILE', 'Purchase order', 'Orden de compra'); ?></label>
                         <input type="file" name="orden_compra" id="orden_compra_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
                         <?php if ($pathOrdenCompra !== '') :
@@ -986,7 +1082,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancel', 'Cancelar'); ?></button>
-                    <button type="submit" class="btn btn-primary" id="cotizacion-confirm-finalizar-btn" disabled aria-disabled="true" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Wait until billing ID validation finishes above. Reload the page if loading fails.', 'Espere a que termine la validación de NIT a facturar arriba. Recargue la página si no carga.'), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR', 'Finish confirmation', 'Finalizar confirmación'); ?></button>
+                    <button type="submit" class="btn btn-primary" id="cotizacion-confirm-finalizar-btn" disabled aria-disabled="true" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Complete billing ID validation and document choices below. Attach files when you choose Sí.', 'Complete la validación de NIT y las opciones de documentos. Adjunte archivos si eligió Sí.'), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR', 'Finish confirmation', 'Finalizar confirmación'); ?></button>
                 </div>
             </form>
         </div>
