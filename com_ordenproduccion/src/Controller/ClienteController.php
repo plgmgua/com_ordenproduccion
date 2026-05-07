@@ -599,6 +599,11 @@ class ClienteController extends FormController
     {
         $this->app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
 
+        $lang = $this->app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
         if (!Session::checkToken()) {
             echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
             $this->app->close();
