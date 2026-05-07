@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.38-STABLE] - 2026-05-06
+
+### Changed
+- **Digifact NUC JSON:** When **quotation_number** is empty, **AdditionalDocumentInfo** uses **`""`** for **Code** and for **OBSERVACIONES** / **COTIZACION** values (no `COT-{id}` fallbacks). When the number is set, behavior is unchanged (`Code` = `COT-{id}`, values = trimmed quotation number).
+
 ## [3.118.37-STABLE] - 2026-05-06
 
 ### Added

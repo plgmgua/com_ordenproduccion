@@ -1171,6 +1171,7 @@ class FelInvoiceIssuanceService
     /**
      * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller name/email from site;
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
+     * AdditionalDocumentInfo: OBSERVACIONES/COTIZACION Value = trimmed quotation_number or ""; Code = COT-{id} only when quotation_number is non-empty, else "".
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
@@ -1308,9 +1309,7 @@ class FelInvoiceIssuanceService
         }
 
         $cotRef = trim((string) ($quotation->quotation_number ?? ''));
-        if ($cotRef === '') {
-            $cotRef = 'COT-' . (int) ($quotation->id ?? 0);
-        }
+        $adendaCode = $cotRef !== '' ? ('COT-' . (int) ($quotation->id ?? 0)) : '';
 
         return [
             'Version'     => '1.00',
@@ -1374,7 +1373,7 @@ class FelInvoiceIssuanceService
             'AdditionalDocumentInfo' => [
                 'AdditionalInfo' => [
                     [
-                        'Code' => 'COT-' . (int) ($quotation->id ?? 0),
+                        'Code' => $adendaCode,
                         'Type' => 'ADENDA',
                         'AditionalData' => [
                             'Data' => [
