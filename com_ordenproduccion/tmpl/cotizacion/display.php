@@ -783,6 +783,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                         var strCliente = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_CLIENTE', 'Client', 'Cliente'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
                         var strDash = '—';
                         var strFetchErr = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_FETCH_ERROR', 'Could not load verification.', 'No se pudo cargar la verificación.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var strFinalizarDisabledHint = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Wait until billing ID validation finishes above. Reload the page if loading fails.', 'Espere a que termine la validación de NIT a facturar arriba. Recargue la página si no carga.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var finalizarBtn = modal.querySelector('#cotizacion-confirm-finalizar-btn');
 
                         function esc(s) {
                             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -808,10 +810,23 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                 noteEl.style.display = 'none';
                             }
                         }
+                        function setFinalizarEnabled(ok) {
+                            if (!finalizarBtn) {
+                                return;
+                            }
+                            finalizarBtn.disabled = !ok;
+                            finalizarBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+                            if (ok) {
+                                finalizarBtn.removeAttribute('title');
+                            } else {
+                                finalizarBtn.setAttribute('title', strFinalizarDisabledHint);
+                            }
+                        }
                         modal.addEventListener('shown.bs.modal', function() {
                             if (!bodyEl) {
                                 return;
                             }
+                            setFinalizarEnabled(false);
                             bodyEl.textContent = strLoading;
                             setNote('', false);
                             var fd = new FormData();
@@ -822,6 +837,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                 .then(function(data) {
                                     if (!data || data.success === false) {
                                         bodyEl.textContent = (data && data.message) ? String(data.message) : strFetchErr;
+                                        setFinalizarEnabled(false);
                                         return;
                                     }
                                     var idLbl = (data.kind === 'cui') ? strCui : strNit;
@@ -831,9 +847,11 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                                     } else if (data.message) {
                                         setNote(String(data.message), true);
                                     }
+                                    setFinalizarEnabled(true);
                                 })
                                 .catch(function() {
                                     bodyEl.textContent = strFetchErr;
+                                    setFinalizarEnabled(false);
                                 });
                         });
                     })();
@@ -968,7 +986,7 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancel', 'Cancelar'); ?></button>
-                    <button type="submit" class="btn btn-primary"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR', 'Finish confirmation', 'Finalizar confirmación'); ?></button>
+                    <button type="submit" class="btn btn-primary" id="cotizacion-confirm-finalizar-btn" disabled aria-disabled="true" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Wait until billing ID validation finishes above. Reload the page if loading fails.', 'Espere a que termine la validación de NIT a facturar arriba. Recargue la página si no carga.'), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR', 'Finish confirmation', 'Finalizar confirmación'); ?></button>
                 </div>
             </form>
         </div>
