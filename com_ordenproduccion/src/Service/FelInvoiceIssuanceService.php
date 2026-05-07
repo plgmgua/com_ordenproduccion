@@ -13,6 +13,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Service;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -1739,8 +1740,13 @@ class FelInvoiceIssuanceService
                 }
                 $base = $this->sanitizeFelArtifactBasename($base, 'invoice-' . $invoiceId);
                 if ($interpret['xml'] !== '') {
+                    $xmlForDisk = $interpret['xml'];
+                    $norm         = FelXmlHelper::normalizeFelXmlForImport($xmlForDisk);
+                    if (!empty($norm['success']) && isset($norm['xml']) && \is_string($norm['xml']) && $norm['xml'] !== '') {
+                        $xmlForDisk = $norm['xml'];
+                    }
                     $xmlPath = $absDir . '/' . $base . '.xml';
-                    if (file_put_contents($xmlPath, $interpret['xml']) !== false) {
+                    if (file_put_contents($xmlPath, $xmlForDisk) !== false) {
                         $xmlRel = $relDir . '/' . $base . '.xml';
                     }
                 }

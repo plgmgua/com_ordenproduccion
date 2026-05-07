@@ -212,6 +212,149 @@ class FelXmlHelper
     }
 
     /**
+     * Produce an XML document suitable for {@see self::parseFelXml} / admin XML import:
+     * removes xmldsig signatures and common Digifact noise (Adenda, AdditionalDocumentInfo),
+     * optionally re-wraps DatosEmision + Certificacion in a minimal dte:GTDocumento shell (SAT portal style).
+     * Does not preserve digital signatures (by design).
+     *
+     * @param   string  $xmlContent  Certified or raw GT FEL XML
+     *
+     * @return  array{success:bool, xml:?string, error:?string}
+     *
+     * @since   3.118.36
+     */
+    public static function normalizeFelXmlForImport(string $xmlContent): array
+    {
+        $out = ['success' => false, 'xml' => null, 'error' => null];
+        $xmlContent = trim($xmlContent);
+        if ($xmlContent === '') {
+            $out['error'] = 'Empty XML';
+
+            return $out;
+        }
+
+        $dom = new \DOMDocument();
+        $dom->preserveWhiteSpace = false;
+        if (!@$dom->loadXML($xmlContent, LIBXML_NONET)) {
+            $out['error'] = 'Invalid XML';
+
+            return $out;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
+        self::domRemoveXPathNodes($xpath, '//ds:Signature');
+        self::domRemoveXPathNodes($xpath, '//*[local-name()="Adenda"]');
+        self::domRemoveXPathNodes($xpath, '//*[local-name()="AdditionalDocumentInfo"]');
+
+        $candidate = self::domToPrettyXml($dom);
+        $try       = self::parseFelXml($candidate);
+        if ($try['success']) {
+            $out['success'] = true;
+            $out['xml']     = $candidate;
+
+            return $out;
+        }
+
+        $rebuilt = self::rebuildImportGtDocumentoShell($dom);
+        if ($rebuilt === null) {
+            $out['error'] = $try['error'] ?? 'Parse failed; could not rebuild GTDocumento shell';
+
+            return $out;
+        }
+
+        $xml2 = self::domToPrettyXml($rebuilt);
+        $try2 = self::parseFelXml($xml2);
+        if (!$try2['success']) {
+            $out['error'] = $try2['error'] ?? 'Rebuilt XML still failed import validation';
+
+            return $out;
+        }
+
+        $out['success'] = true;
+        $out['xml']     = $xml2;
+
+        return $out;
+    }
+
+    /**
+     * @param   \DOMXPath  $xpath  Bound to document
+     */
+    private static function domRemoveXPathNodes(\DOMXPath $xpath, string $expression): void
+    {
+        $nodes = [];
+        $nl = @$xpath->query($expression);
+        if ($nl === false) {
+            return;
+        }
+        foreach ($nl as $n) {
+            $nodes[] = $n;
+        }
+        foreach ($nodes as $n) {
+            if ($n->parentNode !== null) {
+                $n->parentNode->removeChild($n);
+            }
+        }
+    }
+
+    private static function domToPrettyXml(\DOMDocument $dom): string
+    {
+        $dom->formatOutput = true;
+
+        return (string) $dom->saveXML();
+    }
+
+    /**
+     * Build minimal SAT-style GTDocumento with SAT > DTE(ID=DatosCertificados) > DatosEmision + Certificacion.
+     */
+    private static function rebuildImportGtDocumentoShell(\DOMDocument $source): ?\DOMDocument
+    {
+        $dteNs = self::$namespaces['dte'];
+        $xpath = new \DOMXPath($source);
+        $xpath->registerNamespace('dte', $dteNs);
+
+        $de = $xpath->query('//dte:DatosEmision')->item(0);
+        if (!$de) {
+            $de = $xpath->query('//*[local-name()="DatosEmision"]')->item(0);
+        }
+        $cert = $xpath->query('//dte:Certificacion')->item(0);
+        if (!$cert) {
+            $cert = $xpath->query('//*[local-name()="Certificacion"]')->item(0);
+        }
+        if (!$de instanceof \DOMElement || !$cert instanceof \DOMElement) {
+            return null;
+        }
+
+        $new = new \DOMDocument('1.0', 'UTF-8');
+        $new->preserveWhiteSpace = false;
+        $new->formatOutput = true;
+
+        $root = $new->createElementNS($dteNs, 'dte:GTDocumento');
+        $root->setAttribute('Version', '0.1');
+        $root->setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xsi', 'http://www.w3.org/2001/XMLSchema-instance');
+        $root->setAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'xsi:schemaLocation', 'http://www.sat.gob.gt/dte/fel/0.2.0 GT_Documento-0.2.0.xsd');
+
+        $sat = $new->createElementNS($dteNs, 'dte:SAT');
+        $sat->setAttribute('ClaseDocumento', 'dte');
+        $dteEl = $new->createElementNS($dteNs, 'dte:DTE');
+        $dteEl->setAttribute('ID', 'DatosCertificados');
+
+        $deImp = $new->importNode($de, true);
+        if ($deImp instanceof \DOMElement && !$deImp->hasAttribute('ID')) {
+            $deImp->setAttribute('ID', 'DatosEmision');
+        }
+        $certImp = $new->importNode($cert, true);
+
+        $dteEl->appendChild($deImp);
+        $dteEl->appendChild($certImp);
+        $sat->appendChild($dteEl);
+        $root->appendChild($sat);
+        $new->appendChild($root);
+
+        return $new;
+    }
+
+    /**
      * Ensure string is valid UTF-8 (preserve á, é, í, ó, ú, ñ etc.).
      * Tries common Latin encodings when input is not valid UTF-8.
      *

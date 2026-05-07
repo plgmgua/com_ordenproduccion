@@ -2021,6 +2021,11 @@ class AdministracionController extends BaseController
                 $xmlContent = self::ensureUtf8($xmlContent);
                 $xmlContent = self::normalizeXmlEncodingDeclaration($xmlContent);
 
+                $norm = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::normalizeFelXmlForImport($xmlContent);
+                if (!empty($norm['success']) && isset($norm['xml']) && \is_string($norm['xml']) && $norm['xml'] !== '') {
+                    $xmlContent = $norm['xml'];
+                }
+
                 $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper::parseFelXml($xmlContent);
                 if (!$result['success']) {
                     $report[] = ['file' => $fileName, 'status' => 'error', 'message' => $result['error'] ?? 'Parse error'];

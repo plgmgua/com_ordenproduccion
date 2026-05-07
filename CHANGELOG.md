@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.36-STABLE] - 2026-05-07
+
+### Added
+- **`FelXmlHelper::normalizeFelXmlForImport`:** Strips xmldsig `Signature`, `Adenda`, `AdditionalDocumentInfo`; pretty-prints; if needed rebuilds minimal `dte:GTDocumento` shell so {@see FelXmlHelper::parseFelXml} succeeds (SAT portal–style document, **not** signature-valid).
+- **Digifact direct save** uses normalized XML for `{uuid}.xml` when possible.
+- **Admin invoice XML import** runs the same normalization before parse so Digifact-shaped uploads import like SAT exports.
+
 ## [3.118.35-STABLE] - 2026-05-07
 
 ### Changed
