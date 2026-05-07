@@ -124,7 +124,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 
 $felForDirectCheck = new FelInvoiceIssuanceService();
 $digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
-$canDigifactDirectIssue = $canFelIssue
+$canFacturaRelacionadaSection = $quotationConfirmed && $felEngineAvailable && AccessHelper::isSuperUser();
+$canDigifactDirectIssue = $canFacturaRelacionadaSection
     && trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
@@ -718,7 +719,7 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
     </div>
     <?php endif; ?>
 
-    <?php if ($canFelIssue) : ?>
+    <?php if ($canFacturaRelacionadaSection) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-factura-relacionada">
         <h3 class="h6 text-uppercase text-muted mb-2"><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_TITLE', 'Related invoice', 'Factura relacionada')); ?></h3>
         <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Mock engine above creates a test DTE. Use the button below to call Digifact NUC with data from this quotation (IVA 12% on line subtotals). Requires Certificador URL (certify), NIT, user, valid token.', 'El panel superior crea un DTE de prueba. El botón siguiente llama a Digifact NUC con datos de esta cotización (IVA 12% sobre subtotales de línea). Requiere URL de certificación, NIT, usuario y token válido en Ajustes.')); ?></p>
@@ -778,7 +779,7 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
             });
         })();
         </script>
-        <?php elseif ($canFelIssue && !$canDigifactDirectIssue) : ?>
+        <?php elseif ($canFacturaRelacionadaSection && !$canDigifactDirectIssue) : ?>
         <p class="small text-warning mb-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_NEED_CONFIG', 'Configure «URL certificación / CF» and a valid bearer token in Administration → Settings → Certificador de facturación.', 'Configure «URL certificación / CF» y un token válido en Administración → Ajustes → Certificador de facturación.')); ?></p>
         <?php endif; ?>
     </div>

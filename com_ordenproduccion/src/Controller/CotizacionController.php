@@ -1145,7 +1145,7 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
-        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+        if (!AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
             $app->close();
         }
