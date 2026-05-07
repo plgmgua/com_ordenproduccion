@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -18,6 +19,8 @@ use Joomla\CMS\Session\Session;
 HTMLHelper::_('bootstrap.framework');
 
 $formTokenCliente = Session::getFormToken();
+$digifactNitVerifyRevealCurl = (bool) Factory::getApplication()->get('debug')
+    || (bool) ComponentHelper::getParams('com_ordenproduccion')->get('enable_debug', 0);
 $clienteVerifyNitUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactNit&format=json', false);
 $clienteEditNewUrl = Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=0', false);
 
@@ -342,6 +345,7 @@ function safeGet($array, $key, $default = '') {
 (function () {
     var editBase = <?php echo json_encode($clienteEditNewUrl, JSON_UNESCAPED_UNICODE); ?>;
     var verifyUrl = <?php echo json_encode($clienteVerifyNitUrl, JSON_UNESCAPED_UNICODE); ?>;
+    var revealDigifactCurl = <?php echo $digifactNitVerifyRevealCurl ? 'true' : 'false'; ?>;
     var tok = <?php echo json_encode($formTokenCliente, JSON_UNESCAPED_UNICODE); ?>;
     var busy = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_VERIFY_BUSY'), JSON_UNESCAPED_UNICODE); ?>;
     var modalEl = document.getElementById('nuevoClienteTipoModal');
@@ -418,6 +422,9 @@ function safeGet($array, $key, $default = '') {
             var fd = new FormData();
             fd.append('nit', v);
             fd.append(tok, '1');
+            if (revealDigifactCurl) {
+                fd.append('digifact_debug', '1');
+            }
             fetch(verifyUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
                 .then(function (r) { return r.json(); })
                 .then(function (j) {
@@ -433,7 +440,21 @@ function safeGet($array, $key, $default = '') {
                         return;
                     }
                     if (nitMsg) {
-                        nitMsg.textContent = (j && j.message) ? j.message : 'Error';
+                        var detail = '';
+                        if (j && j.debug && j.debug.attempts && j.debug.attempts.length) {
+                            j.debug.attempts.forEach(function (a, i) {
+                                detail += '\n\n--- Attempt ' + (i + 1);
+                                if (a.DATA1) {
+                                    detail += ' (DATA1=' + a.DATA1 + ')';
+                                }
+                                detail += ', HTTP ' + (a.http_code || '') + ' ---\n';
+                                detail += (a.curl || '');
+                            });
+                            if (j.debug.note) {
+                                detail += '\n\n' + j.debug.note;
+                            }
+                        }
+                        nitMsg.textContent = ((j && j.message) ? j.message : 'Error') + detail;
                         nitMsg.className = 'small mt-2 text-danger';
                     }
                 })

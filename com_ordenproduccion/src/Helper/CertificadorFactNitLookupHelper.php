@@ -54,18 +54,25 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
+     * Printable curl (GET) matching the PHP request (for debugging).
+     */
+    protected static function formatCurlDebugCommand(string $url, string $rawJwt, bool $revealFullToken): string
+    {
+        $auth = $revealFullToken ? $rawJwt : (strlen($rawJwt) > 36
+            ? substr($rawJwt, 0, 16) . '…REDACTED…' . substr($rawJwt, -12)
+            : 'REDACTED');
+
+        return 'curl --location ' . escapeshellarg($url)
+            . " \\\n--header " . escapeshellarg('Authorization: ' . $auth)
+            . " \\\n--header " . escapeshellarg('Accept: application/json, text/plain, */*');
+    }
+
+    /**
      * Fetch taxpayer info for a client NIT (RTU-style response).
      *
-     * @return  array{
-     *   ok: bool,
-     *   http_code: int,
-     *   error: string,
-     *   name: string,
-     *   nit: string,
-     *   street: string,
-     *   city: string,
-     *   raw_excerpt: string
-     * }
+     * @param   bool  $revealTokenInDebug  When true, curl debug lines include full JWT (POST digifact_debug=1).
+     *
+     * @return  array<string, mixed>
      */
     public static function fetchNitInfo(
         string $clientNit,
@@ -73,7 +80,8 @@ class CertificadorFactNitLookupHelper
         string $emissorTaxId,
         string $apiUsername,
         string $bearerToken,
-        int $timeoutSec = 45
+        int $timeoutSec = 45,
+        bool $revealTokenInDebug = false
     ): array {
         $empty = [
             'ok'          => false,
@@ -84,6 +92,7 @@ class CertificadorFactNitLookupHelper
             'street'      => '',
             'city'        => '',
             'raw_excerpt' => '',
+            'debug'       => ['attempts' => []],
         ];
 
         $sharedUrl     = trim($sharedUrl);
@@ -150,6 +159,7 @@ class CertificadorFactNitLookupHelper
         $httpCode      = 0;
         $mime          = '';
         $excerpt       = '';
+        $debugAttempts = [];
 
         foreach ($data1Variants as $data1Val) {
             $queryParams['DATA1'] = $data1Val;
@@ -180,9 +190,22 @@ class CertificadorFactNitLookupHelper
             $mime     = (string) curl_getinfo($ch, \CURLINFO_CONTENT_TYPE);
             curl_close($ch);
 
+            $debugAttempts[] = [
+                'DATA1'        => $data1Val,
+                'url'          => $url,
+                'http_code'    => $httpCode,
+                'content_type' => trim($mime),
+                'query_params' => $queryParams,
+                'curl'         => self::formatCurlDebugCommand($url, $bearerToken, $revealTokenInDebug),
+            ];
+
             if ($rawBody === false) {
                 $empty['http_code'] = $httpCode;
                 $empty['error']     = $curlErr !== '' ? $curlErr : 'curl_exec_failed';
+                $empty['debug']     = [
+                    'attempts' => $debugAttempts,
+                    'note'     => $revealTokenInDebug ? '' : 'POST digifact_debug=1 with the verify request to show the full JWT in curl.',
+                ];
 
                 return $empty;
             }
@@ -196,6 +219,11 @@ class CertificadorFactNitLookupHelper
             }
         }
 
+        $debugBlock = [
+            'attempts' => $debugAttempts,
+            'note'     => $revealTokenInDebug ? '' : 'POST digifact_debug=1 with the verify request to show the full JWT in curl.',
+        ];
+
         if (!\is_array($decoded)) {
             $empty['http_code']   = $httpCode;
             $empty['raw_excerpt'] = $excerpt;
@@ -207,6 +235,7 @@ class CertificadorFactNitLookupHelper
                 $extra,
                 $excerpt
             );
+            $empty['debug']       = $debugBlock;
 
             return $empty;
         }
@@ -241,6 +270,7 @@ class CertificadorFactNitLookupHelper
                 }
             }
             $empty['error'] = $msg !== '' ? $msg : ($httpCode >= 400 ? 'http_' . $httpCode : 'nit_lookup_failed');
+            $empty['debug'] = $debugBlock;
 
             return $empty;
         }
@@ -261,6 +291,7 @@ class CertificadorFactNitLookupHelper
             'street'      => $dir,
             'city'        => $city,
             'raw_excerpt' => '',
+            'debug'       => $debugBlock,
         ];
     }
 

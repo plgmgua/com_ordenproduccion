@@ -616,6 +616,8 @@ class ClienteController extends FormController
             $this->app->close();
         }
 
+        $digifactDebugReveal = $this->input->post->getInt('digifact_debug', 0) === 1;
+
         try {
             $fel = new FelInvoiceIssuanceService();
             $bearer = $fel->getActiveCertificadorBearerToken();
@@ -630,12 +632,16 @@ class ClienteController extends FormController
             $taxId    = trim((string) ($creds['nit'] ?? ''));
             $usr      = trim((string) ($creds['usuario'] ?? ''));
 
-            $r = CertificadorFactNitLookupHelper::fetchNitInfo($nit, $shared, $taxId, $usr, $bearer, 45);
+            $r = CertificadorFactNitLookupHelper::fetchNitInfo($nit, $shared, $taxId, $usr, $bearer, 45, $digifactDebugReveal);
 
             if (empty($r['ok'])) {
                 $err = trim((string) ($r['error'] ?? ''));
                 $msg = $err !== '' ? $err : Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_VERIFY_FAIL');
-                echo json_encode(['success' => false, 'message' => $msg], JSON_UNESCAPED_UNICODE);
+                echo json_encode([
+                    'success' => false,
+                    'message' => $msg,
+                    'debug'   => $r['debug'] ?? ['attempts' => []],
+                ], JSON_UNESCAPED_UNICODE);
                 $this->app->close();
             }
 
@@ -648,6 +654,7 @@ class ClienteController extends FormController
                     'street' => (string) ($r['street'] ?? ''),
                     'city'   => (string) ($r['city'] ?? ''),
                 ],
+                'debug'   => $r['debug'] ?? ['attempts' => []],
             ], JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
