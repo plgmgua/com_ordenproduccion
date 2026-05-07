@@ -3588,6 +3588,39 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Last automatic token maintenance run (cron / scheduled task), from #__ordenproduccion_config.
+     *
+     * @return  array{at: string, summary: array{test: string, prod: string, errors: array<int, string>, forced: bool}}
+     *
+     * @since 3.118.10
+     */
+    public function getCertificadorTokenMaintainLastLog(): array
+    {
+        $at = trim($this->getOrdenproduccionConfigValue('certificador_fact_token_maintain_last_at'));
+        $raw = trim($this->getOrdenproduccionConfigValue('certificador_fact_token_maintain_last_payload'));
+        $summary = [
+            'test'   => '',
+            'prod'   => '',
+            'errors' => [],
+            'forced' => false,
+        ];
+        if ($raw !== '') {
+            $d = json_decode($raw, true);
+            if (\is_array($d)) {
+                $summary['test']   = (string) ($d['test'] ?? '');
+                $summary['prod']   = (string) ($d['prod'] ?? '');
+                $summary['forced'] = !empty($d['forced']);
+                $errs              = $d['errors'] ?? [];
+                $summary['errors'] = \is_array($errs)
+                    ? array_values(array_map(static fn ($x) => (string) $x, $errs))
+                    : [];
+            }
+        }
+
+        return ['at' => $at, 'summary' => $summary];
+    }
+
+    /**
      * Refresh bearer tokens when missing or expired (each ambiente independently when credentials exist).
      *
      * @return  array{test: string, prod: string, errors: array<int, string>}
@@ -3630,10 +3663,32 @@ class AdministracionModel extends BaseDatabaseModel
             }
         }
 
+        $nowSql  = Factory::getDate()->toSql();
+        $payload = [
+            'test'   => $summary['test'],
+            'prod'   => $summary['prod'],
+            'errors' => $summary['errors'],
+            'forced' => $force,
+        ];
+        $this->upsertOrdenproduccionConfigValue('certificador_fact_token_maintain_last_at', $nowSql);
+        $this->upsertOrdenproduccionConfigValue(
+            'certificador_fact_token_maintain_last_payload',
+            json_encode($payload, JSON_UNESCAPED_UNICODE)
+        );
+
+        $errPart = $summary['errors'] !== [] ? ' | ERRORS: ' . implode('; ', $summary['errors']) : '';
+        $logLine = sprintf(
+            'FEL bearer token maintenance [%s] test=%s prod=%s forced=%s%s',
+            $nowSql,
+            $summary['test'],
+            $summary['prod'],
+            $force ? 'yes' : 'no',
+            $errPart
+        );
         try {
             Log::add(
-                'FEL bearer token maintenance: ' . json_encode($summary, JSON_UNESCAPED_UNICODE),
-                Log::INFO,
+                $logLine,
+                $summary['errors'] !== [] ? Log::WARNING : Log::INFO,
                 'com_ordenproduccion'
             );
         } catch (\Throwable $e) {

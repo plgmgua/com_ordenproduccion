@@ -409,6 +409,17 @@ class HtmlView extends BaseHtmlView
     protected $certificadorFactActiveClaveConfigured = false;
 
     /**
+     * Last FEL bearer token maintenance run (for Ajustes > Certificador).
+     *
+     * @var    array{at: string, summary: array{test: string, prod: string, errors: array<int, string>, forced: bool}}
+     * @since  3.118.10
+     */
+    protected $certificadorTokenMaintainLastLog = [
+        'at'      => '',
+        'summary' => ['test' => '', 'prod' => '', 'errors' => [], 'forced' => false],
+    ];
+
+    /**
      * Work order numbering settings (next_order_number, order_prefix, order_format) for ajustes > numeracion_ordenes.
      *
      * @var    \stdClass|null
@@ -1987,6 +1998,14 @@ class HtmlView extends BaseHtmlView
                     ],
                 ];
             }
+            try {
+                $this->certificadorTokenMaintainLastLog = $statsModel->getCertificadorTokenMaintainLastLog();
+            } catch (\Throwable $e) {
+                $this->certificadorTokenMaintainLastLog = [
+                    'at'      => '',
+                    'summary' => ['test' => '', 'prod' => '', 'errors' => [], 'forced' => false],
+                ];
+            }
             $this->syncCertificadorFactActiveViewFields();
         } else {
             $this->resetCertificadorFactActiveViewFields();
@@ -2094,6 +2113,10 @@ class HtmlView extends BaseHtmlView
         $this->certificadorFactActiveNit             = '';
         $this->certificadorFactActiveUsuario         = '';
         $this->certificadorFactActiveClaveConfigured = false;
+        $this->certificadorTokenMaintainLastLog      = [
+            'at'      => '',
+            'summary' => ['test' => '', 'prod' => '', 'errors' => [], 'forced' => false],
+        ];
     }
 
     /**

@@ -111,6 +111,84 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
     </div>
 </div>
 
+<?php
+$maintLog = (isset($this->certificadorTokenMaintainLastLog) && \is_array($this->certificadorTokenMaintainLastLog))
+    ? $this->certificadorTokenMaintainLastLog
+    : ['at' => '', 'summary' => ['test' => '', 'prod' => '', 'errors' => [], 'forced' => false]];
+$maintAt = trim((string) ($maintLog['at'] ?? ''));
+$maintSummary = isset($maintLog['summary']) && \is_array($maintLog['summary'])
+    ? $maintLog['summary']
+    : ['test' => '', 'prod' => '', 'errors' => [], 'forced' => false];
+$maintStatusKeys = [
+    'refreshed'       => 'COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_STATUS_REFRESHED',
+    'current'         => 'COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_STATUS_CURRENT',
+    'no_credentials'  => 'COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_STATUS_NO_CREDENTIALS',
+    'auth_failed'     => 'COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_STATUS_AUTH_FAILED',
+    'exception'       => 'COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_STATUS_EXCEPTION',
+    'skipped'         => 'COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_STATUS_SKIPPED',
+];
+$maintLabel = static function (string $code) use ($maintStatusKeys): string {
+    $code = trim($code);
+    if ($code !== '' && isset($maintStatusKeys[$code])) {
+        return Text::_($maintStatusKeys[$code]);
+    }
+
+    return $code !== '' ? $code : Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_STATUS_UNKNOWN');
+};
+$maintAtDisplay = '';
+if ($maintAt !== '') {
+    try {
+        $maintAtDisplay = HTMLHelper::_('date', $maintAt, Text::_('DATE_FORMAT_LC2'));
+    } catch (\Throwable $e) {
+        $maintAtDisplay = $maintAt;
+    }
+}
+?>
+<div class="card mb-3 border-info">
+    <div class="card-header">
+        <h3 class="h6 mb-0">
+            <i class="fas fa-history"></i>
+            <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_TITLE'); ?>
+        </h3>
+    </div>
+    <div class="card-body">
+        <?php if ($maintAt === '') : ?>
+            <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_NEVER'); ?></p>
+        <?php else : ?>
+            <p class="mb-2">
+                <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_AT'); ?>:</strong>
+                <?php echo htmlspecialchars($maintAtDisplay, ENT_QUOTES, 'UTF-8'); ?>
+            </p>
+            <?php if (!empty($maintSummary['forced'])) : ?>
+                <p class="small text-warning mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_FORCED'); ?></p>
+            <?php endif; ?>
+            <ul class="mb-2 ps-3">
+                <li>
+                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_TEST'); ?>:</strong>
+                    <?php echo htmlspecialchars($maintLabel((string) ($maintSummary['test'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>
+                </li>
+                <li>
+                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_PROD'); ?>:</strong>
+                    <?php echo htmlspecialchars($maintLabel((string) ($maintSummary['prod'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>
+                </li>
+            </ul>
+            <?php
+            $merrs = isset($maintSummary['errors']) && \is_array($maintSummary['errors']) ? $maintSummary['errors'] : [];
+            if ($merrs !== []) :
+                ?>
+                <div class="alert alert-warning py-2 mb-0">
+                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_ERRORS'); ?></strong>
+                    <ul class="mb-0 mt-1 ps-3 small">
+                        <?php foreach ($merrs as $me) : ?>
+                            <li><?php echo htmlspecialchars((string) $me, ENT_QUOTES, 'UTF-8'); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
 <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.saveCertificadorFact'); ?>" method="post" name="adminForm" id="ajustes-certificador-fact-form" class="form-validate">
     <?php echo HTMLHelper::_('form.token'); ?>
     <div class="card mb-4 border-secondary">
