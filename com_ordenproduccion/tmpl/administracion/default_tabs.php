@@ -35,7 +35,7 @@ if ($activeTab === 'workorders') {
 if (!$canSeeAdminTabs && in_array($activeTab, ['invoices', 'herramientas'], true)) {
     $activeTab = 'resumen';
 }
-if (!$canSeeVentasTabs && $activeTab === 'email_log') {
+if (!AccessHelper::isSuperUser() && $activeTab === 'email_log') {
     $activeTab = 'resumen';
 }
 if (!AccessHelper::isSuperUser() && $activeTab === 'financiero') {
@@ -169,11 +169,13 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_FINANCIERO'); ?>
     </a>
     <?php endif; ?>
+    <?php if (AccessHelper::isSuperUser()) : ?>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=email_log'); ?>"
        class="admin-tab <?php echo $activeTab === 'email_log' ? 'active' : ''; ?>">
         <i class="fas fa-envelope"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_EMAIL_LOG'); ?>
     </a>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php if ($canSeeAdminTabs) : ?>

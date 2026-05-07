@@ -477,7 +477,7 @@ class HtmlView extends BaseHtmlView
     protected $outboundEmailLogLimitStart = 0;
 
     /**
-     * Administración/Admon: list includes all users; Ventas: only own sends.
+     * Email log tab (super users only): list is always global; template hides Ventas-only hint when true.
      *
      * @var    bool
      * @since  3.113.39
@@ -1029,7 +1029,7 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        if ($activeTab === 'email_log' && !AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if ($activeTab === 'email_log' && !AccessHelper::isSuperUser()) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }
@@ -1550,8 +1550,8 @@ class HtmlView extends BaseHtmlView
 
         if ($activeTab === 'email_log') {
             $this->outboundEmailLogTableAvailable = OutboundEmailLogHelper::isTableAvailable();
-            $this->outboundEmailLogSeeAllUsers    = AccessHelper::isInAdministracionOrAdmonGroup();
-            $filterUid                            = $this->outboundEmailLogSeeAllUsers ? null : (int) Factory::getUser()->id;
+            $this->outboundEmailLogSeeAllUsers    = true;
+            $filterUid                            = null;
             $this->outboundEmailLogLimit          = max(5, min(100, (int) $input->getInt('email_log_limit', 20)));
             $this->outboundEmailLogLimitStart     = max(0, (int) $input->getInt('email_log_limitstart', 0));
             $pack                                 = OutboundEmailLogHelper::getListForAdministracion(
