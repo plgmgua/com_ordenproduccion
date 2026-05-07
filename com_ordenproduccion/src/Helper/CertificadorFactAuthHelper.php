@@ -11,6 +11,8 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
+
 /**
  * HTTP JSON auth against certificador URL de autenticación.
  */
@@ -171,5 +173,62 @@ class CertificadorFactAuthHelper
         }
 
         return substr($raw, 0, $max);
+    }
+
+    /**
+     * Parse API "expira_en" (e.g. "6/5/2026 12:22:08 PM") to Unix timestamp (UTC).
+     *
+     * @return  int|null  null if unparseable
+     *
+     * @since   3.118.8
+     */
+    public static function parseExpiraEnToUnixUtc(string $expiraEn): ?int
+    {
+        $expiraEn = trim($expiraEn);
+        if ($expiraEn === '') {
+            return null;
+        }
+
+        $tryZones = ['America/Guatemala', 'UTC'];
+        $appOffset = null;
+        try {
+            $appOffset = Factory::getApplication()->get('offset');
+        } catch (\Throwable $e) {
+            $appOffset = null;
+        }
+        if ($appOffset !== null && $appOffset !== '') {
+            $tryZones[] = (string) $appOffset;
+        }
+        $tryZones = array_values(array_unique($tryZones));
+
+        $formats = [
+            'n/j/Y g:i:s A',
+            'n/j/Y g:i A',
+            'j/n/Y g:i:s A',
+            'j/n/Y g:i A',
+            'Y-m-d H:i:s',
+            \DateTimeInterface::ATOM,
+        ];
+
+        foreach ($tryZones as $zoneStr) {
+            try {
+                $tz = new \DateTimeZone($zoneStr);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            foreach ($formats as $fmt) {
+                $dt = \DateTimeImmutable::createFromFormat($fmt, $expiraEn, $tz);
+                if ($dt instanceof \DateTimeImmutable) {
+                    return $dt->setTimezone(new \DateTimeZone('UTC'))->getTimestamp();
+                }
+            }
+        }
+
+        $ts = strtotime($expiraEn);
+        if ($ts !== false) {
+            return $ts;
+        }
+
+        return null;
     }
 }

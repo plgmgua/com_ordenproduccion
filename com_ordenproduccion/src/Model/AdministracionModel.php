@@ -12,7 +12,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 
 /**
  * Administracion Model
@@ -3454,6 +3456,190 @@ class AdministracionModel extends BaseDatabaseModel
         }
 
         return $out;
+    }
+
+    /**
+     * Insert or update a single row in #__ordenproduccion_config.
+     *
+     * @since 3.118.8
+     */
+    public function upsertOrdenproduccionConfigValue(string $settingKey, string $value): void
+    {
+        $db = Factory::getDbo();
+        $user = Factory::getUser();
+        $now = Factory::getDate()->toSql();
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote($settingKey));
+        $db->setQuery($query);
+        $id = $db->loadResult();
+        if ($id) {
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_config'))
+                ->set($db->quoteName('setting_value') . ' = ' . $db->quote($value))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                ->where($db->quoteName('id') . ' = ' . (int) $id);
+            $db->setQuery($query);
+            $db->execute();
+        } else {
+            $query = $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_config'))
+                ->columns([
+                    $db->quoteName('setting_key'),
+                    $db->quoteName('setting_value'),
+                    $db->quoteName('state'),
+                    $db->quoteName('created_by'),
+                    $db->quoteName('modified'),
+                    $db->quoteName('modified_by'),
+                ])
+                ->values(
+                    $db->quote($settingKey) . ',' .
+                    $db->quote($value) . ',1,' .
+                    (int) $user->id . ',' .
+                    $db->quote($now) . ',' .
+                    (int) $user->id
+                );
+            $db->setQuery($query);
+            $db->execute();
+        }
+    }
+
+    /**
+     * @since 3.118.8
+     */
+    public function getOrdenproduccionConfigValue(string $settingKey): string
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('setting_value'))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote($settingKey));
+        $db->setQuery($query);
+        $v = $db->loadResult();
+
+        return $v === null ? '' : (string) $v;
+    }
+
+    /**
+     * Store JWT and expiry metadata for Digifact-style auth (per ambiente).
+     *
+     * @since 3.118.8
+     */
+    public function saveCertificadorBearerTokenForEnv(string $env, string $token, string $expiraEnRaw): void
+    {
+        $env = $env === 'prod' ? 'prod' : 'test';
+        $token = trim($token);
+        $p = 'certificador_fact_' . $env . '_';
+        $expUt = CertificadorFactAuthHelper::parseExpiraEnToUnixUtc($expiraEnRaw);
+        $nowSql = Factory::getDate()->toSql();
+
+        $this->upsertOrdenproduccionConfigValue($p . 'bearer_token', $token);
+        $this->upsertOrdenproduccionConfigValue($p . 'token_expira_raw', trim($expiraEnRaw));
+        $this->upsertOrdenproduccionConfigValue($p . 'token_expires_ut', $expUt !== null ? (string) $expUt : '');
+        $this->upsertOrdenproduccionConfigValue($p . 'token_updated_sql', $nowSql);
+    }
+
+    /**
+     * @return  array{token: string, expira_raw: string, expires_ut: int, updated_sql: string}
+     *
+     * @since 3.118.8
+     */
+    public function getCertificadorBearerTokenBundleForEnv(string $env): array
+    {
+        $env = $env === 'prod' ? 'prod' : 'test';
+        $p   = 'certificador_fact_' . $env . '_';
+
+        return [
+            'token'       => $this->getOrdenproduccionConfigValue($p . 'bearer_token'),
+            'expira_raw'  => $this->getOrdenproduccionConfigValue($p . 'token_expira_raw'),
+            'expires_ut'  => (int) $this->getOrdenproduccionConfigValue($p . 'token_expires_ut'),
+            'updated_sql' => $this->getOrdenproduccionConfigValue($p . 'token_updated_sql'),
+        ];
+    }
+
+    /**
+     * Whether stored token is missing or past expiry (with leeway), or stale without parsed expiry.
+     *
+     * @since 3.118.8
+     */
+    public function isCertificadorBearerTokenExpiredForEnv(string $env, int $leewaySeconds = 300): bool
+    {
+        $b = $this->getCertificadorBearerTokenBundleForEnv($env);
+        if (trim((string) ($b['token'] ?? '')) === '') {
+            return true;
+        }
+        $expUt = (int) ($b['expires_ut'] ?? 0);
+        if ($expUt > 0) {
+            return ($expUt - $leewaySeconds) <= time();
+        }
+        $upd = trim((string) ($b['updated_sql'] ?? ''));
+        if ($upd === '') {
+            return true;
+        }
+        try {
+            $updTs = Factory::getDate($upd)->getTimestamp();
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        return ($updTs + 82800) <= time();
+    }
+
+    /**
+     * Refresh bearer tokens when missing or expired (each ambiente independently when credentials exist).
+     *
+     * @return  array{test: string, prod: string, errors: array<int, string>}
+     *
+     * @since 3.118.8
+     */
+    public function maintainCertificadorBearerTokens(bool $force = false): array
+    {
+        $summary = ['test' => 'skipped', 'prod' => 'skipped', 'errors' => []];
+
+        foreach (['test', 'prod'] as $env) {
+            try {
+                $creds = $this->getCertificadorFactSettingsForModo($env);
+                $url   = trim((string) ($creds['url_autenticacion'] ?? ''));
+                $nit   = trim((string) ($creds['nit'] ?? ''));
+                $usr   = trim((string) ($creds['usuario'] ?? ''));
+                $pass  = (string) ($creds['clave'] ?? '');
+                if ($url === '' || $nit === '' || $usr === '' || $pass === '') {
+                    $summary[$env] = 'no_credentials';
+
+                    continue;
+                }
+                if (!$force && !$this->isCertificadorBearerTokenExpiredForEnv($env)) {
+                    $summary[$env] = 'current';
+
+                    continue;
+                }
+                $r = CertificadorFactAuthHelper::fetchAuthToken($url, $nit, $usr, $pass, 45);
+                if (empty($r['ok']) || trim((string) ($r['token'] ?? '')) === '') {
+                    $summary[$env] = 'auth_failed';
+                    $summary['errors'][] = $env . ': ' . trim((string) ($r['error'] ?? 'unknown'));
+
+                    continue;
+                }
+                $this->saveCertificadorBearerTokenForEnv($env, (string) $r['token'], (string) ($r['expira_en'] ?? ''));
+                $summary[$env] = 'refreshed';
+            } catch (\Throwable $e) {
+                $summary[$env] = 'exception';
+                $summary['errors'][] = $env . ': ' . $e->getMessage();
+            }
+        }
+
+        try {
+            Log::add(
+                'FEL bearer token maintenance: ' . json_encode($summary, JSON_UNESCAPED_UNICODE),
+                Log::INFO,
+                'com_ordenproduccion'
+            );
+        } catch (\Throwable $e) {
+        }
+
+        return $summary;
     }
 
     /**

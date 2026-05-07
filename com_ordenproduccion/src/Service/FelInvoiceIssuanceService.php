@@ -88,6 +88,27 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Non-empty bearer JWT for active modo when stored and not expired (does not auto-refresh).
+     *
+     * @since 3.118.8
+     */
+    public function getActiveCertificadorBearerToken(): string
+    {
+        try {
+            $model = new AdministracionModel();
+            $env = $model->getCertificadorFactModo();
+            if ($model->isCertificadorBearerTokenExpiredForEnv($env)) {
+                return '';
+            }
+            $b = $model->getCertificadorBearerTokenBundleForEnv($env);
+
+            return trim((string) ($b['token'] ?? ''));
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
      * Whether issuance columns exist (migration 3.101.50 applied).
      */
     public function isEngineAvailable(): bool

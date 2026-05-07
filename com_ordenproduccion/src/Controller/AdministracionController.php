@@ -963,6 +963,17 @@ class AdministracionController extends BaseController
         $result = CertificadorFactAuthHelper::fetchAuthToken($urlAuth, $nit, $usuario, $clave);
 
         if (!empty($result['ok'])) {
+            try {
+                $saveModel = $this->getModel('Administracion');
+                if ($saveModel) {
+                    $saveModel->saveCertificadorBearerTokenForEnv(
+                        $modo,
+                        (string) $result['token'],
+                        (string) ($result['expira_en'] ?? '')
+                    );
+                }
+            } catch (\Throwable $e) {
+            }
             $this->sendAdministracionJson(true, Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_OK'), [
                 'token'      => $result['token'],
                 'expira_en'  => $result['expira_en'],

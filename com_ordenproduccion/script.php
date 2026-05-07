@@ -144,6 +144,76 @@ function ordenproduccionEnableBundledPlugin(): void
 }
 
 /**
+ * Copy bundled task plugin (FEL bearer token refresh) and register it via the extension installer.
+ *
+ * @return  bool
+ */
+function ordenproduccionInstallBundledOpfelTaskPlugin()
+{
+    $bundled = __DIR__ . '/admin/bundledplugins/task/opfel';
+    $dest = JPATH_PLUGINS . '/task/opfel';
+
+    if (!is_dir($bundled) || !defined('JPATH_PLUGINS')) {
+        return true;
+    }
+
+    try {
+        if (is_dir($dest)) {
+            Folder::delete($dest);
+        }
+
+        if (!Folder::copy($bundled, $dest, '', true)) {
+            Log::add('com_ordenproduccion: bundled plg_task_opfel copy failed.', Log::WARNING, 'com_ordenproduccion');
+
+            return false;
+        }
+
+        $installer = new Installer();
+
+        if (!$installer->install($dest)) {
+            Log::add('com_ordenproduccion: Installer could not register plg_task_opfel.', Log::WARNING, 'com_ordenproduccion');
+
+            return false;
+        }
+
+        ordenproduccionEnableBundledOpfelTaskPlugin();
+    } catch (\Throwable $e) {
+        try {
+            Log::add(
+                'com_ordenproduccion: ordenproduccionInstallBundledOpfelTaskPlugin: ' . $e->getMessage(),
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+        } catch (\Throwable $ignore) {
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Ensures bundled task plugin is enabled after install/update.
+ *
+ * @return void
+ */
+function ordenproduccionEnableBundledOpfelTaskPlugin(): void
+{
+    try {
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__extensions'))
+            ->set($db->quoteName('enabled') . ' = 1')
+            ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
+            ->where($db->quoteName('folder') . ' = ' . $db->quote('task'))
+            ->where($db->quoteName('element') . ' = ' . $db->quote('opfel'));
+        $db->setQuery($query)->execute();
+    } catch (\Throwable $e) {
+    }
+}
+
+/**
  * Ensure a frontend menu item with alias "cotizacion" exists so SEF URL /cotizacion works.
  * Called on install/update so that index.php/cotizacion?client_id=7&... resolves to the component.
  *
@@ -266,6 +336,7 @@ function com_install($parent)
 {
     copyAdminLanguageToSystem($parent);
     ordenproduccionInstallBundledOpAdmlangPlugin();
+    ordenproduccionInstallBundledOpfelTaskPlugin();
     ensureCotizacionMenuItem();
     return true;
 }
@@ -281,6 +352,7 @@ function com_update($parent)
 {
     copyAdminLanguageToSystem($parent);
     ordenproduccionInstallBundledOpAdmlangPlugin();
+    ordenproduccionInstallBundledOpfelTaskPlugin();
     ensureCotizacionMenuItem();
     return true;
 }

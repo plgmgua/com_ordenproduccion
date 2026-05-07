@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="task" version="5.0" method="upgrade">
+    <name>COM_ordenproducción — FEL token refresh (scheduled task)</name>
+    <author>Grimpsa</author>
+    <creationDate>May 2026</creationDate>
+    <copyright>(C) 2026 Grimpsa.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <description>Registers a Scheduler routine that refreshes certifier JWTs for com_ordenproduccion when expired.</description>
+    <version>3.118.8</version>
+    <files>
+        <filename plugin="opfel">opfel.php</filename>
+        <folder>forms</folder>
+        <folder>language</folder>
+    </files>
+</extension>
