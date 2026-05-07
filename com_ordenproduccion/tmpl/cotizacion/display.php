@@ -124,7 +124,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 
 $felForDirectCheck = new FelInvoiceIssuanceService();
 $digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
-$canFacturaRelacionadaSection = $quotationConfirmed && $felEngineAvailable && AccessHelper::isSuperUser();
+$canFacturaRelacionadaSection = $quotationConfirmed && $felEngineAvailable
+    && (AccessHelper::canCreateProveedores() || AccessHelper::isSuperUser());
 $canDigifactDirectIssue = $canFacturaRelacionadaSection
     && trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
