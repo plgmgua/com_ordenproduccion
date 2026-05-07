@@ -16,6 +16,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramMismatchAnchorHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramQueueHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramWebhookLogHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -27,7 +28,8 @@ use Joomla\CMS\MVC\Controller\BaseController;
 class TelegramController extends BaseController
 {
     /**
-     * Process pending outbound Telegram messages. Call every ~2 minutes via server cron or Postman (GET):
+     * Process pending outbound Telegram messages, then refresh FEL certifier JWTs when expired (same request).
+     * Call every ~2 minutes via server cron or Postman (GET):
      * https://telegram.grantsolutions.cc/index.php?option=com_ordenproduccion&controller=telegram&task=processQueue&format=raw&cron_key=SECRET
      *
      * @return  void
@@ -51,6 +53,12 @@ class TelegramController extends BaseController
         }
 
         $sent = TelegramQueueHelper::processBatch(100);
+
+        try {
+            $app->bootComponent('com_ordenproduccion');
+            (new AdministracionModel())->maintainCertificadorBearerTokens(false);
+        } catch (\Throwable $e) {
+        }
 
         $this->emitPlainResponse(200, 'OK ' . (int) $sent);
     }
