@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.34-STABLE] - 2026-05-06
+
+### Added
+- **Factura relacionada (Digifact direct):** Modal shows pretty-printed NUC JSON before POST; **Confirmar y enviar** runs the certification request. New task `digifactPreviewNucPayloadFromQuotation`.
+
+### Fixed
+- **Digifact JSON response:** Decode base64 `responseData1`/`2`/`3` for certified XML; treat `code: 1` + `authNumber` as success; persist decoded XML to `fel_local_xml_path`.
+
 ## [3.118.33-STABLE] - 2026-05-06
 
 ### Changed

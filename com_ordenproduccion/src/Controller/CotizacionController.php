@@ -1086,6 +1086,90 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * JSON: preview Digifact NUC JSON body (no POST to Digifact, no invoice mutation).
+     *
+     * @return  void
+     *
+     * @since   3.118.34
+     */
+    public function digifactPreviewNucPayloadFromQuotation(): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId < 1) {
+            $quotationId = $app->input->getInt('id', 0);
+        }
+        if ($quotationId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        if (!AccessHelper::userCanAccessQuotationRow($row)) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        try {
+            $fel = new FelInvoiceIssuanceService();
+            if (!$fel->isEngineAvailable() || !$fel->hasQuotationIdColumn()) {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_FEL_UNAVAILABLE')], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+
+            $built = $fel->buildDigifactNucDirectPayloadForQuotation($quotationId);
+            if (!$built['success']) {
+                echo json_encode(['success' => false, 'message' => (string) ($built['message'] ?? 'Preview failed')], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+
+            echo json_encode([
+                'success'       => true,
+                'payload_json'  => (string) ($built['payload_json'] ?? ''),
+            ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+
+        $app->close();
+    }
+
+    /**
      * JSON: certify invoice via Digifact NUC JSON transform (direct HTTP POST; uses Ajustes → Certificador credentials).
      *
      * @return  void

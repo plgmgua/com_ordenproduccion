@@ -132,6 +132,7 @@ $digifactCfgOk = (trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== 
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
 $canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $digifactCfgOk;
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
+$digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactPreviewNucPayloadFromQuotation&format=json', false);
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -742,26 +743,128 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
             <i class="fas fa-bolt"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BTN', 'Issue FEL via Digifact (direct)', 'Emitir FEL por Digifact (directo)')); ?>
         </button>
         <div id="digifact-direct-alert" class="small mt-2 d-none" role="status"></div>
+        <div class="modal fade" id="digifact-direct-preview-modal" tabindex="-1" aria-labelledby="digifactDirectPreviewModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="digifactDirectPreviewModalLabel"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_TITLE', 'Review JSON to send', 'Revisar JSON a enviar')); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted" id="digifact-direct-preview-intro"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_INTRO', 'This JSON will be posted to Digifact. Use the button below to confirm the certification request.', 'Este JSON se enviará a Digifact. Use el botón inferior para confirmar la petición de certificación.')); ?></p>
+                        <div id="digifact-direct-preview-loading" class="small text-muted d-none" role="status"></div>
+                        <pre id="digifact-direct-preview-json" class="bg-light border rounded p-2 small mb-0" style="max-height:55vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:0.8rem;"></pre>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('JCANCEL')); ?></button>
+                        <button type="button" class="btn btn-primary" id="digifact-direct-preview-confirm-btn" disabled>
+                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CONFIRM_SEND', 'Confirm and send', 'Confirmar y enviar')); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <script>
         (function() {
             var btn = document.getElementById('digifact-direct-issue-btn');
             var form = document.getElementById('digifact-direct-token-form');
             var alertEl = document.getElementById('digifact-direct-alert');
+            var previewUrl = <?php echo json_encode($digifactPreviewUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var issueUrl = <?php echo json_encode($digifactDirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var qid = <?php echo (int) $quotationId; ?>;
-            if (!btn || !form) return;
+            var modalEl = document.getElementById('digifact-direct-preview-modal');
+            var jsonPre = document.getElementById('digifact-direct-preview-json');
+            var loadingEl = document.getElementById('digifact-direct-preview-loading');
+            var introEl = document.getElementById('digifact-direct-preview-intro');
+            var confirmBtn = document.getElementById('digifact-direct-preview-confirm-btn');
+            var msgLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_LOADING', 'Loading payload…', 'Cargando payload…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            if (!btn || !form || !modalEl || !jsonPre || !confirmBtn) return;
+
+            function showModal() {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+            }
+            function hideModal() {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                }
+            }
+
             btn.addEventListener('click', function() {
-                var fd = new FormData(form);
-                fd.append('quotation_id', String(qid));
-                btn.disabled = true;
                 if (alertEl) {
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
                 }
-                fetch(issueUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                jsonPre.textContent = '';
+                confirmBtn.disabled = true;
+                if (loadingEl) {
+                    loadingEl.textContent = msgLoading;
+                    loadingEl.classList.remove('d-none');
+                }
+                if (introEl) {
+                    introEl.classList.add('d-none');
+                }
+                showModal();
+
+                var fd = new FormData(form);
+                fd.append('quotation_id', String(qid));
+                btn.disabled = true;
+
+                fetch(previewUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (loadingEl) {
+                            loadingEl.classList.add('d-none');
+                            loadingEl.textContent = '';
+                        }
+                        if (introEl) {
+                            introEl.classList.remove('d-none');
+                        }
+                        if (data && data.success && data.payload_json) {
+                            jsonPre.textContent = data.payload_json;
+                            confirmBtn.disabled = false;
+                            return;
+                        }
+                        hideModal();
+                        if (alertEl) {
+                            alertEl.className = 'small mt-2 text-danger';
+                            alertEl.textContent = (data && data.message) ? data.message : 'Error';
+                            alertEl.classList.remove('d-none');
+                        }
+                    })
+                    .catch(function() {
+                        if (loadingEl) {
+                            loadingEl.classList.add('d-none');
+                            loadingEl.textContent = '';
+                        }
+                        if (introEl) {
+                            introEl.classList.remove('d-none');
+                        }
+                        hideModal();
+                        if (alertEl) {
+                            alertEl.className = 'small mt-2 text-danger';
+                            alertEl.textContent = msgNet;
+                            alertEl.classList.remove('d-none');
+                        }
+                    })
+                    .finally(function() { btn.disabled = false; });
+            });
+
+            confirmBtn.addEventListener('click', function() {
+                confirmBtn.disabled = true;
+                var fd2 = new FormData(form);
+                fd2.append('quotation_id', String(qid));
+                if (alertEl) {
+                    alertEl.classList.add('d-none');
+                    alertEl.textContent = '';
+                }
+                fetch(issueUrl, { method: 'POST', body: fd2, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                     .then(function(r) { return r.json(); })
                     .then(function(data) {
                         if (data && data.success) {
+                            hideModal();
                             window.location.reload();
                             return;
                         }
@@ -770,15 +873,28 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
                             alertEl.textContent = (data && data.message) ? data.message : 'Error';
                             alertEl.classList.remove('d-none');
                         }
+                        confirmBtn.disabled = false;
                     })
                     .catch(function() {
                         if (alertEl) {
                             alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                            alertEl.textContent = msgNet;
                             alertEl.classList.remove('d-none');
                         }
-                    })
-                    .finally(function() { btn.disabled = false; });
+                        confirmBtn.disabled = false;
+                    });
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', function() {
+                jsonPre.textContent = '';
+                confirmBtn.disabled = true;
+                if (loadingEl) {
+                    loadingEl.classList.add('d-none');
+                    loadingEl.textContent = '';
+                }
+                if (introEl) {
+                    introEl.classList.remove('d-none');
+                }
             });
         })();
         </script>

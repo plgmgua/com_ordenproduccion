@@ -1471,6 +1471,139 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Build Digifact NUC JSON payload for preview/issue (no HTTP POST, no invoice row). Validates cert URL + quotation lines.
+     *
+     * @return  array{success:bool, message?:string, payload?:array<string, mixed>, payload_json?:string}
+     *
+     * @since   3.118.34
+     */
+    public function buildDigifactNucDirectPayloadForQuotation(int $quotationId): array
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1 || !$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
+            return ['success' => false, 'message' => 'Engine unavailable'];
+        }
+
+        $creds = $this->getActiveCertificadorCredentials();
+        if ($this->buildDigifactCertificarRequestUrl($creds) === '') {
+            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
+        }
+
+        $quotation = $this->loadQuotation($quotationId);
+        if (!$quotation) {
+            return ['success' => false, 'message' => 'Quotation not found'];
+        }
+
+        $existing = $this->getInvoiceByQuotationId($quotationId);
+        if ($existing && (string) ($existing->fel_issue_status ?? '') === 'completed') {
+            return ['success' => false, 'message' => 'Invoice already completed for this quotation.'];
+        }
+
+        $lines   = $this->loadQuotationLines($quotationId);
+        $payload = $this->buildDigifactNucJsonPayload($quotation, $lines, $creds);
+        if (($payload['Items'] ?? []) === []) {
+            return ['success' => false, 'message' => 'No billable lines'];
+        }
+
+        $pretty = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PRETTY_PRINT);
+        if ($pretty === false) {
+            return ['success' => false, 'message' => 'JSON encode failed'];
+        }
+
+        return ['success' => true, 'payload' => $payload, 'payload_json' => $pretty];
+    }
+
+    /**
+     * Interpret Digifact certification HTTP body: JSON envelope with base64 responseData*, raw XML, or legacy text.
+     *
+     * @return  array{xml:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool}
+     *
+     * @since   3.118.34
+     */
+    public function interpretDigifactCertificarResponse(string $body, int $httpCode): array
+    {
+        $body = trim($body);
+        $out  = [
+            'xml'            => '',
+            'uuid'           => '',
+            'autorizacion'   => '',
+            'digifact_code'  => null,
+            'digifact_msg'   => '',
+            'success'        => false,
+        ];
+
+        if ($body === '') {
+            return $out;
+        }
+
+        $j = json_decode($body, true);
+        if (\is_array($j)) {
+            $out['digifact_code'] = \array_key_exists('code', $j) ? (int) $j['code'] : null;
+            $out['digifact_msg']  = trim((string) ($j['message'] ?? ''));
+            $auth                 = trim((string) ($j['authNumber'] ?? ''));
+            $out['autorizacion']  = $auth;
+
+            foreach (['responseData1', 'responseData2', 'responseData3'] as $dataKey) {
+                if (empty($j[$dataKey]) || !\is_string($j[$dataKey])) {
+                    continue;
+                }
+                $raw = trim($j[$dataKey]);
+                if ($raw === '') {
+                    continue;
+                }
+                $decoded = base64_decode($raw, true);
+                if ($decoded !== false && $decoded !== '') {
+                    $trimDec = ltrim($decoded);
+                    if ($trimDec !== '' && strpos($trimDec, '<') === 0) {
+                        $out['xml'] = $decoded;
+                        break;
+                    }
+                }
+            }
+
+            if ($out['xml'] !== '') {
+                $parsedXml = $this->parseDigifactCertificarResponseBody($out['xml']);
+                if (!empty($parsedXml['uuid'])) {
+                    $out['uuid'] = $parsedXml['uuid'];
+                }
+                if (!empty($parsedXml['autorizacion'])) {
+                    $out['autorizacion'] = $parsedXml['autorizacion'];
+                }
+            }
+            if ($out['uuid'] === '' && $auth !== '') {
+                $out['uuid'] = $auth;
+            }
+
+            $codeOk     = ($out['digifact_code'] === 1);
+            $hasPayload = ($out['xml'] !== '' || $out['autorizacion'] !== '');
+            $out['success'] = $httpCode >= 200 && $httpCode < 300 && $codeOk && $hasPayload;
+
+            return $out;
+        }
+
+        if (strpos(ltrim($body), '<') === 0) {
+            $out['xml']         = $body;
+            $parsed             = $this->parseDigifactCertificarResponseBody($body);
+            $out['uuid']        = $parsed['uuid'] ?? '';
+            $out['autorizacion'] = $parsed['autorizacion'] ?? '';
+            $legacyOk           = $out['uuid'] !== '' || $out['autorizacion'] !== ''
+                || (strlen($body) > 30 && stripos($body, 'dte') !== false);
+            $out['success']     = $httpCode >= 200 && $httpCode < 300 && $legacyOk;
+
+            return $out;
+        }
+
+        $parsed             = $this->parseDigifactCertificarResponseBody($body);
+        $out['uuid']        = $parsed['uuid'] ?? '';
+        $out['autorizacion'] = $parsed['autorizacion'] ?? '';
+        $legacyOk           = $out['uuid'] !== '' || $out['autorizacion'] !== ''
+            || (strlen($body) > 30 && stripos($body, 'dte') !== false);
+        $out['success']     = $httpCode >= 200 && $httpCode < 300 && $legacyOk;
+
+        return $out;
+    }
+
+    /**
      * Issue FEL via Digifact transform API (bypasses mock queue). Requires url_cert_cf or url_cert_nit + valid stored bearer token.
      *
      * @return  array{success:bool, message:string, invoice_id?:int}
@@ -1495,36 +1628,33 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).'];
         }
 
+        $built = $this->buildDigifactNucDirectPayloadForQuotation($quotationId);
+        if (!$built['success']) {
+            return ['success' => false, 'message' => (string) ($built['message'] ?? 'Invalid payload')];
+        }
+
+        /** @var array<string, mixed> $payload */
+        $payload = $built['payload'];
+        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($jsonBody === false) {
+            return ['success' => false, 'message' => 'JSON encode failed'];
+        }
+
         $quotation = $this->loadQuotation($quotationId);
         if (!$quotation) {
             return ['success' => false, 'message' => 'Quotation not found'];
         }
 
         $existing = $this->getInvoiceByQuotationId($quotationId);
-        if ($existing && (string) ($existing->fel_issue_status ?? '') === 'completed') {
-            return ['success' => false, 'message' => 'Invoice already completed for this quotation.'];
-        }
-
         $invoiceId = $existing ? (int) $existing->id : $this->createPendingInvoiceFromQuotation($quotationId, $userId);
         if ($invoiceId < 1) {
             return ['success' => false, 'message' => 'Could not create invoice row'];
         }
 
-        $lines   = $this->loadQuotationLines($quotationId);
-        $payload = $this->buildDigifactNucJsonPayload($quotation, $lines, $creds);
-        if (($payload['Items'] ?? []) === []) {
-            return ['success' => false, 'message' => 'No billable lines'];
-        }
-
-        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-        if ($jsonBody === false) {
-            return ['success' => false, 'message' => 'JSON encode failed'];
-        }
-
         $this->setStatus($invoiceId, 'processing');
         $this->updateInvoiceFields($invoiceId, [
             'fel_request_json' => $jsonBody,
-            'fel_issue_error'  => null,
+            'fel_issue_error'    => null,
         ]);
 
         $httpResult = $this->postDigifactCertificarJson($url, $jsonBody, $bearer);
@@ -1538,29 +1668,31 @@ class FelInvoiceIssuanceService
         $code = $httpResult['http_code'];
         $this->updateInvoiceFields($invoiceId, ['fel_response_json' => $body]);
 
-        $parsed = $this->parseDigifactCertificarResponseBody($body);
-        $uuid   = $parsed['uuid'] ?? '';
-        $auth   = $parsed['autorizacion'] ?? '';
+        $interpret = $this->interpretDigifactCertificarResponse($body, $code);
+        $uuid      = $interpret['uuid'];
+        $auth      = $interpret['autorizacion'];
 
         $xmlRel = null;
-        if ($body !== '' && strpos(ltrim($body), '<') === 0) {
+        if ($interpret['xml'] !== '') {
             $relDir = 'media/com_ordenproduccion/fel_issued/' . $invoiceId . '/digifact';
             $absDir = JPATH_ROOT . '/' . $relDir;
             if (Folder::create($absDir)) {
                 $xmlPath = $absDir . '/response.xml';
-                if (file_put_contents($xmlPath, $body) !== false) {
+                if (file_put_contents($xmlPath, $interpret['xml']) !== false) {
                     $xmlRel = $relDir . '/response.xml';
                 }
             }
         }
 
-        if ($code >= 200 && $code < 300 && ($uuid !== '' || $auth !== '' || (strlen($body) > 30 && stripos($body, 'dte') !== false))) {
+        if ($interpret['success']) {
             $now = Factory::getDate()->toSql();
-            $update = [
+            $felplex = $uuid !== '' ? $uuid : null;
+            $felAuth = $auth !== '' ? $auth : ($uuid !== '' ? $uuid : null);
+            $update  = [
                 'fel_issue_status'       => 'completed',
                 'fel_issue_error'        => null,
-                'felplex_uuid'           => $uuid !== '' ? $uuid : null,
-                'fel_autorizacion_uuid'  => $auth !== '' ? $auth : ($uuid !== '' ? $uuid : null),
+                'felplex_uuid'           => $felplex,
+                'fel_autorizacion_uuid'  => $felAuth,
                 'fel_tipo_dte'           => 'FACT',
                 'fel_fecha_emision'      => $now,
                 'fel_receptor_id'        => $this->digitsOnly($quotation->client_nit ?? ''),
@@ -1579,10 +1711,21 @@ class FelInvoiceIssuanceService
             return ['success' => true, 'message' => 'OK', 'invoice_id' => $invoiceId];
         }
 
+        $errBits = ['HTTP ' . $code];
+        if ($interpret['digifact_msg'] !== '') {
+            $errBits[] = $interpret['digifact_msg'];
+        }
+        if ($interpret['digifact_code'] !== null && $interpret['digifact_code'] !== 1) {
+            $errBits[] = 'code ' . $interpret['digifact_code'];
+        }
         $snippet = strlen($body) > 400 ? substr($body, 0, 400) . '…' : $body;
-        $this->markFailed($invoiceId, 'HTTP ' . $code . ' ' . $snippet);
+        if ($snippet !== '' && stripos(implode(' ', $errBits), $snippet) === false) {
+            $errBits[] = $snippet;
+        }
+        $failMsg = implode(' — ', array_filter($errBits));
+        $this->markFailed($invoiceId, $failMsg);
 
-        return ['success' => false, 'message' => 'Digifact error HTTP ' . $code . ($snippet !== '' ? (': ' . $snippet) : '')];
+        return ['success' => false, 'message' => 'Digifact error: ' . $failMsg];
     }
 
     protected function randomUuid(): string
