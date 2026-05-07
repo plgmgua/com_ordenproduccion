@@ -54,6 +54,40 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
+     * Digifact SHARED_GETINFONIT must use GET /api/Shared. Some installs store the
+     * invoice transform URL (/api/v2/transform/nuc_json); that route returns 405 for this flow.
+     */
+    protected static function normalizeDigifactSharedUrlParts(array $parts): array
+    {
+        $path = isset($parts['path']) ? $parts['path'] : '/';
+        $pn   = strtolower(str_replace('\\', '/', $path));
+
+        if ($pn !== '' && strpos($pn, '/api/shared') === false) {
+            if (strpos($pn, 'nuc_json') !== false
+                || strpos($pn, '/api/v2/transform') !== false
+                || strpos($pn, 'transform/nuc') !== false) {
+                $parts['path'] = '/api/Shared';
+            }
+        }
+
+        return $parts;
+    }
+
+    /**
+     * Query keys from the transform endpoint are not valid on /api/Shared for NIT lookup.
+     *
+     * @param  array<string, mixed>  $queryParams
+     */
+    protected static function stripInvalidDigifactSharedNitKeys(array &$queryParams): void
+    {
+        foreach ([
+            'FORMAT', 'format', 'TYPE', 'type', 'LAYOUT', 'layout', 'METHOD', 'method',
+        ] as $k) {
+            unset($queryParams[$k]);
+        }
+    }
+
+    /**
      * Printable curl (GET) matching the PHP request (for debugging).
      */
     protected static function formatCurlDebugCommand(string $url, string $rawJwt, bool $revealFullToken): string
@@ -136,11 +170,14 @@ class CertificadorFactNitLookupHelper
             return $empty;
         }
 
+        $parts = self::normalizeDigifactSharedUrlParts($parts);
+
         $queryParams = [];
         if (!empty($parts['query'])) {
             parse_str($parts['query'], $queryParams);
         }
 
+        self::stripInvalidDigifactSharedNitKeys($queryParams);
         $queryParams['COUNTRY']  = 'GT';
         $queryParams['TAXID']    = $emissorTaxId;
         $queryParams['USERNAME'] = $apiUsername;
