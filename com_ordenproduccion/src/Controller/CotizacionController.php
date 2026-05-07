@@ -26,6 +26,8 @@ use Joomla\CMS\User\User;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\OrdenFromQuotationService;
@@ -874,6 +876,146 @@ class CotizacionController extends BaseController
 
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+    }
+
+    /**
+     * JSON: Digifact-style NIT/CUI lookup for the quotation's billing ID (confirm modal banner).
+     *
+     * @return  void
+     *
+     * @since   3.118.23
+     */
+    public function digifactPreviewFacturacionCliente(): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $quotationId = $app->input->getInt('id', 0);
+        if ($quotationId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        if (!AccessHelper::userCanAccessQuotationRow($row)) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $vatRaw   = trim((string) ($row->client_nit ?? ''));
+        $nameOdoo = trim((string) ($row->client_name ?? ''));
+
+        $emit = static function (array $payload) use ($app): void {
+            echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+            $app->close();
+        };
+
+        if ($vatRaw === '') {
+            $emit([
+                'success'   => true,
+                'empty_id'  => true,
+                'verified'  => false,
+                'kind'      => '',
+                'vat'       => '',
+                'name'      => $nameOdoo,
+                'message'   => Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_SIN_IDENTIFICADOR'),
+            ]);
+        }
+
+        try {
+            $fel    = new FelInvoiceIssuanceService();
+            $bearer = $fel->getActiveCertificadorBearerToken();
+            if ($bearer === '') {
+                $emit([
+                    'success'  => true,
+                    'verified' => false,
+                    'kind'     => '',
+                    'vat'      => $vatRaw,
+                    'name'     => $nameOdoo,
+                    'message'  => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NO_TOKEN'),
+                ]);
+            }
+
+            $cfgModel = new AdministracionModel();
+            $creds    = $cfgModel->getCertificadorFactSettingsForActiveModo();
+            $urlNit   = trim((string) ($creds['url_cert_nit'] ?? ''));
+            $urlCui   = trim((string) ($creds['url_cert_cui'] ?? ''));
+            $taxId    = trim((string) ($creds['nit'] ?? ''));
+            $usr      = trim((string) ($creds['usuario'] ?? ''));
+
+            $rNit = CertificadorFactNitLookupHelper::fetchNitInfo($vatRaw, $urlNit, $taxId, $usr, $bearer, 45, false);
+            if (!empty($rNit['ok'])) {
+                $emit([
+                    'success'  => true,
+                    'verified' => true,
+                    'kind'     => 'nit',
+                    'vat'      => (string) ($rNit['nit'] ?? $vatRaw),
+                    'name'     => (string) ($rNit['name'] ?? ''),
+                ]);
+            }
+
+            $sharedCui = $urlCui !== '' ? $urlCui : $urlNit;
+            $cuiDigits = preg_replace('/\D/', '', $vatRaw) ?? '';
+            $rCui      = $cuiDigits !== ''
+                ? CertificadorFactNitLookupHelper::fetchCuiInfo($cuiDigits, $sharedCui, $taxId, $usr, $bearer, 45, false)
+                : ['ok' => false];
+
+            if (!empty($rCui['ok'])) {
+                $emit([
+                    'success'  => true,
+                    'verified' => true,
+                    'kind'     => 'cui',
+                    'vat'      => (string) ($rCui['nit'] ?? $cuiDigits),
+                    'name'     => (string) ($rCui['name'] ?? ''),
+                ]);
+            }
+
+            $emit([
+                'success'  => true,
+                'verified' => false,
+                'kind'     => '',
+                'vat'      => $vatRaw,
+                'name'     => $nameOdoo,
+                'message'  => Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_NO_VERIFICADO'),
+            ]);
+        } catch (\Throwable $e) {
+            $emit([
+                'success'  => true,
+                'verified' => false,
+                'kind'     => '',
+                'vat'      => $vatRaw,
+                'name'     => $nameOdoo,
+                'message'  => Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_NO_VERIFICADO'),
+            ]);
+        }
     }
 
     /**

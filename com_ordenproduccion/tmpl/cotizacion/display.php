@@ -761,6 +761,83 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                 <div class="modal-body">
                     <?php echo HTMLHelper::_('form.token'); ?>
                     <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                    <div class="mb-3 border rounded p-3 bg-light" id="cotizacion-digifact-facturacion-preview">
+                        <div class="fw-semibold small mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_SECTION', 'Billing ID validation (NIT/CUI)', 'Validación de NIT a facturar')); ?></div>
+                        <div id="cotizacion-digifact-facturacion-preview-body" class="small text-body"></div>
+                        <div id="cotizacion-digifact-facturacion-preview-note" class="small text-warning mt-2 mb-0" style="display:none;"></div>
+                    </div>
+                    <script>
+                    (function() {
+                        var modal = document.getElementById('confirmarCotizacionModal');
+                        if (!modal) {
+                            return;
+                        }
+                        var bodyEl = document.getElementById('cotizacion-digifact-facturacion-preview-body');
+                        var noteEl = document.getElementById('cotizacion-digifact-facturacion-preview-note');
+                        var previewUrl = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactPreviewFacturacionCliente&format=json', false), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var qid = <?php echo (int) $quotationId; ?>;
+                        var tokenName = <?php echo json_encode(Session::getFormToken(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var strLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_LOADING', 'Verifying…', 'Verificando…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var strNit = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_ID_NIT', 'Tax ID (NIT)', 'NIT'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var strCui = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_ID_CUI', 'Personal ID (CUI)', 'CUI'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var strCliente = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_CLIENTE', 'Client', 'Cliente'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        var strDash = '—';
+                        var strFetchErr = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_FETCH_ERROR', 'Could not load verification.', 'No se pudo cargar la verificación.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+                        function esc(s) {
+                            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                        }
+                        function getTokenValue() {
+                            var inp = modal.querySelector('input[name="' + tokenName + '"]');
+                            return inp ? inp.value : '';
+                        }
+                        function renderRow(idLabel, vat, name) {
+                            var v = (vat === undefined || vat === null || String(vat) === '') ? strDash : String(vat);
+                            var n = (name === undefined || name === null || String(name) === '') ? strDash : String(name);
+                            return '<strong>' + esc(idLabel) + ':</strong> ' + esc(v) + ' <span class="text-muted">·</span> <strong>' + esc(strCliente) + ':</strong> ' + esc(n);
+                        }
+                        function setNote(text, show) {
+                            if (!noteEl) {
+                                return;
+                            }
+                            if (show && text) {
+                                noteEl.textContent = text;
+                                noteEl.style.display = '';
+                            } else {
+                                noteEl.textContent = '';
+                                noteEl.style.display = 'none';
+                            }
+                        }
+                        modal.addEventListener('shown.bs.modal', function() {
+                            if (!bodyEl) {
+                                return;
+                            }
+                            bodyEl.textContent = strLoading;
+                            setNote('', false);
+                            var fd = new FormData();
+                            fd.append('id', String(qid));
+                            fd.append(tokenName, getTokenValue());
+                            fetch(previewUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                                .then(function(r) { return r.json(); })
+                                .then(function(data) {
+                                    if (!data || data.success === false) {
+                                        bodyEl.textContent = (data && data.message) ? String(data.message) : strFetchErr;
+                                        return;
+                                    }
+                                    var idLbl = (data.kind === 'cui') ? strCui : strNit;
+                                    bodyEl.innerHTML = renderRow(idLbl, data.vat, data.name);
+                                    if (data.verified) {
+                                        setNote('', false);
+                                    } else if (data.message) {
+                                        setNote(String(data.message), true);
+                                    }
+                                })
+                                .catch(function() {
+                                    bodyEl.textContent = strFetchErr;
+                                });
+                        });
+                    })();
+                    </script>
                     <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Optional files. You can finish without attaching documents.', 'Archivos opcionales. Puede finalizar sin adjuntar documentos.'); ?></p>
                     <div class="mb-3">
                         <label for="cotizacion_aprobada_file" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_COTIZACION_APROBADA_FILE', 'Approved quotation', 'Cotización aprobada'); ?></label>
