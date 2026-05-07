@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.35-STABLE] - 2026-05-07
+
+### Changed
+- **Digifact direct FEL storage:** Save certified XML as **`{NumeroAutorizacion UUID}.xml`** (same convention as SAT export, e.g. `89738EB1-0CD9-4FDE-A374-4FB24CA4FAA5.xml`) under `fel_issued/{id}/digifact/`. Bytes are unchanged (signatures remain valid). Optional **`{UUID}.pdf`** from base64 `responseData*` (`%PDF`). `felplex_uuid` prefers SAT authorization text from XML. Removed generic `response.xml` name.
+
 ## [3.118.34-STABLE] - 2026-05-06
 
 ### Added

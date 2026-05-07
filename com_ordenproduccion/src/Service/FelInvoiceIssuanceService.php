@@ -1460,6 +1460,12 @@ class FelInvoiceIssuanceService
                 $out['uuid'] = $j['Sat']['Uuid'];
             }
         }
+        if (strpos(ltrim($body), '<') === 0) {
+            $satUuid = $this->extractSatAutorizacionUuidFromFelXml($body);
+            if ($satUuid !== '') {
+                $out['uuid'] = $satUuid;
+            }
+        }
         if (!isset($out['uuid']) && preg_match('/uuid["\']?\s*[:=]\s*["\']([A-F0-9a-f\-]{30,80})/i', $body, $m)) {
             $out['uuid'] = $m[1];
         }
@@ -1468,6 +1474,41 @@ class FelInvoiceIssuanceService
         }
 
         return $out;
+    }
+
+    /**
+     * SAT-certified FEL XML: authorization UUID is the text inside NumeroAutorizacion (same as SAT export filename).
+     *
+     * @since 3.118.35
+     */
+    public function extractSatAutorizacionUuidFromFelXml(string $xml): string
+    {
+        $xml = trim($xml);
+        if ($xml === '' || strpos(ltrim($xml), '<') !== 0) {
+            return '';
+        }
+        if (preg_match('/<(?:[\w.-]+:)?NumeroAutorizacion\b[^>]*>\s*([A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})\s*</us', $xml, $m)) {
+            return $m[1];
+        }
+
+        return '';
+    }
+
+    /**
+     * Safe file base name for FEL artifacts (SAT style: uppercase UUID with hyphens).
+     *
+     * @since 3.118.35
+     */
+    public function sanitizeFelArtifactBasename(string $name, string $fallback): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            $name = $fallback;
+        }
+        $name = preg_replace('/[^A-Za-z0-9\-_.]/', '-', $name);
+        $name = trim((string) $name, '.-_');
+
+        return substr($name !== '' ? $name : $fallback, 0, 180);
     }
 
     /**
@@ -1516,7 +1557,7 @@ class FelInvoiceIssuanceService
     /**
      * Interpret Digifact certification HTTP body: JSON envelope with base64 responseData*, raw XML, or legacy text.
      *
-     * @return  array{xml:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool}
+     * @return  array{xml:string, pdf:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool}
      *
      * @since   3.118.34
      */
@@ -1525,6 +1566,7 @@ class FelInvoiceIssuanceService
         $body = trim($body);
         $out  = [
             'xml'            => '',
+            'pdf'            => '',
             'uuid'           => '',
             'autorizacion'   => '',
             'digifact_code'  => null,
@@ -1552,18 +1594,27 @@ class FelInvoiceIssuanceService
                     continue;
                 }
                 $decoded = base64_decode($raw, true);
-                if ($decoded !== false && $decoded !== '') {
-                    $trimDec = ltrim($decoded);
-                    if ($trimDec !== '' && strpos($trimDec, '<') === 0) {
-                        $out['xml'] = $decoded;
-                        break;
-                    }
+                if ($decoded === false || $decoded === '') {
+                    continue;
+                }
+                $trimDec = ltrim($decoded);
+                if ($out['xml'] === '' && $trimDec !== '' && strpos($trimDec, '<') === 0) {
+                    $out['xml'] = $decoded;
+
+                    continue;
+                }
+                if ($out['pdf'] === '' && strncmp($decoded, '%PDF', 4) === 0) {
+                    $out['pdf'] = $decoded;
                 }
             }
 
             if ($out['xml'] !== '') {
+                $satFileUuid = $this->extractSatAutorizacionUuidFromFelXml($out['xml']);
+                if ($satFileUuid !== '') {
+                    $out['uuid'] = $satFileUuid;
+                }
                 $parsedXml = $this->parseDigifactCertificarResponseBody($out['xml']);
-                if (!empty($parsedXml['uuid'])) {
+                if ($out['uuid'] === '' && !empty($parsedXml['uuid'])) {
                     $out['uuid'] = $parsedXml['uuid'];
                 }
                 if (!empty($parsedXml['autorizacion'])) {
@@ -1583,8 +1634,9 @@ class FelInvoiceIssuanceService
 
         if (strpos(ltrim($body), '<') === 0) {
             $out['xml']         = $body;
+            $satFileUuid        = $this->extractSatAutorizacionUuidFromFelXml($body);
             $parsed             = $this->parseDigifactCertificarResponseBody($body);
-            $out['uuid']        = $parsed['uuid'] ?? '';
+            $out['uuid']        = $satFileUuid !== '' ? $satFileUuid : ($parsed['uuid'] ?? '');
             $out['autorizacion'] = $parsed['autorizacion'] ?? '';
             $legacyOk           = $out['uuid'] !== '' || $out['autorizacion'] !== ''
                 || (strlen($body) > 30 && stripos($body, 'dte') !== false);
@@ -1673,13 +1725,30 @@ class FelInvoiceIssuanceService
         $auth      = $interpret['autorizacion'];
 
         $xmlRel = null;
-        if ($interpret['xml'] !== '') {
+        $pdfRel = null;
+        if ($interpret['xml'] !== '' || $interpret['pdf'] !== '') {
             $relDir = 'media/com_ordenproduccion/fel_issued/' . $invoiceId . '/digifact';
             $absDir = JPATH_ROOT . '/' . $relDir;
             if (Folder::create($absDir)) {
-                $xmlPath = $absDir . '/response.xml';
-                if (file_put_contents($xmlPath, $interpret['xml']) !== false) {
-                    $xmlRel = $relDir . '/response.xml';
+                $base = '';
+                if ($interpret['xml'] !== '') {
+                    $base = $this->extractSatAutorizacionUuidFromFelXml($interpret['xml']);
+                }
+                if ($base === '') {
+                    $base = $interpret['uuid'] !== '' ? $interpret['uuid'] : ($interpret['autorizacion'] !== '' ? $interpret['autorizacion'] : ('invoice-' . $invoiceId));
+                }
+                $base = $this->sanitizeFelArtifactBasename($base, 'invoice-' . $invoiceId);
+                if ($interpret['xml'] !== '') {
+                    $xmlPath = $absDir . '/' . $base . '.xml';
+                    if (file_put_contents($xmlPath, $interpret['xml']) !== false) {
+                        $xmlRel = $relDir . '/' . $base . '.xml';
+                    }
+                }
+                if ($interpret['pdf'] !== '') {
+                    $pdfPath = $absDir . '/' . $base . '.pdf';
+                    if (file_put_contents($pdfPath, $interpret['pdf']) !== false) {
+                        $pdfRel = $relDir . '/' . $base . '.pdf';
+                    }
                 }
             }
         }
@@ -1701,6 +1770,7 @@ class FelInvoiceIssuanceService
                 'fel_moneda'             => 'GTQ',
                 'fel_scheduled_at'       => null,
                 'fel_local_xml_path'     => $xmlRel,
+                'fel_local_pdf_path'     => $pdfRel,
                 'status'                 => 'created',
                 'modified'               => $now,
                 'modified_by'            => $userId,
