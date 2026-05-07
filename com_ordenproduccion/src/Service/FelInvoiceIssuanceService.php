@@ -1580,6 +1580,106 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Build a pseudo-invoice object + cotización reference from a Digifact NUC JSON payload (for HTML preview only).
+     *
+     * @param   array<string, mixed>  $payload  From {@see buildDigifactNucJsonPayload()}
+     *
+     * @return  \stdClass  Item shaped like an FEL invoice row for {@see tmpl/invoice/preview_digifact_fragment.php}
+     *
+     * @since   3.118.42
+     */
+    public function buildInvoicePreviewItemFromNucPayload(array $payload): \stdClass
+    {
+        $seller = \is_array($payload['Seller'] ?? null) ? $payload['Seller'] : [];
+        $buyer  = \is_array($payload['Buyer'] ?? null) ? $payload['Buyer'] : [];
+        $branch = \is_array($seller['BranchInfo'] ?? null) ? $seller['BranchInfo'] : [];
+        $bAddr  = \is_array($branch['AddressInfo'] ?? null) ? $branch['AddressInfo'] : [];
+        $rAddr  = \is_array($buyer['AddressInfo'] ?? null) ? $buyer['AddressInfo'] : [];
+
+        $felExtra = [];
+        if ($bAddr !== []) {
+            $felExtra['emisor_direccion'] = [
+                'direccion'     => (string) ($bAddr['Address'] ?? ''),
+                'codigo_postal' => (string) ($bAddr['City'] ?? ''),
+                'municipio'     => (string) ($bAddr['District'] ?? ''),
+                'departamento'  => (string) ($bAddr['State'] ?? ''),
+                'pais'          => (string) ($bAddr['Country'] ?? ''),
+            ];
+        }
+
+        $lineItems = [];
+        $items = $payload['Items'] ?? [];
+        if (\is_array($items)) {
+            foreach ($items as $idx => $it) {
+                if (!\is_array($it)) {
+                    continue;
+                }
+                $lineItems[] = [
+                    'numero_linea'    => (int) ($it['Number'] ?? ($idx + 1)),
+                    'cantidad'        => (float) ($it['Qty'] ?? 0),
+                    'descripcion'     => (string) ($it['Description'] ?? ''),
+                    'subtotal'        => (float) ($it['Totals']['TotalItem'] ?? 0),
+                    'precio_unitario' => (float) ($it['Price'] ?? 0),
+                    'valor_unitario'  => (float) ($it['Price'] ?? 0),
+                ];
+            }
+        }
+
+        $grand = 0.0;
+        if (isset($payload['Totals']['GrandTotal']['InvoiceTotal'])) {
+            $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
+        }
+
+        $issuerName = trim((string) ($branch['Name'] ?? ''));
+        if ($issuerName === '') {
+            $issuerName = (string) ($seller['Name'] ?? '');
+        }
+
+        $item                   = new \stdClass();
+        $item->id               = 0;
+        $item->invoice_source = 'fel_import';
+        $item->invoice_number = '';
+        $item->fel_emisor_nombre = $issuerName;
+        $item->fel_emisor_nit    = (string) ($seller['TaxID'] ?? '');
+        $item->fel_autorizacion_uuid = '';
+        $item->fel_fecha_emision     = null;
+        $item->client_nit         = (string) ($buyer['TaxID'] ?? '');
+        $item->client_name        = (string) ($buyer['Name'] ?? '');
+        $item->client_address     = (string) ($rAddr['Address'] ?? '');
+        $item->invoice_amount     = $grand;
+        $item->currency           = (($payload['Header']['Currency'] ?? '') === 'GTQ') ? 'Q' : (string) ($payload['Header']['Currency'] ?? 'Q');
+        $item->fel_extra          = $felExtra !== [] ? json_encode($felExtra, JSON_UNESCAPED_UNICODE) : '';
+        $item->line_items         = $lineItems;
+
+        return $item;
+    }
+
+    /**
+     * Cotización reference string from NUC AdditionalDocumentInfo (compact @Name / #text or empty).
+     *
+     * @param   array<string, mixed>  $payload
+     *
+     * @since   3.118.42
+     */
+    public function extractCotizacionReferenceFromNucPayload(array $payload): string
+    {
+        $list = $payload['AdditionalDocumentInfo']['AdditionalInfo'] ?? null;
+        if (!\is_array($list)) {
+            return '';
+        }
+        foreach ($list as $entry) {
+            if (!\is_array($entry)) {
+                continue;
+            }
+            if (isset($entry['#text'])) {
+                return trim((string) $entry['#text']);
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * Interpret Digifact certification HTTP body: JSON envelope with base64 responseData*, raw XML, or legacy text.
      *
      * @return  array{xml:string, pdf:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool}

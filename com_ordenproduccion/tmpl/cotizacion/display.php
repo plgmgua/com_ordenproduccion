@@ -744,16 +744,16 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
         </button>
         <div id="digifact-direct-alert" class="small mt-2 d-none" role="status"></div>
         <div class="modal fade" id="digifact-direct-preview-modal" tabindex="-1" aria-labelledby="digifactDirectPreviewModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="digifactDirectPreviewModalLabel"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_TITLE', 'Review JSON to send', 'Revisar JSON a enviar')); ?></h5>
+                        <h5 class="modal-title" id="digifactDirectPreviewModalLabel"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_TITLE', 'Review invoice (preview)', 'Revisar factura (vista previa)')); ?></h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
                     </div>
                     <div class="modal-body">
-                        <p class="small text-muted" id="digifact-direct-preview-intro"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_INTRO', 'This JSON will be posted to Digifact. Use the button below to confirm the certification request.', 'Este JSON se enviará a Digifact. Use el botón inferior para confirmar la petición de certificación.')); ?></p>
+                        <p class="small text-muted" id="digifact-direct-preview-intro"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_INTRO', 'This is how the invoice will look with the data sent to Digifact. Nothing is saved until you confirm.', 'Así se verá la factura con los datos que se enviarán a Digifact. No se guarda nada hasta confirmar.')); ?></p>
                         <div id="digifact-direct-preview-loading" class="small text-muted d-none" role="status"></div>
-                        <pre id="digifact-direct-preview-json" class="bg-light border rounded p-2 small mb-0" style="max-height:55vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:0.8rem;"></pre>
+                        <div id="digifact-direct-preview-invoice" class="digifact-invoice-preview-host" style="max-height:65vh;overflow:auto;"></div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('JCANCEL')); ?></button>
@@ -773,13 +773,13 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
             var issueUrl = <?php echo json_encode($digifactDirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var qid = <?php echo (int) $quotationId; ?>;
             var modalEl = document.getElementById('digifact-direct-preview-modal');
-            var jsonPre = document.getElementById('digifact-direct-preview-json');
+            var previewHost = document.getElementById('digifact-direct-preview-invoice');
             var loadingEl = document.getElementById('digifact-direct-preview-loading');
             var introEl = document.getElementById('digifact-direct-preview-intro');
             var confirmBtn = document.getElementById('digifact-direct-preview-confirm-btn');
-            var msgLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_LOADING', 'Loading payload…', 'Cargando payload…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var msgLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_LOADING', 'Loading preview…', 'Cargando vista previa…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-            if (!btn || !form || !modalEl || !jsonPre || !confirmBtn) return;
+            if (!btn || !form || !modalEl || !previewHost || !confirmBtn) return;
 
             function showModal() {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -797,7 +797,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
                 }
-                jsonPre.textContent = '';
+                previewHost.innerHTML = '';
                 confirmBtn.disabled = true;
                 if (loadingEl) {
                     loadingEl.textContent = msgLoading;
@@ -822,8 +822,8 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                         if (introEl) {
                             introEl.classList.remove('d-none');
                         }
-                        if (data && data.success && data.payload_json) {
-                            jsonPre.textContent = data.payload_json;
+                        if (data && data.success && data.html) {
+                            previewHost.innerHTML = data.html;
                             confirmBtn.disabled = false;
                             return;
                         }
@@ -886,7 +886,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
             });
 
             modalEl.addEventListener('hidden.bs.modal', function() {
-                jsonPre.textContent = '';
+                previewHost.innerHTML = '';
                 confirmBtn.disabled = true;
                 if (loadingEl) {
                     loadingEl.classList.add('d-none');

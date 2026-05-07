@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.42-STABLE] - 2026-05-07
+
+### Changed
+- **Factura relacionada (Digifact direct):** Pre-certification modal shows an **invoice-style HTML preview** (same data as the NUC JSON) instead of raw JSON; still no DB write until **Confirmar y enviar**. New template `tmpl/invoice/preview_digifact_fragment.php`; task `digifactPreviewNucPayloadFromQuotation` returns JSON `{ success, html }`.
+
 ## [3.118.41-STABLE] - 2026-05-07
 
 ### Changed

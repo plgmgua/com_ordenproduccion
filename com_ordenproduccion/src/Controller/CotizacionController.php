@@ -1086,7 +1086,7 @@ class CotizacionController extends BaseController
     }
 
     /**
-     * JSON: preview Digifact NUC JSON body (no POST to Digifact, no invoice mutation).
+     * JSON: preview Digifact NUC as invoice HTML (no POST to Digifact, no invoice row). Response includes `html` fragment.
      *
      * @return  void
      *
@@ -1158,9 +1158,24 @@ class CotizacionController extends BaseController
                 $app->close();
             }
 
+            /** @var array<string, mixed> $payload */
+            $payload = $built['payload'];
+            $previewItem = $fel->buildInvoicePreviewItemFromNucPayload($payload);
+            $previewQuotationRef = $fel->extractCotizacionReferenceFromNucPayload($payload);
+
+            $fragment = JPATH_SITE . '/components/com_ordenproduccion/tmpl/invoice/preview_digifact_fragment.php';
+            if (!\is_file($fragment)) {
+                echo json_encode(['success' => false, 'message' => 'Preview template missing'], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+
+            \ob_start();
+            include $fragment;
+            $html = (string) \ob_get_clean();
+
             echo json_encode([
-                'success'       => true,
-                'payload_json'  => (string) ($built['payload_json'] ?? ''),
+                'success' => true,
+                'html'    => $html,
             ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
