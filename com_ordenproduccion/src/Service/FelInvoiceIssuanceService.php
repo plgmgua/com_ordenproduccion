@@ -18,6 +18,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\Folder;
+use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\Uri\Uri;
 use Joomla\Database\DatabaseInterface;
 
@@ -1141,6 +1142,442 @@ class FelInvoiceIssuanceService
             'zip'     => '01001',
             'country' => 'GT',
         ];
+    }
+
+    /**
+     * TAXID in Digifact query string: up to 12 digits, zero-padded (see {@see CertificadorFactNitLookupHelper}).
+     */
+    public static function padIssuerTaxIdForDigifactUrl(string $nit): string
+    {
+        $d = preg_replace('/\D/', '', $nit) ?? '';
+        if ($d === '') {
+            return '';
+        }
+        if (\strlen($d) >= 12) {
+            return $d;
+        }
+
+        return str_pad($d, 12, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller from credentials + site name.
+     * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
+     *
+     * @param   list<object>  $lines  From {@see loadQuotationLines()}
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.118.27
+     */
+    public function buildDigifactNucJsonPayload(object $quotation, array $lines, array $creds): array
+    {
+        $addrParts = $this->splitAddress((string) ($quotation->client_address ?? ''));
+        $buyerStreet = trim((string) ($quotation->client_address ?? '')) !== ''
+            ? trim((string) $quotation->client_address) : $addrParts['street'];
+        $buyerNit = trim((string) ($quotation->client_nit ?? ''));
+        $buyerName = trim((string) ($quotation->client_name ?? ''));
+        if ($buyerName === '') {
+            $buyerName = 'Cliente';
+        }
+
+        $issued = Factory::getDate('now')->format('c');
+
+        $items   = [];
+        $grand   = 0.0;
+        $totalIva = 0.0;
+        $lineNum = 1;
+        foreach ($lines as $row) {
+            if (!\is_object($row)) {
+                continue;
+            }
+            $r         = $this->resolveQuotationLineTotals($row);
+            $lineTotal = round((float) $r['line_total'], 2);
+            if ($lineTotal <= 0.000001) {
+                continue;
+            }
+            $grand += $lineTotal;
+            $taxable = $lineTotal / (1 + self::IVA_RATE);
+            $ivaLine = $lineTotal - $taxable;
+            $totalIva += $ivaLine;
+
+            $desc = isset($row->descripcion) ? trim((string) $row->descripcion) : '';
+            if ($desc === '') {
+                $desc = 'Item';
+            }
+
+            $items[] = [
+                'Number'         => (string) $lineNum,
+                'Codes'          => null,
+                'Type'           => 'Bien',
+                'Description'    => $desc,
+                'Qty'            => sprintf('%.6f', $r['qty']),
+                'UnitOfMeasure'  => 'UNI',
+                'Price'          => sprintf('%.6f', $r['unit_price']),
+                'Discounts'      => null,
+                'Taxes'          => [
+                    'Tax' => [
+                        [
+                            'Code'          => '1',
+                            'Description'   => 'IVA',
+                            'TaxableAmount' => sprintf('%.6f', $taxable),
+                            'Amount'        => sprintf('%.6f', $ivaLine),
+                        ],
+                    ],
+                ],
+                'Totals' => [
+                    'TotalItem' => sprintf('%.6f', $lineTotal),
+                ],
+            ];
+            $lineNum++;
+        }
+
+        if ($items === []) {
+            $t = round((float) ($quotation->total_amount ?? 0), 2);
+            if ($t > 0) {
+                $taxable = $t / (1 + self::IVA_RATE);
+                $ivaLine = $t - $taxable;
+                $grand    = $t;
+                $totalIva = $ivaLine;
+                $items[] = [
+                    'Number'        => '1',
+                    'Codes'         => null,
+                    'Type'          => 'Bien',
+                    'Description'   => (string) ($quotation->quotation_number ?? 'Cotizacion'),
+                    'Qty'            => '1.000000',
+                    'UnitOfMeasure' => 'UNI',
+                    'Price'          => sprintf('%.6f', $t),
+                    'Discounts'      => null,
+                    'Taxes'          => [
+                        'Tax' => [
+                            [
+                                'Code'          => '1',
+                                'Description'   => 'IVA',
+                                'TaxableAmount' => sprintf('%.6f', $taxable),
+                                'Amount'        => sprintf('%.6f', $ivaLine),
+                            ],
+                        ],
+                    ],
+                    'Totals' => ['TotalItem' => sprintf('%.6f', $t)],
+                ];
+            }
+        }
+
+        $app  = Factory::getApplication();
+        $site = trim((string) $app->get('sitename')) ?: 'Emisor';
+        $mail = trim((string) $app->get('mailfrom')) ?: 'noreply@localhost';
+        $nitSellerDigits = $this->digitsOnly($creds['nit'] ?? '');
+        $nitSellerJson   = $nitSellerDigits !== '' ? ltrim($nitSellerDigits, '0') ?: $nitSellerDigits : '000000000';
+
+        $cotRef = trim((string) ($quotation->quotation_number ?? ''));
+        if ($cotRef === '') {
+            $cotRef = 'COT-' . (int) ($quotation->id ?? 0);
+        }
+
+        return [
+            'Version'     => '1.00',
+            'CountryCode' => 'GT',
+            'Header'      => [
+                'DocType'        => 'FACT',
+                'IssuedDateTime' => $issued,
+                'Currency'       => 'GTQ',
+            ],
+            'Seller' => [
+                'TaxID'               => $nitSellerJson,
+                'TaxIDAdditionalInfo' => [
+                    ['Name' => 'AfiliacionIVA', 'Data' => null, 'Value' => 'GEN'],
+                ],
+                'Name'    => $site,
+                'Contact' => [
+                    'EmailList' => ['Email' => [$mail]],
+                ],
+                'AdditionlInfo' => [
+                    ['Name' => 'TipoFrase', 'Data' => '1', 'Value' => '1'],
+                    ['Name' => 'Escenario', 'Data' => '1', 'Value' => '2'],
+                ],
+                'BranchInfo' => [
+                    'Code' => '1',
+                    'Name' => $site,
+                    'AddressInfo' => [
+                        'Address'  => 'Ciudad',
+                        'City'     => '01001',
+                        'District' => 'Guatemala',
+                        'State'    => 'Guatemala',
+                        'Country'  => 'GT',
+                    ],
+                ],
+            ],
+            'Buyer' => [
+                'TaxID'       => $buyerNit !== '' ? $buyerNit : 'CF',
+                'Name'        => $buyerName,
+                'AddressInfo' => [
+                    'Address'  => $buyerStreet,
+                    'City'     => '01010',
+                    'District' => 'GUATEMALA',
+                    'State'    => 'GUATEMALA',
+                    'Country'  => 'GT',
+                ],
+            ],
+            'ThirdParties' => null,
+            'Items'        => $items,
+            'Totals'       => [
+                'TotalTaxes' => [
+                    'TotalTax' => [
+                        [
+                            'Description' => 'IVA',
+                            'Amount'      => sprintf('%.6f', $totalIva),
+                        ],
+                    ],
+                ],
+                'GrandTotal' => [
+                    'InvoiceTotal' => sprintf('%.6f', $grand),
+                ],
+            ],
+            'AdditionalDocumentInfo' => [
+                'AdditionalInfo' => [
+                    [
+                        'Code' => 'COT-' . (int) ($quotation->id ?? 0),
+                        'Type' => 'ADENDA',
+                        'AditionalData' => [
+                            'Data' => [
+                                [
+                                    'Info' => [
+                                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => $cotRef],
+                                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => $cotRef],
+                                    ],
+                                    'Name' => 'INFORMACION_ADICIONAL',
+                                ],
+                            ],
+                        ],
+                        'AditionalInfo' => [
+                            ['Name' => 'VALIDAR_REFERENCIA_INTERNA', 'Data' => null, 'Value' => 'NO_VALIDAR'],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Merge TAXID (padded), USERNAME, FORMAT into certificación URL from config.
+     */
+    public function buildDigifactCertificarRequestUrl(array $creds): string
+    {
+        $base = trim((string) ($creds['url_cert_cf'] ?? ''));
+        if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
+            return '';
+        }
+        $taxPadded = self::padIssuerTaxIdForDigifactUrl((string) ($creds['nit'] ?? ''));
+        $user      = trim((string) ($creds['usuario'] ?? ''));
+        if ($taxPadded === '' || $user === '') {
+            return '';
+        }
+        $parts = parse_url($base);
+        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
+            return '';
+        }
+        $q = [];
+        if (!empty($parts['query'])) {
+            parse_str($parts['query'], $q);
+        }
+        $q['TAXID']    = $taxPadded;
+        $q['USERNAME'] = $user;
+        if (!isset($q['FORMAT']) || trim((string) $q['FORMAT']) === '') {
+            $q['FORMAT'] = 'XML';
+        }
+        $path = isset($parts['path']) ? $parts['path'] : '/';
+
+        return $parts['scheme'] . '://' . $parts['host']
+            . (isset($parts['port']) ? ':' . $parts['port'] : '')
+            . $path . '?' . http_build_query($q);
+    }
+
+    /**
+     * POST JSON to Digifact NUC transform; Authorization must be raw JWT (no "Bearer ").
+     *
+     * @return  array{http_code:int, body:string, error:string}
+     */
+    public function postDigifactCertificarJson(string $requestUrl, string $jsonBody, string $bearerJwt): array
+    {
+        $bearerJwt = trim($bearerJwt);
+        if ($requestUrl === '' || $bearerJwt === '') {
+            return ['http_code' => 0, 'body' => '', 'error' => 'missing_url_or_token'];
+        }
+        try {
+            $http     = HttpFactory::getHttp();
+            $response = $http->post(
+                $requestUrl,
+                $jsonBody,
+                [
+                    'Authorization' => $bearerJwt,
+                    'Content-Type'  => 'application/json',
+                    'Accept'        => 'application/json, text/xml, application/xml, */*',
+                ],
+                120
+            );
+            $code = (int) ($response->code ?? 0);
+
+            return [
+                'http_code' => $code,
+                'body'      => (string) ($response->body ?? ''),
+                'error'     => '',
+            ];
+        } catch (\Throwable $e) {
+            return ['http_code' => 0, 'body' => '', 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * @return  array{uuid?: string, autorizacion?: string}
+     */
+    public function parseDigifactCertificarResponseBody(string $body): array
+    {
+        $body = trim($body);
+        $out  = [];
+        if ($body === '') {
+            return $out;
+        }
+        $j = json_decode($body, true);
+        if (\is_array($j)) {
+            foreach (['uuid', 'UUID', 'Uuid'] as $k) {
+                if (!empty($j[$k]) && \is_string($j[$k])) {
+                    $out['uuid'] = $j[$k];
+                    break;
+                }
+            }
+            if (!isset($out['uuid']) && !empty($j['response']) && \is_string($j['response'])) {
+                $j2 = json_decode($j['response'], true);
+                if (\is_array($j2) && !empty($j2['uuid'])) {
+                    $out['uuid'] = (string) $j2['uuid'];
+                }
+            }
+            if (!isset($out['uuid']) && isset($j['Sat']['Uuid']) && \is_string($j['Sat']['Uuid'])) {
+                $out['uuid'] = $j['Sat']['Uuid'];
+            }
+        }
+        if (!isset($out['uuid']) && preg_match('/uuid["\']?\s*[:=]\s*["\']([A-F0-9a-f\-]{30,80})/i', $body, $m)) {
+            $out['uuid'] = $m[1];
+        }
+        if (preg_match('/Autorizacion[_a-z]*["\']?\s*[:=]\s*["\']([A-F0-9a-f\-]{20,})/i', $body, $m2)) {
+            $out['autorizacion'] = $m2[1];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Issue FEL via Digifact transform API (bypasses mock queue). Requires url_cert_cf + valid stored bearer token.
+     *
+     * @return  array{success:bool, message:string, invoice_id?:int}
+     *
+     * @since   3.118.27
+     */
+    public function issueDigifactNucDirectFromQuotation(int $quotationId, int $userId): array
+    {
+        $quotationId = (int) $quotationId;
+        $userId      = (int) $userId;
+        if ($quotationId < 1 || $userId < 1 || !$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
+            return ['success' => false, 'message' => 'Engine unavailable'];
+        }
+
+        $creds = $this->getActiveCertificadorCredentials();
+        $url   = $this->buildDigifactCertificarRequestUrl($creds);
+        if ($url === '') {
+            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (url_cert_cf, nit, usuario).'];
+        }
+        $bearer = $this->getActiveCertificadorBearerToken();
+        if ($bearer === '') {
+            return ['success' => false, 'message' => 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).'];
+        }
+
+        $quotation = $this->loadQuotation($quotationId);
+        if (!$quotation) {
+            return ['success' => false, 'message' => 'Quotation not found'];
+        }
+
+        $existing = $this->getInvoiceByQuotationId($quotationId);
+        if ($existing && (string) ($existing->fel_issue_status ?? '') === 'completed') {
+            return ['success' => false, 'message' => 'Invoice already completed for this quotation.'];
+        }
+
+        $invoiceId = $existing ? (int) $existing->id : $this->createPendingInvoiceFromQuotation($quotationId, $userId);
+        if ($invoiceId < 1) {
+            return ['success' => false, 'message' => 'Could not create invoice row'];
+        }
+
+        $lines   = $this->loadQuotationLines($quotationId);
+        $payload = $this->buildDigifactNucJsonPayload($quotation, $lines, $creds);
+        if (($payload['Items'] ?? []) === []) {
+            return ['success' => false, 'message' => 'No billable lines'];
+        }
+
+        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($jsonBody === false) {
+            return ['success' => false, 'message' => 'JSON encode failed'];
+        }
+
+        $this->setStatus($invoiceId, 'processing');
+        $this->updateInvoiceFields($invoiceId, [
+            'fel_request_json' => $jsonBody,
+            'fel_issue_error'  => null,
+        ]);
+
+        $httpResult = $this->postDigifactCertificarJson($url, $jsonBody, $bearer);
+        if ($httpResult['error'] !== '') {
+            $this->markFailed($invoiceId, $httpResult['error']);
+
+            return ['success' => false, 'message' => $httpResult['error']];
+        }
+
+        $body = $httpResult['body'];
+        $code = $httpResult['http_code'];
+        $this->updateInvoiceFields($invoiceId, ['fel_response_json' => $body]);
+
+        $parsed = $this->parseDigifactCertificarResponseBody($body);
+        $uuid   = $parsed['uuid'] ?? '';
+        $auth   = $parsed['autorizacion'] ?? '';
+
+        $xmlRel = null;
+        if ($body !== '' && strpos(ltrim($body), '<') === 0) {
+            $relDir = 'media/com_ordenproduccion/fel_issued/' . $invoiceId . '/digifact';
+            $absDir = JPATH_ROOT . '/' . $relDir;
+            if (Folder::create($absDir)) {
+                $xmlPath = $absDir . '/response.xml';
+                if (file_put_contents($xmlPath, $body) !== false) {
+                    $xmlRel = $relDir . '/response.xml';
+                }
+            }
+        }
+
+        if ($code >= 200 && $code < 300 && ($uuid !== '' || $auth !== '' || (strlen($body) > 30 && stripos($body, 'dte') !== false))) {
+            $now = Factory::getDate()->toSql();
+            $update = [
+                'fel_issue_status'       => 'completed',
+                'fel_issue_error'        => null,
+                'felplex_uuid'           => $uuid !== '' ? $uuid : null,
+                'fel_autorizacion_uuid'  => $auth !== '' ? $auth : ($uuid !== '' ? $uuid : null),
+                'fel_tipo_dte'           => 'FACT',
+                'fel_fecha_emision'      => $now,
+                'fel_receptor_id'        => $this->digitsOnly($quotation->client_nit ?? ''),
+                'fel_receptor_nombre'    => $quotation->client_name ?? '',
+                'fel_receptor_direccion' => $quotation->client_address ?? null,
+                'fel_moneda'             => 'GTQ',
+                'fel_scheduled_at'       => null,
+                'fel_local_xml_path'     => $xmlRel,
+                'status'                 => 'created',
+                'modified'               => $now,
+                'modified_by'            => $userId,
+            ];
+            $update = $this->filterToExistingColumns($update);
+            $this->updateInvoiceFields($invoiceId, $update);
+
+            return ['success' => true, 'message' => 'OK', 'invoice_id' => $invoiceId];
+        }
+
+        $snippet = strlen($body) > 400 ? substr($body, 0, 400) . '…' : $body;
+        $this->markFailed($invoiceId, 'HTTP ' . $code . ' ' . $snippet);
+
+        return ['success' => false, 'message' => 'Digifact error HTTP ' . $code . ($snippet !== '' ? (': ' . $snippet) : '')];
     }
 
     protected function randomUuid(): string

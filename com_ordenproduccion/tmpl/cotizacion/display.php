@@ -21,6 +21,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 $l = function($key, $fallbackEn, $fallbackEs = null) {
     $t = Text::_($key);
@@ -120,6 +121,13 @@ if (!empty($quotation->ebipay_mock_json)) {
 }
 $ebipayMockAt = isset($quotation->ebipay_mock_at) ? $quotation->ebipay_mock_at : null;
 $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createEbiPayLink&format=json', false);
+
+$felForDirectCheck = new FelInvoiceIssuanceService();
+$digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
+$canDigifactDirectIssue = $canFelIssue
+    && trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
+    && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
+$digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -136,12 +144,6 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
                 <i class="fas fa-file-pdf"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_GENERATE_PDF', 'Generate PDF', 'Generar PDF'); ?>
             </a>
-            <?php if ($canEbiPay) : ?>
-            <button type="button" class="btn btn-outline-info" id="ebipay-create-link-btn" data-quotation-id="<?php echo (int) $quotationId; ?>">
-                <i class="fas fa-credit-card"></i>
-                <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_CREATE_LINK', 'Payment link (test)', 'Link de pago (prueba)')); ?>
-            </button>
-            <?php endif; ?>
             <?php if ($quotationConfirmed || $quotationLockedByOrdenTrabajo) : ?>
             <span class="btn btn-secondary disabled" tabindex="-1" style="opacity: 0.65; cursor: not-allowed;" title="<?php echo htmlspecialchars($quotationLockedByOrdenTrabajo ? $editLockedHintOt : $editLockedHint); ?>">
                 <i class="fas fa-edit"></i>
@@ -180,92 +182,6 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
         </div>
         <?php endif; ?>
     </div>
-    <?php endif; ?>
-
-    <?php if ($canEbiPay) : ?>
-    <form id="ebipay-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
-    <div class="alert alert-info border mb-3" id="ebipay-link-panel">
-        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
-            <div>
-                <strong><i class="fas fa-link me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_PANEL_TITLE', 'ebi pay — payment link (mock API)', 'ebi pay — link de pago (API simulada)')); ?></strong>
-                <div class="small text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_PANEL_HELP', 'Simulates login → network/all → link/maintenance from the technical manual. Saves debug JSON and sample checkout pages under media. No real card processing.', 'Simula login → network/all → link/maintenance del manual. Guarda JSON de depuración y páginas de prueba en media. No procesa tarjetas reales.')); ?></div>
-                <?php if ($ebipayCodigoInterno !== '') : ?>
-                <div class="small mt-1"><span class="text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_CODIGO_INTERNO', 'Internal code', 'Código interno')); ?>:</span>
-                    <code><?php echo htmlspecialchars($ebipayCodigoInterno); ?></code>
-                    <?php if (!empty($ebipayMockAt)) : ?>
-                    <span class="text-muted ms-2"><?php echo HTMLHelper::_('date', $ebipayMockAt, Text::_('DATE_FORMAT_LC2')); ?></span>
-                    <?php endif; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <button type="button" class="btn btn-sm btn-outline-primary" id="ebipay-create-link-btn-panel" data-quotation-id="<?php echo (int) $quotationId; ?>">
-                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_REGENERATE', 'Generate / refresh links', 'Generar / actualizar enlaces')); ?>
-                </button>
-            </div>
-        </div>
-        <?php if (!empty($ebipayStoredLinks)) : ?>
-        <ul class="list-unstyled small mb-0 mt-2" id="ebipay-links-list">
-            <?php foreach ($ebipayStoredLinks as $lnk) :
-                $ln = isset($lnk['nombre']) ? (string) $lnk['nombre'] : '';
-                $lu = isset($lnk['url']) ? (string) $lnk['url'] : '';
-                if ($lu === '') {
-                    continue;
-                }
-                ?>
-            <li class="mb-1">
-                <strong><?php echo htmlspecialchars($ln); ?>:</strong>
-                <a href="<?php echo htmlspecialchars($lu); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($lu); ?></a>
-            </li>
-            <?php endforeach; ?>
-        </ul>
-        <?php else : ?>
-        <p class="small text-muted mb-0 mt-2" id="ebipay-links-empty"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_NO_LINKS_YET', 'No links yet. Use the button above or in the header.', 'Aún no hay enlaces. Use el botón arriba o en el encabezado.')); ?></p>
-        <?php endif; ?>
-        <div id="ebipay-link-alert" class="small mt-2 d-none" role="status"></div>
-    </div>
-    <script>
-    (function() {
-        var url = <?php echo json_encode($ebipayCreateUrl); ?>;
-        var qid = <?php echo (int) $quotationId; ?>;
-        var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.')); ?>;
-        function run(btn) {
-            var f = document.getElementById('ebipay-token-form');
-            var fd = f ? new FormData(f) : new FormData();
-            fd.append('quotation_id', String(qid));
-            if (btn) { btn.disabled = true; }
-            fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (data && data.success) {
-                        window.location.reload();
-                        return;
-                    }
-                    var el = document.getElementById('ebipay-link-alert');
-                    if (el) {
-                        el.className = 'small mt-2 text-danger';
-                        el.textContent = (data && data.message) ? data.message : 'Error';
-                        el.classList.remove('d-none');
-                    }
-                })
-                .catch(function() {
-                    var el = document.getElementById('ebipay-link-alert');
-                    if (el) {
-                        el.className = 'small mt-2 text-danger';
-                        el.textContent = msgNet;
-                        el.classList.remove('d-none');
-                    }
-                })
-                .finally(function() {
-                    if (btn) { btn.disabled = false; }
-                });
-        }
-        var b1 = document.getElementById('ebipay-create-link-btn');
-        var b2 = document.getElementById('ebipay-create-link-btn-panel');
-        if (b1) { b1.addEventListener('click', function() { run(b1); }); }
-        if (b2) { b2.addEventListener('click', function() { run(b2); }); }
-    })();
-    </script>
     <?php endif; ?>
 
     <?php if ($canFelIssue) : ?>
@@ -695,6 +611,178 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
             <?php endif; ?>
         </div>
     </div>
+
+    <?php if ($canEbiPay) : ?>
+    <div class="mt-4 pt-3 border-top cotizacion-section-ebipay">
+        <h3 class="h6 text-uppercase text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_SECTION_EBIPAY', 'Payment link (test)', 'Link de pago (prueba)')); ?></h3>
+        <button type="button" class="btn btn-outline-info" id="ebipay-toggle-panel-btn" aria-expanded="false" aria-controls="ebipay-collapsible-wrap">
+            <i class="fas fa-credit-card"></i>
+            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_TOGGLE_SHOW', 'Show / hide ebi pay', 'Mostrar / ocultar ebi pay')); ?>
+        </button>
+        <div id="ebipay-collapsible-wrap" class="d-none mt-3">
+            <form id="ebipay-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
+            <div class="alert alert-info border mb-0" id="ebipay-link-panel">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                    <div>
+                        <strong><i class="fas fa-link me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_PANEL_TITLE', 'ebi pay — payment link (mock API)', 'ebi pay — link de pago (API simulada)')); ?></strong>
+                        <div class="small text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_PANEL_HELP', 'Simulates login → network/all → link/maintenance from the technical manual. Saves debug JSON and sample checkout pages under media. No real card processing.', 'Simula login → network/all → link/maintenance del manual. Guarda JSON de depuración y páginas de prueba en media. No procesa tarjetas reales.')); ?></div>
+                        <?php if ($ebipayCodigoInterno !== '') : ?>
+                        <div class="small mt-1"><span class="text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_CODIGO_INTERNO', 'Internal code', 'Código interno')); ?>:</span>
+                            <code><?php echo htmlspecialchars($ebipayCodigoInterno); ?></code>
+                            <?php if (!empty($ebipayMockAt)) : ?>
+                            <span class="text-muted ms-2"><?php echo HTMLHelper::_('date', $ebipayMockAt, Text::_('DATE_FORMAT_LC2')); ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="ebipay-create-link-btn-panel" data-quotation-id="<?php echo (int) $quotationId; ?>">
+                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_REGENERATE', 'Generate / refresh links', 'Generar / actualizar enlaces')); ?>
+                        </button>
+                    </div>
+                </div>
+                <?php if (!empty($ebipayStoredLinks)) : ?>
+                <ul class="list-unstyled small mb-0 mt-2" id="ebipay-links-list">
+                    <?php foreach ($ebipayStoredLinks as $lnk) :
+                        $ln = isset($lnk['nombre']) ? (string) $lnk['nombre'] : '';
+                        $lu = isset($lnk['url']) ? (string) $lnk['url'] : '';
+                        if ($lu === '') {
+                            continue;
+                        }
+                        ?>
+                    <li class="mb-1">
+                        <strong><?php echo htmlspecialchars($ln); ?>:</strong>
+                        <a href="<?php echo htmlspecialchars($lu); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($lu); ?></a>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php else : ?>
+                <p class="small text-muted mb-0 mt-2" id="ebipay-links-empty"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_NO_LINKS_YET_BOTTOM', 'No links yet. Use the button above.', 'Aún no hay enlaces. Use el botón de arriba.')); ?></p>
+                <?php endif; ?>
+                <div id="ebipay-link-alert" class="small mt-2 d-none" role="status"></div>
+            </div>
+        </div>
+        <script>
+        (function() {
+            var toggle = document.getElementById('ebipay-toggle-panel-btn');
+            var wrap = document.getElementById('ebipay-collapsible-wrap');
+            if (toggle && wrap) {
+                toggle.addEventListener('click', function() {
+                    wrap.classList.toggle('d-none');
+                    var hidden = wrap.classList.contains('d-none');
+                    toggle.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+                });
+            }
+        })();
+        </script>
+        <script>
+        (function() {
+            var url = <?php echo json_encode($ebipayCreateUrl); ?>;
+            var qid = <?php echo (int) $quotationId; ?>;
+            var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.')); ?>;
+            function run(btn) {
+                var f = document.getElementById('ebipay-token-form');
+                var fd = f ? new FormData(f) : new FormData();
+                fd.append('quotation_id', String(qid));
+                if (btn) { btn.disabled = true; }
+                fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data && data.success) {
+                            window.location.reload();
+                            return;
+                        }
+                        var el = document.getElementById('ebipay-link-alert');
+                        if (el) {
+                            el.className = 'small mt-2 text-danger';
+                            el.textContent = (data && data.message) ? data.message : 'Error';
+                            el.classList.remove('d-none');
+                        }
+                    })
+                    .catch(function() {
+                        var el = document.getElementById('ebipay-link-alert');
+                        if (el) {
+                            el.className = 'small mt-2 text-danger';
+                            el.textContent = msgNet;
+                            el.classList.remove('d-none');
+                        }
+                    })
+                    .finally(function() {
+                        if (btn) { btn.disabled = false; }
+                    });
+            }
+            var b2 = document.getElementById('ebipay-create-link-btn-panel');
+            if (b2) { b2.addEventListener('click', function() { run(b2); }); }
+        })();
+        </script>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($canFelIssue) : ?>
+    <div class="mt-4 pt-3 border-top cotizacion-section-factura-relacionada">
+        <h3 class="h6 text-uppercase text-muted mb-2"><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_TITLE', 'Related invoice', 'Factura relacionada')); ?></h3>
+        <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Mock engine above creates a test DTE. Use the button below to call Digifact NUC with data from this quotation (IVA 12% on line subtotals). Requires Certificador URL (certify), NIT, user, valid token.', 'El panel superior crea un DTE de prueba. El botón siguiente llama a Digifact NUC con datos de esta cotización (IVA 12% sobre subtotales de línea). Requiere URL de certificación, NIT, usuario y token válido en Ajustes.')); ?></p>
+        <?php if ($felInv) : ?>
+        <div class="mb-2 small">
+            <span class="text-muted"><?php echo htmlspecialchars(Text::_('JSTATUS')); ?>:</span>
+            <span class="badge bg-secondary"><?php echo htmlspecialchars($felStatus !== '' ? $felStatus : '—'); ?></span>
+            <?php if ($felInv && $felStatus === 'completed') : ?>
+                <a class="btn btn-sm btn-outline-secondary ms-1" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'pdf'), ENT_QUOTES, 'UTF-8'); ?>">PDF</a>
+                <a class="btn btn-sm btn-outline-secondary ms-1" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'xml', true), ENT_QUOTES, 'UTF-8'); ?>">XML</a>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+        <?php if ($canDigifactDirectIssue && $felStatus !== 'completed') : ?>
+        <form id="digifact-direct-token-form" class="d-none"><?php echo HTMLHelper::_('form.token'); ?></form>
+        <button type="button" class="btn btn-primary" id="digifact-direct-issue-btn">
+            <i class="fas fa-bolt"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BTN', 'Issue FEL via Digifact (direct)', 'Emitir FEL por Digifact (directo)')); ?>
+        </button>
+        <div id="digifact-direct-alert" class="small mt-2 d-none" role="status"></div>
+        <script>
+        (function() {
+            var btn = document.getElementById('digifact-direct-issue-btn');
+            var form = document.getElementById('digifact-direct-token-form');
+            var alertEl = document.getElementById('digifact-direct-alert');
+            var issueUrl = <?php echo json_encode($digifactDirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var qid = <?php echo (int) $quotationId; ?>;
+            if (!btn || !form) return;
+            btn.addEventListener('click', function() {
+                var fd = new FormData(form);
+                fd.append('quotation_id', String(qid));
+                btn.disabled = true;
+                if (alertEl) {
+                    alertEl.classList.add('d-none');
+                    alertEl.textContent = '';
+                }
+                fetch(issueUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data && data.success) {
+                            window.location.reload();
+                            return;
+                        }
+                        if (alertEl) {
+                            alertEl.className = 'small mt-2 text-danger';
+                            alertEl.textContent = (data && data.message) ? data.message : 'Error';
+                            alertEl.classList.remove('d-none');
+                        }
+                    })
+                    .catch(function() {
+                        if (alertEl) {
+                            alertEl.className = 'small mt-2 text-danger';
+                            alertEl.textContent = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                            alertEl.classList.remove('d-none');
+                        }
+                    })
+                    .finally(function() { btn.disabled = false; });
+            });
+        })();
+        </script>
+        <?php elseif ($canFelIssue && !$canDigifactDirectIssue) : ?>
+        <p class="small text-warning mb-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_NEED_CONFIG', 'Configure «URL certificación / CF» and a valid bearer token in Administration → Settings → Certificador de facturación.', 'Configure «URL certificación / CF» y un token válido en Administración → Ajustes → Certificador de facturación.')); ?></p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <?php
     // Wizard "Orden de Trabajo" (misma UX que Mis Clientes): entrega → contacto → enviar (stub = volver a esta cotización).
