@@ -1360,7 +1360,7 @@ class FelInvoiceIssuanceService
 
     /**
      * Merge TAXID (padded), USERNAME, FORMAT into certificación URL from config.
-     * Uses **URL certificación CF** when set; if empty or invalid, falls back to **URL certificación NIT**
+     * Uses **URL certificación / FACT** (`url_cert_cf`) when set; if empty or invalid, falls back to **URL certificación NIT**
      * (Digifact `nuc_json` is typically stored there — no duplicate field required).
      */
     public function buildDigifactCertificarRequestUrl(array $creds): string
@@ -1488,7 +1488,7 @@ class FelInvoiceIssuanceService
         $creds = $this->getActiveCertificadorCredentials();
         $url   = $this->buildDigifactCertificarRequestUrl($creds);
         if ($url === '') {
-            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación CF or NIT, NIT emisor, usuario).'];
+            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
         }
         $bearer = $this->getActiveCertificadorBearerToken();
         if ($bearer === '') {

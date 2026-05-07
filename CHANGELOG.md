@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.33-STABLE] - 2026-05-06
+
+### Changed
+- **Certificador:** UI label «URL de certificación CF» renamed to **«URL de certificación FACT»** (en-GB: Certification URL (FACT)); related help / Digifact strings aligned. Storage key remains `url_cert_cf`.
+
 ## [3.118.32-STABLE] - 2026-05-06
 
 ### Fixed
