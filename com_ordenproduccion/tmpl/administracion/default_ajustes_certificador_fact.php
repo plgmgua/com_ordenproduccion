@@ -27,6 +27,7 @@ $settings = isset($this->certificadorFactSettings) && is_array($this->certificad
 $claveSet = isset($this->certificadorFactClaveSet) && is_array($this->certificadorFactClaveSet)
     ? $this->certificadorFactClaveSet
     : ['test' => false, 'prod' => false];
+$felModo = (isset($this->certificadorFactModo) && $this->certificadorFactModo === 'prod') ? 'prod' : 'test';
 
 $renderSection = static function (string $env, string $headingKey, string $icon) use ($settings, $claveSet) {
     $s = $settings[$env] ?? [];
@@ -105,6 +106,31 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
 
 <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.saveCertificadorFact'); ?>" method="post" name="adminForm" id="ajustes-certificador-fact-form" class="form-validate">
     <?php echo HTMLHelper::_('form.token'); ?>
+    <div class="card mb-4 border-secondary">
+        <div class="card-body">
+            <label class="form-label fw-semibold mb-2 d-block" for="fel_certificador_modo_switch">
+                <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_LABEL'); ?>
+            </label>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <span id="fel_modo_label_test" class="small<?php echo $felModo === 'test' ? ' text-primary fw-semibold' : ' text-muted'; ?>">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_PRUEBA'); ?>
+                </span>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           id="fel_certificador_modo_switch"
+                           style="width: 2.75rem; height: 1.35rem; cursor: pointer;"
+                           <?php echo $felModo === 'prod' ? 'checked ' : ''; ?>
+                           aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_SWITCH_ARIA'), ENT_QUOTES, 'UTF-8'); ?>">
+                </div>
+                <span id="fel_modo_label_prod" class="small<?php echo $felModo === 'prod' ? ' text-primary fw-semibold' : ' text-muted'; ?>">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_PRODUCCION'); ?>
+                </span>
+                <input type="hidden" name="jform[certificador_modo]" id="fel_certificador_modo_value"
+                       value="<?php echo htmlspecialchars($felModo, ENT_QUOTES, 'UTF-8'); ?>">
+            </div>
+            <p class="form-text mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_HELP'); ?></p>
+        </div>
+    </div>
     <?php
     $renderSection('test', 'COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SECTION_PRUEBA', 'flask');
     $renderSection('prod', 'COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SECTION_PRODUCCION', 'industry');
@@ -116,3 +142,26 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
         </button>
     </div>
 </form>
+<script>
+(function () {
+    var sw = document.getElementById('fel_certificador_modo_switch');
+    var hidden = document.getElementById('fel_certificador_modo_value');
+    var lt = document.getElementById('fel_modo_label_test');
+    var lp = document.getElementById('fel_modo_label_prod');
+    if (!sw || !hidden) {
+        return;
+    }
+    function syncLabels() {
+        var prod = sw.checked;
+        hidden.value = prod ? 'prod' : 'test';
+        if (lt) {
+            lt.className = 'small' + (prod ? ' text-muted' : ' text-primary fw-semibold');
+        }
+        if (lp) {
+            lp.className = 'small' + (prod ? ' text-primary fw-semibold' : ' text-muted');
+        }
+    }
+    sw.addEventListener('change', syncLabels);
+    syncLabels();
+})();
+</script>

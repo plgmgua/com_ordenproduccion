@@ -15,6 +15,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Filesystem\Folder;
 use Joomla\CMS\Uri\Uri;
@@ -39,6 +40,24 @@ class FelInvoiceIssuanceService
     public function __construct(?DatabaseInterface $db = null)
     {
         $this->db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+    }
+
+    /**
+     * Active certifier environment from site config (test = prueba, prod = producción).
+     *
+     * @return  string  test|prod
+     *
+     * @since   3.118.5
+     */
+    public function getActiveCertificadorModo(): string
+    {
+        try {
+            $model = new AdministracionModel();
+
+            return $model->getCertificadorFactModo();
+        } catch (\Throwable $e) {
+            return 'test';
+        }
     }
 
     /**

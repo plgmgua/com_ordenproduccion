@@ -881,10 +881,12 @@ class AdministracionController extends BaseController
 
         $jform = $app->input->post->get('jform', [], 'array');
         $block = isset($jform['certificador']) && is_array($jform['certificador']) ? $jform['certificador'] : [];
+        $modo = isset($jform['certificador_modo']) ? trim((string) $jform['certificador_modo']) : 'test';
+        $modo = ($modo === 'prod') ? 'prod' : 'test';
 
         try {
             $model = $this->getModel('Administracion');
-            $model->saveCertificadorFactSettings($block);
+            $model->saveCertificadorFactSettings($block, $modo);
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SAVED'), 'success');
         } catch (\Exception $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');

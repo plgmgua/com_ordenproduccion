@@ -356,6 +356,14 @@ class HtmlView extends BaseHtmlView
     protected $certificadorFactClaveSet = ['test' => false, 'prod' => false];
 
     /**
+     * Active certifier mode: test (Modo Prueba) or prod (Modo producción).
+     *
+     * @var    string
+     * @since  3.118.5
+     */
+    protected $certificadorFactModo = 'test';
+
+    /**
      * Work order numbering settings (next_order_number, order_prefix, order_format) for ajustes > numeracion_ordenes.
      *
      * @var    \stdClass|null
@@ -1899,8 +1907,10 @@ class HtmlView extends BaseHtmlView
 
         $this->certificadorFactSettings = ['test' => [], 'prod' => []];
         $this->certificadorFactClaveSet = ['test' => false, 'prod' => false];
+        $this->certificadorFactModo = 'test';
         if ($activeTab === 'ajustes' && $activeSubTab === 'certificador_fact') {
             try {
+                $this->certificadorFactModo = $statsModel->getCertificadorFactModo();
                 $full = $statsModel->getCertificadorFactSettings();
                 foreach (['test', 'prod'] as $env) {
                     $this->certificadorFactClaveSet[$env] = trim((string) ($full[$env]['clave'] ?? '')) !== '';
@@ -1908,6 +1918,7 @@ class HtmlView extends BaseHtmlView
                     $this->certificadorFactSettings[$env] = $full[$env];
                 }
             } catch (\Throwable $e) {
+                $this->certificadorFactModo = 'test';
                 $this->certificadorFactSettings = [
                     'test' => [
                         'url_autenticacion' => '',

@@ -3369,6 +3369,27 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Active FEL certifier environment: test (prueba) or prod (producción).
+     * Stored in #__ordenproduccion_config as certificador_fact_modo.
+     *
+     * @return  string  test|prod
+     *
+     * @since   3.118.5
+     */
+    public function getCertificadorFactModo(): string
+    {
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('setting_value'))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote('certificador_fact_modo'));
+        $db->setQuery($query);
+        $v = trim((string) $db->loadResult());
+
+        return $v === 'prod' ? 'prod' : 'test';
+    }
+
+    /**
      * Certificador de facturación (FEL): test + production URLs and credentials.
      * Stored in #__ordenproduccion_config as certificador_fact_{test|prod}_*.
      *
@@ -3445,18 +3466,59 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Save certificador de facturación settings. Empty password fields leave existing clave unchanged.
      *
-     * @param   array  $data  From jform[certificador][test|prod][field]
+     * @param   array   $data  From jform[certificador][test|prod][field]
+     * @param   string  $modo  Active environment: test|prod (stored as certificador_fact_modo)
      *
      * @return  bool
      *
      * @since   3.118.4
      */
-    public function saveCertificadorFactSettings(array $data)
+    public function saveCertificadorFactSettings(array $data, string $modo = 'test')
     {
+        $modo = $modo === 'prod' ? 'prod' : 'test';
         $existing = $this->getCertificadorFactSettings();
         $db = Factory::getDbo();
         $user = Factory::getUser();
         $now = Factory::getDate()->toSql();
+
+        $modeKey = 'certificador_fact_modo';
+        $query = $db->getQuery(true)
+            ->select('id')
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->where($db->quoteName('setting_key') . ' = ' . $db->quote($modeKey));
+        $db->setQuery($query);
+        $modeId = $db->loadResult();
+        if ($modeId) {
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_config'))
+                ->set($db->quoteName('setting_value') . ' = ' . $db->quote($modo))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                ->where($db->quoteName('id') . ' = ' . (int) $modeId);
+            $db->setQuery($query);
+            $db->execute();
+        } else {
+            $query = $db->getQuery(true)
+                ->insert($db->quoteName('#__ordenproduccion_config'))
+                ->columns([
+                    $db->quoteName('setting_key'),
+                    $db->quoteName('setting_value'),
+                    $db->quoteName('state'),
+                    $db->quoteName('created_by'),
+                    $db->quoteName('modified'),
+                    $db->quoteName('modified_by'),
+                ])
+                ->values(
+                    $db->quote($modeKey) . ',' .
+                    $db->quote($modo) . ',1,' .
+                    (int) $user->id . ',' .
+                    $db->quote($now) . ',' .
+                    (int) $user->id
+                );
+            $db->setQuery($query);
+            $db->execute();
+        }
+
         $fieldKeys = [
             'url_autenticacion',
             'url_info',
