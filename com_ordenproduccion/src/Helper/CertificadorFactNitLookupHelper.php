@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Digifact-style SHARED NIT info (GET + Bearer), for pre-filling cliente RTU data.
+ * Digifact-style SHARED NIT info (GET + raw JWT in Authorization header).
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @since       3.118.11
@@ -12,10 +12,47 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 /**
- * GET {url_cert_nit} with COUNTRY, TAXID, USERNAME, DATA1, DATA2 query params.
+ * Digifact NUC SHARED GET: query params COUNTRY, TAXID, USERNAME, DATA1, DATA2.
+ * Authorization header is the raw JWT (no "Bearer " prefix), matching Digifact tooling.
  */
 class CertificadorFactNitLookupHelper
 {
+    /**
+     * Strip optional "Bearer " and whitespace (Digifact samples use raw JWT only).
+     */
+    protected static function normalizeAuthorizationToken(string $token): string
+    {
+        $token = trim($token);
+        if ($token === '') {
+            return '';
+        }
+        if (stripos($token, 'Bearer ') === 0) {
+            $token = trim(substr($token, 7));
+        }
+
+        return $token;
+    }
+
+    /**
+     * NUC expects TAXID zero-padded (e.g. 114441782 → 000114441782).
+     */
+    protected static function normalizeTaxIdForDigifactQuery(string $taxId): string
+    {
+        $taxId = trim($taxId);
+        if ($taxId === '') {
+            return '';
+        }
+        $digits = preg_replace('/\D/', '', $taxId) ?? '';
+        if ($digits === '') {
+            return $taxId;
+        }
+        if (\strlen($digits) >= 12) {
+            return $digits;
+        }
+
+        return str_pad($digits, 12, '0', STR_PAD_LEFT);
+    }
+
     /**
      * Fetch taxpayer info for a client NIT (RTU-style response).
      *
@@ -50,9 +87,9 @@ class CertificadorFactNitLookupHelper
         ];
 
         $sharedUrl     = trim($sharedUrl);
-        $emissorTaxId  = trim($emissorTaxId);
+        $emissorTaxId  = self::normalizeTaxIdForDigifactQuery(trim($emissorTaxId));
         $apiUsername   = trim($apiUsername);
-        $bearerToken   = trim($bearerToken);
+        $bearerToken   = self::normalizeAuthorizationToken(trim($bearerToken));
         $clientNit     = trim($clientNit);
 
         if ($sharedUrl === '' || !filter_var($sharedUrl, FILTER_VALIDATE_URL)) {
@@ -106,8 +143,8 @@ class CertificadorFactNitLookupHelper
             return $empty;
         }
 
-        // Digifact variants seen in the wild; try .com first, then legacy "com" suffix without dot.
-        $data1Variants = ['SHARED_GETINFONIT.com', 'SHARED_GETINFONITcom'];
+        // Try SHARED_GETINFONITcom first (Digifact NUC); optional .com suffix second (some gateways differ).
+        $data1Variants = ['SHARED_GETINFONITcom', 'SHARED_GETINFONIT.com'];
         $decoded       = null;
         $rawBody       = '';
         $httpCode      = 0;
@@ -133,7 +170,7 @@ class CertificadorFactNitLookupHelper
                 \CURLOPT_SSL_VERIFYPEER => true,
                 \CURLOPT_SSL_VERIFYHOST => 2,
                 \CURLOPT_HTTPHEADER     => [
-                    'Authorization: Bearer ' . $bearerToken,
+                    'Authorization: ' . $bearerToken,
                     'Accept: application/json, text/plain, */*',
                 ],
             ]);
