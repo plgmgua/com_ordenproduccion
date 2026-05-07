@@ -20,6 +20,7 @@ HTMLHelper::_('bootstrap.framework');
 $formTokenCliente = Session::getFormToken();
 $digifactNitDebugEnabled = $this->certificadorFactFrontendDebug === true;
 $clienteVerifyNitUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactNit&format=json', false);
+$clienteVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactCui&format=json', false);
 $clienteEditNewUrl = Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=0', false);
 
 // Fallback CSS loading to ensure styles are applied
@@ -312,6 +313,10 @@ function safeGet($array, $key, $default = '') {
                         <label class="form-check-label" for="nc-tipo-nit"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_TIPO_NIT'); ?></label>
                     </div>
                     <div class="form-check">
+                        <input class="form-check-input" type="radio" name="nc_tipo" id="nc-tipo-cui" value="cui">
+                        <label class="form-check-label" for="nc-tipo-cui"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_TIPO_CUI'); ?></label>
+                    </div>
+                    <div class="form-check">
                         <input class="form-check-input" type="radio" name="nc_tipo" id="nc-tipo-cf" value="cf">
                         <label class="form-check-label" for="nc-tipo-cf"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_TIPO_CF'); ?></label>
                     </div>
@@ -330,6 +335,20 @@ function safeGet($array, $key, $default = '') {
                         <pre id="nc-nit-debug" class="small mb-0 p-2 bg-light border rounded" style="white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow-y: auto; font-size: 0.75rem;"></pre>
                     </div>
                 </div>
+                <div id="nc-panel-cui" class="d-none">
+                    <label class="form-label" for="nc-cui-input"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_CUI_LABEL'); ?></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="nc-cui-input" inputmode="numeric" autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_CUI_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <button type="button" class="btn btn-primary" id="nc-cui-verify">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_VERIFY'); ?>
+                        </button>
+                    </div>
+                    <div id="nc-cui-msg" class="small mt-2" role="alert"></div>
+                    <div id="nc-cui-debug-wrap" class="mt-2 d-none">
+                        <div class="small text-muted mb-1"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_DEBUG_CURL_TITLE'), ENT_QUOTES, 'UTF-8'); ?></div>
+                        <pre id="nc-cui-debug" class="small mb-0 p-2 bg-light border rounded" style="white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow-y: auto; font-size: 0.75rem;"></pre>
+                    </div>
+                </div>
                 <div id="nc-panel-cf" class="d-none">
                     <p class="small"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_CF_HELP'); ?></p>
                     <button type="button" class="btn btn-success" id="nc-cf-continue">
@@ -346,7 +365,8 @@ function safeGet($array, $key, $default = '') {
 <script>
 (function () {
     var editBase = <?php echo json_encode($clienteEditNewUrl, JSON_UNESCAPED_UNICODE); ?>;
-    var verifyUrl = <?php echo json_encode($clienteVerifyNitUrl, JSON_UNESCAPED_UNICODE); ?>;
+    var verifyNitUrl = <?php echo json_encode($clienteVerifyNitUrl, JSON_UNESCAPED_UNICODE); ?>;
+    var verifyCuiUrl = <?php echo json_encode($clienteVerifyCuiUrl, JSON_UNESCAPED_UNICODE); ?>;
     var digifactNitDebugEnabled = <?php echo $digifactNitDebugEnabled ? 'true' : 'false'; ?>;
     var tok = <?php echo json_encode($formTokenCliente, JSON_UNESCAPED_UNICODE); ?>;
     var busy = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CLIENTE_NEW_MODAL_VERIFY_BUSY'), JSON_UNESCAPED_UNICODE); ?>;
@@ -355,14 +375,21 @@ function safeGet($array, $key, $default = '') {
         return;
     }
     var nitRadio = document.getElementById('nc-tipo-nit');
+    var cuiRadio = document.getElementById('nc-tipo-cui');
     var cfRadio = document.getElementById('nc-tipo-cf');
     var panelNit = document.getElementById('nc-panel-nit');
+    var panelCui = document.getElementById('nc-panel-cui');
     var panelCf = document.getElementById('nc-panel-cf');
     var nitInput = document.getElementById('nc-nit-input');
     var nitBtn = document.getElementById('nc-nit-verify');
     var nitMsg = document.getElementById('nc-nit-msg');
     var nitDebugWrap = document.getElementById('nc-nit-debug-wrap');
     var nitDebugPre = document.getElementById('nc-nit-debug');
+    var cuiInput = document.getElementById('nc-cui-input');
+    var cuiBtn = document.getElementById('nc-cui-verify');
+    var cuiMsg = document.getElementById('nc-cui-msg');
+    var cuiDebugWrap = document.getElementById('nc-cui-debug-wrap');
+    var cuiDebugPre = document.getElementById('nc-cui-debug');
     var cfBtn = document.getElementById('nc-cf-continue');
 
     function clearNitVerifyDebug() {
@@ -374,11 +401,17 @@ function safeGet($array, $key, $default = '') {
         }
     }
 
-    function showNitVerifyDebug(j) {
-        if (!digifactNitDebugEnabled) {
-            return;
+    function clearCuiVerifyDebug() {
+        if (cuiDebugWrap) {
+            cuiDebugWrap.classList.add('d-none');
         }
-        if (!nitDebugWrap || !nitDebugPre || !j || !j.debug || !j.debug.attempts || !j.debug.attempts.length) {
+        if (cuiDebugPre) {
+            cuiDebugPre.textContent = '';
+        }
+    }
+
+    function showDebugIn(j, wrap, pre) {
+        if (!digifactNitDebugEnabled || !wrap || !pre || !j || !j.debug || !j.debug.attempts || !j.debug.attempts.length) {
             return;
         }
         var lines = [];
@@ -394,18 +427,34 @@ function safeGet($array, $key, $default = '') {
         if (j.debug.note) {
             lines.push(j.debug.note);
         }
-        nitDebugPre.textContent = lines.join('\n');
-        nitDebugWrap.classList.remove('d-none');
-        nitDebugWrap.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        pre.textContent = lines.join('\n');
+        wrap.classList.remove('d-none');
+        wrap.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function showNitVerifyDebug(j) {
+        showDebugIn(j, nitDebugWrap, nitDebugPre);
+    }
+
+    function showCuiVerifyDebug(j) {
+        showDebugIn(j, cuiDebugWrap, cuiDebugPre);
     }
 
     function syncPanels() {
-        var useCf = cfRadio && cfRadio.checked;
+        var mode = 'nit';
+        if (cuiRadio && cuiRadio.checked) {
+            mode = 'cui';
+        } else if (cfRadio && cfRadio.checked) {
+            mode = 'cf';
+        }
         if (panelNit) {
-            panelNit.classList.toggle('d-none', useCf);
+            panelNit.classList.toggle('d-none', mode !== 'nit');
+        }
+        if (panelCui) {
+            panelCui.classList.toggle('d-none', mode !== 'cui');
         }
         if (panelCf) {
-            panelCf.classList.toggle('d-none', !useCf);
+            panelCf.classList.toggle('d-none', mode !== 'cf');
         }
     }
 
@@ -413,13 +462,24 @@ function safeGet($array, $key, $default = '') {
         if (nitInput) {
             nitInput.value = '';
         }
+        if (cuiInput) {
+            cuiInput.value = '';
+        }
         if (nitMsg) {
             nitMsg.textContent = '';
             nitMsg.className = 'small mt-2';
         }
+        if (cuiMsg) {
+            cuiMsg.textContent = '';
+            cuiMsg.className = 'small mt-2';
+        }
         clearNitVerifyDebug();
+        clearCuiVerifyDebug();
         if (nitRadio) {
             nitRadio.checked = true;
+        }
+        if (cuiRadio) {
+            cuiRadio.checked = false;
         }
         if (cfRadio) {
             cfRadio.checked = false;
@@ -430,6 +490,9 @@ function safeGet($array, $key, $default = '') {
     modalEl.addEventListener('show.bs.modal', resetModal);
     if (nitRadio) {
         nitRadio.addEventListener('change', syncPanels);
+    }
+    if (cuiRadio) {
+        cuiRadio.addEventListener('change', syncPanels);
     }
     if (cfRadio) {
         cfRadio.addEventListener('change', syncPanels);
@@ -465,7 +528,7 @@ function safeGet($array, $key, $default = '') {
             if (digifactNitDebugEnabled) {
                 fd.append('digifact_debug', '1');
             }
-            fetch(verifyUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+            fetch(verifyNitUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
                 .then(function (r) { return r.json(); })
                 .then(function (j) {
                     nitBtn.disabled = false;
@@ -497,6 +560,66 @@ function safeGet($array, $key, $default = '') {
                         nitMsg.className = 'small mt-2 text-danger';
                     }
                     clearNitVerifyDebug();
+                });
+        });
+    }
+
+    if (cuiBtn && cuiInput) {
+        cuiBtn.addEventListener('click', function () {
+            var v = cuiInput.value.replace(/\D/g, '');
+            if (!v) {
+                if (cuiMsg) {
+                    cuiMsg.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_CUI_REQUIRED'), JSON_UNESCAPED_UNICODE); ?>;
+                    cuiMsg.className = 'small mt-2 text-danger';
+                }
+                return;
+            }
+            cuiBtn.disabled = true;
+            var prevHtml = cuiBtn.innerHTML;
+            cuiBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + busy;
+            if (cuiMsg) {
+                cuiMsg.textContent = '';
+                cuiMsg.className = 'small mt-2';
+            }
+            clearCuiVerifyDebug();
+            var fd = new FormData();
+            fd.append('cui', v);
+            fd.append(tok, '1');
+            if (digifactNitDebugEnabled) {
+                fd.append('digifact_debug', '1');
+            }
+            fetch(verifyCuiUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (j) {
+                    cuiBtn.disabled = false;
+                    cuiBtn.innerHTML = prevHtml;
+                    if (j && j.success && j.data) {
+                        var hadDebug = j.debug && j.debug.attempts && j.debug.attempts.length;
+                        showCuiVerifyDebug(j);
+                        var u = editBase + (editBase.indexOf('?') >= 0 ? '&' : '?');
+                        u += 'df_name=' + encodeURIComponent(j.data.name || '') +
+                            '&df_vat=' + encodeURIComponent(j.data.vat || '') +
+                            '&df_street=' + encodeURIComponent(j.data.street || '') +
+                            '&df_city=' + encodeURIComponent(j.data.city || '');
+                        window.setTimeout(function () {
+                            window.location.href = u;
+                        }, (hadDebug && digifactNitDebugEnabled) ? 1500 : 0);
+                        return;
+                    }
+                    if (cuiMsg) {
+                        cuiMsg.textContent = (j && j.message) ? j.message : 'Error';
+                        cuiMsg.className = 'small mt-2 text-danger';
+                    }
+                    showCuiVerifyDebug(j);
+                })
+                .catch(function () {
+                    cuiBtn.disabled = false;
+                    cuiBtn.innerHTML = prevHtml;
+                    if (cuiMsg) {
+                        cuiMsg.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_NETWORK'), JSON_UNESCAPED_UNICODE); ?>;
+                        cuiMsg.className = 'small mt-2 text-danger';
+                    }
+                    clearCuiVerifyDebug();
                 });
         });
     }

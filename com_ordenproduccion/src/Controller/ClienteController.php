@@ -675,4 +675,94 @@ class ClienteController extends FormController
 
         $this->app->close();
     }
+
+    /**
+     * AJAX: validate client CUI against Digifact SHARED (SHARED_GETINFOCUI).
+     *
+     * @return  void
+     *
+     * @since   3.118.21
+     */
+    public function verifyDigifactCui(): void
+    {
+        $this->app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $this->app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTES_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        $cui = trim((string) $this->input->post->getString('cui', ''));
+        if ($cui === '') {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_CUI_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        $cfgModel             = new AdministracionModel();
+        $allowDigifactDebugUi = $cfgModel->getCertificadorFactFrontendDebug();
+        $digifactDebugReveal  = $allowDigifactDebugUi && ($this->input->post->getInt('digifact_debug', 0) === 1);
+
+        try {
+            $fel = new FelInvoiceIssuanceService();
+            $bearer = $fel->getActiveCertificadorBearerToken();
+            if ($bearer === '') {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NO_TOKEN')], JSON_UNESCAPED_UNICODE);
+                $this->app->close();
+            }
+
+            $creds   = $cfgModel->getCertificadorFactSettingsForActiveModo();
+            $urlCui  = trim((string) ($creds['url_cert_cui'] ?? ''));
+            $urlNit  = trim((string) ($creds['url_cert_nit'] ?? ''));
+            $shared  = $urlCui !== '' ? $urlCui : $urlNit;
+            $taxId   = trim((string) ($creds['nit'] ?? ''));
+            $usr     = trim((string) ($creds['usuario'] ?? ''));
+
+            $r = CertificadorFactNitLookupHelper::fetchCuiInfo($cui, $shared, $taxId, $usr, $bearer, 45, $digifactDebugReveal);
+
+            if (empty($r['ok'])) {
+                $out = [
+                    'success' => false,
+                    'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_CUI_NOT_FOUND'),
+                ];
+                if ($allowDigifactDebugUi) {
+                    $out['debug'] = $r['debug'] ?? ['attempts' => []];
+                }
+                echo json_encode($out, JSON_UNESCAPED_UNICODE);
+                $this->app->close();
+            }
+
+            $out = [
+                'success' => true,
+                'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_VERIFY_OK'),
+                'data'    => [
+                    'name'   => (string) ($r['name'] ?? ''),
+                    'vat'    => (string) ($r['nit'] ?? ''),
+                    'street' => (string) ($r['street'] ?? ''),
+                    'city'   => (string) ($r['city'] ?? ''),
+                ],
+            ];
+            if ($allowDigifactDebugUi) {
+                $out['debug'] = $r['debug'] ?? ['attempts' => []];
+            }
+            echo json_encode($out, JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            echo json_encode([
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_CUI_NOT_FOUND'),
+            ], JSON_UNESCAPED_UNICODE);
+        }
+
+        $this->app->close();
+    }
 }

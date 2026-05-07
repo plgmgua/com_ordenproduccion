@@ -13,6 +13,9 @@ defined('_JEXEC') or die;
 
 /**
  * Digifact NUC SHARED GET: query params COUNTRY, TAXID, USERNAME, DATA1, DATA2.
+ * NIT: DATA1 SHARED_GETINFONIT*, DATA2 NIT|….
+ * CUI: DATA1 SHARED_GETINFOCUI*, DATA2 CUI|….
+ *
  * Authorization header is the raw JWT (no "Bearer " prefix), matching Digifact tooling.
  */
 class CertificadorFactNitLookupHelper
@@ -102,22 +105,11 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
-     * Fetch taxpayer info for a client NIT (RTU-style response).
-     *
-     * @param   bool  $revealTokenInDebug  When true, curl debug lines include full JWT (POST digifact_debug=1).
-     *
      * @return  array<string, mixed>
      */
-    public static function fetchNitInfo(
-        string $clientNit,
-        string $sharedUrl,
-        string $emissorTaxId,
-        string $apiUsername,
-        string $bearerToken,
-        int $timeoutSec = 45,
-        bool $revealTokenInDebug = false
-    ): array {
-        $empty = [
+    protected static function emptyLookupResult(): array
+    {
+        return [
             'ok'          => false,
             'http_code'   => 0,
             'error'       => '',
@@ -128,69 +120,22 @@ class CertificadorFactNitLookupHelper
             'raw_excerpt' => '',
             'debug'       => ['attempts' => []],
         ];
+    }
 
-        $sharedUrl     = trim($sharedUrl);
-        $emissorTaxId  = self::normalizeTaxIdForDigifactQuery(trim($emissorTaxId));
-        $apiUsername   = trim($apiUsername);
-        $bearerToken   = self::normalizeAuthorizationToken(trim($bearerToken));
-        $clientNit     = trim($clientNit);
-
-        if ($sharedUrl === '' || !filter_var($sharedUrl, FILTER_VALIDATE_URL)) {
-            $empty['error'] = 'invalid_shared_url';
-
-            return $empty;
-        }
-        if ($emissorTaxId === '' || $apiUsername === '') {
-            $empty['error'] = 'missing_certificador_tax_or_user';
-
-            return $empty;
-        }
-        if ($bearerToken === '') {
-            $empty['error'] = 'missing_bearer_token';
-
-            return $empty;
-        }
-        if ($clientNit === '') {
-            $empty['error'] = 'missing_client_nit';
-
-            return $empty;
-        }
-
-        $cleanNit = preg_replace('/[^\dA-Za-z\-]/', '', $clientNit) ?? '';
-        if ($cleanNit === '') {
-            $empty['error'] = 'invalid_client_nit';
-
-            return $empty;
-        }
-
-        $parts = parse_url($sharedUrl);
-        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
-            $empty['error'] = 'invalid_shared_url';
-
-            return $empty;
-        }
-
-        $parts = self::normalizeDigifactSharedUrlParts($parts);
-
-        $queryParams = [];
-        if (!empty($parts['query'])) {
-            parse_str($parts['query'], $queryParams);
-        }
-
-        self::stripInvalidDigifactSharedNitKeys($queryParams);
-        $queryParams['COUNTRY']  = 'GT';
-        $queryParams['TAXID']    = $emissorTaxId;
-        $queryParams['USERNAME'] = $apiUsername;
-        $queryParams['DATA2']    = 'NIT|' . $cleanNit;
-
-        if (!\function_exists('curl_init')) {
-            $empty['error'] = 'curl_required';
-
-            return $empty;
-        }
-
-        // Try SHARED_GETINFONITcom first (Digifact NUC); optional .com suffix second (some gateways differ).
-        $data1Variants = ['SHARED_GETINFONITcom', 'SHARED_GETINFONIT.com'];
+    /**
+     * GET Shared until JSON parses; sets DATA1 per variant; DATA2 must already be on $queryParams.
+     *
+     * @param  array<string, mixed>  $queryParams
+     * @return  array{decoded: array<string, mixed>|null, http_code: int, excerpt: string, mime: string, debug_block: array<string, mixed>, early: array<string, mixed>|null}
+     */
+    protected static function digifactSharedFetchUntilJsonParsed(
+        array $parts,
+        array $queryParams,
+        array $data1Variants,
+        string $bearerToken,
+        int $timeoutSec,
+        bool $revealTokenInDebug
+    ): array {
         $decoded       = null;
         $rawBody       = '';
         $httpCode      = 0;
@@ -237,14 +182,22 @@ class CertificadorFactNitLookupHelper
             ];
 
             if ($rawBody === false) {
-                $empty['http_code'] = $httpCode;
-                $empty['error']     = $curlErr !== '' ? $curlErr : 'curl_exec_failed';
-                $empty['debug']     = [
+                $e = self::emptyLookupResult();
+                $e['http_code'] = $httpCode;
+                $e['error']     = $curlErr !== '' ? $curlErr : 'curl_exec_failed';
+                $e['debug']     = [
                     'attempts' => $debugAttempts,
                     'note'     => $revealTokenInDebug ? '' : 'POST digifact_debug=1 with the verify request to show the full JWT in curl.',
                 ];
 
-                return $empty;
+                return [
+                    'decoded'     => null,
+                    'http_code'   => $httpCode,
+                    'excerpt'     => '',
+                    'mime'        => $mime,
+                    'debug_block' => $e['debug'],
+                    'early'       => $e,
+                ];
             }
 
             $rawBody = (string) $rawBody;
@@ -261,18 +214,44 @@ class CertificadorFactNitLookupHelper
             'note'     => $revealTokenInDebug ? '' : 'POST digifact_debug=1 with the verify request to show the full JWT in curl.',
         ];
 
+        return [
+            'decoded'     => \is_array($decoded) ? $decoded : null,
+            'http_code'   => $httpCode,
+            'excerpt'     => $excerpt,
+            'mime'        => $mime,
+            'debug_block' => $debugBlock,
+            'early'       => null,
+        ];
+    }
+
+    /**
+     * Map Digifact REQUEST_DATA / RESPONSE to our flat fields (nit key holds vat/NIT/CUI for forms).
+     *
+     * @param  'nit'|'cui'  $mode
+     */
+    protected static function interpretDigifactSharedResponse(
+        ?array $decoded,
+        int $httpCode,
+        string $excerpt,
+        string $mime,
+        array $debugBlock,
+        string $mode,
+        string $cleanFallbackId
+    ): array {
+        $empty = self::emptyLookupResult();
+
         if (!\is_array($decoded)) {
+            $mimeTrim = trim($mime);
+            $extra    = $mimeTrim !== '' ? ('; ' . $mimeTrim) : '';
             $empty['http_code']   = $httpCode;
             $empty['raw_excerpt'] = $excerpt;
-            $mimeTrim             = trim($mime);
-            $extra                = $mimeTrim !== '' ? ('; ' . $mimeTrim) : '';
             $empty['error']       = sprintf(
                 'invalid_json (HTTP %d%s): %s',
                 $httpCode,
                 $extra,
                 $excerpt
             );
-            $empty['debug']       = $debugBlock;
+            $empty['debug'] = $debugBlock;
 
             return $empty;
         }
@@ -306,14 +285,31 @@ class CertificadorFactNitLookupHelper
                     $msg = trim((string) ($req0['Descripcion'] ?? ''));
                 }
             }
-            $empty['error'] = $msg !== '' ? $msg : ($httpCode >= 400 ? 'http_' . $httpCode : 'nit_lookup_failed');
+            $empty['error'] = $msg !== '' ? $msg : ($httpCode >= 400 ? 'http_' . $httpCode : 'shared_lookup_failed');
             $empty['debug'] = $debugBlock;
 
             return $empty;
         }
 
         $nombre = trim((string) ($row['NOMBRE'] ?? $row['Nombre'] ?? ''));
-        $nitOut = trim((string) ($row['NIT'] ?? $row['Nit'] ?? $cleanNit));
+
+        if ($mode === 'cui') {
+            $idOut = trim((string) ($row['CUI'] ?? $row['Cui'] ?? $cleanFallbackId));
+
+            return [
+                'ok'          => true,
+                'http_code'   => $httpCode,
+                'error'       => '',
+                'name'        => $nombre,
+                'nit'         => $idOut,
+                'street'      => '',
+                'city'        => '',
+                'raw_excerpt' => '',
+                'debug'       => $debugBlock,
+            ];
+        }
+
+        $nitOut = trim((string) ($row['NIT'] ?? $row['Nit'] ?? $cleanFallbackId));
         $dir    = trim((string) ($row['Direccion'] ?? $row['DIRECCION'] ?? ''));
         $dept   = trim((string) ($row['DEPARTAMENTO'] ?? $row['Departamento'] ?? ''));
         $muni   = trim((string) ($row['MUNICIPIO'] ?? $row['Municipio'] ?? ''));
@@ -330,6 +326,210 @@ class CertificadorFactNitLookupHelper
             'raw_excerpt' => '',
             'debug'       => $debugBlock,
         ];
+    }
+
+    /**
+     * Shared setup: parse URL, query base (COUNTRY, TAXID, USERNAME, DATA2).
+     *
+     * @param  array<string, mixed>  $queryParams  Output base query (without DATA1).
+     *
+     * @return  array{0: array<string, mixed>|null, 1: array<string, mixed>}  [parts|null on fail, empty on fail]
+     */
+    protected static function buildDigifactSharedQueryBase(string $sharedUrl, string $emissorTaxId, string $apiUsername, string $data2Value): array
+    {
+        $sharedUrl    = trim($sharedUrl);
+        $emissorTaxId = self::normalizeTaxIdForDigifactQuery(trim($emissorTaxId));
+        $apiUsername  = trim($apiUsername);
+        $empty        = self::emptyLookupResult();
+
+        if ($sharedUrl === '' || !filter_var($sharedUrl, FILTER_VALIDATE_URL)) {
+            $empty['error'] = 'invalid_shared_url';
+
+            return [null, $empty];
+        }
+        if ($emissorTaxId === '' || $apiUsername === '') {
+            $empty['error'] = 'missing_certificador_tax_or_user';
+
+            return [null, $empty];
+        }
+
+        $parts = parse_url($sharedUrl);
+        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
+            $empty['error'] = 'invalid_shared_url';
+
+            return [null, $empty];
+        }
+
+        $parts = self::normalizeDigifactSharedUrlParts($parts);
+
+        $queryParams = [];
+        if (!empty($parts['query'])) {
+            parse_str($parts['query'], $queryParams);
+        }
+
+        self::stripInvalidDigifactSharedNitKeys($queryParams);
+        $queryParams['COUNTRY']  = 'GT';
+        $queryParams['TAXID']    = $emissorTaxId;
+        $queryParams['USERNAME'] = $apiUsername;
+        $queryParams['DATA2']    = $data2Value;
+
+        return [$parts, $queryParams];
+    }
+
+    /**
+     * Fetch taxpayer info for a client NIT (RTU-style response).
+     *
+     * @param   bool  $revealTokenInDebug  When true, curl debug lines include full JWT (POST digifact_debug=1).
+     *
+     * @return  array<string, mixed>
+     */
+    public static function fetchNitInfo(
+        string $clientNit,
+        string $sharedUrl,
+        string $emissorTaxId,
+        string $apiUsername,
+        string $bearerToken,
+        int $timeoutSec = 45,
+        bool $revealTokenInDebug = false
+    ): array {
+        $bearerToken = self::normalizeAuthorizationToken(trim($bearerToken));
+        $clientNit   = trim($clientNit);
+
+        if ($bearerToken === '') {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'missing_bearer_token';
+
+            return $e;
+        }
+        if ($clientNit === '') {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'missing_client_nit';
+
+            return $e;
+        }
+
+        $cleanNit = preg_replace('/[^\dA-Za-z\-]/', '', $clientNit) ?? '';
+        if ($cleanNit === '') {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'invalid_client_nit';
+
+            return $e;
+        }
+
+        [$parts, $baseOrFail] = self::buildDigifactSharedQueryBase($sharedUrl, $emissorTaxId, $apiUsername, 'NIT|' . $cleanNit);
+        if ($parts === null) {
+            return $baseOrFail;
+        }
+        $queryParams = $baseOrFail;
+
+        if (!\function_exists('curl_init')) {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'curl_required';
+
+            return $e;
+        }
+
+        $data1Variants = ['SHARED_GETINFONITcom', 'SHARED_GETINFONIT.com'];
+        $fetch         = self::digifactSharedFetchUntilJsonParsed(
+            $parts,
+            $queryParams,
+            $data1Variants,
+            $bearerToken,
+            $timeoutSec,
+            $revealTokenInDebug
+        );
+
+        if ($fetch['early'] !== null) {
+            return $fetch['early'];
+        }
+
+        return self::interpretDigifactSharedResponse(
+            $fetch['decoded'],
+            $fetch['http_code'],
+            $fetch['excerpt'],
+            $fetch['mime'],
+            $fetch['debug_block'],
+            'nit',
+            $cleanNit
+        );
+    }
+
+    /**
+     * Fetch person info by CUI (SHARED_GETINFOCUI; response has NOMBRE, CUI, no address).
+     *
+     * @param   bool  $revealTokenInDebug  When true, curl debug lines include full JWT (POST digifact_debug=1).
+     *
+     * @return  array<string, mixed>  Same shape as fetchNitInfo; nit key holds CUI for form vat.
+     */
+    public static function fetchCuiInfo(
+        string $clientCui,
+        string $sharedUrl,
+        string $emissorTaxId,
+        string $apiUsername,
+        string $bearerToken,
+        int $timeoutSec = 45,
+        bool $revealTokenInDebug = false
+    ): array {
+        $bearerToken = self::normalizeAuthorizationToken(trim($bearerToken));
+        $clientCui   = trim($clientCui);
+
+        if ($bearerToken === '') {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'missing_bearer_token';
+
+            return $e;
+        }
+        if ($clientCui === '') {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'missing_client_cui';
+
+            return $e;
+        }
+
+        $cleanCui = preg_replace('/\D/', '', $clientCui) ?? '';
+        if ($cleanCui === '') {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'invalid_client_cui';
+
+            return $e;
+        }
+
+        [$parts, $baseOrFail] = self::buildDigifactSharedQueryBase($sharedUrl, $emissorTaxId, $apiUsername, 'CUI|' . $cleanCui);
+        if ($parts === null) {
+            return $baseOrFail;
+        }
+        $queryParams = $baseOrFail;
+
+        if (!\function_exists('curl_init')) {
+            $e = self::emptyLookupResult();
+            $e['error'] = 'curl_required';
+
+            return $e;
+        }
+
+        $data1Variants = ['SHARED_GETINFOCUI', 'SHARED_GETINFOCUI.com'];
+        $fetch         = self::digifactSharedFetchUntilJsonParsed(
+            $parts,
+            $queryParams,
+            $data1Variants,
+            $bearerToken,
+            $timeoutSec,
+            $revealTokenInDebug
+        );
+
+        if ($fetch['early'] !== null) {
+            return $fetch['early'];
+        }
+
+        return self::interpretDigifactSharedResponse(
+            $fetch['decoded'],
+            $fetch['http_code'],
+            $fetch['excerpt'],
+            $fetch['mime'],
+            $fetch['debug_block'],
+            'cui',
+            $cleanCui
+        );
     }
 
     /**
