@@ -1171,7 +1171,7 @@ class FelInvoiceIssuanceService
     /**
      * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller name/email from site;
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
-     * AdditionalDocumentInfo ADENDA: Code is COT-{quotation id}; OBSERVACIONES/COTIZACION Value = trimmed quotation_number, or COT-{id} if blank (Digifact schema requires non-empty InformacionAdicional).
+     * AdditionalDocumentInfo: compact AdditionalInfo entry with @Name Cotizacion and #text = trimmed quotation_number, or COT-{id} if blank (Xml-to-JSON style keys for Digifact NUC).
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
@@ -1375,22 +1375,8 @@ class FelInvoiceIssuanceService
             'AdditionalDocumentInfo' => [
                 'AdditionalInfo' => [
                     [
-                        'Code' => 'COT-' . (int) ($quotation->id ?? 0),
-                        'Type' => 'ADENDA',
-                        'AditionalData' => [
-                            'Data' => [
-                                [
-                                    'Info' => [
-                                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => $cotRef],
-                                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => $cotRef],
-                                    ],
-                                    'Name' => 'INFORMACION_ADICIONAL',
-                                ],
-                            ],
-                        ],
-                        'AditionalInfo' => [
-                            ['Name' => 'VALIDAR_REFERENCIA_INTERNA', 'Data' => null, 'Value' => 'NO_VALIDAR'],
-                        ],
+                        '@Name' => 'Cotizacion',
+                        '#text' => $cotRef,
                     ],
                 ],
             ],

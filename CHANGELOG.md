@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.41-STABLE] - 2026-05-07
+
+### Changed
+- **Digifact NUC JSON:** **additionalDocumentInfo** simplified to a single **AdditionalInfo** object: `@Name` **Cotizacion** and `#text` set to the cotización reference (trimmed **quotation_number**, fallback **COT-{id}**). Removed nested ADENDA / INFORMACION_ADICIONAL / VALIDAR_REFERENCIA_INTERNA block.
+
 ## [3.118.40-STABLE] - 2026-05-07
 
 ### Fixed
