@@ -712,12 +712,11 @@ class CotizacionController extends BaseController
         if (!$skipModalFacturacion) {
             $choiceCot = strtolower((string) $app->input->post->getCmd('confirmar_adjunta_cotizacion_firmada', ''));
             $choiceOc  = strtolower((string) $app->input->post->getCmd('confirmar_adjunta_orden_compra', ''));
-
-            if (!\in_array($choiceCot, ['si', 'no'], true) || !\in_array($choiceOc, ['si', 'no'], true)) {
-                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DOC_CHOICE_REQUIRED'), 'error');
-                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
-
-                return;
+            if (!\in_array($choiceCot, ['si', 'no'], true)) {
+                $choiceCot = 'no';
+            }
+            if (!\in_array($choiceOc, ['si', 'no'], true)) {
+                $choiceOc = 'no';
             }
         } else {
             $choiceCot = null;

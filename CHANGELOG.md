@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.47-STABLE] - 2026-05-06
+
+### Changed
+- **Confirmar Cotización modal:** Document Sí/No questions are **optional** (defaults **No** in markup and on each open). **Finalizar** is always enabled (no gating on NIT preview or document choices). **Server:** missing/invalid `confirmar_adjunta_*` values default to **no** instead of showing an error.
+
 ## [3.118.46-STABLE] - 2026-05-06
 
 ### Fixed

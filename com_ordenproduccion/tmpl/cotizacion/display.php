@@ -1021,11 +1021,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                         var strCliente = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_CLIENTE', 'Client', 'Cliente'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
                         var strDash = '—';
                         var strFetchErr = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_FETCH_ERROR', 'Could not load verification.', 'No se pudo cargar la verificación.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-                        var strFinalizarDisabledHint = <?php echo json_encode($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Complete billing ID validation and document choices below. Attach files when you choose Sí.', 'Complete la validación de NIT y las opciones de documentos. Adjunte archivos si eligió Sí.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
                         var finalizarBtn = modal.querySelector('#cotizacion-confirm-finalizar-btn');
-                        var hasExistAprobada = <?php echo $pathCotAprobada !== '' ? 'true' : 'false'; ?>;
-                        var hasExistOrdenCompra = <?php echo $pathOrdenCompra !== '' ? 'true' : 'false'; ?>;
-                        var digifactOk = false;
 
                         function esc(s) {
                             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -1076,38 +1072,13 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                             }
                             applyFinalizarState();
                         }
-                        function siFileOk(radioName, fileInputId, hasExisting) {
-                            var r = modal.querySelector('input[name="' + radioName + '"]:checked');
-                            if (!r || r.value === 'no') {
-                                return true;
-                            }
-                            var f = document.getElementById(fileInputId);
-                            return hasExisting || (f && f.files && f.files.length > 0);
-                        }
                         function applyFinalizarState() {
                             if (!finalizarBtn) {
                                 return;
                             }
-                            var ready = digifactOk;
-                            var c1 = modal.querySelector('input[name="confirmar_adjunta_cotizacion_firmada"]:checked');
-                            var c2 = modal.querySelector('input[name="confirmar_adjunta_orden_compra"]:checked');
-                            if (!c1 || !c2) {
-                                ready = false;
-                            } else {
-                                if (!siFileOk('confirmar_adjunta_cotizacion_firmada', 'cotizacion_aprobada_file', hasExistAprobada)) {
-                                    ready = false;
-                                }
-                                if (!siFileOk('confirmar_adjunta_orden_compra', 'orden_compra_file', hasExistOrdenCompra)) {
-                                    ready = false;
-                                }
-                            }
-                            finalizarBtn.disabled = !ready;
-                            finalizarBtn.setAttribute('aria-disabled', ready ? 'false' : 'true');
-                            if (ready) {
-                                finalizarBtn.removeAttribute('title');
-                            } else {
-                                finalizarBtn.setAttribute('title', strFinalizarDisabledHint);
-                            }
+                            finalizarBtn.disabled = false;
+                            finalizarBtn.setAttribute('aria-disabled', 'false');
+                            finalizarBtn.removeAttribute('title');
                         }
                         function resetDocumentChoices() {
                             var noCot = document.getElementById('confirmar_cot_firmada_no');
@@ -1127,7 +1098,6 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                             }
                             if (t.name === 'confirmar_adjunta_cotizacion_firmada' || t.name === 'confirmar_adjunta_orden_compra') {
                                 syncDocPanels();
-                                window.setTimeout(applyFinalizarState, 0);
                                 return;
                             }
                             if (t.type === 'file') {
@@ -1136,12 +1106,11 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                         }
                         modal.addEventListener('change', onConfirmarDocChoiceOrFile);
                         modal.addEventListener('shown.bs.modal', function() {
+                            resetDocumentChoices();
+                            applyFinalizarState();
                             if (!bodyEl) {
                                 return;
                             }
-                            digifactOk = false;
-                            resetDocumentChoices();
-                            applyFinalizarState();
                             bodyEl.textContent = strLoading;
                             setNote('', false);
                             var fd = new FormData();
@@ -1152,8 +1121,6 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                                 .then(function(data) {
                                     if (!data || data.success === false) {
                                         bodyEl.textContent = (data && data.message) ? String(data.message) : strFetchErr;
-                                        digifactOk = false;
-                                        applyFinalizarState();
                                         return;
                                     }
                                     var idLbl = (data.kind === 'cui') ? strCui : strNit;
@@ -1163,22 +1130,18 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                                     } else if (data.message) {
                                         setNote(String(data.message), true);
                                     }
-                                    digifactOk = true;
-                                    applyFinalizarState();
                                 })
                                 .catch(function() {
                                     bodyEl.textContent = strFetchErr;
-                                    digifactOk = false;
-                                    applyFinalizarState();
                                 });
                         });
                     })();
                     </script>
-                    <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Use Sí/No for each document type. If you choose Sí, attach the file before finishing.', 'Indique Sí o No en cada pregunta. Si elige Sí, adjunte el archivo antes de finalizar.'); ?></p>
+                    <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Optional: say if you will attach a signed quotation or purchase order. It defaults to No for both. If you choose Yes, attach the file before finishing (the server requires it for that option).', 'Opcional: indique si adjuntará cotización firmada u orden de compra. Por defecto es No en ambas. Si elige Sí, adjunte el archivo antes de finalizar (el servidor lo exige para esa opción).'); ?></p>
                     <fieldset class="mb-3 border-0 p-0">
-                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_COTIZACION_FIRMADA', 'Do you have a signed confirmation quotation?', '¿Tiene una cotización firmada de confirmación?')); ?> <span class="text-danger">*</span></legend>
+                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_COTIZACION_FIRMADA', 'Do you have a signed confirmation quotation?', '¿Tiene una cotización firmada de confirmación?')); ?></legend>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="confirmar_adjunta_cotizacion_firmada" id="confirmar_cot_firmada_no" value="no">
+                            <input class="form-check-input" type="radio" name="confirmar_adjunta_cotizacion_firmada" id="confirmar_cot_firmada_no" value="no" checked>
                             <label class="form-check-label" for="confirmar_cot_firmada_no"><?php echo htmlspecialchars($l('JNO', 'No', 'No')); ?></label>
                         </div>
                         <div class="form-check form-check-inline">
@@ -1199,9 +1162,9 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                         <?php endif; ?>
                     </div>
                     <fieldset class="mb-3 border-0 p-0">
-                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_ORDEN_COMPRA', 'Do you have a purchase order?', '¿Tiene una orden de compra?')); ?> <span class="text-danger">*</span></legend>
+                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_ORDEN_COMPRA', 'Do you have a purchase order?', '¿Tiene una orden de compra?')); ?></legend>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="confirmar_adjunta_orden_compra" id="confirmar_orden_compra_no" value="no">
+                            <input class="form-check-input" type="radio" name="confirmar_adjunta_orden_compra" id="confirmar_orden_compra_no" value="no" checked>
                             <label class="form-check-label" for="confirmar_orden_compra_no"><?php echo htmlspecialchars($l('JNO', 'No', 'No')); ?></label>
                         </div>
                         <div class="form-check form-check-inline">
@@ -1336,7 +1299,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $l('JCANCEL', 'Cancel', 'Cancelar'); ?></button>
-                    <button type="submit" class="btn btn-primary" id="cotizacion-confirm-finalizar-btn" disabled aria-disabled="true" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR_DISABLED_UNTIL_VALIDATION', 'Complete billing ID validation and document choices below. Attach files when you choose Sí.', 'Complete la validación de NIT y las opciones de documentos. Adjunte archivos si eligió Sí.'), ENT_QUOTES, 'UTF-8'); ?>"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR', 'Finish confirmation', 'Finalizar confirmación'); ?></button>
+                    <button type="submit" class="btn btn-primary" id="cotizacion-confirm-finalizar-btn"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZAR', 'Finish confirmation', 'Finalizar confirmación'); ?></button>
                 </div>
             </form>
         </div>
