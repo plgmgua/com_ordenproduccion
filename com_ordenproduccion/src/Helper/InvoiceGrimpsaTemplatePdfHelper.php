@@ -33,17 +33,18 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
     /**
      * White masks hide sample data when the template PDF still contains filled demo values.
+     * Keep left margin clear so labels (NIT Receptor:, etc.) stay visible; cover value columns only on top block.
      *
      * @var list<array{x: float, y: float, w: float, h: float}>
      */
     private const VALUE_MASK_RECTS_MM = [
-        ['x' => 46.0, 'y' => 43.0, 'w' => 162.0, 'h' => 48.0],
-        ['x' => 10.0, 'y' => 93.0, 'w' => 196.0, 'h' => 24.0],
-        ['x' => 7.0, 'y' => 130.0, 'w' => 202.0, 'h' => 112.0],
+        ['x' => 68.0, 'y' => 44.0, 'w' => 142.0, 'h' => 48.0],
+        ['x' => 8.0, 'y' => 80.0, 'w' => 200.0, 'h' => 45.0],
+        ['x' => 7.0, 'y' => 127.0, 'w' => 202.0, 'h' => 116.0],
     ];
 
     /** First table data row baseline Y (mm). */
-    private const TABLE_Y0_MM = 134.0;
+    private const TABLE_Y0_MM = 139.5;
 
     /** Max table body height (mm) on the templated first page before continuation pages. */
     private const TABLE_BODY_MAX_H_MM = 98.0;
@@ -137,35 +138,43 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->useTemplate($tplIdx, 0, 0, self::PAGE_W_MM, self::PAGE_H_MM, false);
 
         $pdf->SetFillColor(255, 255, 255);
+        $pdf->SetDrawColor(255, 255, 255);
         foreach (self::VALUE_MASK_RECTS_MM as $r) {
             $pdf->Rect($r['x'], $r['y'], $r['w'], $r['h'], 'F');
         }
+        $pdf->SetDrawColor(0, 0, 0);
         $pdf->SetTextColor(20, 20, 20);
 
-        // Receptor + fechas (right block — coordinates tuned to factura_grimpsa_template.pdf)
+        // Receptor + fechas: value column starts after printed labels (factura_grimpsa_template.pdf).
         $pdf->SetFont('Helvetica', '', 8.5);
-        $rx = 118.0;
-        $ry = 45.0;
-        $step = 8.0;
-        self::textCell($pdf, $rx, $ry, 92.0, 5.0, $nit);
-        self::textCell($pdf, $rx, $ry + $step, 92.0, 5.0, $nombre);
-        self::multicellBlock($pdf, $rx, $ry + 2.0 * $step, 92.0, 4.2, $direccion, 3);
-        $yAfterAddr = $pdf->GetY() + 1.0;
-        self::textCell($pdf, $rx, $yAfterAddr, 92.0, 5.0, $fechaEmision);
-        self::textCell($pdf, $rx, $yAfterAddr + $step, 92.0, 5.0, $fechaCert);
+        $rx   = 70.0;
+        $ry   = 47.5;
+        $step = 6.5;
+        $vw   = 132.0;
+        self::textCell($pdf, $rx, $ry, $vw, 4.8, $nit);
+        self::textCell($pdf, $rx, $ry + $step, $vw, 4.8, $nombre);
+        self::multicellBlock($pdf, $rx, $ry + 2.0 * $step, $vw, 4.0, $direccion, 3);
+        $yAfterAddr = $pdf->GetY() + 0.8;
+        self::textCell($pdf, $rx, $yAfterAddr, $vw, 4.8, $fechaEmision);
+        self::textCell($pdf, $rx, $yAfterAddr + $step, $vw, 4.8, $fechaCert);
 
-        // Autorización block (centered under label region)
-        $pdf->SetFont('Helvetica', '', 8.0);
-        $authY = 99.0;
-        self::textCell($pdf, 12.0, $authY, 186.0, 5.0, $uuid, 'C');
+        // Autorización (UUID + Serie/Número) — below printed title, full usable width.
+        $pdf->SetFont('Helvetica', '', 7.6);
+        $authY = 91.0;
+        self::textCell($pdf, 10.0, $authY, 196.0, 4.6, $uuid, 'C');
         if ($serieLine !== '') {
-            $pdf->SetFont('Helvetica', '', 7.8);
-            self::textCell($pdf, 12.0, $authY + 6.0, 186.0, 5.0, $serieLine, 'C');
+            $pdf->SetFont('Helvetica', '', 7.4);
+            self::textCell($pdf, 10.0, $authY + 5.2, 196.0, 4.5, $serieLine, 'C');
+        }
+
+        $acceso = trim((string) ($inv->felplex_uuid ?? ''));
+        if ($acceso !== '' && strcasecmp($acceso, $uuid) === 0) {
+            $acceso = '';
         }
 
         $pdf->SetFont('Helvetica', '', 8.5);
-        self::textCell($pdf, $rx, 118.0, 92.0, 5.0, trim((string) ($inv->felplex_uuid ?? '')));
-        self::textCell($pdf, $rx, 126.0, 92.0, 5.0, $moneda);
+        self::textCell($pdf, 128.0, 118.2, 78.0, 4.8, $acceso, 'R');
+        self::textCell($pdf, 128.0, 125.8, 78.0, 4.8, $moneda, 'R');
 
         // Detail table
         $lineItems = array_values($lineItems);
@@ -199,11 +208,11 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
 
         $pdf->SetFont('Helvetica', 'B', 8);
-        $tyMax = $page === 1 ? 240.0 : self::PAGE_H_MM - 28.0;
-        $ty    = min($yTable + 2.0, $tyMax);
-        $pdf->SetXY(130.0, $ty);
-        $pdf->Cell(35.0, 5, 'TOTALES:', 0, 0, 'R');
-        $pdf->Cell(42.0, 5, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 0, 0, 'R');
+        $tyMax = $page === 1 ? 242.0 : self::PAGE_H_MM - 28.0;
+        $ty    = min($yTable + 1.5, $tyMax);
+        $pdf->SetXY(152.0, $ty);
+        $pdf->Cell(28.0, 4.8, 'TOTALES:', 0, 0, 'R');
+        $pdf->Cell(34.0, 4.8, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 0, 0, 'R');
 
         return (string) $pdf->Output('S');
     }
@@ -290,15 +299,16 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $iva += (float) ($im['monto_impuesto'] ?? 0);
         }
 
-        $pdf->SetXY(9.0, $y);
-        $pdf->Cell(6.0, 4.2, (string) $lineNo, 0, 0, 'R');
-        $pdf->Cell(8.0, 4.2, CotizacionPdfHelper::encodeTextForFpdf($bs), 0, 0, 'C');
-        $pdf->Cell(14.0, 4.2, CotizacionPdfHelper::encodeTextForFpdf((string) $qty), 0, 0, 'R');
-        $pdf->Cell(72.0, 4.2, CotizacionPdfHelper::encodeTextForFpdf($desc), 0, 0, 'L');
-        $pdf->Cell(22.0, 4.2, number_format($pu, 2, '.', ''), 0, 0, 'R');
-        $pdf->Cell(10.0, 4.2, '', 0, 0, 'R');
-        $pdf->Cell(10.0, 4.2, '', 0, 0, 'R');
-        $pdf->Cell(22.0, 4.2, number_format($st, 2, '.', ''), 0, 0, 'R');
-        $pdf->Cell(18.0, 4.2, number_format($iva, 2, '.', ''), 0, 0, 'R');
+        $h = 4.2;
+        $pdf->SetXY(10.0, $y);
+        $pdf->Cell(6.5, $h, (string) $lineNo, 0, 0, 'R');
+        $pdf->Cell(7.0, $h, CotizacionPdfHelper::encodeTextForFpdf($bs), 0, 0, 'C');
+        $pdf->Cell(13.5, $h, CotizacionPdfHelper::encodeTextForFpdf((string) $qty), 0, 0, 'R');
+        $pdf->Cell(70.0, $h, CotizacionPdfHelper::encodeTextForFpdf($desc), 0, 0, 'L');
+        $pdf->Cell(23.5, $h, number_format($pu, 2, '.', ''), 0, 0, 'R');
+        $pdf->Cell(9.5, $h, '', 0, 0, 'R');
+        $pdf->Cell(9.5, $h, '', 0, 0, 'R');
+        $pdf->Cell(22.5, $h, number_format($st, 2, '.', ''), 0, 0, 'R');
+        $pdf->Cell(17.5, $h, number_format($iva, 2, '.', ''), 0, 0, 'R');
     }
 }

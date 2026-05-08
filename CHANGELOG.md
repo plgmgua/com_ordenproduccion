@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.55-STABLE] - 2026-05-08
+
+### Fixed
+- **PDF factura Grimpsa:** Máscaras y coordenadas (receptor, autorización, acceso/moneda, tabla y TOTALES) alineadas a la plantilla; máscara más alta sobre el bloque de autorización para ocultar datos de ejemplo; sin duplicar UUID en Número acceso cuando coincide con la autorización.
+
 ## [3.118.54-STABLE] - 2026-05-08
 
 ### Added
