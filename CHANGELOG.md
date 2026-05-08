@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.59-STABLE] - 2026-05-06
+
+### Added
+- **Cert. Logs (Digifact):** Columna «Usuario» con nombre e inicio de sesión de Joomla desde `created_by` (ya persistido). La URL va en una segunda fila ancha por registro para mejor lectura. `CertificadorDigifactLogHelper::record()` acepta `created_by` opcional.
+
 ## [3.118.58-STABLE] - 2026-05-06
 
 ### Fixed

@@ -7,6 +7,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 
@@ -23,6 +24,44 @@ if ($rows !== []) {
 $jsBeautify   = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_BEAUTIFY_JSON'));
 $jsRestore    = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESTORE_RAW'));
 $jsDecodeErr  = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_DECODE_ERROR'));
+
+$actorNameById = [];
+if ($rows !== []) {
+    $ids = [];
+    foreach ($rows as $r) {
+        $aid = (int) ($r->created_by ?? 0);
+        if ($aid > 0) {
+            $ids[$aid] = true;
+        }
+    }
+    $idList = array_keys($ids);
+    if ($idList !== []) {
+        $db    = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('id'),
+                $db->quoteName('name'),
+                $db->quoteName('username'),
+            ])
+            ->from($db->quoteName('#__users'))
+            ->where($db->quoteName('id') . ' IN (' . implode(',', array_map('intval', $idList)) . ')');
+        $db->setQuery($query);
+        foreach ($db->loadObjectList() ?: [] as $u) {
+            $uid = (int) $u->id;
+            $nm  = trim((string) ($u->name ?? ''));
+            $un  = trim((string) ($u->username ?? ''));
+            if ($nm !== '') {
+                $actorNameById[$uid] = $un !== '' && strcasecmp($nm, $un) !== 0
+                    ? $nm . ' (' . $un . ')'
+                    : $nm;
+            } elseif ($un !== '') {
+                $actorNameById[$uid] = $un;
+            } else {
+                $actorNameById[$uid] = '#' . $uid;
+            }
+        }
+    }
+}
 ?>
 <style>
 .digifact-log-wrap {
@@ -42,6 +81,17 @@ $jsDecodeErr  = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_L
 .digifact-log-table td.digifact-log-col-expand {
     width: 2rem;
     white-space: nowrap;
+}
+.digifact-log-url-row td {
+    border-top: 0;
+    background: #f8f9fa;
+    vertical-align: top;
+}
+.digifact-log-url-text {
+    font-size: 0.75rem;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 .digifact-log-pre {
     display: block;
@@ -98,7 +148,7 @@ $jsDecodeErr  = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_L
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_MS'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_INV'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_QUOT'); ?></th>
-                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_URL'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_USER'); ?></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -107,11 +157,13 @@ $jsDecodeErr  = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_L
                         /** @var object $row */
                         $rid    = 'digifact-log-' . (int) ($row->id ?? $idx);
                         $url    = (string) ($row->request_url ?? '');
-                        $urlShort = $url;
-                        if (function_exists('mb_strlen') && mb_strlen($urlShort, 'UTF-8') > 72) {
-                            $urlShort = mb_substr($urlShort, 0, 69, 'UTF-8') . '…';
-                        } elseif (\strlen($urlShort) > 72) {
-                            $urlShort = substr($urlShort, 0, 69) . '…';
+                        $actorId = (int) ($row->created_by ?? 0);
+                        if ($actorId > 0 && isset($actorNameById[$actorId])) {
+                            $actorLabel = $actorNameById[$actorId];
+                        } elseif ($actorId > 0) {
+                            $actorLabel = '#' . $actorId;
+                        } else {
+                            $actorLabel = Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_ACTOR_NONE');
                         }
                         $reqBody = (string) ($row->request_body ?? '');
                         $resBody = (string) ($row->response_body ?? '');
@@ -134,7 +186,13 @@ $jsDecodeErr  = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_L
                             <td class="small"><?php echo (int) ($row->duration_ms ?? 0); ?></td>
                             <td class="small"><?php echo (int) ($row->invoice_id ?? 0) > 0 ? (int) $row->invoice_id : '—'; ?></td>
                             <td class="small"><?php echo (int) ($row->quotation_id ?? 0) > 0 ? (int) $row->quotation_id : '—'; ?></td>
-                            <td class="small"><span title="<?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($urlShort, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                            <td class="small text-break"><?php echo htmlspecialchars($actorLabel, ENT_QUOTES, 'UTF-8'); ?></td>
+                        </tr>
+                        <tr class="digifact-log-url-row">
+                            <td colspan="10" class="small py-1 digifact-log-wrap">
+                                <span class="text-muted text-uppercase" style="font-size: 0.65rem;"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_URL'); ?></span>
+                                <div class="digifact-log-url-text mt-1"><code class="text-dark"><?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?></code></div>
+                            </td>
                         </tr>
                         <tr class="collapse" id="<?php echo $rid; ?>">
                             <td colspan="10" class="bg-light border-top-0 small py-2 digifact-log-wrap">

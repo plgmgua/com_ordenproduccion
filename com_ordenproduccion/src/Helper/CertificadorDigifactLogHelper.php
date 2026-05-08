@@ -95,7 +95,7 @@ class CertificadorDigifactLogHelper
     /**
      * @param  array<string, mixed>  $row  environment, operation, request_method, request_url, request_headers_json?,
      *                                     request_body?, response_http_code, response_body?, client_error?, duration_ms?,
-     *                                     invoice_id?, quotation_id?
+     *                                     invoice_id?, quotation_id?, created_by? (optional Joomla user id for this row)
      */
     public static function record(array $row): void
     {
@@ -104,8 +104,12 @@ class CertificadorDigifactLogHelper
         }
         try {
             $db = Factory::getContainer()->get(DatabaseInterface::class);
-            $user = Factory::getUser();
-            $uid  = $user->guest ? 0 : (int) $user->id;
+            if (\array_key_exists('created_by', $row)) {
+                $uid = max(0, (int) $row['created_by']);
+            } else {
+                $user = Factory::getUser();
+                $uid  = $user->guest ? 0 : (int) $user->id;
+            }
 
             $inv = isset($row['invoice_id']) ? (int) $row['invoice_id'] : 0;
             $quo = isset($row['quotation_id']) ? (int) $row['quotation_id'] : 0;
