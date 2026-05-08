@@ -210,6 +210,36 @@ class ProductosController extends BaseController
     }
 
     /**
+     * Soft-delete an additional process. Redirects to tab=processes.
+     *
+     * @return  void
+     *
+     * @since   3.118.48
+     */
+    public function deleteProcess()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectWithMessage('processes', Text::_('JINVALID_TOKEN'), 'error');
+
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectWithMessage('processes', Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+
+            return;
+        }
+        $id = (int) Factory::getApplication()->input->post->getInt('id', 0);
+        $model = $this->getModel('Productos', 'Site');
+        if (!$model->deleteProcess($id)) {
+            $this->setRedirectWithMessage('processes', $model->getError() ?: Text::_('COM_ORDENPRODUCCION_PLIEGO_PROCESS_DELETE_ERROR'), 'error');
+
+            return;
+        }
+        $this->setRedirectWithMessage('processes', Text::_('COM_ORDENPRODUCCION_PLIEGO_PROCESS_DELETED'), 'success');
+    }
+
+    /**
      * Save pliego print prices for the selected paper type (one price per size).
      * POST: paper_type_id, price[size_id]=value for each size.
      *

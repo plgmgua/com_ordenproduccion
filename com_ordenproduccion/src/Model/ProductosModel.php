@@ -524,6 +524,66 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Soft-delete an additional process (state = 0). Existing quotes may still reference it in stored JSON.
+     *
+     * @param   int  $id  Process id
+     *
+     * @return  bool
+     *
+     * @since   3.118.48
+     */
+    public function deleteProcess(int $id): bool
+    {
+        if (!$this->tablesExist()) {
+            $this->setError('Pliego tables not installed.');
+
+            return false;
+        }
+
+        $id = (int) $id;
+
+        if ($id < 1) {
+            $this->setError('Invalid process id.');
+
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__ordenproduccion_pliego_processes'))
+                ->where($db->quoteName('id') . ' = ' . $id)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+
+        if ((int) $db->loadResult() !== $id) {
+            $this->setError('Process not found or already removed.');
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        $now  = Factory::getDate()->toSql();
+        $obj  = (object) [
+            'id'          => $id,
+            'state'       => 0,
+            'modified'    => $now,
+            'modified_by' => (int) $user->id,
+        ];
+
+        try {
+            $db->updateObject('#__ordenproduccion_pliego_processes', $obj, ['id']);
+        } catch (\Throwable $e) {
+            $this->setError($e->getMessage());
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Save process prices and range ceilings in bulk.
      *
      * @param   array  $prices1To1000  process_id => price (float)

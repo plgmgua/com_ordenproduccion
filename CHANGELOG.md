@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.48-STABLE] - 2026-05-06
+
+### Added
+- **Administración → Pliegos → Procesos adicionales:** Per-row **Eliminar** control (trash) with confirm dialog; **`ProductosModel::deleteProcess`** soft-deletes (`state = 0`). Task **`productos.deleteProcess`**.
+
 ## [3.118.47-STABLE] - 2026-05-06
 
 ### Changed

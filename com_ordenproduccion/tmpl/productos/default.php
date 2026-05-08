@@ -492,6 +492,7 @@ $l = function ($key, $fallback) {
                                         <th class="bg-light" style="width:140px;"><?php echo $l('COM_ORDENPRODUCCION_RANGE_1_CEILING', 'Rango 1 hasta'); ?></th>
                                         <th class="bg-light" style="width:140px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1_1000', 'Precio rango 1'); ?> (Q)</th>
                                         <th class="bg-light" style="width:140px;"><?php echo $l('COM_ORDENPRODUCCION_PROCESS_PRICE_1001_PLUS', 'Precio rango 2'); ?> (Q)</th>
+                                        <th class="text-end" style="width:90px;"><?php echo $l('COM_ORDENPRODUCCION_PLIEGO_PROCESS_COL_ACTIONS', 'Acciones'); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -516,12 +517,45 @@ $l = function ($key, $fallback) {
                                             <td>
                                                 <input type="number" name="price_1001_plus[<?php echo $pid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $v2; ?>" placeholder="0.00">
                                             </td>
+                                            <td class="text-end align-middle">
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline-danger op-delete-pliego-process"
+                                                    data-process-id="<?php echo $pid; ?>"
+                                                    title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_PLIEGO_PROCESS_DELETE', 'Eliminar proceso')); ?>"
+                                                    aria-label="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_PLIEGO_PROCESS_DELETE', 'Eliminar proceso')); ?>">
+                                                    <span class="fas fa-trash" aria-hidden="true"></span>
+                                                </button>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                             <button type="submit" class="btn btn-primary mt-2"><?php echo $l('COM_ORDENPRODUCCION_SAVE_PRICES', 'Guardar precios'); ?></button>
                         </form>
+                        <form id="adminForm_delete_pliego_process" method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.deleteProcess'); ?>" class="d-none">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <input type="hidden" name="id" id="delete_pliego_process_id" value="">
+                        </form>
+                        <script>
+                        (function () {
+                            var delForm = document.getElementById('adminForm_delete_pliego_process');
+                            var delId = document.getElementById('delete_pliego_process_id');
+                            var msg = <?php echo json_encode($l('COM_ORDENPRODUCCION_PLIEGO_PROCESS_CONFIRM_DELETE', '¿Eliminar este proceso adicional? Dejará de mostrarse en cotizaciones nuevas.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                            if (!delForm || !delId) {
+                                return;
+                            }
+                            document.querySelectorAll('.op-delete-pliego-process').forEach(function (btn) {
+                                btn.addEventListener('click', function () {
+                                    var id = this.getAttribute('data-process-id');
+                                    if (!id || !window.confirm(msg)) {
+                                        return;
+                                    }
+                                    delId.value = id;
+                                    delForm.submit();
+                                });
+                            });
+                        })();
+                        </script>
                     <?php endif; ?>
                 </div>
             </div>
