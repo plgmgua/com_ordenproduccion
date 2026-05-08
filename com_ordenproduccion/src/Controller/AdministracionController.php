@@ -250,12 +250,7 @@ class AdministracionController extends BaseController
         $cols = ['Serie | Número', 'Fecha de Emisión', 'NIT', 'Tipo', 'Cliente', 'Total Factura (Q)'];
         $rows = [];
         foreach ($items as $invoice) {
-            $felExtra = [];
-            if (!empty($invoice->fel_extra) && is_string($invoice->fel_extra)) {
-                $felExtra = json_decode($invoice->fel_extra, true) ?: [];
-            }
-            $serie = $felExtra['autorizacion_serie'] ?? '';
-            $numero = $felExtra['autorizacion_numero_dte'] ?? '';
+            [$serie, $numero] = InvoiceListHelper::resolveAutorizacionSerieNumero($invoice);
             $serieNumero = trim($serie . ' | ' . $numero) ?: '—';
             $fecha = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
             $fechaStr = $fecha ? Factory::getDate($fecha)->format('d-m-Y H:i:s') : '—';

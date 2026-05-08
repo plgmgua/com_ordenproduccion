@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.58-STABLE] - 2026-05-06
+
+### Fixed
+- **Facturas (lista y export):** La columna «Serie | Número» rellena `autorizacion_serie` / `autorizacion_numero_dte` desde el XML almacenado (`fel_local_xml_path`) o la respuesta Digifact (`fel_response_json`) cuando faltan en `fel_extra`, igual que en la vista detalle — corrige filas «Simulacro» que mostraban `— | —`.
+
 ## [3.118.57-STABLE] - 2026-05-06
 
 ### Fixed

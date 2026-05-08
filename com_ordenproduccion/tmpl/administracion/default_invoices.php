@@ -805,12 +805,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
             </thead>
             <tbody>
                 <?php foreach ($invoices as $invoice):
-                    $felExtra = [];
-                    if (!empty($invoice->fel_extra) && is_string($invoice->fel_extra)) {
-                        $felExtra = json_decode($invoice->fel_extra, true) ?: [];
-                    }
-                    $serie  = $felExtra['autorizacion_serie'] ?? '';
-                    $numero = $felExtra['autorizacion_numero_dte'] ?? '';
+                    [$serie, $numero] = InvoiceListHelper::resolveAutorizacionSerieNumero($invoice);
                     $fechaEmision = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
                     if ($fechaEmision) {
                         $fechaEmision = HTMLHelper::_('date', $fechaEmision, 'd-m-Y H:i:s');
