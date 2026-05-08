@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.53-STABLE] - 2026-05-08
+
+### Fixed
+- **Factura (FEL):** `Serie` and `Numero` on `NumeroAutorizacion` are read via DOM (and regex fallback) so they populate reliably from Digifact XML; invoice detail also re-parses `fel_local_xml_path` or `fel_response_json` when `fel_extra` omits those fields (existing invoices).
+
 ## [3.118.52-STABLE] - 2026-05-08
 
 ### Added

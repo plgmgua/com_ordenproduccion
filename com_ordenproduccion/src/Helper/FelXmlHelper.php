@@ -236,6 +236,21 @@ class FelXmlHelper
             return $out;
         }
 
+        // NumeroAutorizacion (Serie + Numero attributes): prefer DOM — SimpleXML often omits attrs on namespaced docs.
+        $naDom = self::extractNumeroAutorizacionFromDom($xmlContent);
+        if ($naDom['serie'] !== '') {
+            $out['autorizacion_serie'] = $naDom['serie'];
+        }
+        if ($naDom['numero'] !== '') {
+            $out['autorizacion_numero_dte'] = $naDom['numero'];
+        }
+        if ($naDom['text'] !== '') {
+            $out['numero_autorizacion_text'] = $naDom['text'];
+        }
+        if ($out['autorizacion_serie'] === '' || $out['autorizacion_numero_dte'] === '') {
+            self::mergeNumeroAutorizacionAttrsFromRegex($xmlContent, $out);
+        }
+
         libxml_use_internal_errors(true);
         $sx = @simplexml_load_string($xmlContent);
         if ($sx === false) {
@@ -259,22 +274,10 @@ class FelXmlHelper
             return $out;
         }
 
-        $numNodes = $certificacion->xpath('.//*[local-name()="NumeroAutorizacion"]');
-        if (\is_array($numNodes)) {
-            foreach ($numNodes as $na) {
-                $a = $na->attributes();
-                if ($a) {
-                    $serieAttr = $a['Serie'] ?? $a['serie'] ?? null;
-                    $numAttr   = $a['Numero'] ?? $a['numero'] ?? null;
-                    if ($serieAttr !== null) {
-                        $out['autorizacion_serie'] = trim((string) $serieAttr);
-                    }
-                    if ($numAttr !== null) {
-                        $out['autorizacion_numero_dte'] = trim((string) $numAttr);
-                    }
-                }
-                $out['numero_autorizacion_text'] = trim((string) $na);
-                break;
+        if ($out['numero_autorizacion_text'] === '') {
+            $numNodes = $certificacion->xpath('.//*[local-name()="NumeroAutorizacion"]');
+            if (\is_array($numNodes) && isset($numNodes[0])) {
+                $out['numero_autorizacion_text'] = trim((string) $numNodes[0]);
             }
         }
 
@@ -292,6 +295,128 @@ class FelXmlHelper
         }
 
         return $out;
+    }
+
+    /**
+     * Pull XML bytes from a raw Digifact HTTP body (JSON envelope with responseData*, or raw XML).
+     *
+     * @since  3.118.53
+     */
+    public static function tryExtractXmlFromDigifactResponseBody(string $body): string
+    {
+        $body = trim($body);
+        if ($body === '') {
+            return '';
+        }
+        $trim = ltrim($body);
+        if (strpos($trim, '<') === 0) {
+            return $body;
+        }
+        $j = json_decode($body, true);
+        if (!\is_array($j)) {
+            return '';
+        }
+        foreach (['responseData1', 'responseData2', 'responseData3'] as $dataKey) {
+            if (empty($j[$dataKey]) || !\is_string($j[$dataKey])) {
+                continue;
+            }
+            $raw = trim($j[$dataKey]);
+            if ($raw === '') {
+                continue;
+            }
+            $decoded = base64_decode($raw, true);
+            if ($decoded === false || $decoded === '') {
+                continue;
+            }
+            if (strpos(ltrim($decoded), '<') === 0) {
+                return $decoded;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @return  array{serie:string, numero:string, text:string}
+     */
+    private static function extractNumeroAutorizacionFromDom(string $xml): array
+    {
+        $ret = ['serie' => '', 'numero' => '', 'text' => ''];
+        $dom = new \DOMDocument();
+        if (!@$dom->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)) {
+            return $ret;
+        }
+        $xp   = new \DOMXPath($dom);
+        $list = $xp->query('//*[local-name()="NumeroAutorizacion"]');
+        if (!$list || $list->length < 1) {
+            return $ret;
+        }
+        for ($i = 0; $i < $list->length; $i++) {
+            $el = $list->item($i);
+            if (!$el instanceof \DOMElement) {
+                continue;
+            }
+            $serie = self::domElementGetAttributeLenient($el, 'Serie');
+            $num   = self::domElementGetAttributeLenient($el, 'Numero');
+            $text  = trim($el->textContent);
+            if ($serie !== '' || $num !== '') {
+                return ['serie' => $serie, 'numero' => $num, 'text' => $text];
+            }
+        }
+        $first = $list->item(0);
+        if ($first instanceof \DOMElement) {
+            $ret['serie']  = self::domElementGetAttributeLenient($first, 'Serie');
+            $ret['numero'] = self::domElementGetAttributeLenient($first, 'Numero');
+            $ret['text']   = trim($first->textContent);
+        }
+
+        return $ret;
+    }
+
+    private static function domElementGetAttributeLenient(\DOMElement $el, string $localName): string
+    {
+        if ($el->hasAttribute($localName)) {
+            return trim($el->getAttribute($localName));
+        }
+        foreach ($el->attributes ?? [] as $attr) {
+            if (!$attr instanceof \DOMAttr) {
+                continue;
+            }
+            $n = $attr->name;
+            if ($n === $localName) {
+                return trim($attr->value);
+            }
+            if (str_contains($n, ':') && strcasecmp(substr($n, strrpos($n, ':') + 1), $localName) === 0) {
+                return trim($attr->value);
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $out  extractCertificacionDisplayMeta partial (modified in place)
+     */
+    private static function mergeNumeroAutorizacionAttrsFromRegex(string $xml, array &$out): void
+    {
+        if (!preg_match('/<(?:[\w.-]+:)?NumeroAutorizacion\b([^>]*?)(?:\/>|>)/u', $xml, $m)) {
+            return;
+        }
+        $blob = $m[1];
+        if (($out['autorizacion_serie'] ?? '') === '') {
+            if (preg_match('/\bSerie\s*=\s*"([^"]*)"/ui', $blob, $x)) {
+                $out['autorizacion_serie'] = $x[1];
+            } elseif (preg_match("/\bSerie\s*=\s*'([^']*)'/ui", $blob, $x)) {
+                $out['autorizacion_serie'] = $x[1];
+            }
+        }
+        if (($out['autorizacion_numero_dte'] ?? '') === '') {
+            if (preg_match('/\bNumero\s*=\s*"([^"]*)"/ui', $blob, $x)) {
+                $out['autorizacion_numero_dte'] = $x[1];
+            } elseif (preg_match("/\bNumero\s*=\s*'([^']*)'/ui", $blob, $x)) {
+                $out['autorizacion_numero_dte'] = $x[1];
+            }
+        }
     }
 
     /**

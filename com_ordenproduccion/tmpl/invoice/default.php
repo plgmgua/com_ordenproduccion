@@ -14,6 +14,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
@@ -25,6 +26,40 @@ $isFel = $isFelImport || $isCotizacionFel;
 $felExtra = [];
 if (!empty($item->fel_extra) && is_string($item->fel_extra)) {
     $felExtra = json_decode($item->fel_extra, true) ?: [];
+}
+
+if ($isFel && (($felExtra['autorizacion_serie'] ?? '') === '' || ($felExtra['autorizacion_numero_dte'] ?? '') === '')) {
+    $xmlRaw = '';
+    $relXml = trim((string) ($item->fel_local_xml_path ?? ''));
+    if ($relXml !== '' && is_file(JPATH_ROOT . '/' . $relXml)) {
+        $fromDisk = @file_get_contents(JPATH_ROOT . '/' . $relXml);
+        if ($fromDisk !== false && $fromDisk !== '') {
+            $xmlRaw = $fromDisk;
+        }
+    }
+    if ($xmlRaw === '' && !empty($item->fel_response_json) && is_string($item->fel_response_json)) {
+        $xmlRaw = FelXmlHelper::tryExtractXmlFromDigifactResponseBody($item->fel_response_json);
+    }
+    if ($xmlRaw !== '') {
+        $meta = FelXmlHelper::extractCertificacionDisplayMeta($xmlRaw);
+        if ($meta['autorizacion_serie'] !== '') {
+            $felExtra['autorizacion_serie'] = $meta['autorizacion_serie'];
+        }
+        if ($meta['autorizacion_numero_dte'] !== '') {
+            $felExtra['autorizacion_numero_dte'] = $meta['autorizacion_numero_dte'];
+        }
+        if (!empty($meta['certificacion']) && is_array($meta['certificacion'])) {
+            $prevCert = isset($felExtra['certificacion']) && is_array($felExtra['certificacion']) ? $felExtra['certificacion'] : [];
+            foreach (['nit_certificador', 'nombre_certificador', 'fecha_hora_certificacion'] as $ck) {
+                if (($prevCert[$ck] ?? '') === '' && ($meta['certificacion'][$ck] ?? '') !== '') {
+                    $prevCert[$ck] = $meta['certificacion'][$ck];
+                }
+            }
+            if ($prevCert !== []) {
+                $felExtra['certificacion'] = $prevCert;
+            }
+        }
+    }
 }
 
 $l = function ($key, $fallback) {
