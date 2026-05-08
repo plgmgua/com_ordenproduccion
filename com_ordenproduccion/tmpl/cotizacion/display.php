@@ -110,7 +110,7 @@ $felProcessUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.pro
 
 $ebipayMockAvailable = !empty($this->ebipayMockAvailable);
 $canEbiPay = $ebipayMockAvailable
-    && (AccessHelper::isInVentasGroup() || AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser());
+    && AccessHelper::isInStrictAdministracionGroup();
 $ebipayStoredLinks = [];
 $ebipayCodigoInterno = isset($quotation->ebipay_codigo_interno) ? trim((string) $quotation->ebipay_codigo_interno) : '';
 if (!empty($quotation->ebipay_mock_json)) {

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.45-STABLE] - 2026-05-06
+
+### Changed
+- **Cotización — Link de pago (prueba) / ebi pay (mock):** Section and **`createEbiPayLink`** JSON task visible/allowed only for the **Administración** group ( **`isInStrictAdministracionGroup()`** ), same as Proveedores creation — not Ventas or Admon-only.
+
 ## [3.118.44-STABLE] - 2026-05-06
 
 ### Changed
