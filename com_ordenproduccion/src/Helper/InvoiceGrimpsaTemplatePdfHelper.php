@@ -18,41 +18,6 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 
 /**
- * Letter PDF with Grimpsa CMY bars (top/bottom) and page numbers.
- */
-final class InvoiceGrimpsaPdfDocument extends \FPDF
-{
-    private const CMY_H = 4.0;
-
-    public function __construct()
-    {
-        parent::__construct('P', 'mm', [215.9, 279.4]);
-    }
-
-    public function Header(): void
-    {
-        $thirdW = $this->GetPageWidth() / 3;
-        $this->SetXY(0, 0);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($this, $thirdW, self::CMY_H, 1);
-    }
-
-    public function Footer(): void
-    {
-        $ph     = $this->GetPageHeight();
-        $thirdW = $this->GetPageWidth() / 3;
-        $this->SetFont('Helvetica', '', 7);
-        $this->SetTextColor(96, 96, 96);
-        $this->SetXY(0, $ph - self::CMY_H - 5);
-        $this->Cell($this->GetPageWidth(), 4, CotizacionPdfHelper::encodeTextForFpdf(
-            'Página ' . $this->PageNo() . ' de {nb}'
-        ), 0, 0, 'C');
-        $this->SetTextColor(0, 0, 0);
-        $this->SetXY(0, $ph - self::CMY_H);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($this, $thirdW, self::CMY_H, 1);
-    }
-}
-
-/**
  * @internal  Class name kept for backwards compatibility with controllers and templates.
  */
 final class InvoiceGrimpsaTemplatePdfHelper
@@ -145,7 +110,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
     public static function isTemplateAvailable(): bool
     {
-        return is_file(JPATH_ROOT . '/components/com_ordenproduccion/libraries/fpdf/fpdf.php');
+        return FpdfHelper::getFpdfPath() !== null;
     }
 
     /**
@@ -157,10 +122,9 @@ final class InvoiceGrimpsaTemplatePdfHelper
      */
     public static function build(object $inv): string
     {
-        if (!self::isTemplateAvailable()) {
+        if (!FpdfHelper::register()) {
             throw new \RuntimeException('FPDF not found');
         }
-        require_once JPATH_ROOT . '/components/com_ordenproduccion/libraries/fpdf/fpdf.php';
 
         $felExtra = [];
         if (!empty($inv->fel_extra) && is_string($inv->fel_extra)) {

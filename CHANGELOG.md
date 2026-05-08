@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.57-STABLE] - 2026-05-06
+
+### Fixed
+- **PDF factura Grimpsa:** Error `Class "FPDF" not found` al generar el PDF: la subclase que extiende `FPDF` vive ahora en `InvoiceGrimpsaPdfDocument.php` y `InvoiceGrimpsaTemplatePdfHelper::build()` llama primero a `FpdfHelper::register()`. `FpdfHelper` también busca FPDF bajo `JPATH_ROOT` en el componente.
+
 ## [3.118.56-STABLE] - 2026-05-08
 
 ### Changed

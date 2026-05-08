@@ -26,6 +26,7 @@ class FpdfHelper
     {
         $candidates = [
             JPATH_SITE . '/components/com_ordenproduccion/libraries/fpdf/fpdf.php',
+            JPATH_ROOT . '/components/com_ordenproduccion/libraries/fpdf/fpdf.php',
             JPATH_ROOT . '/fpdf/fpdf.php',
             JPATH_ROOT . '/libraries/fpdf/fpdf.php',
         ];
