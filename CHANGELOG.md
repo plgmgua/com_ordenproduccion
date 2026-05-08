@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.49-STABLE] - 2026-05-06
+
+### Changed
+- **Cotización — Factura electrónica (motor de pruebas / mock FELplex):** Panel and JSON tasks **`invoice.issueFromQuotation`**, **`invoice.processFelIssuance`**, **`invoice.felIssuanceStatus`** require **Super User** (`core.admin` via **`AccessHelper::isSuperUser()`**). **`invoice.downloadFelArtifact`** for mock cotización artifacts (paths under `fel_issued/` but not `/digifact`) is **Super User only**; other FEL downloads keep Ventas / Administración / Admon / Super User ACL.
+
 ## [3.118.48-STABLE] - 2026-05-06
 
 ### Added

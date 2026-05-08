@@ -19,6 +19,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -510,7 +511,7 @@ class InvoiceController extends BaseController
             $app->close();
         }
 
-        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+        if (!AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
             $app->close();
         }
@@ -576,7 +577,7 @@ class InvoiceController extends BaseController
             $app->close();
         }
 
-        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+        if (!AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
             $app->close();
         }
@@ -622,7 +623,7 @@ class InvoiceController extends BaseController
             $app->close();
         }
 
-        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+        if (!AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
             $app->close();
         }
@@ -679,13 +680,6 @@ class InvoiceController extends BaseController
             return;
         }
 
-        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
-            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
-
-            return;
-        }
-
         $invoiceId = $this->input->getInt('invoice_id', 0);
         $kind      = $this->input->getCmd('type', 'pdf');
         if ($invoiceId < 1 || !\in_array($kind, ['pdf', 'xml'], true)) {
@@ -699,6 +693,23 @@ class InvoiceController extends BaseController
         $inv   = $model ? $model->getItem($invoiceId) : null;
         if (!$inv) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (FelInvoiceHelper::isMockFelplexQuotationArtifactInvoice($inv) && !AccessHelper::isSuperUser()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $qid = (int) ($inv->quotation_id ?? 0);
+            $app->redirect(Route::_($qid > 0
+                ? 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $qid
+                : 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInVentasGroup() && !AccessHelper::isInAdministracionOrAdmonGroup() && !AccessHelper::isSuperUser()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
 
             return;

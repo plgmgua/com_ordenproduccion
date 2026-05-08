@@ -21,6 +21,41 @@ use Joomla\CMS\Uri\Uri;
 class FelInvoiceHelper
 {
     /**
+     * Whether this invoice row holds artifacts from the **mock FELplex** pipeline for a cotización
+     * (under fel_issued/, not the Digifact direct subfolder). Used for Super User–only download ACL.
+     *
+     * @param   object  $inv  Invoice row (fel_local_* paths, quotation_id)
+     *
+     * @return  bool
+     *
+     * @since   3.118.49
+     */
+    public static function isMockFelplexQuotationArtifactInvoice(object $inv): bool
+    {
+        $qid = (int) ($inv->quotation_id ?? 0);
+        if ($qid < 1) {
+            return false;
+        }
+        $norm = static function (string $p): string {
+            return str_replace('\\', '/', $p);
+        };
+        $pdf = $norm(trim((string) ($inv->fel_local_pdf_path ?? '')));
+        $xml = $norm(trim((string) ($inv->fel_local_xml_path ?? '')));
+        $path = $pdf !== '' ? $pdf : $xml;
+        if ($path === '') {
+            return false;
+        }
+        if (!str_contains($path, 'fel_issued/')) {
+            return false;
+        }
+        if (str_contains($path, '/digifact')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Absolute non-SEF URL for invoice.downloadFelArtifact with CSRF token in query string.
      *
      * Same behaviour as cotizacion.downloadPdf: PDF opens in the browser (inline) unless $forceDownload is true (adds download=1).

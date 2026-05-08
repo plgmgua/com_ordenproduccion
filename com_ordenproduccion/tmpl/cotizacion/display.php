@@ -104,7 +104,7 @@ $felEngineAvailable = !empty($this->felEngineAvailable);
 $felInv = isset($this->felInvoiceForQuotation) ? $this->felInvoiceForQuotation : null;
 $felStatus = $felInv ? (string) ($felInv->fel_issue_status ?? '') : '';
 $canFelIssue = $quotationConfirmed && $felEngineAvailable
-    && (AccessHelper::isInVentasGroup() || AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser());
+    && AccessHelper::isSuperUser();
 $felIssueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.issueFromQuotation&format=json', false);
 $felProcessUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false);
 
