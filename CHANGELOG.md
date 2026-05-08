@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.46-STABLE] - 2026-05-06
+
+### Fixed
+- **Confirmar Cotización modal:** Mandatory document questions no longer start with **both radios unchecked** (which kept «Finalizar» disabled). Defaults are **No** / **No**; choosing **Sí** then **No** clears file inputs and re-evaluates the submit button via **`syncDocPanels` → `applyFinalizarState`** and a deferred **`applyFinalizarState`** after radio changes.
+
 ## [3.118.45-STABLE] - 2026-05-06
 
 ### Changed

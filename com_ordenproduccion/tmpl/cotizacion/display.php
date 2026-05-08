@@ -1074,6 +1074,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                                     }
                                 }
                             }
+                            applyFinalizarState();
                         }
                         function siFileOk(radioName, fileInputId, hasExisting) {
                             var r = modal.querySelector('input[name="' + radioName + '"]:checked');
@@ -1109,26 +1110,31 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                             }
                         }
                         function resetDocumentChoices() {
-                            modal.querySelectorAll('input[name="confirmar_adjunta_cotizacion_firmada"]').forEach(function(r) {
-                                r.checked = false;
-                            });
-                            modal.querySelectorAll('input[name="confirmar_adjunta_orden_compra"]').forEach(function(r) {
-                                r.checked = false;
-                            });
+                            var noCot = document.getElementById('confirmar_cot_firmada_no');
+                            var noOc = document.getElementById('confirmar_orden_compra_no');
+                            if (noCot) {
+                                noCot.checked = true;
+                            }
+                            if (noOc) {
+                                noOc.checked = true;
+                            }
                             syncDocPanels();
                         }
-                        modal.addEventListener('change', function(ev) {
+                        function onConfirmarDocChoiceOrFile(ev) {
                             var t = ev.target;
                             if (!t) {
                                 return;
                             }
                             if (t.name === 'confirmar_adjunta_cotizacion_firmada' || t.name === 'confirmar_adjunta_orden_compra') {
                                 syncDocPanels();
+                                window.setTimeout(applyFinalizarState, 0);
+                                return;
                             }
-                            if (t.name === 'confirmar_adjunta_cotizacion_firmada' || t.name === 'confirmar_adjunta_orden_compra' || t.type === 'file') {
+                            if (t.type === 'file') {
                                 applyFinalizarState();
                             }
-                        });
+                        }
+                        modal.addEventListener('change', onConfirmarDocChoiceOrFile);
                         modal.addEventListener('shown.bs.modal', function() {
                             if (!bodyEl) {
                                 return;
