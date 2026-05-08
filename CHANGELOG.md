@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.51-STABLE] - 2026-05-08
+
+### Changed
+- **Ajustes → Cert. Logs:** Payload `<pre>` blocks wrap within the component width (no horizontal scrolling), with vertical scroll and max height. Added **Beautify JSON** / **Show raw** on headers, request, and response; **Decode Base64 → XML** on response parses Digifact-style JSON (e.g. `responseData1`), UTF-8–decodes Base64, and shows pretty-printed XML below.
+
 ## [3.118.50-STABLE] - 2026-05-06
 
 ### Added

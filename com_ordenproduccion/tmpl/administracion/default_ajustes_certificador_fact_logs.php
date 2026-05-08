@@ -19,8 +19,52 @@ $pagination = $this->certificadorDigifactLogPagination ?? null;
 if ($rows !== []) {
     HTMLHelper::_('bootstrap.collapse');
 }
+
+$jsBeautify   = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_BEAUTIFY_JSON'));
+$jsRestore    = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESTORE_RAW'));
+$jsDecodeErr  = json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_DECODE_ERROR'));
 ?>
-<div class="admin-dashboard px-2 py-1 mx-auto" style="max-width: 1400px; font-size: 0.8125rem;">
+<style>
+.digifact-log-wrap {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+.digifact-log-table {
+    table-layout: fixed;
+    width: 100%;
+}
+.digifact-log-table th,
+.digifact-log-table td {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+}
+.digifact-log-table td.digifact-log-col-expand {
+    width: 2rem;
+    white-space: nowrap;
+}
+.digifact-log-pre {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow-x: hidden;
+    max-height: 480px;
+    overflow-y: auto;
+    font-size: 0.7rem;
+    line-height: 1.35;
+}
+.digifact-log-toolbar .btn {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+}
+</style>
+<div class="admin-dashboard digifact-log-wrap px-2 py-1 mx-auto" style="max-width: 1400px; font-size: 0.8125rem;">
     <h2 class="h5 mb-2">
         <i class="fas fa-clipboard-list"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_TITLE'); ?>
@@ -41,11 +85,11 @@ if ($rows !== []) {
         <?php if ($pagination !== null) : ?>
             <div class="mb-2"><?php echo $pagination->getListFooter(); ?></div>
         <?php endif; ?>
-        <div class="table-responsive mb-2">
-            <table class="table table-hover table-sm align-middle mb-0">
+        <div class="mb-2 digifact-log-wrap">
+            <table class="table table-hover table-sm align-middle mb-0 digifact-log-table">
                 <thead class="table-light">
                     <tr class="text-muted" style="font-size: 0.75rem;">
-                        <th scope="col" style="width:2rem;"></th>
+                        <th scope="col" class="digifact-log-col-expand"></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_CREATED'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_ENV'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_OP'); ?></th>
@@ -74,7 +118,7 @@ if ($rows !== []) {
                         $hdrs    = (string) ($row->request_headers_json ?? '');
                         ?>
                         <tr>
-                            <td class="py-1">
+                            <td class="py-1 digifact-log-col-expand">
                                 <button class="btn btn-sm btn-outline-secondary py-0 px-1" type="button"
                                         data-bs-toggle="collapse" data-bs-target="#<?php echo $rid; ?>"
                                         aria-expanded="false" aria-controls="<?php echo $rid; ?>"
@@ -93,23 +137,51 @@ if ($rows !== []) {
                             <td class="small"><span title="<?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($urlShort, ENT_QUOTES, 'UTF-8'); ?></span></td>
                         </tr>
                         <tr class="collapse" id="<?php echo $rid; ?>">
-                            <td colspan="10" class="bg-light border-top-0 small py-2">
+                            <td colspan="10" class="bg-light border-top-0 small py-2 digifact-log-wrap">
                                 <?php if ($hdrs !== '') : ?>
-                                    <div class="mb-2"><strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_HEADERS'); ?></strong>
-                                        <pre class="mb-0 mt-1 p-2 bg-white border rounded" style="font-size: 0.7rem; max-height: 200px; overflow: auto; white-space: pre-wrap;"><?php echo htmlspecialchars($hdrs, ENT_QUOTES, 'UTF-8'); ?></pre>
+                                    <div class="mb-2 digifact-log-json-block" data-digifact-block="headers">
+                                        <div class="digifact-log-toolbar d-flex flex-wrap align-items-center gap-1 mb-1">
+                                            <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_HEADERS'); ?></strong>
+                                            <button type="button" class="btn btn-sm btn-outline-primary js-digifact-beautify-json"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_BEAUTIFY_JSON'); ?></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary js-digifact-restore-raw d-none"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESTORE_RAW'); ?></button>
+                                        </div>
+                                        <pre class="digifact-log-pre p-2 bg-white border rounded" dir="ltr"><?php echo htmlspecialchars($hdrs, ENT_QUOTES, 'UTF-8'); ?></pre>
                                     </div>
                                 <?php endif; ?>
                                 <?php if ($reqBody !== '') : ?>
-                                    <div class="mb-2"><strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_REQUEST'); ?></strong>
-                                        <pre class="mb-0 mt-1 p-2 bg-white border rounded" style="font-size: 0.7rem; max-height: 320px; overflow: auto; white-space: pre-wrap;"><?php echo htmlspecialchars($reqBody, ENT_QUOTES, 'UTF-8'); ?></pre>
+                                    <div class="mb-2 digifact-log-json-block" data-digifact-block="request">
+                                        <div class="digifact-log-toolbar d-flex flex-wrap align-items-center gap-1 mb-1">
+                                            <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_REQUEST'); ?></strong>
+                                            <button type="button" class="btn btn-sm btn-outline-primary js-digifact-beautify-json"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_BEAUTIFY_JSON'); ?></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary js-digifact-restore-raw d-none"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESTORE_RAW'); ?></button>
+                                        </div>
+                                        <pre class="digifact-log-pre p-2 bg-white border rounded" dir="ltr"><?php echo htmlspecialchars($reqBody, ENT_QUOTES, 'UTF-8'); ?></pre>
                                     </div>
                                 <?php endif; ?>
-                                <div class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESPONSE'); ?></strong>
+                                <div class="mb-1 digifact-log-json-block" data-digifact-block="response">
+                                    <?php if ($resBody !== '') : ?>
+                                        <div class="digifact-log-toolbar d-flex flex-wrap align-items-center gap-1 mb-1">
+                                            <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESPONSE'); ?></strong>
+                                            <button type="button" class="btn btn-sm btn-outline-primary js-digifact-beautify-json"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_BEAUTIFY_JSON'); ?></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary js-digifact-restore-raw d-none"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESTORE_RAW'); ?></button>
+                                            <button type="button" class="btn btn-sm btn-outline-success js-digifact-decode-b64-xml"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_DECODE_B64_XML'); ?></button>
+                                        </div>
+                                    <?php else : ?>
+                                        <div class="mb-1"><strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_RESPONSE'); ?></strong></div>
+                                    <?php endif; ?>
                                     <?php $cerr = (string) ($row->client_error ?? ''); ?>
                                     <?php if ($cerr !== '') : ?>
                                         <div class="text-danger small mb-1"><?php echo htmlspecialchars($cerr, ENT_QUOTES, 'UTF-8'); ?></div>
                                     <?php endif; ?>
-                                    <pre class="mb-0 mt-1 p-2 bg-white border rounded" style="font-size: 0.7rem; max-height: 420px; overflow: auto; white-space: pre-wrap;"><?php echo htmlspecialchars($resBody !== '' ? $resBody : '—', ENT_QUOTES, 'UTF-8'); ?></pre>
+                                    <?php if ($resBody !== '') : ?>
+                                        <pre class="digifact-log-pre p-2 bg-white border rounded js-digifact-response-raw" dir="ltr"><?php echo htmlspecialchars($resBody, ENT_QUOTES, 'UTF-8'); ?></pre>
+                                        <div class="digifact-log-xml-panel mt-2 d-none">
+                                            <strong class="d-block mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_XML_DECODED'); ?></strong>
+                                            <pre class="digifact-log-pre p-2 bg-white border rounded border-success js-digifact-xml-out" dir="ltr"></pre>
+                                        </div>
+                                    <?php else : ?>
+                                        <pre class="digifact-log-pre p-2 bg-white border rounded text-muted" dir="ltr">—</pre>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -122,3 +194,218 @@ if ($rows !== []) {
         <?php endif; ?>
     <?php endif; ?>
 </div>
+<?php if ($rows !== []) : ?>
+<script>
+(function () {
+    'use strict';
+    var labels = {
+        beautify: <?php echo $jsBeautify; ?>,
+        restore: <?php echo $jsRestore; ?>,
+        decodeErr: <?php echo $jsDecodeErr; ?>
+    };
+
+    function ensureRawBackup(pre) {
+        if (!pre.dataset.digifactRawBackup) {
+            pre.dataset.digifactRawBackup = pre.textContent;
+        }
+    }
+
+    function beautifyJsonText(text) {
+        var t = text.replace(/^\uFEFF/, '').trim();
+        if (t === '' || t === '—') {
+            throw new Error('empty');
+        }
+        var obj = JSON.parse(t);
+        return JSON.stringify(obj, null, 2);
+    }
+
+    function formatXml(xml) {
+        xml = xml.replace(/^\uFEFF/, '').trim();
+        if (!xml) {
+            return xml;
+        }
+        try {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(xml, 'application/xml');
+            if (doc.getElementsByTagName('parsererror').length) {
+                return simpleFormatXml(xml);
+            }
+            var ser = new XMLSerializer();
+            var node = doc.documentElement;
+            if (!node) {
+                return simpleFormatXml(xml);
+            }
+            return simpleFormatXml(ser.serializeToString(node));
+        } catch (e) {
+            return simpleFormatXml(xml);
+        }
+    }
+
+    function simpleFormatXml(xml) {
+        var formatted = '';
+        var reg = /(>)(<)(\/*)/g;
+        xml = xml.replace(reg, '$1\n$2$3');
+        var pad = 0;
+        xml.split('\n').forEach(function (node) {
+            var trim = node.trim();
+            if (!trim) {
+                return;
+            }
+            var indent = 0;
+            if (trim.match(/^<\/.+/)) {
+                pad = Math.max(pad - 1, 0);
+            }
+            formatted += new Array(pad + 1).join('  ') + trim + '\n';
+            if (trim.match(/^<[^!?][^>]*[^\/]>/) && !trim.match(/^<\/|\/\s*>/) && !trim.match(/<\/.+?>$/)) {
+                pad++;
+            }
+        });
+        return formatted.trim();
+    }
+
+    function base64ToUtf8(b64) {
+        var clean = b64.replace(/\s/g, '');
+        var binary = atob(clean);
+        var bytes = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    function findBase64Field(obj, depth) {
+        if (!obj || typeof obj !== 'object' || depth > 10) {
+            return null;
+        }
+        var preferred = ['responseData1', 'ResponseData1', 'responseData2', 'ResponseData2',
+            'RESPONSEDATA1', 'RESPONSEDATA2', 'XmlDocument', 'xmlDocument', 'XML'];
+        var k, v, i, nested, inner;
+        for (i = 0; i < preferred.length; i++) {
+            k = preferred[i];
+            v = obj[k];
+            if (typeof v === 'string' && v.replace(/\s/g, '').length > 64) {
+                return v;
+            }
+        }
+        if (typeof obj.response === 'string' && obj.response.trim() !== '') {
+            try {
+                inner = JSON.parse(obj.response);
+                nested = findBase64Field(inner, depth + 1);
+                if (nested) {
+                    return nested;
+                }
+            } catch (e) {
+                /* ignore */
+            }
+        }
+        for (k in obj) {
+            if (!Object.prototype.hasOwnProperty.call(obj, k)) {
+                continue;
+            }
+            v = obj[k];
+            if (typeof v === 'string') {
+                var s = v.replace(/\s/g, '');
+                if (s.length > 120 && /^[A-Za-z0-9+/]+=*$/.test(s)) {
+                    return v;
+                }
+            } else if (v && typeof v === 'object') {
+                nested = findBase64Field(v, depth + 1);
+                if (nested) {
+                    return nested;
+                }
+            }
+        }
+        return null;
+    }
+
+    function parseResponseForB64(text) {
+        var t = text.replace(/^\uFEFF/, '').trim();
+        if (!t || t === '—') {
+            throw new Error(labels.decodeErr);
+        }
+        var data = JSON.parse(t);
+        var raw = findBase64Field(data, 0);
+        if (!raw) {
+            throw new Error(labels.decodeErr);
+        }
+        return base64ToUtf8(raw);
+    }
+
+    document.addEventListener('click', function (ev) {
+        var el = ev.target;
+        if (!el || !el.closest) {
+            return;
+        }
+        var beautifyBtn = el.closest('.js-digifact-beautify-json');
+        var restoreBtn = el.closest('.js-digifact-restore-raw');
+        var decodeBtn = el.closest('.js-digifact-decode-b64-xml');
+
+        if (beautifyBtn) {
+            ev.preventDefault();
+            var blockB = beautifyBtn.closest('.digifact-log-json-block');
+            var preB = blockB ? (blockB.querySelector('.js-digifact-response-raw') || blockB.querySelector('.digifact-log-pre')) : null;
+            if (!preB) {
+                return;
+            }
+            ensureRawBackup(preB);
+            try {
+                preB.textContent = beautifyJsonText(preB.textContent);
+                beautifyBtn.classList.add('d-none');
+                var rb = blockB.querySelector('.js-digifact-restore-raw');
+                if (rb) {
+                    rb.classList.remove('d-none');
+                }
+            } catch (e) {
+                window.alert(labels.decodeErr);
+            }
+            return;
+        }
+
+        if (restoreBtn) {
+            ev.preventDefault();
+            var blockR = restoreBtn.closest('.digifact-log-json-block');
+            var preR = blockR ? (blockR.querySelector('.js-digifact-response-raw') || blockR.querySelector('.digifact-log-pre')) : null;
+            if (!preR || preR.dataset.digifactRawBackup === undefined) {
+                return;
+            }
+            preR.textContent = preR.dataset.digifactRawBackup;
+            restoreBtn.classList.add('d-none');
+            var bb = blockR.querySelector('.js-digifact-beautify-json');
+            if (bb) {
+                bb.classList.remove('d-none');
+            }
+            if (blockR.getAttribute('data-digifact-block') === 'response') {
+                var panel = blockR.querySelector('.digifact-log-xml-panel');
+                var xmlOut = blockR.querySelector('.js-digifact-xml-out');
+                if (panel) {
+                    panel.classList.add('d-none');
+                }
+                if (xmlOut) {
+                    xmlOut.textContent = '';
+                }
+            }
+            return;
+        }
+
+        if (decodeBtn) {
+            ev.preventDefault();
+            var blockD = decodeBtn.closest('.digifact-log-json-block');
+            var rawPre = blockD ? blockD.querySelector('.js-digifact-response-raw') : null;
+            var xmlPanel = blockD ? blockD.querySelector('.digifact-log-xml-panel') : null;
+            var xmlPre = blockD ? blockD.querySelector('.js-digifact-xml-out') : null;
+            if (!rawPre || !xmlPanel || !xmlPre) {
+                return;
+            }
+            try {
+                var decoded = parseResponseForB64(rawPre.textContent);
+                var pretty = decoded.trim().startsWith('<') ? formatXml(decoded) : decoded;
+                xmlPre.textContent = pretty;
+                xmlPanel.classList.remove('d-none');
+            } catch (err) {
+                window.alert(labels.decodeErr + (err && err.message ? ' ' + err.message : ''));
+            }
+        }
+    });
+})();
+</script>
+<?php endif; ?>
