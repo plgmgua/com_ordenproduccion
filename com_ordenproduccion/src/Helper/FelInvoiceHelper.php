@@ -87,6 +87,28 @@ class FelInvoiceHelper
     }
 
     /**
+     * Grimpsa branded invoice PDF (FPDI template + data overlay). Opens inline in the browser unless $forceDownload.
+     *
+     * @since  3.118.54
+     */
+    public static function downloadGrimpsaFacturaPdfUrl(int $invoiceId, bool $forceDownload = false): string
+    {
+        $params = [
+            'option'     => 'com_ordenproduccion',
+            'task'       => 'invoice.downloadGrimpsaFacturaPdf',
+            'invoice_id' => max(1, $invoiceId),
+            'format'     => 'raw',
+            'tmpl'       => 'component',
+        ];
+        if ($forceDownload) {
+            $params['download'] = '1';
+        }
+        $root = rtrim(Uri::root(false), '/');
+
+        return $root . '/index.php?' . http_build_query($params);
+    }
+
+    /**
      * Rows from NUC JSON AdditionalDocumentInfo for display: each item has label + value (trimmed strings).
      *
      * Supports compact Digifact shape (@Name + #text) and legacy nested ADENDA Info (Name + Value).

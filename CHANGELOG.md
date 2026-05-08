@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.54-STABLE] - 2026-05-08
+
+### Added
+- **Factura — PDF formato Grimpsa:** Plantilla US Letter (`media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf` basada en FACTURA GRIMPSA 026), rellenada con datos del registro vía FPDI + FPDF. Botón en la vista detalle; tarea `invoice.downloadGrimpsaFacturaPdf`. Coordenadas en `InvoiceGrimpsaTemplatePdfHelper` si se sustituye la plantilla.
+
 ## [3.118.53-STABLE] - 2026-05-08
 
 ### Fixed

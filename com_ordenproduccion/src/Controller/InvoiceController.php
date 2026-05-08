@@ -20,6 +20,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -485,6 +486,104 @@ class InvoiceController extends BaseController
         $app->setHeader('Cache-Control', 'private, max-age=0', true);
         $app->sendHeaders();
         \readfile($abs);
+        $app->close();
+    }
+
+    /**
+     * PDF factura formato Grimpsa (plantilla FPDI + datos de la factura).
+     *
+     * GET: invoice_id, optional download=1. Session + canViewInvoiceDetail (sin token en URL).
+     *
+     * @return  void
+     *
+     * @since   3.118.54
+     */
+    public function downloadGrimpsaFacturaPdf()
+    {
+        $app = $this->app;
+
+        if (Factory::getUser()->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        $invoiceId = $this->input->getInt('invoice_id', 0);
+        if ($invoiceId < 1 || !AccessHelper::canViewInvoiceDetail($invoiceId)) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(
+                Route::_(
+                    AccessHelper::isInAdministracionOrAdmonGroup()
+                        ? 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices'
+                        : 'index.php?option=com_ordenproduccion&view=ordenes',
+                    false
+                )
+            );
+
+            return;
+        }
+
+        if (!InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_GRIMPSA_PDF_NO_TEMPLATE'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        $model = $this->getModel('Invoice');
+        $inv   = $model ? $model->getItem($invoiceId) : null;
+        if (!$inv) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
+            $app->redirect(
+                Route::_(
+                    AccessHelper::isInAdministracionOrAdmonGroup()
+                        ? 'index.php?option=com_ordenproduccion&view=administracion&tab=invoices'
+                        : 'index.php?option=com_ordenproduccion&view=ordenes',
+                    false
+                )
+            );
+
+            return;
+        }
+
+        try {
+            $binary = InvoiceGrimpsaTemplatePdfHelper::build($inv);
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_GRIMPSA_PDF_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        if ($binary === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_GRIMPSA_PDF_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
+
+            return;
+        }
+
+        if (\function_exists('ini_set')) {
+            @\ini_set('zlib.output_compression', '0');
+        }
+        while (\ob_get_level() > 0) {
+            \ob_end_clean();
+        }
+
+        $invNum = \preg_replace('/[^A-Za-z0-9\-_]/', '_', (string) ($inv->invoice_number ?? ('FAC-' . $invoiceId)));
+        $fname  = $invNum . '-grimpsa.pdf';
+        $forceDownload = (int) $this->input->getInt('download', 0) === 1;
+        $disposition   = $forceDownload ? 'attachment' : 'inline';
+
+        if (\method_exists($app, 'clearHeaders')) {
+            $app->clearHeaders();
+        }
+        $app->setHeader('Content-Type', 'application/pdf', true);
+        $app->setHeader('Content-Disposition', $disposition . '; filename="' . $fname . '"', true);
+        $app->setHeader('Content-Length', (string) \strlen($binary), true);
+        $app->setHeader('Cache-Control', 'private, max-age=0', true);
+        $app->sendHeaders();
+        echo $binary;
         $app->close();
     }
 

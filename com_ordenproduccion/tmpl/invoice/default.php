@@ -15,6 +15,7 @@ use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
@@ -90,6 +91,12 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
             <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
             <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_BUTTON'); ?></button>
         </form>
+        <?php endif; ?>
+        <?php if (InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable()) : ?>
+        <a href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl((int) ($item->id ?? 0)), ENT_QUOTES, 'UTF-8'); ?>"
+           target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-file-pdf"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DOWNLOAD_GRIMPSA_PDF'); ?>
+        </a>
         <?php endif; ?>
         <?php if (AccessHelper::isInAdministracionOrAdmonGroup()) : ?>
         <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices'); ?>" class="btn btn-outline-secondary btn-sm">
