@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.118.55-STABLE</version>
+    <version>3.118.56-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -35,9 +35,8 @@
 
     <media destination="com_ordenproduccion" folder="media">
         <folder>css</folder>
-        <folder>images</folder>
+        <folder>images</folder>    
         <folder>js</folder>
-        <folder>pdf_templates</folder>
     </media>
 
     <administration>

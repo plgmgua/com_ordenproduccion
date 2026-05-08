@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.56-STABLE] - 2026-05-08
+
+### Changed
+- **PDF factura Grimpsa:** Generación completa con FPDF (texto, tablas con bordes, emisor/receptor/autorización/certificador/totales); ya no se usa plantilla PDF incrustada ni FPDI. Barras CMY y pie con número de página. Plantilla `media/.../pdf_templates` eliminada del paquete.
+
 ## [3.118.55-STABLE] - 2026-05-08
 
 ### Fixed
