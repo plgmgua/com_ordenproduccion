@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.44-STABLE] - 2026-05-06
+
+### Changed
+- **Cotización — Factura relacionada (Digifact):** Section and tasks **`digifactPreviewNucPayloadFromQuotation`** / **`digifactIssueDirectFromQuotation`** are restricted to the **Administración** group (same rules as creating Proveedores: id 12 or title Administracion/Administración; **not** Ventas or Admon-only). **Super users** (`core.admin`) unchanged. New **`AccessHelper::isInStrictAdministracionGroup()`**; **`canCreateProveedores()`** delegates to it.
+
 ## [3.118.43-STABLE] - 2026-05-07
 
 ### Added

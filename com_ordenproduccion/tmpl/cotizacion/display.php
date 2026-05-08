@@ -125,8 +125,8 @@ $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacio
 $felForDirectCheck = new FelInvoiceIssuanceService();
 $digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
 $canSeeFacturaRelacionadaSection = $felEngineAvailable
-    && (AccessHelper::isInVentasGroup() || AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser());
-$canDigifactEmitPermission = AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser();
+    && AccessHelper::isInStrictAdministracionGroup();
+$canDigifactEmitPermission = AccessHelper::isInStrictAdministracionGroup();
 $digifactCfgOk = (trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
     || trim((string) ($digifactCredsCheck['url_cert_nit'] ?? '')) !== '')
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
@@ -726,7 +726,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
     <?php if ($canSeeFacturaRelacionadaSection) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-factura-relacionada">
         <h3 class="h6 text-uppercase text-muted mb-2"><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_TITLE', 'Related invoice', 'Factura relacionada')); ?></h3>
-        <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Related invoice (Digifact): Administration/Admon or super users can emit without confirming the quotation. Configure Certificador in Administration → Settings.', 'Factura relacionada (Digifact): Administración/Admon o superusuarios pueden emitir sin confirmar la cotización. Configure el Certificador en Administración → Ajustes.')); ?></p>
+        <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Related invoice (Digifact): Only the Administración group and super users see this block. Configure Certificador in Administration → Settings.', 'Factura relacionada (Digifact): Solo el grupo Administración y superusuarios ven este bloque. Configure el Certificador en Administración → Ajustes.')); ?></p>
         <?php if ($felInv) : ?>
         <div class="mb-2 small">
             <span class="text-muted"><?php echo htmlspecialchars(Text::_('JSTATUS')); ?>:</span>
@@ -901,7 +901,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
         <?php elseif ($felStatus === 'completed') : ?>
         <?php /* Issued; PDF/XML above */ ?>
         <?php elseif (!$canDigifactEmitPermission) : ?>
-        <p class="small text-muted mb-0"><i class="fas fa-user-lock"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_EMIT_ADMIN_ONLY', 'Direct Digifact issue is available to Administration / Admon groups or super users.', 'La emisión directa por Digifact está disponible para el grupo Administración / Admon o superusuarios.')); ?></p>
+        <p class="small text-muted mb-0"><i class="fas fa-user-lock"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_EMIT_ADMIN_ONLY', 'Direct Digifact issue is available to the Administración group and super users.', 'La emisión directa por Digifact está disponible para el grupo Administración y superusuarios.')); ?></p>
         <?php elseif (!$digifactCfgOk) : ?>
         <p class="small text-warning mb-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_NEED_CONFIG', 'Configure «URL certificación / CF» and a valid bearer token in Administration → Settings → Certificador de facturación.', 'Configure «URL certificación / CF» y un token válido en Administración → Ajustes → Certificador de facturación.')); ?></p>
         <?php endif; ?>

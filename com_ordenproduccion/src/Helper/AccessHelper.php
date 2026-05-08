@@ -289,15 +289,15 @@ class AccessHelper
     }
 
     /**
-     * Whether the current user may register a **new** vendor (Proveedores).
-     * Allowed: global config admins and members of the **Administracion / Administración** group (incl. id 12).
-     * Not allowed: **Admon-only** users (they may still view/edit existing if they pass the tab ACL).
+     * **Administración** group only (id **12** or title **Administracion** / **Administración**).
+     * Excludes **Admon-only** membership. Global super users (`core.admin`) are included.
+     * Used for strict admin features (e.g. new Proveedores, Factura relacionada Digifact UI / direct issue).
      *
      * @return  bool
      *
-     * @since   3.110.2
+     * @since   3.118.44
      */
-    public static function canCreateProveedores(): bool
+    public static function isInStrictAdministracionGroup(): bool
     {
         $user = Factory::getUser();
 
@@ -336,6 +336,20 @@ class AccessHelper
         }
 
         return false;
+    }
+
+    /**
+     * Whether the current user may register a **new** vendor (Proveedores).
+     * Allowed: global config admins and members of the **Administracion / Administración** group (incl. id 12).
+     * Not allowed: **Admon-only** users (they may still view/edit existing if they pass the tab ACL).
+     *
+     * @return  bool
+     *
+     * @since   3.110.2
+     */
+    public static function canCreateProveedores(): bool
+    {
+        return self::isInStrictAdministracionGroup();
     }
 
     /**
