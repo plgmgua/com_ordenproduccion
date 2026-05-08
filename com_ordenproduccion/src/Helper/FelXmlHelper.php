@@ -212,6 +212,89 @@ class FelXmlHelper
     }
 
     /**
+     * Read SAT Certificacion / NumeroAutorizacion (UUID text + Serie + Numero) and certifier metadata for UI (#__ordenproduccion_invoices.fel_extra).
+     *
+     * @return  array{autorizacion_serie:string, autorizacion_numero_dte:string, numero_autorizacion_text:string, certificacion:array{nit_certificador:string, nombre_certificador:string, fecha_hora_certificacion:string}}
+     *
+     * @since   3.118.52
+     */
+    public static function extractCertificacionDisplayMeta(string $xmlContent): array
+    {
+        $out = [
+            'autorizacion_serie'         => '',
+            'autorizacion_numero_dte'    => '',
+            'numero_autorizacion_text'   => '',
+            'certificacion'              => [
+                'nit_certificador'          => '',
+                'nombre_certificador'      => '',
+                'fecha_hora_certificacion' => '',
+            ],
+        ];
+
+        $xmlContent = trim($xmlContent);
+        if ($xmlContent === '' || strpos(ltrim($xmlContent), '<') !== 0) {
+            return $out;
+        }
+
+        libxml_use_internal_errors(true);
+        $sx = @simplexml_load_string($xmlContent);
+        if ($sx === false) {
+            return $out;
+        }
+
+        $dteNs = self::$namespaces['dte'];
+        $certificacion = null;
+        $sat = $sx->children($dteNs)->SAT ?? null;
+        if ($sat) {
+            $dteRoot = $sat->children($dteNs)->DTE ?? null;
+            if ($dteRoot) {
+                $certificacion = $dteRoot->children($dteNs)->Certificacion ?? null;
+            }
+        }
+        if (!$certificacion) {
+            $nodes = $sx->xpath('//*[local-name()="Certificacion"]');
+            $certificacion = isset($nodes[0]) ? $nodes[0] : null;
+        }
+        if (!$certificacion) {
+            return $out;
+        }
+
+        $numNodes = $certificacion->xpath('.//*[local-name()="NumeroAutorizacion"]');
+        if (\is_array($numNodes)) {
+            foreach ($numNodes as $na) {
+                $a = $na->attributes();
+                if ($a) {
+                    $serieAttr = $a['Serie'] ?? $a['serie'] ?? null;
+                    $numAttr   = $a['Numero'] ?? $a['numero'] ?? null;
+                    if ($serieAttr !== null) {
+                        $out['autorizacion_serie'] = trim((string) $serieAttr);
+                    }
+                    if ($numAttr !== null) {
+                        $out['autorizacion_numero_dte'] = trim((string) $numAttr);
+                    }
+                }
+                $out['numero_autorizacion_text'] = trim((string) $na);
+                break;
+            }
+        }
+
+        $nitNodes = $certificacion->xpath('.//*[local-name()="NITCertificador"]');
+        if (\is_array($nitNodes) && isset($nitNodes[0])) {
+            $out['certificacion']['nit_certificador'] = trim((string) $nitNodes[0]);
+        }
+        $nomNodes = $certificacion->xpath('.//*[local-name()="NombreCertificador"]');
+        if (\is_array($nomNodes) && isset($nomNodes[0])) {
+            $out['certificacion']['nombre_certificador'] = trim((string) $nomNodes[0]);
+        }
+        $fhNodes = $certificacion->xpath('.//*[local-name()="FechaHoraCertificacion"]');
+        if (\is_array($fhNodes) && isset($fhNodes[0])) {
+            $out['certificacion']['fecha_hora_certificacion'] = trim((string) $fhNodes[0]);
+        }
+
+        return $out;
+    }
+
+    /**
      * Produce an XML document suitable for {@see self::parseFelXml} / admin XML import:
      * removes xmldsig signatures and common Digifact noise (Adenda, AdditionalDocumentInfo),
      * optionally re-wraps DatosEmision + Certificacion in a minimal dte:GTDocumento shell (SAT portal style).

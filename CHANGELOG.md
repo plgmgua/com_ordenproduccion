@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.52-STABLE] - 2026-05-08
+
+### Added
+- **Digifact certification → Factura view:** Certified XML (`dte:Certificacion`) is parsed for `NumeroAutorizacion` text (SAT UUID), `Serie` / `Numero` attributes, and certifier NIT / name / `FechaHoraCertificacion`, merged into `fel_extra` on successful NUC direct issue.
+
+### Changed
+- **Invoice detail (Factura):** Treats `cotizacion_fel` like FEL for SAT header blocks; shows autorización (from `fel_autorizacion_uuid` or `felplex_uuid`), Serie / Número DTE, and certificación timestamps when present.
+
 ## [3.118.51-STABLE] - 2026-05-08
 
 ### Changed

@@ -1069,6 +1069,69 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Merge Digifact SAT Certificacion fields into invoice fel_extra (Serie, Número DTE, certificador block).
+     *
+     * @param  array<string, mixed>  $certificacionMeta  From interpretDigifactCertificarResponse certificacion_meta
+     *
+     * @since  3.118.52
+     */
+    protected function mergeInvoiceFelExtraWithCertificacionMeta(int $invoiceId, array $certificacionMeta): ?string
+    {
+        if ($invoiceId < 1 || !$this->hasColumn('fel_extra')) {
+            return null;
+        }
+
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select($this->db->quoteName('fel_extra'))
+                ->from($this->db->quoteName('#__ordenproduccion_invoices'))
+                ->where($this->db->quoteName('id') . ' = ' . $invoiceId)
+        );
+        $prev = $this->db->loadResult();
+        $felExtra = [];
+        if (\is_string($prev) && $prev !== '') {
+            $decoded = json_decode($prev, true);
+            if (\is_array($decoded)) {
+                $felExtra = $decoded;
+            }
+        }
+
+        $serie  = trim((string) ($certificacionMeta['autorizacion_serie'] ?? ''));
+        $numDte = trim((string) ($certificacionMeta['autorizacion_numero_dte'] ?? ''));
+        $touched = false;
+        if ($serie !== '') {
+            $felExtra['autorizacion_serie'] = $serie;
+            $touched = true;
+        }
+        if ($numDte !== '') {
+            $felExtra['autorizacion_numero_dte'] = $numDte;
+            $touched = true;
+        }
+
+        $certIn = $certificacionMeta['certificacion'] ?? [];
+        if (\is_array($certIn)) {
+            $certFiltered = array_filter([
+                'nit_certificador'         => trim((string) ($certIn['nit_certificador'] ?? '')),
+                'nombre_certificador'      => trim((string) ($certIn['nombre_certificador'] ?? '')),
+                'fecha_hora_certificacion' => trim((string) ($certIn['fecha_hora_certificacion'] ?? '')),
+            ]);
+            if ($certFiltered !== []) {
+                $prevCert = \is_array($felExtra['certificacion'] ?? null) ? $felExtra['certificacion'] : [];
+                $felExtra['certificacion'] = array_merge($prevCert, $certFiltered);
+                $touched = true;
+            }
+        }
+
+        if (!$touched && ($prev === null || trim((string) $prev) === '')) {
+            return null;
+        }
+
+        $json = json_encode($felExtra, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+
+        return $json !== false ? $json : null;
+    }
+
+    /**
      * @param  array<string, mixed>  $fields
      */
     protected function updateInvoiceFields(int $invoiceId, array $fields): void
@@ -1717,7 +1780,7 @@ class FelInvoiceIssuanceService
     /**
      * Interpret Digifact certification HTTP body: JSON envelope with base64 responseData*, raw XML, or legacy text.
      *
-     * @return  array{xml:string, pdf:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool}
+     * @return  array{xml:string, pdf:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool, certificacion_meta:array<string, mixed>}
      *
      * @since   3.118.34
      */
@@ -1725,13 +1788,23 @@ class FelInvoiceIssuanceService
     {
         $body = trim($body);
         $out  = [
-            'xml'            => '',
-            'pdf'            => '',
-            'uuid'           => '',
-            'autorizacion'   => '',
-            'digifact_code'  => null,
-            'digifact_msg'   => '',
-            'success'        => false,
+            'xml'                 => '',
+            'pdf'                 => '',
+            'uuid'                => '',
+            'autorizacion'        => '',
+            'digifact_code'       => null,
+            'digifact_msg'        => '',
+            'success'             => false,
+            'certificacion_meta'  => [
+                'autorizacion_serie'       => '',
+                'autorizacion_numero_dte'  => '',
+                'numero_autorizacion_text' => '',
+                'certificacion'            => [
+                    'nit_certificador'          => '',
+                    'nombre_certificador'       => '',
+                    'fecha_hora_certificacion'  => '',
+                ],
+            ],
         ];
 
         if ($body === '') {
@@ -1769,6 +1842,7 @@ class FelInvoiceIssuanceService
             }
 
             if ($out['xml'] !== '') {
+                $out['certificacion_meta'] = FelXmlHelper::extractCertificacionDisplayMeta($out['xml']);
                 $satFileUuid = $this->extractSatAutorizacionUuidFromFelXml($out['xml']);
                 if ($satFileUuid !== '') {
                     $out['uuid'] = $satFileUuid;
@@ -1779,6 +1853,15 @@ class FelInvoiceIssuanceService
                 }
                 if (!empty($parsedXml['autorizacion'])) {
                     $out['autorizacion'] = $parsedXml['autorizacion'];
+                }
+                $metaText = trim((string) ($out['certificacion_meta']['numero_autorizacion_text'] ?? ''));
+                if ($metaText !== '') {
+                    if ($out['uuid'] === '') {
+                        $out['uuid'] = $metaText;
+                    }
+                    if ($out['autorizacion'] === '') {
+                        $out['autorizacion'] = $metaText;
+                    }
                 }
             }
             if ($out['uuid'] === '' && $auth !== '') {
@@ -1794,10 +1877,20 @@ class FelInvoiceIssuanceService
 
         if (strpos(ltrim($body), '<') === 0) {
             $out['xml']         = $body;
+            $out['certificacion_meta'] = FelXmlHelper::extractCertificacionDisplayMeta($body);
             $satFileUuid        = $this->extractSatAutorizacionUuidFromFelXml($body);
             $parsed             = $this->parseDigifactCertificarResponseBody($body);
             $out['uuid']        = $satFileUuid !== '' ? $satFileUuid : ($parsed['uuid'] ?? '');
             $out['autorizacion'] = $parsed['autorizacion'] ?? '';
+            $metaText = trim((string) ($out['certificacion_meta']['numero_autorizacion_text'] ?? ''));
+            if ($metaText !== '') {
+                if ($out['uuid'] === '') {
+                    $out['uuid'] = $metaText;
+                }
+                if ($out['autorizacion'] === '') {
+                    $out['autorizacion'] = $metaText;
+                }
+            }
             $legacyOk           = $out['uuid'] !== '' || $out['autorizacion'] !== ''
                 || (strlen($body) > 30 && stripos($body, 'dte') !== false);
             $out['success']     = $httpCode >= 200 && $httpCode < 300 && $legacyOk;
@@ -1931,6 +2024,10 @@ class FelInvoiceIssuanceService
             $now = Factory::getDate()->toSql();
             $felplex = $uuid !== '' ? $uuid : null;
             $felAuth = $auth !== '' ? $auth : ($uuid !== '' ? $uuid : null);
+            $felExtraMerged = $this->mergeInvoiceFelExtraWithCertificacionMeta(
+                $invoiceId,
+                \is_array($interpret['certificacion_meta'] ?? null) ? $interpret['certificacion_meta'] : []
+            );
             $update  = [
                 'fel_issue_status'       => 'completed',
                 'fel_issue_error'        => null,
@@ -1949,6 +2046,9 @@ class FelInvoiceIssuanceService
                 'modified'               => $now,
                 'modified_by'            => $userId,
             ];
+            if ($felExtraMerged !== null) {
+                $update['fel_extra'] = $felExtraMerged;
+            }
             $update = $this->filterToExistingColumns($update);
             $this->updateInvoiceFields($invoiceId, $update);
 

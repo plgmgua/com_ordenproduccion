@@ -19,7 +19,9 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
 $item = $this->item;
 $lineItems = is_array($item->line_items ?? null) ? $item->line_items : [];
-$isFel = !empty($item->invoice_source) && $item->invoice_source === 'fel_import';
+$isFelImport = !empty($item->invoice_source) && $item->invoice_source === 'fel_import';
+$isCotizacionFel = !empty($item->invoice_source) && $item->invoice_source === 'cotizacion_fel';
+$isFel = $isFelImport || $isCotizacionFel;
 $felExtra = [];
 if (!empty($item->fel_extra) && is_string($item->fel_extra)) {
     $felExtra = json_decode($item->fel_extra, true) ?: [];
@@ -91,8 +93,21 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
                 <?php endif; ?>
             </div>
             <div class="col-md-6 text-md-end small">
-                <?php if ($isFel && !empty($item->fel_autorizacion_uuid)) : ?>
-                <div><strong>Número de autorización:</strong><br><?php echo htmlspecialchars($item->fel_autorizacion_uuid); ?></div>
+                <?php
+                $showFelAutorizacion = $isFel && (
+                    !empty($item->fel_autorizacion_uuid)
+                    || !empty($item->felplex_uuid)
+                    || !empty($felExtra['autorizacion_serie'])
+                );
+                ?>
+                <?php if ($showFelAutorizacion) : ?>
+                <?php
+                $authDisp = trim((string) ($item->fel_autorizacion_uuid ?? ''));
+                if ($authDisp === '') {
+                    $authDisp = trim((string) ($item->felplex_uuid ?? ''));
+                }
+                ?>
+                <div><strong>Número de autorización:</strong><br><?php echo $authDisp !== '' ? htmlspecialchars($authDisp, ENT_QUOTES, 'UTF-8') : '—'; ?></div>
                 <?php if (!empty($felExtra['autorizacion_serie']) || !empty($felExtra['autorizacion_numero_dte'])) : ?>
                 <div class="mt-1">Serie: <?php echo htmlspecialchars($felExtra['autorizacion_serie'] ?? '-'); ?> | Numero: <?php echo htmlspecialchars($felExtra['autorizacion_numero_dte'] ?? '-'); ?></div>
                 <?php endif; ?>
