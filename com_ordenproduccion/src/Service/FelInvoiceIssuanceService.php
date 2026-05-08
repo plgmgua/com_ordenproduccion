@@ -13,6 +13,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Service;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
@@ -1425,14 +1426,18 @@ class FelInvoiceIssuanceService
     /**
      * POST JSON to Digifact NUC transform; Authorization must be raw JWT (no "Bearer ").
      *
+     * @param   array<string, mixed>|null  $digifactLogContext  When not null, full request/response bodies are stored in the Digifact log table
+     *                                                        (Authorization redacted in headers JSON only).
+     *
      * @return  array{http_code:int, body:string, error:string}
      */
-    public function postDigifactCertificarJson(string $requestUrl, string $jsonBody, string $bearerJwt): array
+    public function postDigifactCertificarJson(string $requestUrl, string $jsonBody, string $bearerJwt, ?array $digifactLogContext = null): array
     {
         $bearerJwt = trim($bearerJwt);
         if ($requestUrl === '' || $bearerJwt === '') {
             return ['http_code' => 0, 'body' => '', 'error' => 'missing_url_or_token'];
         }
+        $t0 = microtime(true);
         try {
             $http     = HttpFactory::getHttp();
             $response = $http->post(
@@ -1447,14 +1452,44 @@ class FelInvoiceIssuanceService
             );
             $code = (int) ($response->code ?? 0);
 
-            return [
+            $out = [
                 'http_code' => $code,
                 'body'      => (string) ($response->body ?? ''),
                 'error'     => '',
             ];
         } catch (\Throwable $e) {
-            return ['http_code' => 0, 'body' => '', 'error' => $e->getMessage()];
+            $out = ['http_code' => 0, 'body' => '', 'error' => $e->getMessage()];
         }
+
+        if ($digifactLogContext !== null) {
+            $duration = (int) round((microtime(true) - $t0) * 1000);
+            $env      = (($digifactLogContext['environment'] ?? 'test') === 'prod') ? 'prod' : 'test';
+            $inv      = isset($digifactLogContext['invoice_id']) ? (int) $digifactLogContext['invoice_id'] : 0;
+            $quo      = isset($digifactLogContext['quotation_id']) ? (int) $digifactLogContext['quotation_id'] : 0;
+            CertificadorDigifactLogHelper::record([
+                'environment'          => $env,
+                'operation'            => (string) ($digifactLogContext['operation'] ?? 'certify_nuc'),
+                'request_method'       => 'POST',
+                'request_url'          => $requestUrl,
+                'request_headers_json' => json_encode(
+                    [
+                        'Authorization' => '***REDACTED***',
+                        'Content-Type'  => 'application/json',
+                        'Accept'        => 'application/json, text/xml, application/xml, */*',
+                    ],
+                    JSON_UNESCAPED_UNICODE
+                ),
+                'request_body'         => $jsonBody,
+                'response_http_code'  => (int) $out['http_code'],
+                'response_body'        => (string) $out['body'],
+                'client_error'         => (string) $out['error'],
+                'duration_ms'          => $duration,
+                'invoice_id'           => $inv > 0 ? $inv : null,
+                'quotation_id'         => $quo > 0 ? $quo : null,
+            ]);
+        }
+
+        return $out;
     }
 
     /**
@@ -1834,7 +1869,16 @@ class FelInvoiceIssuanceService
             'fel_issue_error'    => null,
         ]);
 
-        $httpResult = $this->postDigifactCertificarJson($url, $jsonBody, $bearer);
+        $env = $this->getActiveCertificadorModo();
+        $env = ($env === 'prod') ? 'prod' : 'test';
+        $logCtx = [
+            'environment'   => $env,
+            'operation'     => 'certify_nuc',
+            'invoice_id'    => $invoiceId,
+            'quotation_id'  => $quotationId,
+        ];
+
+        $httpResult = $this->postDigifactCertificarJson($url, $jsonBody, $bearer, $logCtx);
         if ($httpResult['error'] !== '') {
             $this->markFailed($invoiceId, $httpResult['error']);
 

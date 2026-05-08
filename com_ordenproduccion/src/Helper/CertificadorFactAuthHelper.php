@@ -21,13 +21,16 @@ class CertificadorFactAuthHelper
     /**
      * POST {"Username":"GT.{nit}.{usuario}","Password":"..."} to auth URL.
      *
+     * @param   array<string, mixed>|null  $digifactLogContext  When set (e.g. environment, operation), request/response are stored in
+     *                                                        `#__ordenproduccion_certificador_digifact_log` (password / token redacted).
+     *
      * @return  array{ok: bool, http_code: int, token: string, expira_en: string, otorgado_a: string, error: string, raw_excerpt: string}
      */
-    public static function fetchAuthToken(string $authUrl, string $nit, string $usuario, string $password, int $timeoutSec = 30): array
+    public static function fetchAuthToken(string $authUrl, string $nit, string $usuario, string $password, int $timeoutSec = 30, ?array $digifactLogContext = null): array
     {
-        $authUrl = trim($authUrl);
-        $nit     = trim($nit);
-        $usuario = trim($usuario);
+        $authUrl  = trim($authUrl);
+        $nit      = trim($nit);
+        $usuario  = trim($usuario);
         $password = (string) $password;
 
         $empty = [
@@ -40,129 +43,144 @@ class CertificadorFactAuthHelper
             'raw_excerpt'  => '',
         ];
 
+        $t0             = microtime(true);
+        $result         = $empty;
+        $rawBodyForLog  = '';
+        $bodyForRequest = '';
+        $httpCode       = 0;
+
         if ($authUrl === '' || !filter_var($authUrl, FILTER_VALIDATE_URL)) {
-            $empty['error'] = 'invalid_url';
-
-            return $empty;
-        }
-        if ($nit === '' || $usuario === '') {
-            $empty['error'] = 'missing_user_fields';
-
-            return $empty;
-        }
-        if ($password === '') {
-            $empty['error'] = 'missing_password';
-
-            return $empty;
-        }
-
-        $username = 'GT.' . $nit . '.' . $usuario;
-        $payload  = [
-            'Username' => $username,
-            'Password' => $password,
-        ];
-        $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-        if ($body === false) {
-            $empty['error'] = 'json_encode_failed';
-
-            return $empty;
-        }
-
-        $httpCode   = 0;
-        $rawBody    = '';
-        $curlErr    = '';
-
-        if (\function_exists('curl_init')) {
-            $ch = curl_init($authUrl);
-            curl_setopt_array($ch, [
-                \CURLOPT_POST           => true,
-                \CURLOPT_POSTFIELDS    => $body,
-                \CURLOPT_RETURNTRANSFER => true,
-                \CURLOPT_FOLLOWLOCATION => true,
-                \CURLOPT_CONNECTTIMEOUT => 15,
-                \CURLOPT_TIMEOUT        => max(5, min(120, $timeoutSec)),
-                \CURLOPT_SSL_VERIFYPEER => true,
-                \CURLOPT_SSL_VERIFYHOST => 2,
-                \CURLOPT_HTTPHEADER     => [
-                    'Content-Type: application/json',
-                    'Accept: application/json',
-                ],
-            ]);
-            $rawBody = curl_exec($ch);
-            $httpCode = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
-            $curlErr = (string) curl_error($ch);
-            curl_close($ch);
-
-            if ($rawBody === false) {
-                return [
-                    'ok' => false,
-                    'http_code' => $httpCode,
-                    'token' => '',
-                    'expira_en' => '',
-                    'otorgado_a' => '',
-                    'error' => $curlErr !== '' ? $curlErr : 'curl_exec_failed',
+            $result = array_merge($empty, ['error' => 'invalid_url']);
+        } elseif ($nit === '' || $usuario === '') {
+            $result = array_merge($empty, ['error' => 'missing_user_fields']);
+        } elseif ($password === '') {
+            $result = array_merge($empty, ['error' => 'missing_password']);
+        } else {
+            $username = 'GT.' . $nit . '.' . $usuario;
+            $payload  = [
+                'Username' => $username,
+                'Password' => $password,
+            ];
+            $bodyForRequest = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+            if ($bodyForRequest === false) {
+                $result = array_merge($empty, ['error' => 'json_encode_failed']);
+            } elseif (!\function_exists('curl_init')) {
+                $result = [
+                    'ok'          => false,
+                    'http_code'   => 0,
+                    'token'       => '',
+                    'expira_en'   => '',
+                    'otorgado_a'  => '',
+                    'error'       => 'curl_required',
                     'raw_excerpt' => '',
                 ];
+            } else {
+                $ch = curl_init($authUrl);
+                curl_setopt_array($ch, [
+                    \CURLOPT_POST           => true,
+                    \CURLOPT_POSTFIELDS    => $bodyForRequest,
+                    \CURLOPT_RETURNTRANSFER => true,
+                    \CURLOPT_FOLLOWLOCATION => true,
+                    \CURLOPT_CONNECTTIMEOUT => 15,
+                    \CURLOPT_TIMEOUT        => max(5, min(120, $timeoutSec)),
+                    \CURLOPT_SSL_VERIFYPEER => true,
+                    \CURLOPT_SSL_VERIFYHOST => 2,
+                    \CURLOPT_HTTPHEADER     => [
+                        'Content-Type: application/json',
+                        'Accept: application/json',
+                    ],
+                ]);
+                $rawBody = curl_exec($ch);
+                $httpCode = (int) curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+                $curlErr  = (string) curl_error($ch);
+                curl_close($ch);
+
+                if ($rawBody === false) {
+                    $result = [
+                        'ok'          => false,
+                        'http_code'   => $httpCode,
+                        'token'       => '',
+                        'expira_en'   => '',
+                        'otorgado_a'  => '',
+                        'error'       => $curlErr !== '' ? $curlErr : 'curl_exec_failed',
+                        'raw_excerpt' => '',
+                    ];
+                } else {
+                    $rawBody = (string) $rawBody;
+                    $rawBodyForLog = $rawBody;
+                    $excerpt       = self::excerptBody($rawBody);
+                    $decoded       = json_decode($rawBody, true);
+
+                    if (!\is_array($decoded)) {
+                        $result = [
+                            'ok'          => false,
+                            'http_code'   => $httpCode,
+                            'token'       => '',
+                            'expira_en'   => '',
+                            'otorgado_a'  => '',
+                            'error'       => 'invalid_json',
+                            'raw_excerpt' => $excerpt,
+                        ];
+                    } else {
+                        $token = isset($decoded['Token']) ? trim((string) $decoded['Token']) : '';
+                        if ($token !== '' && ($httpCode === 200 || $httpCode === 201)) {
+                            $result = [
+                                'ok'          => true,
+                                'http_code'   => $httpCode,
+                                'token'       => $token,
+                                'expira_en'   => isset($decoded['expira_en']) ? trim((string) $decoded['expira_en']) : '',
+                                'otorgado_a'  => isset($decoded['otorgado_a']) ? trim((string) $decoded['otorgado_a']) : '',
+                                'error'       => '',
+                                'raw_excerpt' => '',
+                            ];
+                        } else {
+                            $msg = '';
+                            if (isset($decoded['message'])) {
+                                $msg = \is_string($decoded['message']) ? $decoded['message'] : json_encode($decoded['message']);
+                            } elseif (isset($decoded['Message'])) {
+                                $msg = \is_string($decoded['Message']) ? $decoded['Message'] : json_encode($decoded['Message']);
+                            } elseif (isset($decoded['error'])) {
+                                $msg = \is_string($decoded['error']) ? $decoded['error'] : json_encode($decoded['error']);
+                            }
+                            $result = [
+                                'ok'          => false,
+                                'http_code'   => $httpCode,
+                                'token'       => '',
+                                'expira_en'   => '',
+                                'otorgado_a'  => '',
+                                'error'       => $msg !== '' ? $msg : ('http_' . $httpCode),
+                                'raw_excerpt' => $excerpt,
+                            ];
+                        }
+                    }
+                }
             }
-        } else {
-            return [
-                'ok'          => false,
-                'http_code'   => 0,
-                'token'       => '',
-                'expira_en'   => '',
-                'otorgado_a'  => '',
-                'error'       => 'curl_required',
-                'raw_excerpt' => '',
-            ];
         }
 
-        $rawBody = (string) $rawBody;
-        $excerpt = self::excerptBody($rawBody);
-        $decoded = json_decode($rawBody, true);
-
-        if (!\is_array($decoded)) {
-            return [
-                'ok'          => false,
-                'http_code'   => $httpCode,
-                'token'       => '',
-                'expira_en'   => '',
-                'otorgado_a'  => '',
-                'error'       => 'invalid_json',
-                'raw_excerpt' => $excerpt,
-            ];
+        if ($digifactLogContext !== null) {
+            $duration = (int) round((microtime(true) - $t0) * 1000);
+            $env      = (($digifactLogContext['environment'] ?? 'test') === 'prod') ? 'prod' : 'test';
+            $op       = (string) ($digifactLogContext['operation'] ?? 'auth_token');
+            $logBody  = (\is_string($bodyForRequest) && $bodyForRequest !== '') ? CertificadorDigifactLogHelper::redactAuthPasswordInJson($bodyForRequest) : '';
+            $logResp  = $rawBodyForLog !== '' ? CertificadorDigifactLogHelper::redactAuthTokensInJson($rawBodyForLog) : '';
+            CertificadorDigifactLogHelper::record([
+                'environment'          => $env,
+                'operation'            => $op,
+                'request_method'       => 'POST',
+                'request_url'          => $authUrl,
+                'request_headers_json' => json_encode(
+                    ['Content-Type' => 'application/json', 'Accept' => 'application/json'],
+                    JSON_UNESCAPED_UNICODE
+                ),
+                'request_body'         => $logBody,
+                'response_http_code'  => (int) ($result['http_code'] ?? $httpCode),
+                'response_body'        => $logResp,
+                'client_error'         => (string) ($result['error'] ?? ''),
+                'duration_ms'          => $duration,
+            ]);
         }
 
-        $token = isset($decoded['Token']) ? trim((string) $decoded['Token']) : '';
-        if ($token !== '' && ($httpCode === 200 || $httpCode === 201)) {
-            return [
-                'ok'          => true,
-                'http_code'   => $httpCode,
-                'token'       => $token,
-                'expira_en'   => isset($decoded['expira_en']) ? trim((string) $decoded['expira_en']) : '',
-                'otorgado_a'  => isset($decoded['otorgado_a']) ? trim((string) $decoded['otorgado_a']) : '',
-                'error'       => '',
-                'raw_excerpt' => '',
-            ];
-        }
-
-        $msg = '';
-        if (isset($decoded['message'])) {
-            $msg = is_string($decoded['message']) ? $decoded['message'] : json_encode($decoded['message']);
-        } elseif (isset($decoded['Message'])) {
-            $msg = is_string($decoded['Message']) ? $decoded['Message'] : json_encode($decoded['Message']);
-        } elseif (isset($decoded['error'])) {
-            $msg = is_string($decoded['error']) ? $decoded['error'] : json_encode($decoded['error']);
-        }
-
-        return [
-            'ok'          => false,
-            'http_code'   => $httpCode,
-            'token'       => '',
-            'expira_en'   => '',
-            'otorgado_a'  => '',
-            'error'       => $msg !== '' ? $msg : ('http_' . $httpCode),
-            'raw_excerpt' => $excerpt,
-        ];
+        return $result;
     }
 
     protected static function excerptBody(string $raw, int $max = 400): string

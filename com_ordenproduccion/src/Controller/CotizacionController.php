@@ -1037,7 +1037,20 @@ class CotizacionController extends BaseController
             $taxId    = trim((string) ($creds['nit'] ?? ''));
             $usr      = trim((string) ($creds['usuario'] ?? ''));
 
-            $rNit = CertificadorFactNitLookupHelper::fetchNitInfo($vatRaw, $urlNit, $taxId, $usr, $bearer, 45, false);
+            $digifactEnv = $cfgModel->getCertificadorFactModo();
+            $digifactEnv = ($digifactEnv === 'prod') ? 'prod' : 'test';
+            $logQuotation = ['environment' => $digifactEnv, 'quotation_id' => $quotationId];
+
+            $rNit = CertificadorFactNitLookupHelper::fetchNitInfo(
+                $vatRaw,
+                $urlNit,
+                $taxId,
+                $usr,
+                $bearer,
+                45,
+                false,
+                array_merge($logQuotation, ['operation' => 'shared_nit'])
+            );
             if (!empty($rNit['ok'])) {
                 $emit([
                     'success'  => true,
@@ -1051,7 +1064,16 @@ class CotizacionController extends BaseController
             $sharedCui = $urlCui !== '' ? $urlCui : $urlNit;
             $cuiDigits = preg_replace('/\D/', '', $vatRaw) ?? '';
             $rCui      = $cuiDigits !== ''
-                ? CertificadorFactNitLookupHelper::fetchCuiInfo($cuiDigits, $sharedCui, $taxId, $usr, $bearer, 45, false)
+                ? CertificadorFactNitLookupHelper::fetchCuiInfo(
+                    $cuiDigits,
+                    $sharedCui,
+                    $taxId,
+                    $usr,
+                    $bearer,
+                    45,
+                    false,
+                    array_merge($logQuotation, ['operation' => 'shared_cui'])
+                )
                 : ['ok' => false];
 
             if (!empty($rCui['ok'])) {

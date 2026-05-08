@@ -962,7 +962,10 @@ class AdministracionController extends BaseController
             return;
         }
 
-        $result = CertificadorFactAuthHelper::fetchAuthToken($urlAuth, $nit, $usuario, $clave);
+        $result = CertificadorFactAuthHelper::fetchAuthToken($urlAuth, $nit, $usuario, $clave, 30, [
+            'environment' => $modo,
+            'operation'   => 'admin_test_auth',
+        ]);
 
         if (!empty($result['ok'])) {
             try {

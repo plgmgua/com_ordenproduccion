@@ -638,7 +638,18 @@ class ClienteController extends FormController
             $taxId    = trim((string) ($creds['nit'] ?? ''));
             $usr      = trim((string) ($creds['usuario'] ?? ''));
 
-            $r = CertificadorFactNitLookupHelper::fetchNitInfo($nit, $shared, $taxId, $usr, $bearer, 45, $digifactDebugReveal);
+            $digifactEnv = $cfgModel->getCertificadorFactModo();
+            $digifactEnv = ($digifactEnv === 'prod') ? 'prod' : 'test';
+            $r = CertificadorFactNitLookupHelper::fetchNitInfo(
+                $nit,
+                $shared,
+                $taxId,
+                $usr,
+                $bearer,
+                45,
+                $digifactDebugReveal,
+                ['environment' => $digifactEnv, 'operation' => 'shared_nit']
+            );
 
             if (empty($r['ok'])) {
                 $out = [
@@ -728,7 +739,18 @@ class ClienteController extends FormController
             $taxId   = trim((string) ($creds['nit'] ?? ''));
             $usr     = trim((string) ($creds['usuario'] ?? ''));
 
-            $r = CertificadorFactNitLookupHelper::fetchCuiInfo($cui, $shared, $taxId, $usr, $bearer, 45, $digifactDebugReveal);
+            $digifactEnv = $cfgModel->getCertificadorFactModo();
+            $digifactEnv = ($digifactEnv === 'prod') ? 'prod' : 'test';
+            $r = CertificadorFactNitLookupHelper::fetchCuiInfo(
+                $cui,
+                $shared,
+                $taxId,
+                $usr,
+                $bearer,
+                45,
+                $digifactDebugReveal,
+                ['environment' => $digifactEnv, 'operation' => 'shared_cui']
+            );
 
             if (empty($r['ok'])) {
                 $out = [

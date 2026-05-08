@@ -428,6 +428,23 @@ class HtmlView extends BaseHtmlView
     ];
 
     /**
+     * Digifact HTTP audit log rows (Ajustes → Cert. Logs).
+     *
+     * @var    array<int, object>
+     * @since  3.118.50
+     */
+    protected $certificadorDigifactLogRows = [];
+
+    /** @var \Joomla\CMS\Pagination\Pagination|null @since 3.118.50 */
+    protected $certificadorDigifactLogPagination = null;
+
+    /** @var bool @since 3.118.50 */
+    protected $certificadorDigifactLogTableAvailable = false;
+
+    /** @var int @since 3.118.50 */
+    protected $certificadorDigifactLogTotal = 0;
+
+    /**
      * Work order numbering settings (next_order_number, order_prefix, order_format) for ajustes > numeracion_ordenes.
      *
      * @var    \stdClass|null
@@ -1172,6 +1189,10 @@ class HtmlView extends BaseHtmlView
         $this->outboundEmailLogSeeAllUsers       = false;
         $this->otWizardLogEntries                = [];
         $this->otWizardLogScannedDirs            = [];
+        $this->certificadorDigifactLogRows       = [];
+        $this->certificadorDigifactLogPagination = null;
+        $this->certificadorDigifactLogTableAvailable = false;
+        $this->certificadorDigifactLogTotal      = 0;
         $this->financieroSubtab                   = 'listado';
         $this->financieroRows                     = [];
         $this->financieroTotal                    = 0;
@@ -1972,15 +1993,56 @@ class HtmlView extends BaseHtmlView
         $this->certificadorFactSettings = ['test' => [], 'prod' => []];
         $this->certificadorFactClaveSet = ['test' => false, 'prod' => false];
         $this->certificadorFactModo = 'test';
-        if ($activeTab === 'ajustes' && $activeSubTab === 'certificador_fact') {
+        $certAjustesSubtabs = ['certificador_fact', 'certificador_fact_logs'];
+        if ($activeTab === 'ajustes' && in_array($activeSubTab, $certAjustesSubtabs, true)) {
             try {
                 $this->certificadorFactModo = $statsModel->getCertificadorFactModo();
-                $this->certificadorFactFrontendDebug = $statsModel->getCertificadorFactFrontendDebug();
-                $full = $statsModel->getCertificadorFactSettings();
-                foreach (['test', 'prod'] as $env) {
-                    $this->certificadorFactClaveSet[$env] = trim((string) ($full[$env]['clave'] ?? '')) !== '';
-                    $full[$env]['clave'] = '';
-                    $this->certificadorFactSettings[$env] = $full[$env];
+                if ($activeSubTab === 'certificador_fact') {
+                    $this->certificadorFactFrontendDebug = $statsModel->getCertificadorFactFrontendDebug();
+                    $full = $statsModel->getCertificadorFactSettings();
+                    foreach (['test', 'prod'] as $env) {
+                        $this->certificadorFactClaveSet[$env] = trim((string) ($full[$env]['clave'] ?? '')) !== '';
+                        $full[$env]['clave'] = '';
+                        $this->certificadorFactSettings[$env] = $full[$env];
+                    }
+                } else {
+                    $this->certificadorFactFrontendDebug = false;
+                    $this->certificadorFactSettings = [
+                        'test' => [
+                            'url_autenticacion' => '',
+                            'url_info' => '',
+                            'url_cert_cf' => '',
+                            'url_cert_nit' => '',
+                            'url_cert_cui' => '',
+                            'branch_code' => '',
+                            'branch_name' => '',
+                            'branch_address' => '',
+                            'branch_city' => '',
+                            'branch_district' => '',
+                            'branch_state' => '',
+                            'branch_country' => '',
+                            'nit' => '',
+                            'usuario' => '',
+                            'clave' => '',
+                        ],
+                        'prod' => [
+                            'url_autenticacion' => '',
+                            'url_info' => '',
+                            'url_cert_cf' => '',
+                            'url_cert_nit' => '',
+                            'url_cert_cui' => '',
+                            'branch_code' => '',
+                            'branch_name' => '',
+                            'branch_address' => '',
+                            'branch_city' => '',
+                            'branch_district' => '',
+                            'branch_state' => '',
+                            'branch_country' => '',
+                            'nit' => '',
+                            'usuario' => '',
+                            'clave' => '',
+                        ],
+                    ];
                 }
             } catch (\Throwable $e) {
                 $this->certificadorFactModo = 'test';
@@ -2022,15 +2084,43 @@ class HtmlView extends BaseHtmlView
                     ],
                 ];
             }
-            try {
-                $this->certificadorTokenMaintainLastLog = $statsModel->getCertificadorTokenMaintainLastLog();
-            } catch (\Throwable $e) {
-                $this->certificadorTokenMaintainLastLog = [
-                    'at'      => '',
-                    'summary' => ['test' => '', 'prod' => '', 'errors' => [], 'forced' => false],
-                ];
+            if ($activeSubTab === 'certificador_fact') {
+                try {
+                    $this->certificadorTokenMaintainLastLog = $statsModel->getCertificadorTokenMaintainLastLog();
+                } catch (\Throwable $e) {
+                    $this->certificadorTokenMaintainLastLog = [
+                        'at'      => '',
+                        'summary' => ['test' => '', 'prod' => '', 'errors' => [], 'forced' => false],
+                    ];
+                }
+                $this->syncCertificadorFactActiveViewFields();
+            } else {
+                $this->resetCertificadorFactActiveViewFields();
+                try {
+                    $this->certificadorDigifactLogTableAvailable = $statsModel->isCertificadorDigifactLogTableAvailable();
+                    $logLimit                                    = 50;
+                    $logStart                                    = max(0, (int) $input->getInt('digifact_log_limitstart', 0));
+                    $this->certificadorDigifactLogTotal          = $statsModel->countCertificadorDigifactLogs();
+                    $this->certificadorDigifactLogRows           = $statsModel->listCertificadorDigifactLogs($logLimit, $logStart);
+                    if ($this->certificadorDigifactLogTableAvailable && $this->certificadorDigifactLogTotal > 0) {
+                        $this->certificadorDigifactLogPagination = new \Joomla\CMS\Pagination\Pagination(
+                            $this->certificadorDigifactLogTotal,
+                            $logStart,
+                            $logLimit,
+                            'digifact_log_'
+                        );
+                        $this->certificadorDigifactLogPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                        $this->certificadorDigifactLogPagination->setAdditionalUrlParam('view', 'administracion');
+                        $this->certificadorDigifactLogPagination->setAdditionalUrlParam('tab', 'ajustes');
+                        $this->certificadorDigifactLogPagination->setAdditionalUrlParam('subtab', 'certificador_fact_logs');
+                    }
+                } catch (\Throwable $e) {
+                    $this->certificadorDigifactLogRows           = [];
+                    $this->certificadorDigifactLogPagination      = null;
+                    $this->certificadorDigifactLogTableAvailable = false;
+                    $this->certificadorDigifactLogTotal          = 0;
+                }
             }
-            $this->syncCertificadorFactActiveViewFields();
         } else {
             $this->resetCertificadorFactActiveViewFields();
         }

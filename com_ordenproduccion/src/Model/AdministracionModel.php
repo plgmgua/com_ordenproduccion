@@ -3646,6 +3646,61 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Whether Digifact HTTP log table exists (migration 3.118.50).
+     *
+     * @since 3.118.50
+     */
+    public function isCertificadorDigifactLogTableAvailable(): bool
+    {
+        return \Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper::tableExists();
+    }
+
+    /**
+     * @return  array<int, object>
+     *
+     * @since 3.118.50
+     */
+    public function listCertificadorDigifactLogs(int $limit = 50, int $start = 0): array
+    {
+        if (!$this->isCertificadorDigifactLogTableAvailable()) {
+            return [];
+        }
+        $db    = Factory::getDbo();
+        $limit = max(1, min(200, $limit));
+        $start = max(0, $start);
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_certificador_digifact_log'))
+            ->order($db->quoteName('created') . ' DESC')
+            ->setLimit($limit, $start);
+        $db->setQuery($query);
+
+        $rows = $db->loadObjectList();
+
+        return \is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * @since 3.118.50
+     */
+    public function countCertificadorDigifactLogs(): int
+    {
+        if (!$this->isCertificadorDigifactLogTableAvailable()) {
+            return 0;
+        }
+        $db    = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_certificador_digifact_log'));
+        $db->setQuery($query);
+        try {
+            return (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
      * Refresh bearer tokens when missing or expired (each ambiente independently when credentials exist).
      *
      * @return  array{test: string, prod: string, errors: array<int, string>}
@@ -3673,7 +3728,10 @@ class AdministracionModel extends BaseDatabaseModel
 
                     continue;
                 }
-                $r = CertificadorFactAuthHelper::fetchAuthToken($url, $nit, $usr, $pass, 45);
+                $r = CertificadorFactAuthHelper::fetchAuthToken($url, $nit, $usr, $pass, 45, [
+                    'environment' => $env,
+                    'operation'   => 'auth_token_refresh',
+                ]);
                 if (empty($r['ok']) || trim((string) ($r['token'] ?? '')) === '') {
                     $summary[$env] = 'auth_failed';
                     $summary['errors'][] = $env . ': ' . trim((string) ($r['error'] ?? 'unknown'));

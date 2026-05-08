@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.50-STABLE] - 2026-05-06
+
+### Added
+- **Digifact HTTP audit log:** New table `#__ordenproduccion_certificador_digifact_log` (migration `3.118.50.sql`) stores certification POST bodies and full API responses (including base64 payloads), plus auth and shared NIT/CUI traffic for both test and production. Passwords and bearer tokens are redacted in stored auth rows; certification rows keep the full JSON. **Ajustes** gains subtab **Cert. Logs** under Certificador de Fact with a paginated, expandable view.
+
 ## [3.118.49-STABLE] - 2026-05-06
 
 ### Changed

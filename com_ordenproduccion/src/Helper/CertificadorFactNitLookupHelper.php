@@ -126,6 +126,7 @@ class CertificadorFactNitLookupHelper
      * GET Shared until JSON parses; sets DATA1 per variant; DATA2 must already be on $queryParams.
      *
      * @param  array<string, mixed>  $queryParams
+     * @param  array<string, mixed>|null  $digifactLogContext  environment (test|prod), operation (e.g. shared_nit), quotation_id?
      * @return  array{decoded: array<string, mixed>|null, http_code: int, excerpt: string, mime: string, debug_block: array<string, mixed>, early: array<string, mixed>|null}
      */
     protected static function digifactSharedFetchUntilJsonParsed(
@@ -134,7 +135,8 @@ class CertificadorFactNitLookupHelper
         array $data1Variants,
         string $bearerToken,
         int $timeoutSec,
-        bool $revealTokenInDebug
+        bool $revealTokenInDebug,
+        ?array $digifactLogContext = null
     ): array {
         $decoded       = null;
         $rawBody       = '';
@@ -144,6 +146,7 @@ class CertificadorFactNitLookupHelper
         $debugAttempts = [];
 
         foreach ($data1Variants as $data1Val) {
+            $attemptT0            = microtime(true);
             $queryParams['DATA1'] = $data1Val;
             $builtQuery           = http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
             $path                 = isset($parts['path']) ? $parts['path'] : '/';
@@ -171,6 +174,29 @@ class CertificadorFactNitLookupHelper
             $curlErr  = (string) curl_error($ch);
             $mime     = (string) curl_getinfo($ch, \CURLINFO_CONTENT_TYPE);
             curl_close($ch);
+
+            if ($digifactLogContext !== null) {
+                $dur = (int) round((microtime(true) - $attemptT0) * 1000);
+                $env = (($digifactLogContext['environment'] ?? 'test') === 'prod') ? 'prod' : 'test';
+                $op  = (string) ($digifactLogContext['operation'] ?? 'shared_lookup');
+                $quo = isset($digifactLogContext['quotation_id']) ? (int) $digifactLogContext['quotation_id'] : 0;
+                CertificadorDigifactLogHelper::record([
+                    'environment'          => $env,
+                    'operation'            => $op,
+                    'request_method'       => 'GET',
+                    'request_url'          => $url,
+                    'request_headers_json' => json_encode(
+                        ['Authorization' => '***REDACTED***', 'Accept' => 'application/json, text/plain, */*'],
+                        JSON_UNESCAPED_UNICODE
+                    ),
+                    'request_body'         => CertificadorDigifactLogHelper::formatSharedRequestBodyForLog($queryParams),
+                    'response_http_code'  => $httpCode,
+                    'response_body'        => $rawBody !== false ? (string) $rawBody : '',
+                    'client_error'         => ($rawBody === false && $curlErr !== '') ? $curlErr : '',
+                    'duration_ms'          => $dur,
+                    'quotation_id'         => $quo > 0 ? $quo : null,
+                ]);
+            }
 
             $debugAttempts[] = [
                 'DATA1'        => $data1Val,
@@ -380,6 +406,7 @@ class CertificadorFactNitLookupHelper
      * Fetch taxpayer info for a client NIT (RTU-style response).
      *
      * @param   bool  $revealTokenInDebug  When true, curl debug lines include full JWT (POST digifact_debug=1).
+     * @param   array<string, mixed>|null  $digifactLogContext  Optional audit log (environment, operation, quotation_id).
      *
      * @return  array<string, mixed>
      */
@@ -390,7 +417,8 @@ class CertificadorFactNitLookupHelper
         string $apiUsername,
         string $bearerToken,
         int $timeoutSec = 45,
-        bool $revealTokenInDebug = false
+        bool $revealTokenInDebug = false,
+        ?array $digifactLogContext = null
     ): array {
         $bearerToken = self::normalizeAuthorizationToken(trim($bearerToken));
         $clientNit   = trim($clientNit);
@@ -436,7 +464,8 @@ class CertificadorFactNitLookupHelper
             $data1Variants,
             $bearerToken,
             $timeoutSec,
-            $revealTokenInDebug
+            $revealTokenInDebug,
+            $digifactLogContext
         );
 
         if ($fetch['early'] !== null) {
@@ -458,6 +487,7 @@ class CertificadorFactNitLookupHelper
      * Fetch person info by CUI (SHARED_GETINFOCUI; response has NOMBRE, CUI, no address).
      *
      * @param   bool  $revealTokenInDebug  When true, curl debug lines include full JWT (POST digifact_debug=1).
+     * @param   array<string, mixed>|null  $digifactLogContext  Optional audit log (environment, operation, quotation_id).
      *
      * @return  array<string, mixed>  Same shape as fetchNitInfo; nit key holds CUI for form vat.
      */
@@ -468,7 +498,8 @@ class CertificadorFactNitLookupHelper
         string $apiUsername,
         string $bearerToken,
         int $timeoutSec = 45,
-        bool $revealTokenInDebug = false
+        bool $revealTokenInDebug = false,
+        ?array $digifactLogContext = null
     ): array {
         $bearerToken = self::normalizeAuthorizationToken(trim($bearerToken));
         $clientCui   = trim($clientCui);
@@ -514,7 +545,8 @@ class CertificadorFactNitLookupHelper
             $data1Variants,
             $bearerToken,
             $timeoutSec,
-            $revealTokenInDebug
+            $revealTokenInDebug,
+            $digifactLogContext
         );
 
         if ($fetch['early'] !== null) {
