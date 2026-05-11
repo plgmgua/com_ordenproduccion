@@ -737,6 +737,8 @@ class PrecotizacionModel extends ListModel
     /**
      * Aprobaciones Ventas with an actionable pending approval on this PRE may edit lines (precios/totales)
      * antes de completar la aprobación, incluso cuando la PRE aún no está vinculada a una cotización.
+     * Includes workflows whose entity id is the PRE (solicitud cotización/descuento, creación OT) and
+     * {@see ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS}, where entity_id is the línea tercerizado.
      *
      * @param   int                   $preCotizacionId  Pre PK
      * @param   object                $item             Published row from getItem()
@@ -784,6 +786,39 @@ class PrecotizacionModel extends ListModel
                 }
 
                 if ($wf->canUserActOnPendingStep($rid, (int) $user->id)) {
+                    return true;
+                }
+            }
+
+            /*
+             * servicios_elementos_externos: entity_id is the pre-cot line id (tipo tercerizado), not the PRE pk
+             * (see cancelPendingRequestsForPreCotizacion / Preflight in approval list).
+             */
+            $db    = $this->getDatabase();
+            $tq    = $db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+                ->where($db->quoteName('line_type') . ' = ' . $db->quote('tercerizado'));
+            $db->setQuery($tq);
+
+            foreach ($db->loadColumn() ?: [] as $linePk) {
+                $linePk = (int) $linePk;
+                if ($linePk < 1) {
+                    continue;
+                }
+                $pendExt = $wf->getOpenPendingRequest(
+                    ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS,
+                    $linePk
+                );
+                if ($pendExt === null) {
+                    continue;
+                }
+                $ridExt = (int) ($pendExt->id ?? 0);
+                if ($ridExt < 1) {
+                    continue;
+                }
+                if ($wf->canUserActOnPendingStep($ridExt, (int) $user->id)) {
                     return true;
                 }
             }
