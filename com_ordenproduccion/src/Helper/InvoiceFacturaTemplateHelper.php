@@ -34,6 +34,10 @@ final class InvoiceFacturaTemplateHelper
 
     public const PLACEHOLDER_MONEDA = '{MONEDA}';
 
+    public const PLACEHOLDER_NOMBRE_CERTIFICADOR = '{NOMBRE_CERTIFICADOR}';
+
+    public const PLACEHOLDER_NIT_CERTIFICADOR = '{NIT_CERTIFICADOR}';
+
     /**
      * @return array<string, string> placeholder => language key for Ajustes UI
      */
@@ -49,6 +53,8 @@ final class InvoiceFacturaTemplateHelper
             self::PLACEHOLDER_FECHA_HORA_EMISION       => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_FECHA_HORA_EMISION',
             self::PLACEHOLDER_FECHA_HORA_CERTIFICACION => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_FECHA_HORA_CERTIFICACION',
             self::PLACEHOLDER_MONEDA                   => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_MONEDA',
+            self::PLACEHOLDER_NOMBRE_CERTIFICADOR      => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NOMBRE_CERTIFICADOR',
+            self::PLACEHOLDER_NIT_CERTIFICADOR         => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NIT_CERTIFICADOR',
         ];
     }
 
@@ -105,6 +111,9 @@ final class InvoiceFacturaTemplateHelper
         }
         $fechaCertRaw = trim((string) ($cert['fecha_hora_certificacion'] ?? ''));
 
+        $nitCert    = trim((string) ($cert['nit_certificador'] ?? ''));
+        $nomCert    = trim((string) ($cert['nombre_certificador'] ?? ''));
+
         $moneda = trim((string) ($item->currency ?? 'Q'));
 
         $xml = self::getXmlRawForInvoiceTemplate($item);
@@ -139,6 +148,19 @@ final class InvoiceFacturaTemplateHelper
             }
         }
 
+        if ($xml !== '' && ($nitCert === '' || $nomCert === '')) {
+            $certMeta = FelXmlHelper::extractCertificacionDisplayMeta($xml);
+            $cm       = isset($certMeta['certificacion']) && \is_array($certMeta['certificacion'])
+                ? $certMeta['certificacion']
+                : [];
+            if ($nitCert === '' && ($cm['nit_certificador'] ?? '') !== '') {
+                $nitCert = trim((string) $cm['nit_certificador']);
+            }
+            if ($nomCert === '' && ($cm['nombre_certificador'] ?? '') !== '') {
+                $nomCert = trim((string) $cm['nombre_certificador']);
+            }
+        }
+
         return [
             self::PLACEHOLDER_NUMERO_AUTORIZACION        => $numAuth,
             self::PLACEHOLDER_SERIE                      => $serie,
@@ -149,6 +171,8 @@ final class InvoiceFacturaTemplateHelper
             self::PLACEHOLDER_FECHA_HORA_EMISION         => self::formatDisplayDateTime($fechaEmisionRaw),
             self::PLACEHOLDER_FECHA_HORA_CERTIFICACION   => self::formatDisplayDateTime($fechaCertRaw),
             self::PLACEHOLDER_MONEDA                     => $moneda,
+            self::PLACEHOLDER_NOMBRE_CERTIFICADOR        => $nomCert,
+            self::PLACEHOLDER_NIT_CERTIFICADOR           => $nitCert,
         ];
     }
 

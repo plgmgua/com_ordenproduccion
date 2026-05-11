@@ -2,7 +2,7 @@
 /**
  * Grimpsa electronic invoice PDF — full layout drawn with FPDF (no embedded template).
  *
- * SAT-style factura: emisor, receptor, autorización, líneas de detalle con encabezados, totales, certificador.
+ * SAT-style factura main body: ISR notice (if applicable), líneas de detalle, totales. Optional plantilla wraps logo/Headers/footer.
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @copyright   (C) 2026 Grimpsa. All rights reserved.
@@ -103,8 +103,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
         if ($xmlForLines !== '') {
             $lineItems = self::mergeStoredLineItemsWithFelXml($lineItems, $xmlForLines);
         }
-        $cert = \is_array($felExtra['certificacion'] ?? null) ? $felExtra['certificacion'] : [];
-
         $plantilla                 = null;
         $headerIzqHtmlProcessed    = '';
         $headerDerHtmlProcessed    = '';
@@ -216,17 +214,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
             ), 0, 1, 'C');
             $pdf->SetTextColor(0, 0, 0);
         }
-
-        $pdf->Ln(1.5);
-        $pdf->SetFont('Helvetica', 'B', 8);
-        $pdf->Cell($lw, 4, CotizacionPdfHelper::encodeTextForFpdf('Datos del certificador'), 0, 1, 'L');
-        $pdf->SetFont('Helvetica', '', 8);
-        $nitCert = trim((string) ($cert['nit_certificador'] ?? '16693949'));
-        $nomCert = trim((string) ($cert['nombre_certificador'] ?? 'Superintendencia de Administración Tributaria'));
-        $pdf->MultiCell($lw, 3.8, CotizacionPdfHelper::encodeTextForFpdf(
-            ($nomCert !== '' ? $nomCert : 'Superintendencia de Administración Tributaria')
-            . ($nitCert !== '' ? '  NIT: ' . $nitCert : '')
-        ), 0, 'L');
 
         $pdf->Ln(2.5);
 
