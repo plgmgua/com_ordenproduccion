@@ -40,99 +40,90 @@ $testAuthTaskUrl = Route::_('index.php?option=com_ordenproduccion&task=administr
 $renderSection = static function (string $env, string $headingKey, string $icon) use ($settings, $claveSet) {
     $s = $settings[$env] ?? [];
     $hasClave = !empty($claveSet[$env]);
+    $urlTa = static function (string $label, string $fieldKey, string $htmlId, string $val) use ($env): void {
+        ?>
+                <div class="col-12">
+                    <label class="form-label form-label-sm mb-0" for="<?php echo htmlspecialchars($htmlId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $label; ?></label>
+                    <textarea class="form-control form-control-sm cf-url-field" name="jform[certificador][<?php echo $env; ?>][<?php echo htmlspecialchars($fieldKey, ENT_QUOTES, 'UTF-8'); ?>]" id="<?php echo htmlspecialchars($htmlId, ENT_QUOTES, 'UTF-8'); ?>"
+                              rows="1" spellcheck="false" autocomplete="off"><?php echo htmlspecialchars($val, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                </div>
+        <?php
+    };
     ?>
-    <div class="card mb-4">
-        <div class="card-header">
-            <h3 class="h5 mb-0">
+    <div class="card mb-2 cf-section-card">
+        <div class="card-header py-2 px-3">
+            <h3 class="h6 mb-0">
                 <i class="fas fa-<?php echo $icon; ?>"></i>
                 <?php echo Text::_($headingKey); ?>
             </h3>
         </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_url_auth"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_AUTENTICACION'); ?></label>
-                    <input type="url" class="form-control" name="jform[certificador][<?php echo $env; ?>][url_autenticacion]" id="cf_<?php echo $env; ?>_url_auth"
-                           value="<?php echo htmlspecialchars($s['url_autenticacion'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_url_info"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_INFO'); ?></label>
-                    <input type="url" class="form-control" name="jform[certificador][<?php echo $env; ?>][url_info]" id="cf_<?php echo $env; ?>_url_info"
-                           value="<?php echo htmlspecialchars($s['url_info'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_url_cf"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF'); ?></label>
-                    <input type="url" class="form-control" name="jform[certificador][<?php echo $env; ?>][url_cert_cf]" id="cf_<?php echo $env; ?>_url_cf"
-                           value="<?php echo htmlspecialchars($s['url_cert_cf'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
-                    <div class="form-text small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF_DESC'); ?></div>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_url_nit"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_NIT'); ?></label>
-                    <input type="url" class="form-control" name="jform[certificador][<?php echo $env; ?>][url_cert_nit]" id="cf_<?php echo $env; ?>_url_nit"
-                           value="<?php echo htmlspecialchars($s['url_cert_nit'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_url_cui"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CUI'); ?></label>
-                    <input type="url" class="form-control" name="jform[certificador][<?php echo $env; ?>][url_cert_cui]" id="cf_<?php echo $env; ?>_url_cui"
-                           value="<?php echo htmlspecialchars($s['url_cert_cui'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
-                </div>
+        <div class="card-body py-2 px-3">
+            <div class="row g-2">
+                <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_AUTENTICACION'), 'url_autenticacion', 'cf_' . $env . '_url_auth', $s['url_autenticacion'] ?? ''); ?>
+                <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_INFO'), 'url_info', 'cf_' . $env . '_url_info', $s['url_info'] ?? ''); ?>
+                <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF'), 'url_cert_cf', 'cf_' . $env . '_url_cf', $s['url_cert_cf'] ?? ''); ?>
                 <div class="col-12">
-                    <hr class="my-2">
-                    <h4 class="h6 text-secondary mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_SECTION'); ?></h4>
-                    <p class="form-text small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_SECTION_HELP'); ?></p>
+                    <div class="form-text small text-muted mt-n1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF_DESC'); ?></div>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_code"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_CODE'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_code]" id="cf_<?php echo $env; ?>_branch_code"
+                <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_NIT'), 'url_cert_nit', 'cf_' . $env . '_url_nit', $s['url_cert_nit'] ?? ''); ?>
+                <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CUI'), 'url_cert_cui', 'cf_' . $env . '_url_cui', $s['url_cert_cui'] ?? ''); ?>
+                <div class="col-12">
+                    <hr class="my-1 opacity-50">
+                    <h4 class="h6 text-secondary mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_SECTION'); ?></h4>
+                    <p class="form-text small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_SECTION_HELP'); ?></p>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_branch_code"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_CODE'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][branch_code]" id="cf_<?php echo $env; ?>_branch_code"
                            value="<?php echo htmlspecialchars($s['branch_code'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
                 </div>
-                <div class="col-md-8">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_name"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_NAME'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_name]" id="cf_<?php echo $env; ?>_branch_name"
+                <div class="col-md-8 col-lg-9">
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_branch_name"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_NAME'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][branch_name]" id="cf_<?php echo $env; ?>_branch_name"
                            value="<?php echo htmlspecialchars($s['branch_name'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="organization">
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_address"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_ADDRESS'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_address]" id="cf_<?php echo $env; ?>_branch_address"
+                <div class="col-lg-6">
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_branch_address"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_ADDRESS'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][branch_address]" id="cf_<?php echo $env; ?>_branch_address"
                            value="<?php echo htmlspecialchars($s['branch_address'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="street-address">
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_city"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_CITY'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_city]" id="cf_<?php echo $env; ?>_branch_city"
+                <div class="col-lg-6">
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_branch_city"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_CITY'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][branch_city]" id="cf_<?php echo $env; ?>_branch_city"
                            value="<?php echo htmlspecialchars($s['branch_city'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_district"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_DISTRICT'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_district]" id="cf_<?php echo $env; ?>_branch_district"
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_branch_district"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_DISTRICT'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][branch_district]" id="cf_<?php echo $env; ?>_branch_district"
                            value="<?php echo htmlspecialchars($s['branch_district'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_state"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_STATE'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_state]" id="cf_<?php echo $env; ?>_branch_state"
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_branch_state"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_STATE'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][branch_state]" id="cf_<?php echo $env; ?>_branch_state"
                            value="<?php echo htmlspecialchars($s['branch_state'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_branch_country"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_COUNTRY'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][branch_country]" id="cf_<?php echo $env; ?>_branch_country"
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_branch_country"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_BRANCH_COUNTRY'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][branch_country]" id="cf_<?php echo $env; ?>_branch_country"
                            value="<?php echo htmlspecialchars($s['branch_country'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" maxlength="3" autocomplete="off">
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_nit"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_NIT'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][nit]" id="cf_<?php echo $env; ?>_nit"
+                <div class="col-md-4">
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_nit"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_NIT'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][nit]" id="cf_<?php echo $env; ?>_nit"
                            value="<?php echo htmlspecialchars($s['nit'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_usuario"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_USUARIO'); ?></label>
-                    <input type="text" class="form-control" name="jform[certificador][<?php echo $env; ?>][usuario]" id="cf_<?php echo $env; ?>_usuario"
+                <div class="col-md-4">
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_usuario"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_USUARIO'); ?></label>
+                    <input type="text" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][usuario]" id="cf_<?php echo $env; ?>_usuario"
                            value="<?php echo htmlspecialchars($s['usuario'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="username">
                 </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="cf_<?php echo $env; ?>_clave"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_CLAVE'); ?></label>
-                    <input type="password" class="form-control" name="jform[certificador][<?php echo $env; ?>][clave]" id="cf_<?php echo $env; ?>_clave"
+                <div class="col-md-4">
+                    <label class="form-label form-label-sm mb-0" for="cf_<?php echo $env; ?>_clave"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_CLAVE'); ?></label>
+                    <input type="password" class="form-control form-control-sm" name="jform[certificador][<?php echo $env; ?>][clave]" id="cf_<?php echo $env; ?>_clave"
                            value="" autocomplete="new-password"
                            placeholder="<?php echo htmlspecialchars($hasClave ? Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_CLAVE_PLACEHOLDER_KEEP') : '', ENT_QUOTES, 'UTF-8'); ?>">
                     <?php if ($hasClave) : ?>
-                        <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_CLAVE_KEEP_HINT'); ?></div>
+                        <div class="form-text small"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_CLAVE_KEEP_HINT'); ?></div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -141,15 +132,33 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
     <?php
 };
 ?>
-<div class="card mb-3">
-    <div class="card-header">
-        <h2 class="card-title mb-0">
+<style>
+.com-ordenproduccion-certificador-fact-settings .card { margin-bottom: 0.5rem; }
+.com-ordenproduccion-certificador-fact-settings .card:last-child { margin-bottom: 0; }
+.com-ordenproduccion-certificador-fact-settings textarea.cf-url-field {
+    min-height: 2.25rem;
+    max-height: 20rem;
+    resize: vertical;
+    overflow-x: hidden;
+    overflow-y: auto;
+    word-break: break-all;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+    font-size: 0.8125rem;
+}
+.com-ordenproduccion-certificador-fact-settings .form-label-sm { font-size: 0.8125rem; margin-bottom: 0.125rem; font-weight: 600; }
+</style>
+<div class="com-ordenproduccion-certificador-fact-settings">
+<div class="card mb-2">
+    <div class="card-header py-2 px-3">
+        <h2 class="card-title mb-0 h6">
             <i class="fas fa-file-signature"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_CERTIFICADOR_FACT_TITLE'); ?>
         </h2>
     </div>
-    <div class="card-body py-2">
-        <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_CERTIFICADOR_FACT_DESC'); ?></p>
+    <div class="card-body py-2 px-3">
+        <p class="text-muted mb-0 small"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_CERTIFICADOR_FACT_DESC'); ?></p>
     </div>
 </div>
 
@@ -186,25 +195,25 @@ if ($maintAt !== '') {
     }
 }
 ?>
-<div class="card mb-3 border-info">
-    <div class="card-header">
+<div class="card mb-2 border-info">
+    <div class="card-header py-2 px-3">
         <h3 class="h6 mb-0">
             <i class="fas fa-history"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_TITLE'); ?>
         </h3>
     </div>
-    <div class="card-body">
+    <div class="card-body py-2 px-3">
         <?php if ($maintAt === '') : ?>
-            <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_NEVER'); ?></p>
+            <p class="text-muted mb-0 small"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_NEVER'); ?></p>
         <?php else : ?>
-            <p class="mb-2">
+            <p class="mb-1 small">
                 <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_AT'); ?>:</strong>
                 <?php echo htmlspecialchars($maintAtDisplay, ENT_QUOTES, 'UTF-8'); ?>
             </p>
             <?php if (!empty($maintSummary['forced'])) : ?>
-                <p class="small text-warning mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_FORCED'); ?></p>
+                <p class="small text-warning mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_FORCED'); ?></p>
             <?php endif; ?>
-            <ul class="mb-2 ps-3">
+            <ul class="mb-1 ps-3 small">
                 <li>
                     <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_TEST'); ?>:</strong>
                     <?php echo htmlspecialchars($maintLabel((string) ($maintSummary['test'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>
@@ -218,7 +227,7 @@ if ($maintAt !== '') {
             $merrs = isset($maintSummary['errors']) && \is_array($maintSummary['errors']) ? $maintSummary['errors'] : [];
             if ($merrs !== []) :
                 ?>
-                <div class="alert alert-warning py-2 mb-0">
+                <div class="alert alert-warning py-1 px-2 mb-0 small">
                     <strong><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_TOKEN_MAINTAIN_LOG_ERRORS'); ?></strong>
                     <ul class="mb-0 mt-1 ps-3 small">
                         <?php foreach ($merrs as $me) : ?>
@@ -233,9 +242,9 @@ if ($maintAt !== '') {
 
 <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.saveCertificadorFact'); ?>" method="post" name="adminForm" id="ajustes-certificador-fact-form" class="form-validate">
     <?php echo HTMLHelper::_('form.token'); ?>
-    <div class="card mb-4 border-secondary">
-        <div class="card-body">
-            <label class="form-label fw-semibold mb-2 d-block" for="fel_certificador_modo_switch">
+    <div class="card mb-2 border-secondary">
+        <div class="card-body py-2 px-3">
+            <label class="form-label fw-semibold mb-1 small d-block" for="fel_certificador_modo_switch">
                 <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_LABEL'); ?>
             </label>
             <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -268,18 +277,18 @@ if ($maintAt !== '') {
                 <input type="hidden" name="jform[certificador_modo]" id="fel_certificador_modo_value"
                        value="<?php echo htmlspecialchars($felModo, ENT_QUOTES, 'UTF-8'); ?>">
             </div>
-            <p class="form-text mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_HELP'); ?></p>
-            <p class="form-text mb-2 mt-2 text-body-secondary small"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_SAVE_NOTICE'); ?></p>
-            <p class="form-text mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_FRONTEND_DEBUG_HELP'); ?></p>
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+            <p class="form-text mb-0 small lh-sm"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_HELP'); ?></p>
+            <p class="form-text mb-0 mt-1 text-body-secondary small lh-sm"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_SAVE_NOTICE'); ?></p>
+            <p class="form-text mb-0 mt-1 small lh-sm"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_FRONTEND_DEBUG_HELP'); ?></p>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                 <button type="button" class="btn btn-outline-primary btn-sm" id="fel-test-certificador-auth">
                     <i class="fas fa-plug"></i>
                     <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_CONNECTION'); ?>
                 </button>
                 <span class="text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_CONNECTION_HINT'); ?></span>
             </div>
-            <div id="fel-test-certificador-result" class="mt-2 small" hidden></div>
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-2 border-top">
+            <div id="fel-test-certificador-result" class="mt-1 small" hidden></div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top">
                 <button type="submit" class="btn btn-primary btn-sm" id="fel-certificador-save-near-toggle">
                     <i class="fas fa-save"></i>
                     <?php echo Text::_('JSAVE'); ?>
@@ -292,14 +301,35 @@ if ($maintAt !== '') {
     $renderSection('test', 'COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SECTION_PRUEBA', 'flask');
     $renderSection('prod', 'COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SECTION_PRODUCCION', 'industry');
     ?>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 mb-1">
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i>
             <?php echo Text::_('JSAVE'); ?>
         </button>
     </div>
 </form>
+</div>
 <script>
+(function () {
+    function cfFitUrlTa(el) {
+        if (!el || !el.classList.contains('cf-url-field')) {
+            return;
+        }
+        el.style.height = 'auto';
+        var px = Math.min(Math.max(el.scrollHeight + 2, 34), 320);
+        el.style.height = px + 'px';
+    }
+    function cfFitAllUrl(root) {
+        (root || document).querySelectorAll('textarea.cf-url-field').forEach(cfFitUrlTa);
+    }
+    document.addEventListener('DOMContentLoaded', function () { cfFitAllUrl(document.querySelector('.com-ordenproduccion-certificador-fact-settings')); });
+    var f = document.getElementById('ajustes-certificador-fact-form');
+    if (f) {
+        f.addEventListener('input', function (ev) {
+            cfFitUrlTa(ev.target);
+        });
+    }
+})();
 (function () {
     var sw = document.getElementById('fel_certificador_modo_switch');
     var hidden = document.getElementById('fel_certificador_modo_value');
