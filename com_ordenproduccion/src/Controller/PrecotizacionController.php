@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\OrdencompraModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailBccHelper;
@@ -133,8 +134,18 @@ class PrecotizacionController extends BaseController
             return Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES');
         }
 
-        if (isset($cols['cantidad_total']) && trim((string) ($item->cantidad_total ?? '')) === '') {
-            return Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES');
+        if (isset($cols['cantidad_total'])) {
+            $cq = trim((string) ($item->cantidad_total ?? ''));
+            if ($cq === '') {
+                return Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES');
+            }
+            if (CotizacionHelper::sanitizePrecotCantidadTotalForStorage($cq) === null) {
+                return Text::_('COM_ORDENPRODUCCION_PRE_COT_CANTIDAD_TOTAL_INVALID_INTEGER');
+            }
+        }
+
+        if (CotizacionHelper::precotDescripcionFirstSegmentForbiddenIntegerOnly((string) ($item->descripcion ?? ''))) {
+            return Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCRIPCION_FIRST_SEGMENT_NO_INTEGER_ONLY');
         }
 
         return null;
@@ -1865,6 +1876,24 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        $cantidadTotalNormalized = null;
+        if (isset($tableCols['cantidad_total'])) {
+            $cantidadTotalNormalized = CotizacionHelper::sanitizePrecotCantidadTotalForStorage($cantidadTotal);
+            if ($cantidadTotalNormalized === null) {
+                $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_CANTIDAD_TOTAL_INVALID_INTEGER'), 'error');
+                $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+                return false;
+            }
+        }
+
+        if (CotizacionHelper::precotDescripcionFirstSegmentForbiddenIntegerOnly($descripcion)) {
+            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCRIPCION_FIRST_SEGMENT_NO_INTEGER_ONLY'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $id, false));
+
+            return false;
+        }
+
         if ($medidas !== '' && !isset($tableCols['medidas'])) {
             Factory::getApplication()->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MEDIDAS_RUN_SQL'), 'warning');
         }
@@ -1879,7 +1908,7 @@ class PrecotizacionController extends BaseController
             $obj->medidas = $medidas;
         }
         if (isset($tableCols['cantidad_total'])) {
-            $obj->cantidad_total = $cantidadTotal;
+            $obj->cantidad_total = (string) $cantidadTotalNormalized;
         }
         $db->updateObject('#__ordenproduccion_pre_cotizacion', $obj, 'id');
 

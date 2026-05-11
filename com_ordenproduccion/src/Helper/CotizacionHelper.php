@@ -118,21 +118,59 @@ abstract class CotizacionHelper
     }
 
     /**
+     * Pre-cotización cabecera: Cantidad total must be a plain positive integer string (digits only, value ≥ 1).
+     * Saves normalized string (no locale separators; leading zeros stripped by int cast rules).
+     *
+     * @return  non-empty numeric string|null  null if blank or invalid
+     *
+     * @since   3.118.73
+     */
+    public static function sanitizePrecotCantidadTotalForStorage(?string $raw): ?string
+    {
+        $s = trim((string) ($raw ?? ''));
+        if ($s === '' || strlen($s) > 20) {
+            return null;
+        }
+        $v = filter_var($s, FILTER_VALIDATE_INT);
+        if ($v === false || $v < 1) {
+            return null;
+        }
+
+        return (string) $v;
+    }
+
+    /**
+     * True when Save must be rejected: first whitespace-separated token is digits-only (e.g. "100 mantelitos").
+     *
+     * @since   3.118.73
+     */
+    public static function precotDescripcionFirstSegmentForbiddenIntegerOnly(?string $raw): bool
+    {
+        $s = trim((string) ($raw ?? ''));
+        if ($s === '') {
+            return false;
+        }
+        $parts = preg_split('/\s+/u', $s, -1, PREG_SPLIT_NO_EMPTY);
+        $first = $parts[0] ?? '';
+
+        return $first !== '' && preg_match('/^\d+$/', $first) === 1;
+    }
+
+    /**
      * Parse pre-cotización cabecera `cantidad_total` for default línea quantity on la cotización.
      *
      * @since  3.118.69
      */
     public static function parsePreCotCantidadTotalForQuotation(?string $raw): int
     {
+        $stored = self::sanitizePrecotCantidadTotalForStorage($raw);
+        if ($stored !== null) {
+            return (int) $stored;
+        }
+
         $raw = trim((string) ($raw ?? ''));
         if ($raw === '') {
             return 0;
-        }
-
-        if (preg_match('/^\s*(\d+)\s*$/', $raw, $m)) {
-            $n = (int) $m[1];
-
-            return $n > 0 ? $n : 0;
         }
 
         if (preg_match('/^\s*(\d+)/', $raw, $m)) {

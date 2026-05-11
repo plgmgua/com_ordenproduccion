@@ -375,7 +375,7 @@ $solicitarDescuentoAction   = Route::_(
             <div class="row g-2 mb-2">
                 <div class="col-12 col-md-6">
                     <label class="form-label fw-bold mb-1" for="precotizacion-cantidad-total"><?php echo htmlspecialchars($labelCantidadTotal); ?></label>
-                    <input type="text" name="cantidad_total" id="precotizacion-cantidad-total" class="form-control" maxlength="128" autocomplete="off"
+                    <input type="number" name="cantidad_total" id="precotizacion-cantidad-total" class="form-control" min="1" step="1" inputmode="numeric" autocomplete="off"
                            placeholder="<?php echo htmlspecialchars($placeholderCantidadTotal); ?>"
                            value="<?php echo htmlspecialchars($cantidadTotalValue, ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
@@ -1692,18 +1692,68 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
 <?php if ($canEditDocument) : ?>
 <script>
 (function() {
-    var msg = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgRequired = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgCantidadInvalid = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_CANTIDAD_TOTAL_INVALID_INTEGER'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgDescFirstSegment = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCRIPCION_FIRST_SEGMENT_NO_INTEGER_ONLY'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     function strip(s) {
         return (s || '').replace(/^\s+|\s+$/g, '');
     }
-    function cabeceraOk() {
+    function cantidadTotalInputOk(c) {
+        if (!c) {
+            return true;
+        }
+        var v = strip(String(c.value != null ? c.value : ''));
+        if (v === '') {
+            return false;
+        }
+        return (/^\d+$/.test(v)) && (parseInt(v, 10) > 0);
+    }
+    function descripcionFirstSegmentOk(d) {
+        if (!d) {
+            return false;
+        }
+        var s = strip(d.value);
+        if (s === '') {
+            return false;
+        }
+        var parts = s.split(/\s+/);
+        var first = parts[0] || '';
+        if (first === '') {
+            return false;
+        }
+        return !/^\d+$/.test(first);
+    }
+    /** @return {string|null} error message or null if OK */
+    function cabeceraValidationMessage() {
         var d = document.getElementById('precotizacion-descripcion');
         var m = document.getElementById('precotizacion-medidas');
         var c = document.getElementById('precotizacion-cantidad-total');
         if (!d || !m) {
-            return true;
+            return null;
         }
-        return strip(d.value) !== '' && strip(m.value) !== '' && (!c || strip(c.value) !== '');
+        if (strip(d.value) === '' || strip(m.value) === '') {
+            return msgRequired;
+        }
+        if (c && strip(String(c.value != null ? c.value : '')) === '') {
+            return msgRequired;
+        }
+        if (c && !cantidadTotalInputOk(c)) {
+            return msgCantidadInvalid;
+        }
+        if (!descripcionFirstSegmentOk(d)) {
+            return msgDescFirstSegment;
+        }
+        return null;
+    }
+    var formCab = document.getElementById('precotizacion-desc-medidas-form');
+    if (formCab) {
+        formCab.addEventListener('submit', function(ev) {
+            var err = cabeceraValidationMessage();
+            if (err) {
+                ev.preventDefault();
+                window.alert(err);
+            }
+        });
     }
     document.addEventListener('click', function(ev) {
         var el = ev.target && ev.target.closest ? ev.target.closest('button[data-bs-toggle="modal"][data-bs-target]') : null;
@@ -1714,13 +1764,14 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
         if (t !== '#pliegoLineModal' && t !== '#elementosLineModal' && t !== '#tercerizadoLineModal' && t !== '#envioLineModal') {
             return;
         }
-        if (!cabeceraOk()) {
+        var err = cabeceraValidationMessage();
+        if (err) {
             ev.preventDefault();
             ev.stopPropagation();
             if (typeof ev.stopImmediatePropagation === 'function') {
                 ev.stopImmediatePropagation();
             }
-            window.alert(msg);
+            window.alert(err);
         }
     }, true);
 })();

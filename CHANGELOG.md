@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.73-STABLE] - 2026-05-11
+
+### Added
+- **Pre-cotización cabecera:** Validación servidor y cliente para **Cantidad total** (solo enteros ≥ 1, sin texto extras; se guarda normalizado).
+- **Pre-cotización:** La **Descripción** no puede tener como primera palabra **solo dígitos** (puede incluir números más adelante).
+
 ## [3.118.72-STABLE] - 2026-05-11
 
 ### Fixed
