@@ -22,8 +22,6 @@ use Joomla\CMS\Factory;
  */
 final class InvoiceGrimpsaTemplatePdfHelper
 {
-    private const PAGE_W_MM = 215.9;
-
     private const PAGE_H_MM = 279.4;
 
     private const MARGIN_X = 12.0;
@@ -35,13 +33,17 @@ final class InvoiceGrimpsaTemplatePdfHelper
     /** @deprecated No longer used; PDF is fully generated. */
     public const TEMPLATE_REL_PATH = 'media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf';
 
-    /** Column widths (mm); must sum to inner width (page - 2*MARGIN_X). */
+    /**
+     * Column widths (mm) — orden alineado a tabla Digifact SAT: #, tipo, cant, UM, descr, PU, descuentos, total, impuesto.
+     * Debe cuadrar con inner width (page − 2×MARGIN_X).
+     */
     private static function columnWidths(): array
     {
         $inner = self::PAGE_W_MM - 2 * self::MARGIN_X;
-        $w     = [6.5, 7.0, 13.5, 74.0, 23.5, 11.0, 11.0, 24.4];
+        //                #    B/S  Cant UM   Desc               P.Unit   Desc ODesc Total  Imp
+        $w     = [5.2, 6.8, 10.5, 7.6, 64.0, 21.5, 9.9, 9.9, 22.8];
         $sum   = array_sum($w);
-        $w[]   = max(10.0, round($inner - $sum, 2));
+        $w[]   = round($inner - $sum, 2);
 
         return $w;
     }
@@ -133,6 +135,10 @@ final class InvoiceGrimpsaTemplatePdfHelper
         self::enrichFelExtraFromArtifacts($inv, $felExtra);
 
         $lineItems = is_array($inv->line_items ?? null) ? array_values($inv->line_items) : [];
+        $xmlForLines = self::readInvoiceFelXmlForPdf($inv);
+        if ($xmlForLines !== '') {
+            $lineItems = self::mergeStoredLineItemsWithFelXml($lineItems, $xmlForLines);
+        }
         $nit       = trim((string) ($inv->client_nit ?? $inv->fel_receptor_id ?? ''));
         $nombre    = trim((string) ($inv->client_name ?? $inv->fel_receptor_nombre ?? ''));
         $direccion = trim((string) ($inv->client_address ?? $inv->fel_receptor_direccion ?? ''));
@@ -252,7 +258,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->Ln(2.5);
 
         $colWidths = self::columnWidths();
-        $hdr       = ['#', 'B/S', 'Cant.', 'Descripción', 'P.Unit.+IVA (Q)', 'Desc.(Q)', 'O.Desc.(Q)', 'Total (Q)', 'IVA'];
+        $hdr       = ['#', 'B/S', 'Cant.', 'UdM', 'Descripción', 'P. Unit. (Q)', 'Desc.(Q)', 'O.Desc.(Q)', 'Total (Q)', 'Imp. (Q)'];
 
         $footerReserve = self::CMY_BAR_MM + 14;
         $tableBottom   = self::PAGE_H_MM - $footerReserve;
@@ -286,11 +292,11 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->SetFont('Helvetica', 'B', 7.5);
         $pdf->SetFillColor(228, 228, 228);
         $xTot = self::MARGIN_X;
-        $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4] + $colWidths[5] + $colWidths[6];
+        $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4] + $colWidths[5] + $colWidths[6] + $colWidths[7];
         $pdf->SetXY($xTot, $yTable);
         $pdf->Cell($wSum, 5.2, CotizacionPdfHelper::encodeTextForFpdf('TOTALES:'), 1, 0, 'R', true);
-        $pdf->Cell($colWidths[7], 5.2, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
-        $pdf->Cell($colWidths[8], 5.2, number_format($totalIva, 2, '.', ''), 1, 1, 'R', true);
+        $pdf->Cell($colWidths[8], 5.2, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
+        $pdf->Cell($colWidths[9], 5.2, number_format($totalIva, 2, '.', ''), 1, 1, 'R', true);
         $pdf->SetFillColor(255, 255, 255);
 
         return (string) $pdf->Output('S');
@@ -324,8 +330,8 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $bs   = trim((string) ($row['bien_servicio'] ?? ''));
         $qty  = $row['cantidad'] ?? '';
         $desc = trim((string) ($row['descripcion'] ?? ''));
-        if (strlen($desc) > 110) {
-            $desc = substr($desc, 0, 107) . '...';
+        if (strlen($desc) > 95) {
+            $desc = substr($desc, 0, 92) . '...';
         }
         $pu = (float) ($row['precio_unitario'] ?? $row['valor_unitario'] ?? 0);
         $st = (float) ($row['subtotal'] ?? 0);
@@ -334,10 +340,12 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
         $iva = self::rowIva($row);
 
+        $um = trim((string) ($row['unidad_medida'] ?? ''));
         $cells = [
             (string) $lineNo,
             $bs,
             (string) $qty,
+            $um !== '' ? $um : '—',
             $desc,
             number_format($pu, 2, '.', ''),
             number_format((float) ($row['descuento'] ?? 0), 2, '.', ''),
@@ -347,21 +355,109 @@ final class InvoiceGrimpsaTemplatePdfHelper
         ];
 
         $x = self::MARGIN_X;
-        for ($ci = 0; $ci < 9; $ci++) {
+        for ($ci = 0; $ci < 10; $ci++) {
             $pdf->SetXY($x, $y);
             $align = 'R';
-            if ($ci === 1) {
+            if ($ci === 1 || $ci === 3) {
                 $align = 'C';
             }
-            if ($ci === 3) {
+            if ($ci === 4) {
                 $align = 'L';
             }
-            $ln = ($ci === 8) ? 1 : 0;
+            $ln = ($ci === 9) ? 1 : 0;
             $pdf->Cell($cw[$ci], $h, CotizacionPdfHelper::encodeTextForFpdf($cells[$ci]), 1, $ln, $align);
             $x += $cw[$ci];
         }
 
         return $y + $h;
+    }
+
+    /**
+     * XML satelital guardado junto al DTE para rellenar impuestos y columnas igual que Digifact (line_items BD vienen desde cotización).
+     */
+    private static function readInvoiceFelXmlForPdf(object $inv): string
+    {
+        $relXml = trim((string) ($inv->fel_local_xml_path ?? ''));
+        if ($relXml !== '' && is_file(JPATH_ROOT . '/' . $relXml)) {
+            $fromDisk = @file_get_contents(JPATH_ROOT . '/' . $relXml);
+            if ($fromDisk !== false && trim($fromDisk) !== '') {
+                return trim($fromDisk);
+            }
+        }
+        if (!empty($inv->fel_response_json) && is_string($inv->fel_response_json)) {
+            return trim(FelXmlHelper::tryExtractXmlFromDigifactResponseBody($inv->fel_response_json));
+        }
+
+        return '';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $stored
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function mergeStoredLineItemsWithFelXml(array $stored, string $xmlRaw): array
+    {
+        $from = FelXmlHelper::extractLineItemsFromFelXmlString($xmlRaw);
+        if ($from === []) {
+            return $stored;
+        }
+
+        $byLine = [];
+        foreach ($from as $x) {
+            if (!\is_array($x)) {
+                continue;
+            }
+            $n = (int) ($x['numero_linea'] ?? 0);
+            if ($n >= 1) {
+                $byLine[$n] = $x;
+            }
+        }
+        $out      = [];
+        foreach ($stored as $i => $row) {
+            $n     = (int) ($row['numero_linea'] ?? ($i + 1));
+            $felLn = $byLine[$n] ?? null;
+
+            $merged                = \is_array($row) ? $row : [];
+            $merged['numero_linea'] = $n;
+
+            if ($felLn !== null) {
+                if (trim((string) ($felLn['descripcion'] ?? '')) !== '') {
+                    $merged['descripcion'] = trim((string) $felLn['descripcion']);
+                }
+                $merged['bien_servicio']   = isset($felLn['bien_servicio']) ? (string) $felLn['bien_servicio'] : ($merged['bien_servicio'] ?? '');
+                $merged['unidad_medida'] = isset($felLn['unidad_medida']) ? (string) $felLn['unidad_medida'] : ($merged['unidad_medida'] ?? '');
+                $merged['cantidad']      = (float) ($felLn['cantidad'] ?? $merged['cantidad'] ?? 0);
+                $merged['precio_unitario']  = (float) ($felLn['precio_unitario'] ?? $merged['precio_unitario'] ?? 0);
+                $merged['valor_unitario']   = isset($merged['valor_unitario']) ? (float) $merged['valor_unitario']
+                    : (float) ($merged['precio_unitario'] ?? 0);
+                if ((float) ($felLn['precio_unitario'] ?? 0) > 1e-6) {
+                    $merged['valor_unitario'] = (float) $felLn['precio_unitario'];
+                }
+                $merged['descuento']       = (float) ($felLn['descuento'] ?? $merged['descuento'] ?? 0);
+                $merged['otros_descuento'] = (float) ($felLn['otros_descuento'] ?? $merged['otros_descuento'] ?? 0);
+                $merged['subtotal']       = (float) ($felLn['subtotal'] ?? $merged['subtotal'] ?? 0);
+
+                $impFel = isset($felLn['impuestos']) && \is_array($felLn['impuestos']) ? $felLn['impuestos'] : [];
+                if ($impFel !== []) {
+                    $merged['impuestos'] = $impFel;
+                }
+            }
+
+            $out[] = $merged;
+        }
+
+        if ($out === [] && $from !== []) {
+            foreach ($from as $x) {
+                if (\is_array($x)) {
+                    $out[] = $x;
+                }
+            }
+
+            return $out;
+        }
+
+        return $out;
     }
 
     /**
@@ -452,6 +548,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $iva += (float) ($im['monto_impuesto'] ?? 0);
         }
 
-        return $iva;
+        return round($iva, 6);
     }
 }

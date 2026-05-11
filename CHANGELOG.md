@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.63-STABLE] - 2026-05-11
+
+### Fixed
+- **PDF factura Grimpsa (`InvoiceGrimpsaTemplatePdfHelper`):** Al generar desde factura cotización/Digifact las líneas en BD carecían nodos **`impuestos`** (solo se guardaban cantidad/importes). Se fusionan los ítems con el **XML certificado** (`fel_local_xml_path` o XML en `fel_response_json`) mediante `FelXmlHelper::extractLineItemsFromFelXmlString`, de modo que la columna **Imp. (Q)** muestra **`MontoImpuesto`** como el PDF oficial. Cabeceras y anchos reordenados al estilo Digifact (**UdM**, `P. Unit. (Q)` sin “+IVA”, **Imp.** al final).
+
+### Changed
+- **FelXML:** Parsing de **`Impuesto`** por hijos + XPath cuando faltó namespace; nueva **`extractItemUnidadMedida`** (`UnidadMedida` / XPath) propagada en `parseFelXml` + API `extractLineItemsFromFelXmlString`.
+
 ## [3.118.62-STABLE] - 2026-05-11
 
 ### Fixed

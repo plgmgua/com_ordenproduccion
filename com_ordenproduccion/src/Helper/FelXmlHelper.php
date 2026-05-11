@@ -133,6 +133,7 @@ class FelXmlHelper
                 $lineItems[] = [
                     'numero_linea' => (int) ($item->attributes()->NumeroLinea ?? count($lineItems) + 1),
                     'bien_servicio' => self::ensureUtf8String((string) ($item->attributes()->BienOServicio ?? '')),
+                    'unidad_medida' => self::extractItemUnidadMedida($item, $dteNs),
                     'cantidad' => (float) ($item->Cantidad ?? 0),
                     'descripcion' => self::ensureUtf8String((string) ($item->Descripcion ?? '')),
                     'precio_unitario' => (float) ($item->PrecioUnitario ?? 0),
@@ -209,6 +210,27 @@ class FelXmlHelper
         $out['success'] = true;
         $out['data'] = $data;
         return $out;
+    }
+
+    /**
+     * Line items as parsed from a certified SAT DTE (includes impuestos / unidad_medida matching Digifact).
+     *
+     * @return list<array<string, mixed>>
+     *
+     * @since 3.118.63
+     */
+    public static function extractLineItemsFromFelXmlString(string $xmlContent): array
+    {
+        $xmlContent = trim($xmlContent);
+        if ($xmlContent === '') {
+            return [];
+        }
+        $parsed = self::parseFelXml($xmlContent);
+        if (empty($parsed['success']) || !isset($parsed['data']['line_items']) || !\is_array($parsed['data']['line_items'])) {
+            return [];
+        }
+
+        return array_values($parsed['data']['line_items']);
     }
 
     /**
@@ -646,24 +668,95 @@ class FelXmlHelper
     }
 
     /**
-     * Extract item-level Impuestos
+     * Extract item-level Impuestos (namespace-aware + XPath fallback for vendor variations).
      */
-    private static function extractItemImpuestos($item, $dteNs)
+    private static function extractItemImpuestos($item, $dteNs): array
     {
+        $impuestoNodes = [];
         $imp = $item->children($dteNs)->Impuestos ?? null;
-        if (!$imp) {
-            return [];
+        if ($imp !== null) {
+            foreach ($imp->children($dteNs)->Impuesto ?? [] as $inode) {
+                $impuestoNodes[] = $inode;
+            }
         }
+        if ($impuestoNodes === []) {
+            $xp = @$item->xpath('.//*[local-name()="Impuestos"]/*[local-name()="Impuesto"]');
+            if (\is_array($xp)) {
+                foreach ($xp as $inode) {
+                    $impuestoNodes[] = $inode;
+                }
+            }
+        }
+
         $list = [];
-        foreach ($imp->children($dteNs)->Impuesto ?? [] as $i) {
+        foreach ($impuestoNodes as $i) {
+            $nombreCorto        = '';
+            $codigoUg           = '';
+            $montoGrav          = 0.0;
+            $montoImp           = 0.0;
+
+            foreach ($i->children($dteNs) as $ch) {
+                $ln = (string) $ch->getName();
+                if ($ln === 'NombreCorto') {
+                    $nombreCorto = self::ensureUtf8String(trim((string) $ch));
+                } elseif ($ln === 'CodigoUnidadGravable') {
+                    $codigoUg = trim((string) $ch);
+                } elseif ($ln === 'MontoGravable') {
+                    $montoGrav = (float) $ch;
+                } elseif ($ln === 'MontoImpuesto') {
+                    $montoImp = (float) $ch;
+                }
+            }
+            if ($montoImp <= 1e-6 || $montoGrav <= 1e-6 || $nombreCorto === '') {
+                $n1 = @$i->xpath('.//*[local-name()="NombreCorto"]');
+                if (\is_array($n1) && isset($n1[0])) {
+                    $nombreCorto = self::ensureUtf8String(trim((string) $n1[0]));
+                }
+                $cg = @$i->xpath('.//*[local-name()="CodigoUnidadGravable"]');
+                if (\is_array($cg) && isset($cg[0])) {
+                    $codigoUg = trim((string) $cg[0]);
+                }
+                $mg = @$i->xpath('.//*[local-name()="MontoGravable"]');
+                if (\is_array($mg) && isset($mg[0])) {
+                    $montoGrav = (float) (string) $mg[0];
+                }
+                $mi = @$i->xpath('.//*[local-name()="MontoImpuesto"]');
+                if (\is_array($mi) && isset($mi[0])) {
+                    $montoImp = (float) (string) $mi[0];
+                }
+            }
+
             $list[] = [
-                'nombre_corto' => self::ensureUtf8String((string) ($i->NombreCorto ?? '')),
-                'codigo_unidad_gravable' => (string) ($i->CodigoUnidadGravable ?? ''),
-                'monto_gravable' => (float) ($i->MontoGravable ?? 0),
-                'monto_impuesto' => (float) ($i->MontoImpuesto ?? 0),
+                'nombre_corto'           => $nombreCorto,
+                'codigo_unidad_gravable' => $codigoUg,
+                'monto_gravable'        => $montoGrav,
+                'monto_impuesto'        => $montoImp,
             ];
         }
+
         return $list;
+    }
+
+    /**
+     * Unidad de medida (SAT Item) — empty if absent (PDF shows "—").
+     */
+    private static function extractItemUnidadMedida($item, $dteNs): string
+    {
+        $children = $item->children($dteNs);
+        foreach (['UnidadMedida', 'UnidadMedidaComercial'] as $tag) {
+            if ($children !== null && isset($children->$tag)) {
+                $raw = trim((string) $children->$tag);
+                if ($raw !== '') {
+                    return self::ensureUtf8String($raw);
+                }
+            }
+        }
+        $xp = @$item->xpath('.//*[local-name()="UnidadMedida"]');
+        if (\is_array($xp) && isset($xp[0])) {
+            return self::ensureUtf8String(trim((string) $xp[0]));
+        }
+
+        return '';
     }
 
     /**
