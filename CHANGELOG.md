@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.60-STABLE] - 2026-05-11
+
+### Added
+- **Certificador Digifact:** Validación hostname vs modo activo (producción con URL tipo testnuc QA, o prueba con nucgt.producción) en emisión/vista previa NUC `buildDigifactNucDirectPayloadForQuotation` y al guardar Ajustes; mensajes enlazados a corregir bloque URL.
+
+### Changed
+- **Cert. Logs:** Cada petición agrupada en su propio `<tbody>` con URL acotada en altura (`max-height`) y borde inferior para separar registros.
+
 ## [3.118.59-STABLE] - 2026-05-06
 
 ### Added

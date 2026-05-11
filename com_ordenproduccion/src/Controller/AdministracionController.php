@@ -19,6 +19,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
@@ -879,6 +880,16 @@ class AdministracionController extends BaseController
         $block = isset($jform['certificador']) && is_array($jform['certificador']) ? $jform['certificador'] : [];
         $modo = isset($jform['certificador_modo']) ? trim((string) $jform['certificador_modo']) : 'test';
         $modo = ($modo === 'prod') ? 'prod' : 'test';
+
+        $activePosted = isset($block[$modo]) && is_array($block[$modo]) ? $block[$modo] : [];
+        $ambVio = CertificadorDigifactAmbienteHelper::nucCertifyCredsViolateModo($activePosted, $modo);
+        if ($ambVio !== null) {
+            $app->enqueueMessage(Text::_($ambVio), 'error');
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SAVE_BLOCKED_URL_AMBIENTE'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=certificador_fact', false));
+
+            return;
+        }
 
         try {
             $model = $this->getModel('Administracion');

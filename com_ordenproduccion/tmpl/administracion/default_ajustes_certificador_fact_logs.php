@@ -82,16 +82,28 @@ if ($rows !== []) {
     width: 2rem;
     white-space: nowrap;
 }
+.digifact-log-table tbody.digifact-log-record:hover > tr:first-child td,
+.digifact-log-table tbody.digifact-log-record:hover > tr.digifact-log-url-row td {
+    background-color: rgba(13, 110, 253, 0.06);
+}
 .digifact-log-url-row td {
     border-top: 0;
+    padding-top: 0;
+    border-bottom: 2px solid var(--bs-border-color, #dee2e6);
     background: #f8f9fa;
     vertical-align: top;
 }
+.digifact-log-url-text-host {
+    max-height: 4.25rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
 .digifact-log-url-text {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     word-break: break-all;
     overflow-wrap: anywhere;
     white-space: normal;
+    line-height: 1.3;
 }
 .digifact-log-pre {
     display: block;
@@ -151,8 +163,8 @@ if ($rows !== []) {
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_USER'); ?></th>
                     </tr>
                 </thead>
-                <tbody>
                     <?php foreach ($rows as $idx => $row) : ?>
+                    <tbody class="digifact-log-record">
                         <?php
                         /** @var object $row */
                         $rid    = 'digifact-log-' . (int) ($row->id ?? $idx);
@@ -191,7 +203,7 @@ if ($rows !== []) {
                         <tr class="digifact-log-url-row">
                             <td colspan="10" class="small py-1 digifact-log-wrap">
                                 <span class="text-muted text-uppercase" style="font-size: 0.65rem;"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_COL_URL'); ?></span>
-                                <div class="digifact-log-url-text mt-1"><code class="text-dark"><?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?></code></div>
+                                <div class="digifact-log-url-text-host rounded border bg-white px-2 py-1 mt-1"><code class="digifact-log-url-text text-dark d-block mb-0"><?php echo htmlspecialchars($url, ENT_QUOTES, 'UTF-8'); ?></code></div>
                             </td>
                         </tr>
                         <tr class="collapse" id="<?php echo $rid; ?>">
@@ -243,8 +255,8 @@ if ($rows !== []) {
                                 </div>
                             </td>
                         </tr>
+                    </tbody>
                     <?php endforeach; ?>
-                </tbody>
             </table>
         </div>
         <?php if ($pagination !== null) : ?>
