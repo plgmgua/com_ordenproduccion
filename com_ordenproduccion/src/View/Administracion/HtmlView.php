@@ -2179,7 +2179,7 @@ class HtmlView extends BaseHtmlView
                 $this->resetCertificadorFactActiveViewFields();
                 try {
                     $this->certificadorDigifactLogTableAvailable = $statsModel->isCertificadorDigifactLogTableAvailable();
-                    $logLimit                                    = 50;
+                    $logLimit                                    = 20;
                     $logStart                                    = max(0, (int) $input->getInt('digifact_log_limitstart', 0));
                     $this->certificadorDigifactLogTotal          = $statsModel->countCertificadorDigifactLogs();
                     $this->certificadorDigifactLogRows           = $statsModel->listCertificadorDigifactLogs($logLimit, $logStart);

@@ -123,6 +123,28 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * JWT for Digifact HTTP: refresh via {@see AdministracionModel::maintainCertificadorBearerTokens()} when Joomla
+     * marks it expired, then return the stored token (even when Digifact accepts it despite bad expira_* metadata).
+     *
+     * @since 3.118.77
+     */
+    protected function resolveBearerJwtForDigifactPost(): string
+    {
+        try {
+            $model = new AdministracionModel();
+            $env = $model->getCertificadorFactModo();
+            if ($model->isCertificadorBearerTokenExpiredForEnv($env)) {
+                $model->maintainCertificadorBearerTokens(false);
+            }
+            $b = $model->getCertificadorBearerTokenBundleForEnv($env);
+
+            return trim((string) ($b['token'] ?? ''));
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
      * Whether issuance columns exist (migration 3.101.50 applied).
      */
     public function isEngineAvailable(): bool
@@ -1989,7 +2011,9 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * When true, queued processing ({@see processInvoice()}) calls Digifact NUC instead of the FELplex mock.
+     * When true, queued processing ({@see processInvoice()}) uses Digifact NUC instead of the FELplex mock.
+     * Bearer token freshness is enforced in {@see executeDigifactCertificationForInvoice()} so the queue never
+     * silently falls back to mock just because JWT leeway/expiry metadata disagrees with a still-valid token.
      *
      * @since   3.118.76
      */
@@ -1997,9 +2021,6 @@ class FelInvoiceIssuanceService
     {
         $creds = $this->getActiveCertificadorCredentials();
         if ($this->buildDigifactCertificarRequestUrl($creds) === '') {
-            return false;
-        }
-        if ($this->getActiveCertificadorBearerToken() === '') {
             return false;
         }
         if (CertificadorDigifactAmbienteHelper::nucCertifyCredsViolateModo($creds, $this->getActiveCertificadorModo()) !== null) {
@@ -2055,7 +2076,7 @@ class FelInvoiceIssuanceService
 
             return ['success' => false, 'message' => $msg];
         }
-        $bearer = $this->getActiveCertificadorBearerToken();
+        $bearer = $this->resolveBearerJwtForDigifactPost();
         if ($bearer === '') {
             $msg = 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).';
             $this->markFailed($invoiceId, $msg);
@@ -2253,7 +2274,7 @@ class FelInvoiceIssuanceService
         if ($url === '') {
             return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
         }
-        $bearer = $this->getActiveCertificadorBearerToken();
+        $bearer = $this->resolveBearerJwtForDigifactPost();
         if ($bearer === '') {
             return ['success' => false, 'message' => 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).'];
         }

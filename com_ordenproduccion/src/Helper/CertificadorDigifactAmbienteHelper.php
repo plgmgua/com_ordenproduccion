@@ -63,7 +63,9 @@ final class CertificadorDigifactAmbienteHelper
      */
     public static function gtHostnameLooksLikeDigifactProdNucGt(string $host): bool
     {
-        return strtolower(trim($host)) === 'nucgt.digifact.com';
+        $h = strtolower(trim($host));
+
+        return $h === 'nucgt.digifact.com' || $h === 'www.nucgt.digifact.com';
     }
 
     /**
