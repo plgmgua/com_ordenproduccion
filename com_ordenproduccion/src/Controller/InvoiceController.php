@@ -15,6 +15,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
@@ -550,7 +551,10 @@ class InvoiceController extends BaseController
         try {
             $binary = InvoiceGrimpsaTemplatePdfHelper::build($inv);
         } catch (\Throwable $e) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_GRIMPSA_PDF_ERROR'), 'error');
+            Log::add('invoice.grimpsa.pdf: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');
+            $msg = Text::_('COM_ORDENPRODUCCION_INVOICE_GRIMPSA_PDF_ERROR')
+                . (JDEBUG ? ' ' . $e->getMessage() : '');
+            $app->enqueueMessage($msg, 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false));
 
             return;

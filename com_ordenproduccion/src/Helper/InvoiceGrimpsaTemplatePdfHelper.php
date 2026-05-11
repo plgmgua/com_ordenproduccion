@@ -22,6 +22,8 @@ use Joomla\CMS\Factory;
  */
 final class InvoiceGrimpsaTemplatePdfHelper
 {
+    private const PAGE_W_MM = 215.9;
+
     private const PAGE_H_MM = 279.4;
 
     private const MARGIN_X = 12.0;

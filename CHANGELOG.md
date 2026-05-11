@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.64-STABLE] - 2026-05-11
+
+### Fixed
+- **PDF Grimpsa:** Se había perdido por error la constante `PAGE_W_MM` en `InvoiceGrimpsaTemplatePdfHelper`, lo que lanzaba fatal al generar el PDF (`columnWidths` / `$lw`).
+- Registro **Log** (`com_ordenproduccion`) y detalle tras el mensaje i18n si **debug Joomla** está activo al fallar el PDF.
+
 ## [3.118.63-STABLE] - 2026-05-11
 
 ### Fixed
