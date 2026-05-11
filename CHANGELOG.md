@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.66-STABLE] - 2026-05-12
+
+### Changed
+- **PDF Grimpsa:** Omitidas las columnas **Descuentos (Q)** y **Otros Descuentos(Q)**; el espacio disponible tras **Descripción** se reparte a partes iguales entre **P. Unitario con IVA (Q)** y **Total (Q)** (Impuestos/IVA sin cambio conceptual).
+
 ## [3.118.65-STABLE] - 2026-05-11
 
 ### Changed

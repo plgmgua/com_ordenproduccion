@@ -36,8 +36,8 @@ final class InvoiceGrimpsaTemplatePdfHelper
     public const TEMPLATE_REL_PATH = 'media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf';
 
     /**
-     * Column widths (mm), sin UdM — #, tipo, cant, descripción (≥50% ancho útil),
-     * P. Unitario, descuentos, otros, total, Impuestos (IVA dibujado en sub-celdas).
+     * Column widths (mm), sin UdM ni columnas de descuento —
+     * #, B/S, cant, descripción (50% útil), P. Unitario con IVA, Total, Impuestos.
      */
     private static function columnWidths(): array
     {
@@ -49,20 +49,19 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $c0 = 6.2;
         $c1 = 9.8;
         $c2 = 16.8;
-        $narrow = round($c0 + $c1 + $c2, 2);
-        $afterNarrow = round($rest - $narrow, 2);
+        $narrow       = round($c0 + $c1 + $c2, 2);
+        $afterNarrow  = round($rest - $narrow, 2);
 
+        // Impuesto column; remainder split evenly between PU and Total (former descuento cols).
         $cImp = max(23.8, round($afterNarrow * 0.265, 2));
-        $forNumeric = round(max(0.0, $afterNarrow - $cImp), 2);
+        $pair = round(max(0.0, $afterNarrow - $cImp), 2);
 
-        $cPu  = round($forNumeric * 0.28, 2);
-        $cDq  = round($forNumeric * 0.24, 2);
-        $cOd  = round($forNumeric * 0.24, 2);
-        $cTot = round($forNumeric - $cPu - $cDq - $cOd, 2);
+        $cPu = round($pair * 0.5, 2);
+        $cTot = round($pair - $cPu, 2);
 
-        $widths = [$c0, $c1, $c2, $descW, $cPu, $cDq, $cOd, $cTot, $cImp];
+        $widths = [$c0, $c1, $c2, $descW, $cPu, $cTot, $cImp];
         $drift  = round($inner - array_sum($widths), 2);
-        $widths[8] = round($widths[8] + $drift, 2);
+        $widths[6] = round($widths[6] + $drift, 2);
 
         return $widths;
     }
@@ -283,8 +282,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
             'Cantidad',
             'Descripción',
             'P. Unitario con IVA (Q)',
-            'Descuentos (Q)',
-            'Otros Descuentos(Q)',
             'Total (Q)',
             'Impuestos',
         ];
@@ -337,13 +334,13 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->SetFont('Helvetica', 'B', 7.6);
         $pdf->SetFillColor(228, 228, 228);
         $xTot = self::MARGIN_X;
-        $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4] + $colWidths[5] + $colWidths[6];
+        $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4];
         $totH = 5.5;
         $pdf->SetXY($xTot, $yTable);
         $pdf->Cell($wSum, $totH, CotizacionPdfHelper::encodeTextForFpdf('TOTALES:'), 1, 0, 'R', true);
-        $pdf->Cell($colWidths[7], $totH, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
-        $xImp = $xTot + $wSum + $colWidths[7];
-        self::drawImpuestosSubCells($pdf, $xImp, $yTable, $totH, $colWidths[8], number_format($totalIva, 2, '.', ''), true);
+        $pdf->Cell($colWidths[5], $totH, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
+        $xImp = $xTot + $wSum + $colWidths[5];
+        self::drawImpuestosSubCells($pdf, $xImp, $yTable, $totH, $colWidths[6], number_format($totalIva, 2, '.', ''), true);
         $pdf->SetXY(self::MARGIN_X, $yTable + $totH);
         $pdf->SetFillColor(255, 255, 255);
 
@@ -425,8 +422,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $bs !== '' ? $bs : '',
             (string) $qty,
             number_format($pu, 2, '.', ''),
-            number_format((float) ($row['descuento'] ?? 0), 2, '.', ''),
-            number_format((float) ($row['otros_descuento'] ?? 0), 2, '.', ''),
             number_format($st, 2, '.', ''),
         ];
 
@@ -454,7 +449,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->MultiCell($innerW, $lineH, $descEnc, 0, 'L');
         $x += $cw[3];
 
-        for ($j = 0; $j < 4; $j++) {
+        for ($j = 0; $j < 2; $j++) {
             $pdf->SetXY($x, $y);
             $pdf->Cell(
                 $cw[4 + $j],
@@ -472,7 +467,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $x,
             $y,
             $rowH,
-            $cw[8],
+            $cw[6],
             number_format($iva, 2, '.', ''),
             false
         );
