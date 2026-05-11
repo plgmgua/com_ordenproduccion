@@ -165,7 +165,19 @@ class AccessHelper
         $titles = $db->loadColumn() ?: [];
 
         foreach ($titles as $title) {
-            if ($title === 'Aprobaciones Ventas') {
+            $trim = trim((string) $title);
+            // Match common variants ("Aprobación" vs "Aprobaciones"; accent vs ASCII on some installs)
+            if ($trim === '') {
+                continue;
+            }
+            $normAsc = strtolower(str_replace(["\xc3\xa1", "\xc3\x81"], ['a', 'a'], $trim));
+
+            if (
+                strcasecmp($trim, 'Aprobaciones Ventas') === 0
+                || strcasecmp($trim, 'Aprobacion Ventas') === 0
+                || strcasecmp($normAsc, 'aprobaciones ventas') === 0
+                || strcasecmp($normAsc, 'aprobacion ventas') === 0
+            ) {
                 return true;
             }
         }

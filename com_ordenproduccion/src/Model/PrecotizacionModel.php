@@ -735,6 +735,65 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Aprobaciones Ventas with an actionable pending approval on this PRE may edit lines (precios/totales)
+     * antes de completar la aprobación, incluso cuando la PRE aún no está vinculada a una cotización.
+     *
+     * @param   int                   $preCotizacionId  Pre PK
+     * @param   object                $item             Published row from getItem()
+     * @param   array<string, mixed>  $precotColsLc     lower-case keyed columns map for #__ordenproduccion_pre_cotizacion
+     *
+     * @return  bool
+     *
+     * @since   3.118.77
+     */
+    private function userMayEditWhileVentasApprover(int $preCotizacionId, object $item, array $precotColsLc): bool
+    {
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInAprobacionesVentasGroup()) {
+            return false;
+        }
+
+        if (isset($precotColsLc['oferta']) && !empty($item->oferta)) {
+            return false;
+        }
+
+        if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
+            return false;
+        }
+
+        try {
+            $wf = new ApprovalWorkflowService();
+            if (!$wf->hasSchema()) {
+                return false;
+            }
+
+            $types = [
+                ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION,
+                ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
+                ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO,
+            ];
+
+            foreach ($types as $entityType) {
+                $pending = $wf->getOpenPendingRequest($entityType, $preCotizacionId);
+                if ($pending === null) {
+                    continue;
+                }
+                $rid = (int) ($pending->id ?? 0);
+                if ($rid < 1) {
+                    continue;
+                }
+
+                if ($wf->canUserActOnPendingStep($rid, (int) $user->id)) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $ignored) {
+        }
+
+        return false;
+    }
+
+    /**
      * Document editing: non–offer rows — owner or Administracion/Admon/super user. Offer rows — owner only.
      *
      * If the pre-cotización is already on an active cotización line, only **Aprobaciones Ventas** or
@@ -767,6 +826,11 @@ class PrecotizacionModel extends ListModel
         $db      = $this->getDatabase();
         $cols    = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
         $colsLc  = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+
+        if ($this->userMayEditWhileVentasApprover($preCotizacionId, $item, $colsLc)) {
+            return true;
+        }
+
         if (isset($colsLc['oferta']) && !empty($item->oferta)) {
             if ($this->isAssociatedWithQuotation($preCotizacionId)) {
                 return AccessHelper::isInAprobacionesVentasGroup() || $user->authorise('core.admin');
