@@ -69,63 +69,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
         return $widths;
     }
 
-    /**
-     * @return list<string>
-     */
-    private static function defaultEmisorLines(): array
-    {
-        return [
-            'GRUPO IMPRE, SOCIEDAD ANÓNIMA',
-            'NIT EMISOR: 114441782',
-            'GRIMPSA',
-            '35 AVENIDA 0-25 COLONIA TOLEDO OFICINA 9 , Zona 11,',
-            'GUATEMALA GUATEMALA',
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $felExtra
-     *
-     * @return list<string>
-     */
-    private static function emisorLines(object $inv, array $felExtra): array
-    {
-        $name = trim((string) ($inv->fel_emisor_nombre ?? ''));
-        $nit  = trim((string) ($inv->fel_emisor_nit ?? ''));
-        if ($name === '' && $nit === '') {
-            return self::defaultEmisorLines();
-        }
-        $lines = [];
-        if ($name !== '') {
-            $lines[] = $name;
-        }
-        if ($nit !== '') {
-            $lines[] = 'NIT EMISOR: ' . $nit;
-        }
-        $com = trim((string) ($felExtra['emisor_nombre_comercial'] ?? ''));
-        if ($com !== '') {
-            $lines[] = $com;
-        }
-        $ed = $felExtra['emisor_direccion'] ?? null;
-        if (\is_array($ed)) {
-            $addrParts = array_filter([
-                $ed['direccion'] ?? '',
-                $ed['codigo_postal'] ?? '',
-                trim(($ed['municipio'] ?? '') . (($ed['departamento'] ?? '') !== ''
-                    ? ', ' . ($ed['departamento'] ?? '') : '')),
-                $ed['pais'] ?? '',
-            ]);
-            if ($addrParts !== []) {
-                $lines[] = implode(', ', $addrParts);
-            }
-        }
-        if ($lines === []) {
-            return self::defaultEmisorLines();
-        }
-
-        return $lines;
-    }
-
     public static function getTemplateAbsolutePath(): string
     {
         return JPATH_ROOT . '/' . self::TEMPLATE_REL_PATH;
@@ -294,39 +237,29 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $lw = self::PAGE_W_MM - 2 * self::MARGIN_X;
         $pdf->SetXY(self::MARGIN_X, $yBody);
 
-        $colL = 92.0;
-        $colR = $lw - $colL;
         $x0   = self::MARGIN_X;
         $y0   = $pdf->GetY();
-
-        $pdf->SetFont('Helvetica', 'B', 9);
-        foreach (self::emisorLines($inv, $felExtra) as $ln) {
-            $pdf->SetX($x0);
-            $pdf->Cell($colL, 4.1, CotizacionPdfHelper::encodeTextForFpdf($ln), 0, 1, 'L');
-        }
-        $yEmisorEnd = $pdf->GetY();
+        $colR = $lw;
 
         $pdf->SetFont('Helvetica', '', 8);
-        $xr = $x0 + $colL + 2;
-        $yr = $y0;
-        $pdf->SetXY($xr, $yr);
+        $pdf->SetXY($x0, $y0);
         $pdf->Cell(36, 4.1, CotizacionPdfHelper::encodeTextForFpdf('NIT Receptor:'), 0, 0, 'L');
         $pdf->Cell($colR - 36, 4.1, CotizacionPdfHelper::encodeTextForFpdf($nit), 0, 1, 'L');
-        $pdf->SetX($xr);
+        $pdf->SetX($x0);
         $pdf->Cell(36, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Nombre Receptor:'), 0, 0, 'L');
         $pdf->Cell($colR - 36, 4.1, CotizacionPdfHelper::encodeTextForFpdf($nombre), 0, 1, 'L');
-        $pdf->SetX($xr);
+        $pdf->SetX($x0);
         $pdf->Cell(40, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Dirección comprador:'), 0, 1, 'L');
-        $pdf->SetX($xr + 1);
+        $pdf->SetX($x0 + 1);
         $pdf->MultiCell($colR - 1, 3.7, CotizacionPdfHelper::encodeTextForFpdf($direccion), 0, 'L');
-        $pdf->SetX($xr);
+        $pdf->SetX($x0);
         $pdf->Cell(52, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Fecha y hora de emisión:'), 0, 0, 'L');
         $pdf->Cell($colR - 52, 4.1, CotizacionPdfHelper::encodeTextForFpdf($fechaEmision), 0, 1, 'L');
-        $pdf->SetX($xr);
+        $pdf->SetX($x0);
         $pdf->Cell(52, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Fecha y hora de certificación:'), 0, 0, 'L');
         $pdf->Cell($colR - 52, 4.1, CotizacionPdfHelper::encodeTextForFpdf($fechaCert), 0, 1, 'L');
 
-        $yAfterHeader = max($yEmisorEnd, $pdf->GetY()) + 3;
+        $yAfterHeader = $pdf->GetY() + 3;
         $pdf->SetY($yAfterHeader);
 
         $pdf->SetFont('Helvetica', 'B', 8.5);
