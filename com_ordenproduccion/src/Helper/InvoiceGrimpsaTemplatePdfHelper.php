@@ -37,12 +37,12 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
     private const BODY_TOP_MM = 8.0;
 
-    /** Invoice detail table accent (header row + TOTALES row) — soft ice #E7FAFE. */
-    private const TABLE_ACCENT_FILL_R = 231;
+    /** Invoice detail table accent (header row + TOTALES row) — light gray. */
+    private const TABLE_ACCENT_FILL_R = 236;
 
-    private const TABLE_ACCENT_FILL_G = 250;
+    private const TABLE_ACCENT_FILL_G = 236;
 
-    private const TABLE_ACCENT_FILL_B = 254;
+    private const TABLE_ACCENT_FILL_B = 236;
 
     /** @deprecated No longer used; PDF is fully generated. */
     public const TEMPLATE_REL_PATH = 'media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf';
