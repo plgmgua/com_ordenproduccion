@@ -2,7 +2,7 @@
 /**
  * Grimpsa electronic invoice PDF — full layout drawn with FPDF (no embedded template).
  *
- * SAT-style factura main body: ISR notice (if applicable), líneas de detalle, totales. Optional plantilla wraps logo/Headers/footer.
+ * SAT-style factura main body: líneas de detalle, totales. Optional plantilla wraps logo/Headers/footer/QR.
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @copyright   (C) 2026 Grimpsa. All rights reserved.
@@ -228,19 +228,11 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $lw = self::PAGE_W_MM - 2 * self::MARGIN_X;
         $pdf->SetXY(self::MARGIN_X, $yBody);
 
-        if (self::hasIsrRetencionFrase($felExtra)) {
-            $pdf->SetTextColor(55, 55, 55);
-            $pdf->Cell($lw, 4.3, CotizacionPdfHelper::encodeTextForFpdf(
-                'Sujeto a retención definitiva ISR.'
-            ), 0, 1, 'C');
-            $pdf->SetTextColor(0, 0, 0);
-        }
-
         $pdf->Ln(2.5);
 
         $colWidths = self::columnWidths();
         $hdr       = [
-            '#No.',
+            '#',
             'B/S',
             'Cantidad',
             'Descripción',
@@ -619,22 +611,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
 
         return $out;
-    }
-
-    /**
-     * @param  array<string, mixed>  $felExtra
-     */
-    private static function hasIsrRetencionFrase(array $felExtra): bool
-    {
-        foreach ($felExtra['frases'] ?? [] as $f) {
-            $esc  = (string) ($f['codigo_escenario'] ?? '');
-            $tipo = (string) ($f['tipo_frase'] ?? '');
-            if ($esc === '2' && $tipo === '1') {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
