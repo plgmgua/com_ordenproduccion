@@ -16,6 +16,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFacturaTemplateHelper;
 
 /**
  * @internal  Class name kept for backwards compatibility with controllers and templates.
@@ -187,14 +190,81 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $acceso = '';
         }
 
+        $plantilla            = null;
+        $headerHtmlProcessed  = '';
+        $footerHtmlProcessed  = '';
+        $fixEnc               = static function ($t) {
+            return CotizacionPdfHelper::encodeTextForFpdf((string) $t);
+        };
+
         $pdf = new InvoiceGrimpsaPdfDocument();
         $pdf->AliasNbPages();
         $pdf->SetAutoPageBreak(false);
         $pdf->SetMargins(self::MARGIN_X, self::CMY_BAR_MM + self::BODY_TOP_MM, self::MARGIN_X);
         $pdf->AddPage();
 
+        $pageW = $pdf->GetPageWidth();
+        $plantilla = self::loadInvoiceFacturaPlantillaSettings();
+        if (\is_array($plantilla)) {
+            $tplVals = InvoiceFacturaTemplateHelper::buildPlaceholderValues($inv, $felExtra);
+            if (trim((string) ($plantilla['header_html'] ?? '')) !== '') {
+                $headerHtmlProcessed = InvoiceFacturaTemplateHelper::applyTemplate(
+                    (string) $plantilla['header_html'],
+                    $tplVals
+                );
+            }
+            if (trim((string) ($plantilla['footer_html'] ?? '')) !== '') {
+                $footerHtmlProcessed = InvoiceFacturaTemplateHelper::applyTemplate(
+                    (string) $plantilla['footer_html'],
+                    $tplVals
+                );
+            }
+        }
+
+        $yBody = self::CMY_BAR_MM + self::BODY_TOP_MM;
+        if (\is_array($plantilla)) {
+            $hasLogo   = trim((string) ($plantilla['logo_path'] ?? '')) !== '';
+            $encBlocks = $headerHtmlProcessed !== ''
+                ? CotizacionFpdfBlocksHelper::parseHtmlBlocks($headerHtmlProcessed, $fixEnc)
+                : [];
+            if ($hasLogo || $encBlocks !== []) {
+                $logoX = (float) ($plantilla['logo_x'] ?? 15);
+                $logoY = (float) ($plantilla['logo_y'] ?? 15);
+                $logoW = (float) ($plantilla['logo_width'] ?? 50);
+                $encX  = (float) ($plantilla['encabezado_x'] ?? 15);
+                $encY  = (float) ($plantilla['encabezado_y'] ?? 15);
+
+                if ($hasLogo) {
+                    $resolvedLogo = CotizacionFpdfBlocksHelper::resolveImagePath((string) $plantilla['logo_path']);
+                    if ($resolvedLogo) {
+                        $pdf->Image($resolvedLogo, $logoX, $logoY, $logoW);
+                        $hLogo = self::estimateLogoHeightMm($resolvedLogo, $logoW);
+                        $yBody = max($yBody, $logoY + $hLogo + 3.0);
+                    }
+                }
+
+                if ($encBlocks !== []) {
+                    $pdf->SetXY($encX, $encY);
+                    CotizacionFpdfBlocksHelper::renderPdfBlocks(
+                        $pdf,
+                        $encBlocks,
+                        5.0,
+                        9,
+                        $pageW,
+                        self::MARGIN_X,
+                        self::MARGIN_X,
+                        3.0,
+                        $fixEnc
+                    );
+                    $yBody = max($yBody, $pdf->GetY() + 3.0);
+                }
+
+                $pdf->SetFont('Helvetica', '', 8);
+            }
+        }
+
         $lw = self::PAGE_W_MM - 2 * self::MARGIN_X;
-        $pdf->SetXY(self::MARGIN_X, self::CMY_BAR_MM + self::BODY_TOP_MM);
+        $pdf->SetXY(self::MARGIN_X, $yBody);
 
         $colL = 92.0;
         $colR = $lw - $colL;
@@ -344,7 +414,70 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->SetXY(self::MARGIN_X, $yTable + $totH);
         $pdf->SetFillColor(255, 255, 255);
 
+        if (\is_array($plantilla) && $footerHtmlProcessed !== '') {
+            $pieBlocks = CotizacionFpdfBlocksHelper::parseHtmlBlocks($footerHtmlProcessed, $fixEnc);
+            if ($pieBlocks !== []) {
+                $pieX = (float) ($plantilla['pie_x'] ?? 0);
+                $pieY = (float) ($plantilla['pie_y'] ?? 0);
+                if ($pieX > 0.0 || $pieY > 0.0) {
+                    $pdf->SetXY($pieX > 0.0 ? $pieX : self::MARGIN_X, $pieY > 0.0 ? $pieY : $pdf->GetY());
+                }
+                CotizacionFpdfBlocksHelper::renderPdfBlocks(
+                    $pdf,
+                    $pieBlocks,
+                    5.0,
+                    9,
+                    $pageW,
+                    self::MARGIN_X,
+                    self::MARGIN_X,
+                    3.0,
+                    $fixEnc
+                );
+                $pdf->SetFont('Helvetica', '', 8);
+            }
+        }
+
         return (string) $pdf->Output('S');
+    }
+
+    /**
+     * @return  array<string, mixed>|null
+     *
+     * @since   3.118.83
+     */
+    private static function loadInvoiceFacturaPlantillaSettings(): ?array
+    {
+        try {
+            $app   = Factory::getApplication();
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+            if ($model !== null && \is_callable([$model, 'getInvoiceFacturaPlantillaSettings'])) {
+                /** @var mixed $out */
+                $out = $model->getInvoiceFacturaPlantillaSettings();
+
+                return \is_array($out) ? $out : null;
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @since   3.118.83
+     */
+    private static function estimateLogoHeightMm(string $absolutePath, float $widthMm): float
+    {
+        if (!is_file($absolutePath) || $widthMm <= 0.0) {
+            return $widthMm * 0.35;
+        }
+        $info = @getimagesize($absolutePath);
+        if (\is_array($info) && ($info[0] ?? 0) > 0 && ($info[1] ?? 0) > 0) {
+            return $widthMm * ((float) $info[1] / (float) $info[0]);
+        }
+
+        return $widthMm * 0.35;
     }
 
     /**

@@ -1,7 +1,7 @@
 <?php
 /**
- * Ajustes > Plantilla de Factura: optional HTML header/footer for invoice detail (WYSIWYG + placeholders),
- * logo and mm offsets (same idea as Ajustes de Cotización PDF).
+ * Ajustes > Plantilla de Factura: optional HTML header/footer for the Grimpsa invoice PDF (WYSIWYG + placeholders),
+ * logo and mm offsets (same idea as Ajustes de Cotización PDF). Not used on the browser invoice page.
  *
  * @package     Joomla.Site
  * @subpackage  com_ordenproduccion
