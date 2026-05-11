@@ -2265,6 +2265,7 @@ class FelInvoiceIssuanceService
 
     /**
      * Issue FEL via Digifact transform API (bypasses mock queue). Requires url_cert_cf or url_cert_nit + valid stored bearer token.
+     * Does not require órdenes de trabajo (manual advance-payment flow); association can be done later on the invoice screen.
      *
      * @return  array{success:bool, message:string, invoice_id?:int}
      *
@@ -2293,10 +2294,8 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => (string) ($built['message'] ?? 'Invalid payload')];
         }
 
-        $waitOt = $this->getPrecotOrdenWaitMessageIfBlocking($quotationId);
-        if ($waitOt !== '') {
-            return ['success' => false, 'message' => $waitOt];
-        }
+        // Manual "Emitir FEL por Digifact (directo)" may run before OTs exist (e.g. advance payment).
+        // Queued {@see processInvoice()} still enforces getPrecotOrdenWaitMessageIfBlocking().
 
         /** @var array<string, mixed> $payload */
         $payload = $built['payload'];
@@ -2319,7 +2318,8 @@ class FelInvoiceIssuanceService
 
     /**
      * When facturar pre-cotizaciones exist on the quotation, each must have at least one published OT
-     * (PrecotizacionModel::getFacturarPreCotizacionesForQuotation) before FEL runs.
+     * before queued FEL runs. {@see processInvoice()} blocks on this; the manual action
+     * {@see issueDigifactNucDirectFromQuotation()} skips it (e.g. advance payment before OT exists).
      *
      * @return  string  Empty when OK to process; otherwise a user-facing message.
      *
