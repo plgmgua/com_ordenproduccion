@@ -60,8 +60,10 @@ class CertificadorFactNitLookupHelper
      * Ensure the URL path targets Digifact SHARED GET. Users often paste the NUC transform URL
      * (/api/v2/transform/nuc_json); that route is not valid for SHARED_GETINFONIT.
      *
-     * Guatemala NUC production (and test stacks on *nucgt.digifact.com) use a site prefix:
-     * `/gt.com.apinuc/api/SHARED` — not `/api/Shared`. Flat `/api/Shared` returns 404 there.
+     * Guatemala **production** host `nucgt.digifact.com` uses the site prefix
+     * `/gt.com.apinuc/api/SHARED` — flat `/api/Shared` returns 404 there.
+     *
+     * **QA** `testnucgt.digifact.com` uses flat `/api/Shared` like Postman (must NOT apply the gt.com.apinuc path).
      *
      * Other regions / hosts keep the historical `/api/Shared` rewrite after stripping transform paths.
      */
@@ -69,12 +71,15 @@ class CertificadorFactNitLookupHelper
     {
         $path = isset($parts['path']) ? $parts['path'] : '/';
         $pn   = strtolower(str_replace('\\', '/', $path));
-        $host = strtolower((string) ($parts['host'] ?? ''));
+        $hostLower = strtolower((string) ($parts['host'] ?? ''));
 
-        $isDigifactGtNucHost = strpos($host, 'nucgt.digifact.com') !== false;
-        $gtApinucSharedPath  = '/gt.com.apinuc/api/SHARED';
+        $isGtNucProductionHost =
+            $hostLower === 'nucgt.digifact.com'
+            || $hostLower === 'www.nucgt.digifact.com';
 
-        if ($isDigifactGtNucHost) {
+        $gtApinucSharedPath = '/gt.com.apinuc/api/SHARED';
+
+        if ($isGtNucProductionHost) {
             $hasApinucShared = ($pn !== '' && strpos($pn, 'gt.com.apinuc') !== false && strpos($pn, 'shared') !== false);
             if ($hasApinucShared) {
                 return $parts;
