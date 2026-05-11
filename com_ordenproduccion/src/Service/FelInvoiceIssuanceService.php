@@ -1,7 +1,8 @@
 <?php
 /**
- * Mock FELplex "Crear DTE Síncrono" engine: build JSON from cotización, simulate certification,
- * save XML/PDF under media, persist debug payloads on the invoice row.
+ * Mock FELplex "Crear DTE Síncrono" engine (legacy): build JSON from cotización, optionally simulate certification
+ * when Digifact URLs/token are unset; otherwise {@see FelInvoiceIssuanceService::executeDigifactCertificationForInvoice()}
+ * persists real Digifact payloads and artifacts.
  *
  * @package     com_ordenproduccion
  * @copyright   (C) 2025 Grimpsa. All rights reserved.
@@ -28,7 +29,7 @@ use Joomla\CMS\Uri\Uri;
 use Joomla\Database\DatabaseInterface;
 
 /**
- * FEL invoice issuance (mock) service.
+ * FEL invoice issuance service (Digifact when configured; else mock simulation).
  *
  * @since  3.101.50
  */
@@ -501,7 +502,8 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * Run mock certification for a pending/processing invoice (queue step 2).
+     * Run FEL for a pending/processing invoice (queue step 2): Digifact NUC POST when URLs, bearer token, and modo/ambiente
+     * are valid; otherwise the legacy FELplex mock (local XML/PDF).
      *
      * @param   bool  $forceScheduled  If true, run even when fel_issue_status is scheduled and fel_scheduled_at is in the future.
      */
@@ -523,8 +525,9 @@ class FelInvoiceIssuanceService
 
         if ($status === 'failed') {
             $this->updateInvoiceFields($invoiceId, [
-                'fel_issue_status' => 'pending',
+                'fel_issue_status'   => 'pending',
                 'fel_issue_error'    => null,
+                'fel_response_json'  => null,
             ]);
             $inv = $this->loadInvoice($invoiceId);
             $status = (string) ($inv->fel_issue_status ?? 'pending');
@@ -555,6 +558,27 @@ class FelInvoiceIssuanceService
         $this->setStatus($invoiceId, 'processing');
 
         try {
+            if ($this->isDigifactIssuanceConfiguredForQueue()) {
+                $built = $this->buildDigifactNucDirectPayloadForQuotation($quotationId);
+                if (!$built['success']) {
+                    throw new \RuntimeException((string) ($built['message'] ?? 'Digifact payload invalid'));
+                }
+                $actingUserId = $this->resolveFelIssuanceActorUserId($inv);
+                if ($actingUserId < 1) {
+                    throw new \RuntimeException('Missing user context for FEL issuance (invoice created_by)');
+                }
+
+                /** @var array<string, mixed> $nucPayload */
+                $nucPayload = $built['payload'];
+
+                return $this->executeDigifactCertificationForInvoice(
+                    $invoiceId,
+                    $quotationId,
+                    $nucPayload,
+                    $actingUserId
+                );
+            }
+
             $quotation = $this->loadQuotation($quotationId);
             if (!$quotation) {
                 throw new \RuntimeException('Quotation not found');
@@ -1965,6 +1989,251 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * When true, queued processing ({@see processInvoice()}) calls Digifact NUC instead of the FELplex mock.
+     *
+     * @since   3.118.76
+     */
+    protected function isDigifactIssuanceConfiguredForQueue(): bool
+    {
+        $creds = $this->getActiveCertificadorCredentials();
+        if ($this->buildDigifactCertificarRequestUrl($creds) === '') {
+            return false;
+        }
+        if ($this->getActiveCertificadorBearerToken() === '') {
+            return false;
+        }
+        if (CertificadorDigifactAmbienteHelper::nucCertifyCredsViolateModo($creds, $this->getActiveCertificadorModo()) !== null) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Prefer current session user when present; otherwise invoice modified_by / created_by (scheduled / cron).
+     *
+     * @since   3.118.76
+     */
+    protected function resolveFelIssuanceActorUserId(object $invoice): int
+    {
+        $sessionUid = (int) Factory::getUser()->id;
+        if ($sessionUid >= 1) {
+            return $sessionUid;
+        }
+        $fb = (int) ($invoice->modified_by ?? 0);
+        if ($fb >= 1) {
+            return $fb;
+        }
+        $fb = (int) ($invoice->created_by ?? 0);
+
+        return $fb >= 1 ? $fb : 0;
+    }
+
+    /**
+     * POST NUC certification JSON for an existing invoice and persist Digifact artifacts (caller sets fel_issue_status processing).
+     *
+     * @param   array<string, mixed>  $payload  Built from {@see buildDigifactNucJsonPayload()}
+     *
+     * @return  array{success:bool, message:string, invoice_id?:int, uuid?:string}
+     *
+     * @since   3.118.76
+     */
+    protected function executeDigifactCertificationForInvoice(int $invoiceId, int $quotationId, array $payload, int $userId): array
+    {
+        $invoiceId = (int) $invoiceId;
+        $quotationId = (int) $quotationId;
+        $userId = (int) $userId;
+        if ($invoiceId < 1 || $quotationId < 1 || $userId < 1) {
+            return ['success' => false, 'message' => 'Invalid ids'];
+        }
+
+        $creds = $this->getActiveCertificadorCredentials();
+        $url   = $this->buildDigifactCertificarRequestUrl($creds);
+        if ($url === '') {
+            $msg = 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).';
+            $this->markFailed($invoiceId, $msg);
+
+            return ['success' => false, 'message' => $msg];
+        }
+        $bearer = $this->getActiveCertificadorBearerToken();
+        if ($bearer === '') {
+            $msg = 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).';
+            $this->markFailed($invoiceId, $msg);
+
+            return ['success' => false, 'message' => $msg];
+        }
+
+        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($jsonBody === false) {
+            $msg = 'JSON encode failed';
+            $this->markFailed($invoiceId, $msg);
+
+            return ['success' => false, 'message' => $msg];
+        }
+
+        $this->updateInvoiceFields($invoiceId, [
+            'fel_request_json' => $jsonBody,
+            'fel_issue_error'  => null,
+        ]);
+
+        $env = $this->getActiveCertificadorModo();
+        $env = ($env === 'prod') ? 'prod' : 'test';
+        $logCtx = [
+            'environment'  => $env,
+            'operation'    => 'certify_nuc',
+            'invoice_id'   => $invoiceId,
+            'quotation_id' => $quotationId,
+        ];
+
+        $httpResult = $this->postDigifactCertificarJson($url, $jsonBody, $bearer, $logCtx);
+        if ($httpResult['error'] !== '') {
+            $this->markFailed($invoiceId, $httpResult['error']);
+
+            return ['success' => false, 'message' => $httpResult['error']];
+        }
+
+        $body = $httpResult['body'];
+        $code = $httpResult['http_code'];
+        $this->updateInvoiceFields($invoiceId, ['fel_response_json' => $body]);
+
+        $interpret = $this->interpretDigifactCertificarResponse($body, $code);
+
+        return $this->finalizeDigifactCertificationSuccessFromInterpret(
+            $invoiceId,
+            $quotationId,
+            $interpret,
+            $userId,
+            $code,
+            $body
+        );
+    }
+
+    /**
+     * Persist completed invoice fields from Digifact interpret result (extracted for reuse by queue/direct issue).
+     *
+     * @param   array{xml:string, pdf:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool, certificacion_meta:array<string, mixed>}  $interpret
+     *
+     * @return  array{success:bool, message:string, invoice_id:int, uuid?:string}
+     *
+     * @since   3.118.76
+     */
+    protected function finalizeDigifactCertificationSuccessFromInterpret(
+        int $invoiceId,
+        int $quotationId,
+        array $interpret,
+        int $userId,
+        int $httpCode,
+        string $rawBody
+    ): array {
+        $uuid = $interpret['uuid'];
+        $auth = $interpret['autorizacion'];
+
+        if (!$interpret['success']) {
+            $errBits = ['HTTP ' . $httpCode];
+            if ($interpret['digifact_msg'] !== '') {
+                $errBits[] = $interpret['digifact_msg'];
+            }
+            if ($interpret['digifact_code'] !== null && $interpret['digifact_code'] !== 1) {
+                $errBits[] = 'code ' . $interpret['digifact_code'];
+            }
+            $snippet = strlen($rawBody) > 400 ? substr($rawBody, 0, 400) . '…' : $rawBody;
+            if ($snippet !== '' && stripos(implode(' ', $errBits), $snippet) === false) {
+                $errBits[] = $snippet;
+            }
+            $failMsg = implode(' — ', array_filter($errBits));
+            $this->markFailed($invoiceId, $failMsg);
+
+            return ['success' => false, 'message' => 'Digifact error: ' . $failMsg];
+        }
+
+        $quotation = $this->loadQuotation($quotationId);
+        if (!$quotation) {
+            $msg = 'Quotation not found';
+            $this->markFailed($invoiceId, $msg);
+
+            return ['success' => false, 'message' => $msg];
+        }
+
+        $xmlRel = null;
+        $pdfRel = null;
+        if ($interpret['xml'] !== '' || $interpret['pdf'] !== '') {
+            $relDir = 'media/com_ordenproduccion/fel_issued/' . $invoiceId . '/digifact';
+            $absDir = JPATH_ROOT . '/' . $relDir;
+            if (Folder::create($absDir)) {
+                $base = '';
+                if ($interpret['xml'] !== '') {
+                    $base = $this->extractSatAutorizacionUuidFromFelXml($interpret['xml']);
+                }
+                if ($base === '') {
+                    $base = $interpret['uuid'] !== '' ? $interpret['uuid']
+                        : ($interpret['autorizacion'] !== '' ? $interpret['autorizacion'] : ('invoice-' . $invoiceId));
+                }
+                $base = $this->sanitizeFelArtifactBasename($base, 'invoice-' . $invoiceId);
+                if ($interpret['xml'] !== '') {
+                    $xmlForDisk = $interpret['xml'];
+                    $norm         = FelXmlHelper::normalizeFelXmlForImport($xmlForDisk);
+                    if (!empty($norm['success']) && isset($norm['xml']) && \is_string($norm['xml']) && $norm['xml'] !== '') {
+                        $xmlForDisk = $norm['xml'];
+                    }
+                    $xmlPath = $absDir . '/' . $base . '.xml';
+                    if (file_put_contents($xmlPath, $xmlForDisk) !== false) {
+                        $xmlRel = $relDir . '/' . $base . '.xml';
+                    }
+                }
+                if ($interpret['pdf'] !== '') {
+                    $pdfPath = $absDir . '/' . $base . '.pdf';
+                    if (file_put_contents($pdfPath, $interpret['pdf']) !== false) {
+                        $pdfRel = $relDir . '/' . $base . '.pdf';
+                    }
+                }
+            }
+        }
+
+        $now = Factory::getDate()->toSql();
+        $felplex = $uuid !== '' ? $uuid : null;
+        $felAuth = $auth !== '' ? $auth : ($uuid !== '' ? $uuid : null);
+        $felExtraMerged = $this->mergeInvoiceFelExtraWithCertificacionMeta(
+            $invoiceId,
+            \is_array($interpret['certificacion_meta'] ?? null) ? $interpret['certificacion_meta'] : []
+        );
+        $update = [
+            'fel_issue_status'       => 'completed',
+            'fel_issue_error'        => null,
+            'felplex_uuid'           => $felplex,
+            'fel_autorizacion_uuid'  => $felAuth,
+            'fel_tipo_dte'           => 'FACT',
+            'fel_fecha_emision'      => $now,
+            'fel_receptor_id'        => $this->digitsOnly($quotation->client_nit ?? ''),
+            'fel_receptor_nombre'    => $quotation->client_name ?? '',
+            'fel_receptor_direccion' => $quotation->client_address ?? null,
+            'fel_moneda'             => 'GTQ',
+            'fel_scheduled_at'       => null,
+            'fel_local_xml_path'     => $xmlRel,
+            'fel_local_pdf_path'     => $pdfRel,
+            'status'                 => 'created',
+            'modified'               => $now,
+            'modified_by'            => $userId,
+        ];
+        if ($felExtraMerged !== null) {
+            $update['fel_extra'] = $felExtraMerged;
+        }
+        $update = $this->filterToExistingColumns($update);
+        $this->updateInvoiceFields($invoiceId, $update);
+
+        $outUuid = '';
+        if ($felplex !== null && $felplex !== '') {
+            $outUuid = (string) $felplex;
+        }
+
+        return [
+            'success'    => true,
+            'message'    => 'OK',
+            'invoice_id' => $invoiceId,
+            'uuid'       => $outUuid,
+        ];
+    }
+
+    /**
      * Issue FEL via Digifact transform API (bypasses mock queue). Requires url_cert_cf or url_cert_nit + valid stored bearer token.
      *
      * @return  array{success:bool, message:string, invoice_id?:int}
@@ -1996,10 +2265,6 @@ class FelInvoiceIssuanceService
 
         /** @var array<string, mixed> $payload */
         $payload = $built['payload'];
-        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
-        if ($jsonBody === false) {
-            return ['success' => false, 'message' => 'JSON encode failed'];
-        }
 
         $quotation = $this->loadQuotation($quotationId);
         if (!$quotation) {
@@ -2013,119 +2278,8 @@ class FelInvoiceIssuanceService
         }
 
         $this->setStatus($invoiceId, 'processing');
-        $this->updateInvoiceFields($invoiceId, [
-            'fel_request_json' => $jsonBody,
-            'fel_issue_error'    => null,
-        ]);
 
-        $env = $this->getActiveCertificadorModo();
-        $env = ($env === 'prod') ? 'prod' : 'test';
-        $logCtx = [
-            'environment'   => $env,
-            'operation'     => 'certify_nuc',
-            'invoice_id'    => $invoiceId,
-            'quotation_id'  => $quotationId,
-        ];
-
-        $httpResult = $this->postDigifactCertificarJson($url, $jsonBody, $bearer, $logCtx);
-        if ($httpResult['error'] !== '') {
-            $this->markFailed($invoiceId, $httpResult['error']);
-
-            return ['success' => false, 'message' => $httpResult['error']];
-        }
-
-        $body = $httpResult['body'];
-        $code = $httpResult['http_code'];
-        $this->updateInvoiceFields($invoiceId, ['fel_response_json' => $body]);
-
-        $interpret = $this->interpretDigifactCertificarResponse($body, $code);
-        $uuid      = $interpret['uuid'];
-        $auth      = $interpret['autorizacion'];
-
-        $xmlRel = null;
-        $pdfRel = null;
-        if ($interpret['xml'] !== '' || $interpret['pdf'] !== '') {
-            $relDir = 'media/com_ordenproduccion/fel_issued/' . $invoiceId . '/digifact';
-            $absDir = JPATH_ROOT . '/' . $relDir;
-            if (Folder::create($absDir)) {
-                $base = '';
-                if ($interpret['xml'] !== '') {
-                    $base = $this->extractSatAutorizacionUuidFromFelXml($interpret['xml']);
-                }
-                if ($base === '') {
-                    $base = $interpret['uuid'] !== '' ? $interpret['uuid'] : ($interpret['autorizacion'] !== '' ? $interpret['autorizacion'] : ('invoice-' . $invoiceId));
-                }
-                $base = $this->sanitizeFelArtifactBasename($base, 'invoice-' . $invoiceId);
-                if ($interpret['xml'] !== '') {
-                    $xmlForDisk = $interpret['xml'];
-                    $norm         = FelXmlHelper::normalizeFelXmlForImport($xmlForDisk);
-                    if (!empty($norm['success']) && isset($norm['xml']) && \is_string($norm['xml']) && $norm['xml'] !== '') {
-                        $xmlForDisk = $norm['xml'];
-                    }
-                    $xmlPath = $absDir . '/' . $base . '.xml';
-                    if (file_put_contents($xmlPath, $xmlForDisk) !== false) {
-                        $xmlRel = $relDir . '/' . $base . '.xml';
-                    }
-                }
-                if ($interpret['pdf'] !== '') {
-                    $pdfPath = $absDir . '/' . $base . '.pdf';
-                    if (file_put_contents($pdfPath, $interpret['pdf']) !== false) {
-                        $pdfRel = $relDir . '/' . $base . '.pdf';
-                    }
-                }
-            }
-        }
-
-        if ($interpret['success']) {
-            $now = Factory::getDate()->toSql();
-            $felplex = $uuid !== '' ? $uuid : null;
-            $felAuth = $auth !== '' ? $auth : ($uuid !== '' ? $uuid : null);
-            $felExtraMerged = $this->mergeInvoiceFelExtraWithCertificacionMeta(
-                $invoiceId,
-                \is_array($interpret['certificacion_meta'] ?? null) ? $interpret['certificacion_meta'] : []
-            );
-            $update  = [
-                'fel_issue_status'       => 'completed',
-                'fel_issue_error'        => null,
-                'felplex_uuid'           => $felplex,
-                'fel_autorizacion_uuid'  => $felAuth,
-                'fel_tipo_dte'           => 'FACT',
-                'fel_fecha_emision'      => $now,
-                'fel_receptor_id'        => $this->digitsOnly($quotation->client_nit ?? ''),
-                'fel_receptor_nombre'    => $quotation->client_name ?? '',
-                'fel_receptor_direccion' => $quotation->client_address ?? null,
-                'fel_moneda'             => 'GTQ',
-                'fel_scheduled_at'       => null,
-                'fel_local_xml_path'     => $xmlRel,
-                'fel_local_pdf_path'     => $pdfRel,
-                'status'                 => 'created',
-                'modified'               => $now,
-                'modified_by'            => $userId,
-            ];
-            if ($felExtraMerged !== null) {
-                $update['fel_extra'] = $felExtraMerged;
-            }
-            $update = $this->filterToExistingColumns($update);
-            $this->updateInvoiceFields($invoiceId, $update);
-
-            return ['success' => true, 'message' => 'OK', 'invoice_id' => $invoiceId];
-        }
-
-        $errBits = ['HTTP ' . $code];
-        if ($interpret['digifact_msg'] !== '') {
-            $errBits[] = $interpret['digifact_msg'];
-        }
-        if ($interpret['digifact_code'] !== null && $interpret['digifact_code'] !== 1) {
-            $errBits[] = 'code ' . $interpret['digifact_code'];
-        }
-        $snippet = strlen($body) > 400 ? substr($body, 0, 400) . '…' : $body;
-        if ($snippet !== '' && stripos(implode(' ', $errBits), $snippet) === false) {
-            $errBits[] = $snippet;
-        }
-        $failMsg = implode(' — ', array_filter($errBits));
-        $this->markFailed($invoiceId, $failMsg);
-
-        return ['success' => false, 'message' => 'Digifact error: ' . $failMsg];
+        return $this->executeDigifactCertificationForInvoice($invoiceId, $quotationId, $payload, $userId);
     }
 
     protected function randomUuid(): string
