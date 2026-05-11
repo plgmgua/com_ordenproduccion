@@ -968,6 +968,12 @@ class AdministracionController extends BaseController
             return;
         }
 
+        /*
+         * Same rule as {@see saveCertificadorFact()}: modo Prueba vs host de certificación NUC prod (nucgt).
+         * If this fires, Digifact login often fails anyway; surface the hint on the JSON test too.
+         */
+        $ambientIssueKey = CertificadorDigifactAmbienteHelper::nucCertifyCredsViolateModo($creds, $modo);
+
         $result = CertificadorFactAuthHelper::fetchAuthToken($urlAuth, $nit, $usuario, $clave, 30, [
             'environment' => $modo,
             'operation'   => 'admin_test_auth',
@@ -985,11 +991,15 @@ class AdministracionController extends BaseController
                 }
             } catch (\Throwable $e) {
             }
-            $this->sendAdministracionJson(true, Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_OK'), [
+            $okPayload = [
                 'token'      => $result['token'],
                 'expira_en'  => $result['expira_en'],
                 'otorgado_a' => $result['otorgado_a'],
-            ]);
+            ];
+            if ($ambientIssueKey !== null) {
+                $okPayload['ambient_notice'] = Text::_($ambientIssueKey);
+            }
+            $this->sendAdministracionJson(true, Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_OK'), $okPayload);
 
             return;
         }
@@ -1005,10 +1015,14 @@ class AdministracionController extends BaseController
         if (!empty($result['http_code'])) {
             $msg .= ' (' . Text::sprintf('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_HTTP', (int) $result['http_code']) . ')';
         }
+        if ($ambientIssueKey !== null) {
+            $msg .= ' — ' . Text::_($ambientIssueKey);
+        }
 
         $this->sendAdministracionJson(false, trim($msg), [
-            'http_code'   => (int) ($result['http_code'] ?? 0),
-            'raw_excerpt' => (string) ($result['raw_excerpt'] ?? ''),
+            'http_code'       => (int) ($result['http_code'] ?? 0),
+            'raw_excerpt'     => (string) ($result['raw_excerpt'] ?? ''),
+            'ambient_notice' => $ambientIssueKey !== null ? Text::_($ambientIssueKey) : '',
         ]);
     }
 
