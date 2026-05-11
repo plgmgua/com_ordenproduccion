@@ -445,6 +445,14 @@ class HtmlView extends BaseHtmlView
     protected $certificadorDigifactLogTotal = 0;
 
     /**
+     * Active Digifact log list filter (NIT/CUI substring), normalized.
+     *
+     * @var    string
+     * @since  3.118.78
+     */
+    protected $certificadorDigifactLogSearch = '';
+
+    /**
      * Work order numbering settings (next_order_number, order_prefix, order_format) for ajustes > numeracion_ordenes.
      *
      * @var    \stdClass|null
@@ -1193,6 +1201,7 @@ class HtmlView extends BaseHtmlView
         $this->certificadorDigifactLogPagination = null;
         $this->certificadorDigifactLogTableAvailable = false;
         $this->certificadorDigifactLogTotal      = 0;
+        $this->certificadorDigifactLogSearch     = '';
         $this->financieroSubtab                   = 'listado';
         $this->financieroRows                     = [];
         $this->financieroTotal                    = 0;
@@ -2179,10 +2188,12 @@ class HtmlView extends BaseHtmlView
                 $this->resetCertificadorFactActiveViewFields();
                 try {
                     $this->certificadorDigifactLogTableAvailable = $statsModel->isCertificadorDigifactLogTableAvailable();
-                    $logLimit                                    = 20;
-                    $logStart                                    = max(0, (int) $input->getInt('digifact_log_limitstart', 0));
-                    $this->certificadorDigifactLogTotal          = $statsModel->countCertificadorDigifactLogs();
-                    $this->certificadorDigifactLogRows           = $statsModel->listCertificadorDigifactLogs($logLimit, $logStart);
+                    $logLimit                                     = 20;
+                    $this->certificadorDigifactLogSearch         = $statsModel->normalizeCertificadorDigifactLogSearch($input->getString('digifact_log_search', ''));
+                    $logSearchParam                               = $this->certificadorDigifactLogSearch;
+                    $logStart                                     = max(0, (int) $input->getInt('digifact_log_limitstart', 0));
+                    $this->certificadorDigifactLogTotal           = $statsModel->countCertificadorDigifactLogs($logSearchParam);
+                    $this->certificadorDigifactLogRows           = $statsModel->listCertificadorDigifactLogs($logLimit, $logStart, $logSearchParam);
                     if ($this->certificadorDigifactLogTableAvailable && $this->certificadorDigifactLogTotal > 0) {
                         $this->certificadorDigifactLogPagination = new \Joomla\CMS\Pagination\Pagination(
                             $this->certificadorDigifactLogTotal,
@@ -2194,6 +2205,9 @@ class HtmlView extends BaseHtmlView
                         $this->certificadorDigifactLogPagination->setAdditionalUrlParam('view', 'administracion');
                         $this->certificadorDigifactLogPagination->setAdditionalUrlParam('tab', 'ajustes');
                         $this->certificadorDigifactLogPagination->setAdditionalUrlParam('subtab', 'certificador_fact_logs');
+                        if ($logSearchParam !== '') {
+                            $this->certificadorDigifactLogPagination->setAdditionalUrlParam('digifact_log_search', $logSearchParam);
+                        }
                     }
                 } catch (\Throwable $e) {
                     $this->certificadorDigifactLogRows           = [];

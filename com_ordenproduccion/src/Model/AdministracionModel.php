@@ -3656,11 +3656,50 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Normalize substring for Digifact log search (matched in URL, request body, response body).
+     *
+     * @since  3.118.78
+     */
+    public function normalizeCertificadorDigifactLogSearch(string $raw): string
+    {
+        $s = trim($raw);
+        if ($s === '') {
+            return '';
+        }
+        $s = preg_replace('/\s+/u', ' ', $s);
+        $s = trim((string) $s);
+        if (\strlen($s) > 96) {
+            $s = substr($s, 0, 96);
+        }
+
+        return $s;
+    }
+
+    /**
+     * @since  3.118.78
+     */
+    protected function attachCertificadorDigifactLogSearchWhere($query, string $needle): void
+    {
+        $needle = trim($needle);
+        if ($needle === '') {
+            return;
+        }
+        $db   = Factory::getDbo();
+        $wild = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $needle) . '%';
+        $qx   = $db->quote($wild);
+        $query->where('('
+            . $db->quoteName('request_url') . ' LIKE ' . $qx
+            . ' OR ' . $db->quoteName('request_body') . ' LIKE ' . $qx
+            . ' OR ' . $db->quoteName('response_body') . ' LIKE ' . $qx
+            . ')');
+    }
+
+    /**
      * @return  array<int, object>
      *
-     * @since 3.118.50
+     * @since  3.118.50
      */
-    public function listCertificadorDigifactLogs(int $limit = 50, int $start = 0): array
+    public function listCertificadorDigifactLogs(int $limit = 50, int $start = 0, string $searchNeedle = ''): array
     {
         if (!$this->isCertificadorDigifactLogTableAvailable()) {
             return [];
@@ -3671,8 +3710,9 @@ class AdministracionModel extends BaseDatabaseModel
         $query = $db->getQuery(true)
             ->select('*')
             ->from($db->quoteName('#__ordenproduccion_certificador_digifact_log'))
-            ->order($db->quoteName('created') . ' DESC')
-            ->setLimit($limit, $start);
+            ->order($db->quoteName('created') . ' DESC');
+        $this->attachCertificadorDigifactLogSearchWhere($query, $searchNeedle);
+        $query->setLimit($limit, $start);
         $db->setQuery($query);
 
         $rows = $db->loadObjectList();
@@ -3683,7 +3723,7 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * @since 3.118.50
      */
-    public function countCertificadorDigifactLogs(): int
+    public function countCertificadorDigifactLogs(string $searchNeedle = ''): int
     {
         if (!$this->isCertificadorDigifactLogTableAvailable()) {
             return 0;
@@ -3692,6 +3732,7 @@ class AdministracionModel extends BaseDatabaseModel
         $query = $db->getQuery(true)
             ->select('COUNT(*)')
             ->from($db->quoteName('#__ordenproduccion_certificador_digifact_log'));
+        $this->attachCertificadorDigifactLogSearchWhere($query, $searchNeedle);
         $db->setQuery($query);
         try {
             return (int) $db->loadResult();

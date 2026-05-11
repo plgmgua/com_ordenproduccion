@@ -10,6 +10,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Administracion\HtmlView $this */
 
@@ -139,11 +140,52 @@ if ($rows !== []) {
         <div class="alert alert-warning py-2 mb-0">
             <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_NO_TABLE'); ?>
         </div>
-    <?php elseif ($rows === []) : ?>
-        <div class="alert alert-info py-2 mb-0">
-            <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_EMPTY'); ?>
-        </div>
     <?php else : ?>
+        <?php
+        $logSearch = isset($this->certificadorDigifactLogSearch) ? (string) $this->certificadorDigifactLogSearch : '';
+        $digifactLogsListUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=certificador_fact_logs');
+        ?>
+        <form method="get" action="<?php echo htmlspecialchars($digifactLogsListUrl, ENT_QUOTES, 'UTF-8'); ?>"
+              class="digifact-log-search-form mb-3 d-flex flex-wrap align-items-end gap-2">
+            <input type="hidden" name="option" value="com_ordenproduccion" />
+            <input type="hidden" name="view" value="administracion" />
+            <input type="hidden" name="tab" value="ajustes" />
+            <input type="hidden" name="subtab" value="certificador_fact_logs" />
+            <div class="flex-grow-1" style="min-width: 12rem;">
+                <label class="form-label small text-muted mb-0" for="digifact_log_search">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_SEARCH_LABEL'); ?>
+                </label>
+                <input type="text" name="digifact_log_search" id="digifact_log_search" maxlength="96"
+                       class="form-control form-control-sm"
+                       autocomplete="off"
+                       placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_SEARCH_PLACEHOLDER'); ?>"
+                       value="<?php echo htmlspecialchars($logSearch, ENT_QUOTES, 'UTF-8'); ?>" />
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_SEARCH_SUBMIT'); ?>
+            </button>
+            <?php if ($logSearch !== '') : ?>
+                <a href="<?php echo htmlspecialchars($digifactLogsListUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                   class="btn btn-outline-secondary btn-sm">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_SEARCH_CLEAR'); ?>
+                </a>
+            <?php endif; ?>
+        </form>
+        <p class="text-muted small mb-3 mb-md-4">
+            <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_SEARCH_HINT'); ?>
+        </p>
+
+        <?php if ($rows === []) : ?>
+            <?php if ($logSearch !== '') : ?>
+                <div class="alert alert-warning py-2 mb-0">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_SEARCH_NO_RESULTS'); ?>
+                </div>
+            <?php else : ?>
+                <div class="alert alert-info py-2 mb-0">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_DIGIFACT_LOG_EMPTY'); ?>
+                </div>
+            <?php endif; ?>
+        <?php else : ?>
         <?php if ($pagination !== null) : ?>
             <div class="mb-2"><?php echo $pagination->getListFooter(); ?></div>
         <?php endif; ?>
@@ -261,6 +303,7 @@ if ($rows !== []) {
         </div>
         <?php if ($pagination !== null) : ?>
             <div class="mb-0"><?php echo $pagination->getListFooter(); ?></div>
+        <?php endif; ?>
         <?php endif; ?>
     <?php endif; ?>
 </div>
