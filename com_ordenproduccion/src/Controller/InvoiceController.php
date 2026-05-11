@@ -658,7 +658,7 @@ class InvoiceController extends BaseController
     }
 
     /**
-     * Process pending FEL mock invoice (JSON). Step 2: mock certify + files.
+     * Process pending FEL invoice (JSON). Digifact when certifier URLs + token are active; otherwise mock certify + files.
      *
      * @return  void
      *
