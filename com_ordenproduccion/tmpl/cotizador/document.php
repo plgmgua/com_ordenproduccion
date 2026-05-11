@@ -355,39 +355,40 @@ $solicitarDescuentoAction   = Route::_(
     $medidasOneLineValue = trim(preg_replace('/\s+/u', ' ', str_replace(["\r\n", "\r", "\n"], ' ', $medidasValue)));
     ?>
     <div class="precotizacion-descripcion mb-3">
-        <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
         <?php if ($precotizacionLocked || !$canEditDocument) : ?>
-            <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
-            <div class="mt-2 row g-2">
-                <div class="col-12 col-md-6">
-                    <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelMedidas); ?></span>
-                    <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $medidasValue !== '' ? htmlspecialchars($medidasValue) : '<span class="text-muted">—</span>'; ?></div>
-                </div>
+            <div class="row g-2 mb-2">
                 <div class="col-12 col-md-6">
                     <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelCantidadTotal); ?></span>
                     <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $cantidadTotalValue !== '' ? htmlspecialchars($cantidadTotalValue) : '<span class="text-muted">—</span>'; ?></div>
                 </div>
+                <div class="col-12 col-md-6">
+                    <span class="form-label fw-bold mb-0 d-block"><?php echo htmlspecialchars($labelMedidas); ?></span>
+                    <div class="form-control-plaintext bg-light px-2 py-1 rounded mt-1"><?php echo $medidasValue !== '' ? htmlspecialchars($medidasValue) : '<span class="text-muted">—</span>'; ?></div>
+                </div>
             </div>
+            <label class="form-label fw-bold"><?php echo htmlspecialchars($labelDescripcion); ?></label>
+            <div class="form-control-plaintext bg-light px-2 py-1 rounded"><?php echo $descripcionValue !== '' ? htmlspecialchars($descripcionValue) : '<span class="text-muted">—</span>'; ?></div>
         <?php else : ?>
         <form action="<?php echo htmlspecialchars($saveDescripcionUrl); ?>" method="post" id="precotizacion-desc-medidas-form" class="mb-0 w-100" style="min-width: 0;">
             <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <div class="mb-2">
-                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control w-100" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize: vertical; min-height: 4.25rem;" required><?php echo htmlspecialchars($descripcionValue); ?></textarea>
-            </div>
-            <div class="row g-2">
-                <div class="col-12 col-md-6">
-                    <label class="form-label fw-bold mb-1" for="precotizacion-medidas"><?php echo htmlspecialchars($labelMedidas); ?></label>
-                    <input type="text" name="medidas" id="precotizacion-medidas" class="form-control" maxlength="512" autocomplete="off"
-                           placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
-                           value="<?php echo htmlspecialchars($medidasOneLineValue, ENT_QUOTES, 'UTF-8'); ?>" required>
-                </div>
+            <div class="row g-2 mb-2">
                 <div class="col-12 col-md-6">
                     <label class="form-label fw-bold mb-1" for="precotizacion-cantidad-total"><?php echo htmlspecialchars($labelCantidadTotal); ?></label>
                     <input type="text" name="cantidad_total" id="precotizacion-cantidad-total" class="form-control" maxlength="128" autocomplete="off"
                            placeholder="<?php echo htmlspecialchars($placeholderCantidadTotal); ?>"
                            value="<?php echo htmlspecialchars($cantidadTotalValue, ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-bold mb-1" for="precotizacion-medidas"><?php echo htmlspecialchars($labelMedidas); ?></label>
+                    <input type="text" name="medidas" id="precotizacion-medidas" class="form-control" maxlength="512" autocomplete="off"
+                           placeholder="<?php echo htmlspecialchars($placeholderMedidas); ?>"
+                           value="<?php echo htmlspecialchars($medidasOneLineValue, ENT_QUOTES, 'UTF-8'); ?>" required>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label fw-bold mb-1" for="precotizacion-descripcion"><?php echo htmlspecialchars($labelDescripcion); ?></label>
+                <textarea id="precotizacion-descripcion" name="descripcion" class="form-control w-100" rows="2" placeholder="<?php echo htmlspecialchars($labelDescripcion); ?>" style="resize: vertical; min-height: 4.25rem;" required><?php echo htmlspecialchars($descripcionValue); ?></textarea>
             </div>
         </form>
         <?php endif; ?>

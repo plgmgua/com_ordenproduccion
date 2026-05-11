@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.67-STABLE] - 2026-05-11
+
+### Changed
+- **Pre-cotizacion documento:** En `document.php` y `document_proveedor_externo.php`, **Cantidad total** (izquierda) y **Medidas** (derecha) van arriba; **Descripcion** y su etiqueta debajo, ancho completo (lectura/edición).
+
 ## [3.118.66-STABLE] - 2026-05-12
 
 ### Changed
