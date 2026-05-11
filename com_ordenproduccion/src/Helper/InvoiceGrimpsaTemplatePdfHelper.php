@@ -37,6 +37,13 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
     private const BODY_TOP_MM = 8.0;
 
+    /** SAT-style table header background (sky blue #AEE4F5). */
+    private const TABLE_HEADER_FILL_R = 174;
+
+    private const TABLE_HEADER_FILL_G = 228;
+
+    private const TABLE_HEADER_FILL_B = 245;
+
     /** @deprecated No longer used; PDF is fully generated. */
     public const TEMPLATE_REL_PATH = 'media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf';
 
@@ -383,7 +390,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $headerH = max(6.8, ($hdrLineH * $maxLines) + 1.1);
 
         $pdf->SetDrawColor(0, 0, 0);
-        $pdf->SetFillColor(236, 236, 236);
+        $pdf->SetFillColor(self::TABLE_HEADER_FILL_R, self::TABLE_HEADER_FILL_G, self::TABLE_HEADER_FILL_B);
         $x = self::MARGIN_X;
 
         foreach ($hdr as $i => $text) {
