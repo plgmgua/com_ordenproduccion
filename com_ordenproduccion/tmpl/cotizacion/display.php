@@ -400,8 +400,8 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                 <?php if ($quotationConfirmed) : ?>
                 <colgroup>
                     <col class="col-cotizacion-pre">
-                    <col class="col-cotizacion-qty">
                     <col class="col-cotizacion-desc">
+                    <col class="col-cotizacion-qty">
                     <col class="col-cotizacion-unit">
                     <col class="col-cotizacion-sub">
                     <col class="col-cotizacion-images">
@@ -411,8 +411,8 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                 <?php else : ?>
                 <colgroup>
                     <col class="col-cotizacion-pre">
-                    <col class="col-cotizacion-qty">
                     <col class="col-cotizacion-desc">
+                    <col class="col-cotizacion-qty">
                     <col class="col-cotizacion-unit">
                     <col class="col-cotizacion-sub">
                     <col class="col-cotizacion-images">
@@ -422,8 +422,8 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                 <thead>
                     <tr>
                         <th class="col-cotizacion-pre"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                        <th class="col-cotizacion-qty"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.'); ?></th>
                         <th class="col-cotizacion-desc"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th class="col-cotizacion-qty"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.'); ?></th>
                         <th class="col-cotizacion-unit text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
                         <th class="col-cotizacion-sub text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
                         <th class="col-cotizacion-images"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
@@ -461,8 +461,8 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                     ?>
                         <tr>
                             <td class="col-cotizacion-pre"><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
-                            <td class="col-cotizacion-qty text-center"><?php echo (int) $qty; ?></td>
                             <td class="col-cotizacion-desc"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
+                            <td class="col-cotizacion-qty text-center"><?php echo (int) $qty; ?></td>
                             <td class="col-cotizacion-unit text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
                             <td class="col-cotizacion-sub text-end"><?php echo $currency . ' ' . number_format($lineTotal, 2); ?></td>
                             <td class="col-cotizacion-images align-middle cotizacion-line-images-cell">

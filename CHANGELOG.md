@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.68-STABLE] - 2026-05-11
+
+### Changed
+- **Cotizacion (editar / lineas):** Columna **Descripción** antes que **Cant.**; filas nuevas y servidor alineados; barra de alta con descripción antes de cantidad para el mismo orden.
+- **Cotizacion (ver / display):** Mismo orden de columnas en tabla de lineas (colgroup + cuerpo).
+
 ## [3.118.67-STABLE] - 2026-05-11
 
 ### Changed
