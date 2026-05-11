@@ -103,35 +103,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         if ($xmlForLines !== '') {
             $lineItems = self::mergeStoredLineItemsWithFelXml($lineItems, $xmlForLines);
         }
-        $nit       = trim((string) ($inv->client_nit ?? $inv->fel_receptor_id ?? ''));
-        $nombre    = trim((string) ($inv->client_name ?? $inv->fel_receptor_nombre ?? ''));
-        $direccion = trim((string) ($inv->client_address ?? $inv->fel_receptor_direccion ?? ''));
-
-        $uuid = trim((string) ($inv->fel_autorizacion_uuid ?? ''));
-        if ($uuid === '') {
-            $uuid = trim((string) ($inv->felplex_uuid ?? ''));
-        }
-        $serie  = trim((string) ($felExtra['autorizacion_serie'] ?? ''));
-        $numDte = trim((string) ($felExtra['autorizacion_numero_dte'] ?? ''));
-        $serieLine = '';
-        if ($serie !== '' || $numDte !== '') {
-            $serieLine = 'Serie: ' . ($serie !== '' ? $serie : '—')
-                . '     Número de DTE: ' . ($numDte !== '' ? $numDte : '—');
-        }
-
-        $fechaEmision = self::formatSqlDateTime($inv->fel_fecha_emision ?? $inv->invoice_date ?? '');
-        $cert         = \is_array($felExtra['certificacion'] ?? null) ? $felExtra['certificacion'] : [];
-        $fechaCert    = self::formatSqlDateTime($cert['fecha_hora_certificacion'] ?? '');
-
-        $moneda = trim((string) ($inv->currency ?? 'Q'));
-        if ($moneda === 'Q') {
-            $moneda = 'GTQ';
-        }
-
-        $acceso = trim((string) ($inv->felplex_uuid ?? ''));
-        if ($acceso !== '' && strcasecmp($acceso, $uuid) === 0) {
-            $acceso = '';
-        }
+        $cert = \is_array($felExtra['certificacion'] ?? null) ? $felExtra['certificacion'] : [];
 
         $plantilla                 = null;
         $headerIzqHtmlProcessed    = '';
@@ -236,54 +208,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
         $lw = self::PAGE_W_MM - 2 * self::MARGIN_X;
         $pdf->SetXY(self::MARGIN_X, $yBody);
-
-        $x0   = self::MARGIN_X;
-        $y0   = $pdf->GetY();
-        $colR = $lw;
-
-        $pdf->SetFont('Helvetica', '', 8);
-        $pdf->SetXY($x0, $y0);
-        $pdf->Cell(36, 4.1, CotizacionPdfHelper::encodeTextForFpdf('NIT Receptor:'), 0, 0, 'L');
-        $pdf->Cell($colR - 36, 4.1, CotizacionPdfHelper::encodeTextForFpdf($nit), 0, 1, 'L');
-        $pdf->SetX($x0);
-        $pdf->Cell(36, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Nombre Receptor:'), 0, 0, 'L');
-        $pdf->Cell($colR - 36, 4.1, CotizacionPdfHelper::encodeTextForFpdf($nombre), 0, 1, 'L');
-        $pdf->SetX($x0);
-        $pdf->Cell(40, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Dirección comprador:'), 0, 1, 'L');
-        $pdf->SetX($x0 + 1);
-        $pdf->MultiCell($colR - 1, 3.7, CotizacionPdfHelper::encodeTextForFpdf($direccion), 0, 'L');
-        $pdf->SetX($x0);
-        $pdf->Cell(52, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Fecha y hora de emisión:'), 0, 0, 'L');
-        $pdf->Cell($colR - 52, 4.1, CotizacionPdfHelper::encodeTextForFpdf($fechaEmision), 0, 1, 'L');
-        $pdf->SetX($x0);
-        $pdf->Cell(52, 4.1, CotizacionPdfHelper::encodeTextForFpdf('Fecha y hora de certificación:'), 0, 0, 'L');
-        $pdf->Cell($colR - 52, 4.1, CotizacionPdfHelper::encodeTextForFpdf($fechaCert), 0, 1, 'L');
-
-        $yAfterHeader = $pdf->GetY() + 3;
-        $pdf->SetY($yAfterHeader);
-
-        $pdf->SetFont('Helvetica', 'B', 8.5);
-        $pdf->Cell($lw, 5, CotizacionPdfHelper::encodeTextForFpdf('NÚMERO DE AUTORIZACIÓN'), 0, 1, 'C');
-        $pdf->SetFont('Helvetica', '', 7.6);
-        $pdf->Cell($lw, 4.4, CotizacionPdfHelper::encodeTextForFpdf($uuid), 0, 1, 'C');
-        if ($serieLine !== '') {
-            $pdf->SetFont('Helvetica', '', 7.3);
-            $pdf->Cell($lw, 4.2, CotizacionPdfHelper::encodeTextForFpdf($serieLine), 0, 1, 'C');
-        }
-        $pdf->Ln(0.5);
-        $pdf->SetFont('Helvetica', '', 8);
-        $pdf->Cell(48, 4.3, CotizacionPdfHelper::encodeTextForFpdf('Número Acceso:'), 0, 0, 'L');
-        $pdf->Cell($lw - 48, 4.3, CotizacionPdfHelper::encodeTextForFpdf($acceso), 0, 1, 'R');
-        $pdf->Cell(38, 4.3, CotizacionPdfHelper::encodeTextForFpdf('Moneda:'), 0, 0, 'L');
-        $pdf->Cell($lw - 38, 4.3, CotizacionPdfHelper::encodeTextForFpdf($moneda), 0, 1, 'R');
-
-        $pdf->Ln(3);
-        $numFac = trim((string) ($inv->invoice_number ?? ''));
-        $pdf->SetFont('Helvetica', 'B', 11);
-        $pdf->Cell($lw, 6, CotizacionPdfHelper::encodeTextForFpdf(
-            $numFac !== '' ? 'FACTURA ' . $numFac : 'FACTURA'
-        ), 0, 1, 'C');
-        $pdf->SetFont('Helvetica', '', 8);
 
         if (self::hasIsrRetencionFrase($felExtra)) {
             $pdf->SetTextColor(55, 55, 55);
@@ -751,19 +675,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
             if ($prevCert !== []) {
                 $felExtra['certificacion'] = $prevCert;
             }
-        }
-    }
-
-    private static function formatSqlDateTime(?string $sql): string
-    {
-        $sql = trim((string) $sql);
-        if ($sql === '') {
-            return '';
-        }
-        try {
-            return Factory::getDate($sql)->format('d-m-Y H:i:s');
-        } catch (\Throwable $e) {
-            return $sql;
         }
     }
 
