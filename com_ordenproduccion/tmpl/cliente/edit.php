@@ -246,6 +246,92 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
                 </div>
             </div>
 
+            <?php
+            /** @since  Odoo finance: credit limit + payment term (Ventas). */
+            if (!$isNew && !$isChildContact) :
+                $payTermsLbl = '';
+
+                if (isset($this->item->payment_terms)) {
+                    $payTermsLbl = trim((string) $this->item->payment_terms);
+                }
+
+                if ($payTermsLbl === '' && isset($this->item->property_payment_term_id)) {
+                    $fallbackPt = trim((string) $this->item->property_payment_term_id);
+                    if ($fallbackPt !== '' && !ctype_digit($fallbackPt)) {
+                        $payTermsLbl = $fallbackPt;
+                    }
+                }
+
+                $clNumeric = isset($this->item->credit_limit_numeric) ? $this->item->credit_limit_numeric : null;
+
+                if ($clNumeric === null && isset($this->item->credit_limit) && $this->item->credit_limit !== '') {
+                    $maybe = trim((string) $this->item->credit_limit);
+                    if (is_numeric($maybe)) {
+                        $clNumeric = (float) $maybe;
+                    }
+                }
+
+                $clDisplayTxt = '';
+
+                if ($clNumeric !== null && (float) $clNumeric >= 0) {
+                    // Display as localized currency (GTQ): thousands separator readable in UI
+                    try {
+                        $clDisplayTxt = number_format((float) $clNumeric, 2, '.', ',') . ' GTQ';
+                    } catch (\Throwable $eCl) {
+                        $clDisplayTxt = (string) $clNumeric;
+                    }
+                }
+                ?>
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card border-secondary">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_CARD_ODOO_FINANCE_TITLE'), ENT_QUOTES, 'UTF-8'); ?>
+                                </h5>
+                            </div>
+                            <div class="card-body py-3">
+                                <p class="text-muted small mb-3">
+                                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_CARD_ODOO_FINANCE_INTRO'), ENT_QUOTES, 'UTF-8'); ?>
+                                </p>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3 mb-md-0">
+                                        <div class="fw-bold small text-muted text-uppercase">
+                                            <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_FIELD_CREDIT_LIMIT'), ENT_QUOTES, 'UTF-8'); ?>
+                                        </div>
+                                        <div class="fs-6">
+                                            <?php echo ($clDisplayTxt !== '')
+                                                ? htmlspecialchars($clDisplayTxt, ENT_QUOTES, 'UTF-8')
+                                                : '—'; ?>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="fw-bold small text-muted text-uppercase">
+                                            <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_FIELD_PAYMENT_TERMS'), ENT_QUOTES, 'UTF-8'); ?>
+                                        </div>
+                                        <div class="fs-6">
+                                            <?php echo ($payTermsLbl !== '')
+                                                ? htmlspecialchars($payTermsLbl, ENT_QUOTES, 'UTF-8')
+                                                : '—'; ?>
+                                            <?php
+                                            $tid = isset($this->item->payment_term_id)
+                                                ? trim((string) $this->item->payment_term_id)
+                                                : '';
+                                            if ($tid !== '') :
+                                                ?>
+                                                <div class="small text-muted mt-1">
+                                                    <?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_CLIENTE_PAYMENT_TERM_ID_NOTE', (int) $tid), ENT_QUOTES, 'UTF-8'); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <!-- Child Contacts Section (only for main contacts) -->
             <?php if (!$isNew && !$isChildContact): ?>
             <div class="row mt-4">

@@ -471,6 +471,8 @@ class OdooHelper
                            <value><string>x_studio_agente_de_ventas</string></value>
                            <value><string>display_name</string></value>
                            <value><string>child_ids</string></value>
+                           <value><string>credit_limit</string></value>
+                           <value><string>property_payment_term_id</string></value>
                         </data>
                      </array>
                   </value>
@@ -488,7 +490,12 @@ class OdooHelper
         }
 
         $contacts = $this->parseContactsResponse($result);
-        return !empty($contacts) ? $contacts[0] : null;
+        $one = !empty($contacts) ? $contacts[0] : null;
+        if ($one !== null) {
+            self::finalizePartnerFinanceDisplayFields($one);
+        }
+
+        return $one;
     }
 
     /**
@@ -811,20 +818,116 @@ class OdooHelper
             foreach ($value['struct']['member'] as $member) {
                 $fieldName = $member['name'];
                 $fieldValue = '';
-                
+
+                if (
+                    $fieldName === 'property_payment_term_id'
+                    && isset($member['value']['boolean'])
+                    && !$member['value']['boolean']
+                ) {
+                    $contact['payment_term_id'] = '';
+                    $contact[$fieldName] = '';
+                    $contact['payment_terms'] = '';
+
+                    continue;
+                }
+
                 if (isset($member['value']['string'])) {
                     $fieldValue = $member['value']['string'];
                 } elseif (isset($member['value']['int'])) {
-                    $fieldValue = (string)$member['value']['int'];
+                    $fieldValue = (string) $member['value']['int'];
+                } elseif (isset($member['value']['double'])) {
+                    $fieldValue = (string) $member['value']['double'];
+                } elseif (isset($member['value']['boolean'])) {
+                    $fieldValue = $member['value']['boolean'] ? '1' : '0';
+                } elseif (
+                    isset($member['value']['array']['data']['value'])
+                    && $fieldName === 'property_payment_term_id'
+                ) {
+                    [$termId, $termName] = self::many2oneIdAndLabelFromOdooRpcMember($member);
+                    $contact['payment_term_id'] = $termId !== null ? (string) $termId : '';
+                    $fieldValue                = $termName;
+                    if ($termName !== '') {
+                        $contact['payment_terms'] = $termName;
+                    }
+
+                    // Many2one: store label in canonical field slot used by Accounting UI imports
+                    $contact[$fieldName] = $termName;
+
+                    continue;
                 }
-                
+
                 $contact[$fieldName] = $fieldValue;
             }
-            
+
+            self::finalizePartnerFinanceDisplayFields($contact);
             $contacts[] = $contact;
         }
 
         return $contacts;
+    }
+
+    /**
+     * Normalize Odoo accounting / sales fields after search_read parsing.
+     * Sets readable keys: payment_terms (label), credit_limit_numeric (float|null).
+     *
+     * @param   array  $partner  Mutable row keyed by Odoo field names
+     */
+    private static function finalizePartnerFinanceDisplayFields(array &$partner): void
+    {
+        // Payment terms label (Ventas → Términos de pago) from Many2one or legacy string slot
+        if (!isset($partner['payment_terms']) || $partner['payment_terms'] === '') {
+            $raw = isset($partner['property_payment_term_id'])
+                ? trim((string) $partner['property_payment_term_id'])
+                : '';
+            if ($raw !== '' && !ctype_digit($raw)) {
+                $partner['payment_terms'] = $raw;
+            }
+        }
+
+        // Credit limit (Contabilidad) as float when possible
+        $clRaw = isset($partner['credit_limit']) ? trim((string) $partner['credit_limit']) : '';
+        if ($clRaw === '' || strtolower($clRaw) === 'false') {
+            $partner['credit_limit_numeric'] = null;
+        } else {
+            $partner['credit_limit_numeric'] = is_numeric($clRaw) ? (float) $clRaw : null;
+        }
+    }
+
+    /**
+     * @param   array  $member  One struct member from Odoo XML-RPC (json decode path)
+     *
+     * @return  array  [termId ?int, termLabel string]
+     */
+    private static function many2oneIdAndLabelFromOdooRpcMember(array $member): array
+    {
+        $cells = isset($member['value']['array']['data']['value']) ? $member['value']['array']['data']['value'] : null;
+
+        if ($cells === null) {
+            return [null, ''];
+        }
+
+        if (isset($cells['struct'])) {
+            $cells = [$cells];
+        }
+
+        $cell0 = $cells[0] ?? null;
+        $cell1 = $cells[1] ?? null;
+        $termId = null;
+        $label  = '';
+
+        if (is_array($cell0)) {
+            if (isset($cell0['int'])) {
+                $termId = (int) $cell0['int'];
+            } elseif (isset($cell0['boolean']) && !$cell0['boolean']) {
+                return [null, ''];
+            }
+        }
+
+        if (is_array($cell1) && isset($cell1['string'])) {
+            $label = (string) $cell1['string'];
+        }
+
+        return [$termId, $label];
     }
 
     /**
@@ -1166,36 +1269,38 @@ class OdooHelper
     }
 
     /**
-     * Get credit limit for a client
+     * Credit limit + customer payment term from Odoo (res.partner): Contabilidad + Ventas.
      *
-     * @param   integer  $clientId  The client ID
+     * Field names match standard Odoo: credit_limit (Contabilidad), property_payment_term_id (Ventas y compras).
      *
-     * @return  float|null  The credit limit or null if not found
+     * @param   integer  $clientId  res.partner id
+     *
+     * @return  array{credit_limit: ?float, payment_term_id: ?int, payment_term_name: string}
      */
-    public function getCreditLimit($clientId)
+    public function getPartnerSalesAccountingInfo(int $clientId): array
     {
+        $defaults = [
+            'credit_limit'       => null,
+            'payment_term_id'    => null,
+            'payment_term_name'  => '',
+        ];
+
         if ($clientId <= 0) {
-            return null;
+            return $defaults;
         }
 
-        // Get configuration values
-        $odooDb = $this->config->get('odoo_db', '');
-        $odooUserId = $this->config->get('odoo_user_id', '2');
-        $odooApiKey = $this->config->get('odoo_api_key', '');
-
-        // Build XML payload to get credit_limit field using search_read (consistent with other methods)
         $xmlPayload = '<?xml version="1.0"?>
 <methodCall>
    <methodName>execute_kw</methodName>
    <params>
       <param>
-         <value><string>' . htmlspecialchars($odooDb, ENT_XML1, 'UTF-8') . '</string></value>
+         <value><string>' . htmlspecialchars((string) $this->config->get('odoo_db', ''), ENT_XML1, 'UTF-8') . '</string></value>
       </param>
       <param>
-         <value><int>' . (int)$odooUserId . '</int></value>
+         <value><int>' . (int) $this->config->get('odoo_user_id', '2') . '</int></value>
       </param>
       <param>
-         <value><string>' . htmlspecialchars($odooApiKey, ENT_XML1, 'UTF-8') . '</string></value>
+         <value><string>' . htmlspecialchars((string) $this->config->get('odoo_api_key', ''), ENT_XML1, 'UTF-8') . '</string></value>
       </param>
       <param>
          <value><string>res.partner</string></value>
@@ -1215,7 +1320,7 @@ class OdooHelper
                                  <data>
                                     <value><string>id</string></value>
                                     <value><string>=</string></value>
-                                    <value><int>' . (int)$clientId . '</int></value>
+                                    <value><int>' . (int) $clientId . '</int></value>
                                  </data>
                               </array>
                            </value>
@@ -1235,6 +1340,7 @@ class OdooHelper
                      <array>
                         <data>
                            <value><string>credit_limit</string></value>
+                           <value><string>property_payment_term_id</string></value>
                         </data>
                      </array>
                   </value>
@@ -1246,52 +1352,48 @@ class OdooHelper
 </methodCall>';
 
         $result = $this->executeOdooCall($xmlPayload);
-        
+
         if (!$result) {
-            return null;
+            return $defaults;
         }
 
-        // Parse the response to extract credit_limit (using same pattern as parseContactsResponse)
-        if (!isset($result['params']['param']['value']['array']['data']['value'])) {
-            return null;
+        $contacts = $this->parseContactsResponse($result);
+
+        if ($contacts === [] || !\is_array($contacts[0])) {
+            return $defaults;
         }
 
-        $values = $result['params']['param']['value']['array']['data']['value'];
-        
-        // Handle single result
-        if (isset($values['struct'])) {
-            $values = [$values];
-        }
-        
-        foreach ($values as $value) {
-            if (!isset($value['struct']['member'])) {
-                continue;
-            }
-            
-            foreach ($value['struct']['member'] as $member) {
-                if ($member['name'] === 'credit_limit') {
-                    // Handle different number formats
-                    if (isset($member['value']['double'])) {
-                        return (float)$member['value']['double'];
-                    } elseif (isset($member['value']['int'])) {
-                        return (float)$member['value']['int'];
-                    } elseif (isset($member['value']['string'])) {
-                        $creditLimit = trim($member['value']['string']);
-                        if ($creditLimit === '' || $creditLimit === 'False' || $creditLimit === 'false') {
-                            return null;
-                        }
-                        $creditLimit = (float)$creditLimit;
-                        // Return 0 if explicitly set to 0, null if invalid
-                        return $creditLimit >= 0 ? $creditLimit : null;
-                    } elseif (isset($member['value']['boolean']) && $member['value']['boolean'] === false) {
-                        // Handle False boolean value (Odoo sometimes returns False for empty fields)
-                        return null;
-                    }
-                }
+        $p = $contacts[0];
+
+        $defaults['credit_limit'] = $p['credit_limit_numeric'] ?? null;
+
+        $ptName = isset($p['payment_terms']) ? trim((string) $p['payment_terms']) : '';
+        if ($ptName === '' && isset($p['property_payment_term_id'])) {
+            $fallback = trim((string) $p['property_payment_term_id']);
+            if ($fallback !== '' && !ctype_digit($fallback)) {
+                $ptName = $fallback;
             }
         }
 
-        return null;
+        $defaults['payment_term_name'] = $ptName;
+
+        if (isset($p['payment_term_id']) && $p['payment_term_id'] !== '') {
+            $defaults['payment_term_id'] = (int) $p['payment_term_id'];
+        }
+
+        return $defaults;
+    }
+
+    /**
+     * Get credit limit for a client
+     *
+     * @param   integer  $clientId  The client ID
+     *
+     * @return  float|null  The credit limit or null if not found
+     */
+    public function getCreditLimit($clientId)
+    {
+        return $this->getPartnerSalesAccountingInfo((int) $clientId)['credit_limit'];
     }
 
     /**

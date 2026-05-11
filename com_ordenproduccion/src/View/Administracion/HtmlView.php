@@ -1821,6 +1821,87 @@ class HtmlView extends BaseHtmlView
                                             : '';
                                     }
                                 }
+
+                                $precotOdooClient = [];
+
+                                try {
+                                    $qc = $db->getTableColumns('#__ordenproduccion_quotations', false);
+
+                                    $hasClientIdCol = false;
+
+                                    foreach (array_keys($qc ?: []) as $cn) {
+                                        if (strcasecmp((string) $cn, 'client_id') === 0) {
+                                            $hasClientIdCol = true;
+                                            break;
+                                        }
+                                    }
+
+                                    $ic             = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+                                    $hasPreCotFkCol = false;
+
+                                    foreach (array_keys($ic ?: []) as $cn) {
+                                        if (strcasecmp((string) $cn, 'pre_cotizacion_id') === 0) {
+                                            $hasPreCotFkCol = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if ($hasClientIdCol && $hasPreCotFkCol && $ids !== []) {
+                                        $qb = $db->getQuery(true)
+                                            ->select([
+                                                $db->quoteName('qi.pre_cotizacion_id'),
+                                                'MAX(' . $db->quoteName('q.client_id') . ') AS client_id_raw',
+                                            ])
+                                            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+                                            ->innerJoin(
+                                                $db->quoteName('#__ordenproduccion_quotations', 'q')
+                                                . ' ON ' . $db->quoteName('q.id')
+                                                . ' = ' . $db->quoteName('qi.quotation_id')
+                                            )
+                                            ->where($db->quoteName('qi.pre_cotizacion_id') . ' IN (' . implode(',', $ids) . ')')
+                                            ->where($db->quoteName('q.client_id') . ' IS NOT NULL')
+                                            ->group($db->quoteName('qi.pre_cotizacion_id'));
+
+                                        $db->setQuery($qb);
+
+                                        foreach ($db->loadObjectList() ?: [] as $crow) {
+                                            $ppid = (int) ($crow->pre_cotizacion_id ?? 0);
+                                            $cid  = (int) ($crow->client_id_raw ?? 0);
+
+                                            if ($ppid > 0 && $cid > 0) {
+                                                $precotOdooClient[$ppid] = $cid;
+                                            }
+                                        }
+                                    }
+                                } catch (\Throwable $ignored) {
+                                }
+
+                                foreach ($this->approvalPendingRows as $prow) {
+                                    $prePkResolve = 0;
+                                    $etResolve    = ApprovalWorkflowService::normalizeEntityType((string) ($prow->entity_type ?? ''));
+
+                                    if (
+                                        $etResolve === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+                                        || $etResolve === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+                                        || $etResolve === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
+                                    ) {
+                                        $prePkResolve = (int) ($prow->entity_id ?? 0);
+                                    } elseif ($etResolve === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+                                        $mr0 = isset($prow->metadata) ? trim((string) $prow->metadata) : '';
+
+                                        if ($mr0 !== '') {
+                                            $dm0 = json_decode($mr0, true);
+
+                                            if (is_array($dm0) && isset($dm0['pre_cotizacion_id'])) {
+                                                $prePkResolve = (int) $dm0['pre_cotizacion_id'];
+                                            }
+                                        }
+                                    }
+
+                                    $prow->odoo_partner_id = ($prePkResolve > 0 && isset($precotOdooClient[$prePkResolve]))
+                                        ? (int) $precotOdooClient[$prePkResolve]
+                                        : 0;
+                                }
                             }
                         } catch (\Throwable $e) {
                             // leave rows without precotizacion_number

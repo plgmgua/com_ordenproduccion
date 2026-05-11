@@ -395,15 +395,21 @@ class ClienteController extends FormController
             $contact = $model->getItem($clientId);
             
             if ($contact) {
+                $helperFinance = new \Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper();
+                $fin           = $helperFinance->getPartnerSalesAccountingInfo((int) $contact->id);
+
                 echo json_encode([
                     'success' => true,
-                    'data' => [
-                        'id' => $contact->id,
-                        'name' => $contact->name,
-                        'phone' => $contact->phone,
-                        'mobile' => $contact->mobile,
-                        'email' => $contact->email
-                    ]
+                    'data'    => [
+                        'id'                 => $contact->id,
+                        'name'               => $contact->name,
+                        'phone'              => $contact->phone,
+                        'mobile'             => $contact->mobile,
+                        'email'              => $contact->email,
+                        'credit_limit'       => $fin['credit_limit'],
+                        'payment_term_id'    => $fin['payment_term_id'],
+                        'payment_term_name'  => $fin['payment_term_name'],
+                    ],
                 ]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Contact not found']);
@@ -441,17 +447,21 @@ class ClienteController extends FormController
 
         try {
             $helper = new \Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper();
-            $creditLimit = $helper->getCreditLimit($clientId);
-            
+            $info = $helper->getPartnerSalesAccountingInfo($clientId);
+
             echo json_encode([
-                'success' => true,
-                'credit_limit' => $creditLimit !== null ? $creditLimit : null
+                'success'             => true,
+                'credit_limit'        => $info['credit_limit'],
+                'payment_term_id'     => $info['payment_term_id'],
+                'payment_term_name'   => $info['payment_term_name'],
             ]);
         } catch (\Exception $e) {
             echo json_encode([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'credit_limit' => null
+                'success'             => false,
+                'message'             => $e->getMessage(),
+                'credit_limit'        => null,
+                'payment_term_id'     => null,
+                'payment_term_name'   => '',
             ]);
         }
         

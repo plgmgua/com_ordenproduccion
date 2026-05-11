@@ -104,6 +104,16 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                         } else {
                             $submitterDisplay = '—';
                         }
+                        $odooPartnerIdApproval = isset($row->odoo_partner_id) ? (int) $row->odoo_partner_id : 0;
+                        $showOdooFinanceApproval = (
+                            $odooPartnerIdApproval > 0
+                            && (
+                                $etype === 'solicitud_descuento'
+                                || $etype === 'solicitud_cotizacion'
+                                || $etype === 'creacion_orden_trabajo'
+                                || $etype === 'servicios_elementos_externos'
+                            )
+                        );
                         ?>
                         <tr<?php echo $docUrl !== '' ? ' class="com-ordenproduccion-approval-row-link" data-approval-doc-url="' . htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8') . '" style="cursor:pointer;"' : ''; ?>>
                             <td class="text-nowrap small"><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
@@ -111,6 +121,15 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="approval-col-doc text-nowrap"><?php if ($docUrl !== '') : ?><a href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></a><?php else : ?><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></td>
                             <td style="min-width:260px;">
+                                <?php if ($showOdooFinanceApproval) : ?>
+                                <div class="op-appr-odoo-finance small border rounded p-2 mb-2 bg-light"
+                                     role="note"
+                                     data-op-odoo-partner="<?php echo (int) $odooPartnerIdApproval; ?>"
+                                     data-op-odoo-done="0">
+                                    <strong><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_ODOO_FINANCE_LABEL'); ?>:</strong>
+                                    <div class="mt-1 op-appr-odoo-finance-body text-muted">…</div>
+                                </div>
+                                <?php endif; ?>
                                 <?php if ($etype === 'solicitud_cotizacion') : ?>
                                 <div class="d-flex flex-column gap-2">
                                     <div class="d-flex flex-wrap gap-1 align-items-center">
@@ -213,5 +232,71 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
       }
     });
   });
+})();
+(function () {
+  var ajaxUrlTpl = <?php echo json_encode((string) Route::_('index.php?option=com_ordenproduccion&task=cliente.getCreditLimit&format=json')); ?>;
+  function fillOdooFinanceBox(wrapper) {
+    var pid = parseInt(wrapper.getAttribute('data-op-odoo-partner') || '0', 10);
+    if (pid < 1) return;
+    if (wrapper.getAttribute('data-op-odoo-done') === '1') return;
+
+    wrapper.setAttribute('data-op-odoo-done', '1');
+    var inner = wrapper.querySelector('.op-appr-odoo-finance-body');
+    if (!inner) return;
+
+    fetch(ajaxUrlTpl + '&id=' + pid)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.success) {
+          inner.textContent = '';
+          wrapper.style.display = 'none';
+          return;
+        }
+
+        var lines = [];
+        var cl = null;
+
+        if (data.credit_limit !== null && data.credit_limit !== undefined) {
+          cl = parseFloat(data.credit_limit);
+
+          if (!isNaN(cl) && cl >= 0) {
+            lines.push(new Intl.NumberFormat('es-GT', {
+              style: 'currency',
+              currency: 'GTQ',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }).format(cl));
+          }
+        }
+
+        var ptn = data.payment_term_name ? String(data.payment_term_name).trim() : '';
+
+        if (ptn !== '') {
+          var tid = '';
+
+          if (data.payment_term_id !== null && data.payment_term_id !== undefined && data.payment_term_id !== '') {
+            var n = parseInt(data.payment_term_id, 10);
+
+            if (!isNaN(n) && n > 0) {
+              tid = ' (' + n + ')';
+            }
+          }
+
+          lines.push(ptn + tid);
+        }
+
+        inner.textContent = lines.join(' · ');
+
+        if (lines.length === 0) {
+          wrapper.style.display = 'none';
+        }
+      })
+      .catch(function () {
+        inner.textContent = '';
+        wrapper.style.display = 'none';
+      });
+  }
+
+  document.querySelectorAll('.op-appr-odoo-finance[data-op-odoo-partner]').forEach(fillOdooFinanceBox);
 })();
 </script>

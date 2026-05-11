@@ -17,6 +17,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHe
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Factory;
@@ -266,6 +267,50 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Brief Odoo partner snippet (credit limit + payment terms) for FEL invoice notes.
+     *
+     * @param   object  $quotation  Quotation row with optional client_id (Odoo res.partner).
+     *
+     * @return  string  Empty or "Límite crédito Odoo: … · …" style fragment
+     */
+    private function buildOdooFinanceNoteFragment(object $quotation): string
+    {
+        if (!isset($quotation->client_id)) {
+            return '';
+        }
+
+        $partnerId = (int) $quotation->client_id;
+
+        if ($partnerId < 1) {
+            return '';
+        }
+
+        try {
+            $helper = new OdooHelper();
+            $info   = $helper->getPartnerSalesAccountingInfo($partnerId);
+        } catch (\Throwable $e) {
+            return '';
+        }
+
+        $parts = [];
+
+        if ($info['credit_limit'] !== null && (float) $info['credit_limit'] >= 0) {
+            $parts[] = 'Límite crédito Odoo: ' . number_format((float) $info['credit_limit'], 2, '.', '');
+        }
+
+        $ptn = isset($info['payment_term_name']) ? trim((string) $info['payment_term_name']) : '';
+
+        if ($ptn !== '') {
+            $tid = $info['payment_term_id'] !== null ? (int) $info['payment_term_id'] : 0;
+            $parts[] = $tid > 0
+                ? sprintf('Términos pago Odoo: %s (#%d)', $ptn, $tid)
+                : ('Términos pago Odoo: ' . $ptn);
+        }
+
+        return $parts === [] ? '' : implode(' · ', $parts);
+    }
+
+    /**
      * Build UTC SQL datetime for 08:00 on the given local date (Joomla site offset).
      *
      * @param   string  $dateYmd  Y-m-d
@@ -330,6 +375,10 @@ class FelInvoiceIssuanceService
             return 0;
         }
 
+        $felNoteBase  = 'FEL scheduled queue (cotización, 08:00)';
+        $odooNoteFrag = $this->buildOdooFinanceNoteFragment($quotation);
+        $invoiceNotes = $odooNoteFrag !== '' ? $felNoteBase . ' | ' . $odooNoteFrag : $felNoteBase;
+
         $lines = $this->loadQuotationLines($quotationId);
         $now     = Factory::getDate()->toSql();
         $total   = (float) ($quotation->total_amount ?? 0);
@@ -344,7 +393,7 @@ class FelInvoiceIssuanceService
                 'invoice_amount'   => $total,
                 'line_items'       => $lineItemsJson,
                 'work_description' => $this->summarizeLines($lines),
-                'notes'            => 'FEL scheduled queue (cotización, 08:00)',
+                'notes'            => $invoiceNotes,
                 'modified'         => $now,
                 'modified_by'      => $userId,
             ];
@@ -376,7 +425,7 @@ class FelInvoiceIssuanceService
             'quotation_file'     => null,
             'extraction_status'  => 'manual',
             'status'             => 'draft',
-            'notes'              => 'FEL scheduled queue (cotización, 08:00)',
+            'notes'              => $invoiceNotes,
             'state'              => 1,
             'version'            => '3.101.51',
             'created'            => $now,

@@ -83,7 +83,10 @@ class ClienteModel extends AdminModel
             'street' => '',
             'city' => '',
             'vat' => '',
-            'type' => 'contact'
+            'type' => 'contact',
+            'payment_terms' => '',
+            'payment_term_id' => '',
+            'credit_limit_numeric' => null,
         ];
         
         // For new contacts, check if we have pre-filled data from URL parameters
@@ -140,7 +143,10 @@ class ClienteModel extends AdminModel
                 'street' => '',
                 'city' => '',
                 'vat' => '',
-                'type' => 'contact'
+                'type' => 'contact',
+                'payment_terms' => '',
+                'payment_term_id' => '',
+                'credit_limit_numeric' => null,
             ];
         }
     }

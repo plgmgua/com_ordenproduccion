@@ -134,11 +134,18 @@ $otStepIndicatorInitial = $otWizardLangIsEn
                     </div>
                 </div>
                 
-                <!-- Credit Limit Banner -->
-                <div id="otCreditLimitBanner" class="alert alert-info mb-3" style="display: none; height: 25px; padding: 0.25rem 0.75rem; line-height: 1.5; align-items: center;">
-                    <i class="fas fa-credit-card" style="margin-right: 0.5rem;"></i>
-                    <strong>Límite de Crédito:</strong> 
-                    <span id="otCreditLimitAmount" style="margin-left: 0.25rem;">-</span>
+                <!-- Odoo accounting / sales (credit limit + payment terms) -->
+                <div id="otCreditLimitBanner" class="alert alert-info mb-3 py-2" style="display: none;">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1" id="otCreditLimitCreditRow">
+                        <i class="fas fa-credit-card"></i>
+                        <strong>Límite de crédito:</strong>
+                        <span id="otCreditLimitAmount">—</span>
+                    </div>
+                    <div class="small" id="otPaymentTermsRow" style="display: none;">
+                        <strong>Términos de pago:</strong>
+                        <span id="otPaymentTermsText">—</span>
+                        <span id="otPaymentTermIdHint" class="text-muted ms-1"></span>
+                    </div>
                 </div>
                 
                 <!-- Step 1: Delivery Information -->
@@ -727,40 +734,78 @@ window.openOTModal = openOTModal;
     }
 })();
 
-// Load credit limit for the selected client
+// Load Odoo finance (credit limit + payment terms) for the selected client
 function loadCreditLimit(clientId) {
-    // Hide banner initially
     var banner = document.getElementById('otCreditLimitBanner');
     var amountSpan = document.getElementById('otCreditLimitAmount');
+    var creditRow = document.getElementById('otCreditLimitCreditRow');
+    var payRow = document.getElementById('otPaymentTermsRow');
+    var payText = document.getElementById('otPaymentTermsText');
+    var payIdHint = document.getElementById('otPaymentTermIdHint');
+
+    if (!banner || !amountSpan) {
+        return;
+    }
+
     banner.style.display = 'none';
-    
-    // Make AJAX call to get credit limit
+    amountSpan.textContent = '—';
+
+    if (creditRow) {
+        creditRow.style.display = 'none';
+    }
+
+    if (payRow && payText && payIdHint) {
+        payRow.style.display = 'none';
+        payText.textContent = '';
+        payIdHint.textContent = '';
+    }
+
     fetch('<?php echo Route::_("index.php?option=com_ordenproduccion&task=cliente.getCreditLimit&format=json"); ?>&id=' + clientId)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success && data.credit_limit !== null && data.credit_limit !== undefined) {
-                // Format the credit limit as currency
-                var creditLimit = parseFloat(data.credit_limit);
-                if (!isNaN(creditLimit) && creditLimit > 100) {
-                    // Format as currency (Q for Quetzales, or adjust as needed)
-                    var formattedAmount = new Intl.NumberFormat('es-GT', {
-                        style: 'currency',
-                        currency: 'GTQ',
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }).format(creditLimit);
-                    
-                    amountSpan.textContent = formattedAmount;
-                    banner.style.display = 'flex';
-                } else {
-                    banner.style.display = 'none';
-                }
-            } else {
-                banner.style.display = 'none';
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            var showBanner = false;
+            var cl = null;
+
+            if (data && data.success && data.credit_limit !== null && data.credit_limit !== undefined) {
+                cl = parseFloat(data.credit_limit);
             }
+
+            if (creditRow && !isNaN(cl) && cl > 100) {
+                amountSpan.textContent = new Intl.NumberFormat('es-GT', {
+                    style: 'currency',
+                    currency: 'GTQ',
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(cl);
+                creditRow.style.display = 'flex';
+                showBanner = true;
+            }
+
+            var ptn = (data && data.payment_term_name) ? String(data.payment_term_name).trim() : '';
+
+            if (payRow && payText && ptn !== '') {
+                payText.textContent = ptn;
+                var ptid = (data.payment_term_id !== null && data.payment_term_id !== undefined && data.payment_term_id !== '')
+                    ? parseInt(data.payment_term_id, 10)
+                    : 0;
+
+                if (!isNaN(ptid) && ptid > 0 && payIdHint) {
+                    payIdHint.textContent = '(' + ptid + ')';
+                } else if (payIdHint) {
+                    payIdHint.textContent = '';
+                }
+
+                payRow.style.display = 'block';
+                showBanner = true;
+            }
+
+            banner.style.display = showBanner ? 'block' : 'none';
         })
-        .catch(error => {
-            if (otDebugMode) console.error('Error loading credit limit:', error);
+        .catch(function (error) {
+            if (otDebugMode) {
+                console.error('Error loading Odoo finance:', error);
+            }
+
             banner.style.display = 'none';
         });
 }
