@@ -1690,8 +1690,34 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
 <?php endif; ?>
 
 <?php if ($canEditDocument) : ?>
+<div class="modal fade" id="precotCabeceraNoticeModal" tabindex="-1" aria-labelledby="precotCabeceraNoticeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="precotCabeceraNoticeModalLabel"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_SYSTEM_NOTICE_TITLE'), ENT_QUOTES, 'UTF-8'); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE'), ENT_QUOTES, 'UTF-8'); ?>"></button>
+            </div>
+            <div class="modal-body" id="precotCabeceraNoticeModalBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_SYSTEM_NOTICE_OK'), ENT_QUOTES, 'UTF-8'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
 (function() {
+    function showPrecotCabeceraNoticeModal(message) {
+        var modalEl = document.getElementById('precotCabeceraNoticeModal');
+        var bodyEl = document.getElementById('precotCabeceraNoticeModalBody');
+        if (bodyEl) {
+            bodyEl.textContent = message;
+        }
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else if (typeof window.alert === 'function') {
+            window.alert(message);
+        }
+    }
     var msgRequired = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_CABECERA_REQUIRED_BEFORE_LINES'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgCantidadInvalid = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_CANTIDAD_TOTAL_INVALID_INTEGER'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgDescFirstSegment = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCRIPCION_FIRST_SEGMENT_NO_INTEGER_ONLY'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -1751,7 +1777,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
             var err = cabeceraValidationMessage();
             if (err) {
                 ev.preventDefault();
-                window.alert(err);
+                showPrecotCabeceraNoticeModal(err);
             }
         });
     }
@@ -1771,7 +1797,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
             if (typeof ev.stopImmediatePropagation === 'function') {
                 ev.stopImmediatePropagation();
             }
-            window.alert(err);
+            showPrecotCabeceraNoticeModal(err);
         }
     }, true);
 })();

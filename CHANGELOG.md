@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.74-STABLE] - 2026-05-11
+
+### Changed
+- **Pre-cotización:** Los avisos de validación de cabecera (antes `alert()` del navegador) pasan a un **modal Bootstrap centrado** con título i18n **«Aviso del sistema»** (es-ES) / «System notice» (en-GB), en `document.php` y `document_proveedor_externo.php`.
+
 ## [3.118.73-STABLE] - 2026-05-11
 
 ### Added
