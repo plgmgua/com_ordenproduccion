@@ -577,6 +577,11 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Missing quotation'];
         }
 
+        $waitOt = $this->getPrecotOrdenWaitMessageIfBlocking($quotationId);
+        if ($waitOt !== '') {
+            return ['success' => false, 'message' => $waitOt, 'wait_precot_ot' => true];
+        }
+
         $this->setStatus($invoiceId, 'processing');
 
         try {
@@ -643,6 +648,8 @@ class FelInvoiceIssuanceService
 
             $update = $this->filterToExistingColumns($update);
             $this->updateInvoiceFields($invoiceId, $update);
+
+            $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
 
             return [
                 'success'    => true,
@@ -2241,6 +2248,8 @@ class FelInvoiceIssuanceService
         $update = $this->filterToExistingColumns($update);
         $this->updateInvoiceFields($invoiceId, $update);
 
+        $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
+
         $outUuid = '';
         if ($felplex !== null && $felplex !== '') {
             $outUuid = (string) $felplex;
@@ -2284,6 +2293,11 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => (string) ($built['message'] ?? 'Invalid payload')];
         }
 
+        $waitOt = $this->getPrecotOrdenWaitMessageIfBlocking($quotationId);
+        if ($waitOt !== '') {
+            return ['success' => false, 'message' => $waitOt];
+        }
+
         /** @var array<string, mixed> $payload */
         $payload = $built['payload'];
 
@@ -2301,6 +2315,123 @@ class FelInvoiceIssuanceService
         $this->setStatus($invoiceId, 'processing');
 
         return $this->executeDigifactCertificationForInvoice($invoiceId, $quotationId, $payload, $userId);
+    }
+
+    /**
+     * When facturar pre-cotizaciones exist on the quotation, each must have at least one published OT
+     * (PrecotizacionModel::getFacturarPreCotizacionesForQuotation) before FEL runs.
+     *
+     * @return  string  Empty when OK to process; otherwise a user-facing message.
+     *
+     * @since   3.118.79
+     */
+    protected function getPrecotOrdenWaitMessageIfBlocking(int $quotationId): string
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return '';
+        }
+        try {
+            $precot = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+            if (!$precot || !\is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])) {
+                return '';
+            }
+            /** @var array<int, array{id:int, number:string}> $facturar */
+            $facturar = $precot->getFacturarPreCotizacionesForQuotation($quotationId);
+            if ($facturar === []) {
+                return '';
+            }
+            $db = $this->db;
+            foreach ($facturar as $pc) {
+                $pid = (int) ($pc['id'] ?? 0);
+                if ($pid < 1) {
+                    continue;
+                }
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('COUNT(*)')
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $pid)
+                        ->where($db->quoteName('state') . ' = 1')
+                );
+                if ((int) $db->loadResult() < 1) {
+                    $label = trim((string) ($pc['number'] ?? ''));
+                    if ($label === '') {
+                        $label = 'PRE-' . $pid;
+                    }
+
+                    return Text::sprintf('COM_ORDENPRODUCCION_FEL_WAIT_PRECOT_ORDEN', $label);
+                }
+            }
+        } catch (\Throwable $e) {
+            return '';
+        }
+
+        return '';
+    }
+
+    /**
+     * After FEL completes, link this invoice to all órdenes tied to facturar pre-cotizaciones on the quotation
+     * (same as manual Administración associate, using {@see \Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel::addManualInvoiceOrdenAssociation()}).
+     *
+     * @since   3.118.79
+     */
+    protected function tryAutoLinkInvoiceOrdensForCotizacionFel(int $invoiceId, int $quotationId): void
+    {
+        $invoiceId   = (int) $invoiceId;
+        $quotationId = (int) $quotationId;
+        if ($invoiceId < 1 || $quotationId < 1) {
+            return;
+        }
+        try {
+            $match = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if (!$match || !\is_callable([$match, 'addManualInvoiceOrdenAssociation']) || !$match->isTableAvailable()) {
+                return;
+            }
+            $precot = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+            if (!$precot || !\is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])) {
+                return;
+            }
+            $facturar = $precot->getFacturarPreCotizacionesForQuotation($quotationId);
+            if ($facturar === []) {
+                return;
+            }
+            $db   = $this->db;
+            $seen = [];
+            foreach ($facturar as $pc) {
+                $pid = (int) ($pc['id'] ?? 0);
+                if ($pid < 1) {
+                    continue;
+                }
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('id'))
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $pid)
+                        ->where($db->quoteName('state') . ' = 1')
+                        ->order($db->quoteName('id') . ' ASC')
+                );
+                $oids = $db->loadColumn() ?: [];
+                foreach ($oids as $oid) {
+                    $oid = (int) $oid;
+                    if ($oid < 1 || isset($seen[$oid])) {
+                        continue;
+                    }
+                    $seen[$oid] = true;
+                    try {
+                        $match->addManualInvoiceOrdenAssociation($invoiceId, $oid, false);
+                    } catch (\Throwable $e) {
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
     }
 
     protected function randomUuid(): string
