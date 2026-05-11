@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.61-STABLE] - 2026-05-11
+
+### Fixed
+- **Certificador de Fact (Ajustes):** Faltaba la constante `COM_ORDENPRODUCCION_AJUSTES_CERTIFICADOR_FACT_TITLE` en los INI (título sin traducir). Aviso explícito de que el modo Prueba/Producción solo persiste al **Guardar**, y segundo botón Guardar junto al interruptor (el formulario completo seguía guardándose solo abajo).
+
 ## [3.118.60-STABLE] - 2026-05-11
 
 ### Added

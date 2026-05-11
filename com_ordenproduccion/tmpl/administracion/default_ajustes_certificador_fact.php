@@ -269,6 +269,7 @@ if ($maintAt !== '') {
                        value="<?php echo htmlspecialchars($felModo, ENT_QUOTES, 'UTF-8'); ?>">
             </div>
             <p class="form-text mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_HELP'); ?></p>
+            <p class="form-text mb-2 mt-2 text-body-secondary small"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_MODO_SAVE_NOTICE'); ?></p>
             <p class="form-text mb-0 mt-1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_FRONTEND_DEBUG_HELP'); ?></p>
             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                 <button type="button" class="btn btn-outline-primary btn-sm" id="fel-test-certificador-auth">
@@ -278,6 +279,13 @@ if ($maintAt !== '') {
                 <span class="text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_CONNECTION_HINT'); ?></span>
             </div>
             <div id="fel-test-certificador-result" class="mt-2 small" hidden></div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-2 border-top">
+                <button type="submit" class="btn btn-primary btn-sm" id="fel-certificador-save-near-toggle">
+                    <i class="fas fa-save"></i>
+                    <?php echo Text::_('JSAVE'); ?>
+                </button>
+                <span class="text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_SAVE_REPEAT_HINT'); ?></span>
+            </div>
         </div>
     </div>
     <?php
