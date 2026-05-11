@@ -320,6 +320,93 @@ class FelXmlHelper
     }
 
     /**
+     * Parse certified DTE XML for invoice template placeholders (same XML as decoded from Digifact responseData* base64).
+     *
+     * @return  array{
+     *   numero_autorizacion:string,
+     *   serie:string,
+     *   numero_dte:string,
+     *   nit_receptor:string,
+     *   nombre_receptor:string,
+     *   direccion_comprador:string,
+     *   fecha_hora_emision_raw:string,
+     *   fecha_hora_certificacion_raw:string,
+     *   moneda:string
+     * }
+     *
+     * @since   3.118.81
+     */
+    public static function extractInvoiceTemplateFieldsFromXml(string $xmlContent): array
+    {
+        $out = [
+            'numero_autorizacion'           => '',
+            'serie'                         => '',
+            'numero_dte'                    => '',
+            'nit_receptor'                  => '',
+            'nombre_receptor'               => '',
+            'direccion_comprador'         => '',
+            'fecha_hora_emision_raw'        => '',
+            'fecha_hora_certificacion_raw'  => '',
+            'moneda'                        => '',
+        ];
+
+        $meta = self::extractCertificacionDisplayMeta($xmlContent);
+        $out['serie']                        = $meta['autorizacion_serie'];
+        $out['numero_dte']                   = $meta['autorizacion_numero_dte'];
+        $out['numero_autorizacion']          = $meta['numero_autorizacion_text'];
+        $out['fecha_hora_certificacion_raw'] = $meta['certificacion']['fecha_hora_certificacion'] ?? '';
+
+        $xmlContent = trim($xmlContent);
+        if ($xmlContent === '' || strpos(ltrim($xmlContent), '<') !== 0) {
+            return $out;
+        }
+
+        $dom = new \DOMDocument();
+        if (!@$dom->loadXML($xmlContent, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)) {
+            return $out;
+        }
+
+        $xp = new \DOMXPath($dom);
+        $genList = $xp->query('//*[local-name()="DatosGenerales"]');
+        if ($genList && $genList->length > 0 && $genList->item(0) instanceof \DOMElement) {
+            /** @var \DOMElement $g */
+            $g = $genList->item(0);
+            $fe = self::domElementGetAttributeLenient($g, 'FechaHoraEmision');
+            if ($fe !== '') {
+                $out['fecha_hora_emision_raw'] = $fe;
+            }
+            $cm = self::domElementGetAttributeLenient($g, 'CodigoMoneda');
+            if ($cm !== '') {
+                $out['moneda'] = self::ensureUtf8String($cm);
+            }
+        }
+
+        $recList = $xp->query('//*[local-name()="Receptor"]');
+        if ($recList && $recList->length > 0 && $recList->item(0) instanceof \DOMElement) {
+            /** @var \DOMElement $r */
+            $r = $recList->item(0);
+            $nid = self::domElementGetAttributeLenient($r, 'IDReceptor');
+            if ($nid !== '') {
+                $out['nit_receptor'] = self::ensureUtf8String($nid);
+            }
+            $nom = self::domElementGetAttributeLenient($r, 'NombreReceptor');
+            if ($nom !== '') {
+                $out['nombre_receptor'] = self::ensureUtf8String($nom);
+            }
+            $dirNodes = $xp->query('.//*[local-name()="Direccion"]', $r);
+            if ($dirNodes && $dirNodes->length > 0) {
+                $first = $dirNodes->item(0);
+                $dtext = $first ? trim((string) $first->textContent) : '';
+                if ($dtext !== '') {
+                    $out['direccion_comprador'] = self::ensureUtf8String($dtext);
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Pull XML bytes from a raw Digifact HTTP body (JSON envelope with responseData*, or raw XML).
      *
      * @since  3.118.53

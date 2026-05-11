@@ -332,6 +332,14 @@ class HtmlView extends BaseHtmlView
     protected $cotizacionPdfSettings = [];
 
     /**
+     * Invoice HTML header/footer templates (Ajustes > Plantilla de Factura).
+     *
+     * @var    array{header_html: string, footer_html: string}
+     * @since  3.118.81
+     */
+    protected $invoiceFacturaPlantillaSettings = ['header_html' => '', 'footer_html' => ''];
+
+    /**
      * Solicitud de Orden URL (webhook) for ajustes > solicitud_orden subtab.
      *
      * @var    string
@@ -2067,6 +2075,14 @@ class HtmlView extends BaseHtmlView
                 $this->cotizacionPdfSettings = $statsModel->getCotizacionPdfSettings();
             } catch (\Exception $e) {
                 $this->cotizacionPdfSettings = ['encabezado' => '', 'terminos_condiciones' => '', 'pie_pagina' => ''];
+            }
+        }
+
+        if ($activeTab === 'ajustes' && $activeSubTab === 'plantilla_factura') {
+            try {
+                $this->invoiceFacturaPlantillaSettings = $statsModel->getInvoiceFacturaPlantillaSettings();
+            } catch (\Exception $e) {
+                $this->invoiceFacturaPlantillaSettings = ['header_html' => '', 'footer_html' => ''];
             }
         }
 

@@ -905,6 +905,55 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Save Ajustes > Plantilla de Factura (WYSIWYG header/footer HTML with placeholders).
+     *
+     * @return  void
+     *
+     * @since   3.118.81
+     */
+    public function saveInvoiceFacturaPlantilla()
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=plantilla_factura', false));
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+
+        try {
+            $model = $this->getModel('Administracion');
+            $model->saveInvoiceFacturaPlantillaSettings([
+                'header_html' => isset($jform['invoice_factura_header_html']) ? (string) $jform['invoice_factura_header_html'] : '',
+                'footer_html' => isset($jform['invoice_factura_footer_html']) ? (string) $jform['invoice_factura_footer_html'] : '',
+            ]);
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_SAVED'), 'success');
+        } catch (\Exception $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=plantilla_factura', false));
+    }
+
+    /**
      * JSON: test FEL certifier authentication (Token) for the selected ambiente (form values + saved clave if blank).
      *
      * @return  void

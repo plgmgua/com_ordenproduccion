@@ -15,6 +15,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 class HtmlView extends BaseHtmlView
@@ -64,6 +65,14 @@ class HtmlView extends BaseHtmlView
      * @var array<int, object>
      */
     protected $invoicesForAssocNitList = [];
+
+    /**
+     * Optional HTML header/footer from Ajustes > Plantilla de Factura (placeholders replaced on display).
+     *
+     * @var    array{header_html: string, footer_html: string}
+     * @since  3.118.81
+     */
+    protected $invoiceFacturaPlantillaSettings = ['header_html' => '', 'footer_html' => ''];
 
     /**
      * Display the view
@@ -141,6 +150,15 @@ class HtmlView extends BaseHtmlView
 
         if (!is_array($this->item->line_items ?? null)) {
             $this->item->line_items = json_decode($this->item->line_items ?? '[]', true) ?: [];
+        }
+
+        try {
+            /** @var AdministracionModel $adm */
+            $adm = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+                ->createModel('Administracion', 'Site', ['ignore_request' => true]);
+            $this->invoiceFacturaPlantillaSettings = $adm->getInvoiceFacturaPlantillaSettings();
+        } catch (\Throwable $e) {
+            $this->invoiceFacturaPlantillaSettings = ['header_html' => '', 'footer_html' => ''];
         }
 
         $this->associatedOrdenLinks = [];

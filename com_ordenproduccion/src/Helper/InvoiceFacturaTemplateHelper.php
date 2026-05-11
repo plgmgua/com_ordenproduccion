@@ -1,0 +1,185 @@
+<?php
+/**
+ * Optional HTML header/footer for electronic invoice view (Ajustes > Plantilla de Factura).
+ * Placeholders are filled from invoice columns, fel_extra, and certified DTE XML (Digifact response).
+ *
+ * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
+ * @since       3.118.81
+ */
+
+namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
+
+defined('_JEXEC') or die;
+
+/**
+ * Invoice print template placeholders (same style as CotizacionPdfHelper: {NAME}).
+ */
+final class InvoiceFacturaTemplateHelper
+{
+    public const PLACEHOLDER_NUMERO_AUTORIZACION = '{NUMERO_AUTORIZACION}';
+
+    public const PLACEHOLDER_SERIE = '{SERIE}';
+
+    public const PLACEHOLDER_NUMERO_DTE = '{NUMERO_DTE}';
+
+    public const PLACEHOLDER_NIT_RECEPTOR = '{NIT_RECEPTOR}';
+
+    public const PLACEHOLDER_NOMBRE_RECEPTOR = '{NOMBRE_RECEPTOR}';
+
+    public const PLACEHOLDER_DIRECCION_COMPRADOR = '{DIRECCION_COMPRADOR}';
+
+    public const PLACEHOLDER_FECHA_HORA_EMISION = '{FECHA_HORA_EMISION}';
+
+    public const PLACEHOLDER_FECHA_HORA_CERTIFICACION = '{FECHA_HORA_CERTIFICACION}';
+
+    public const PLACEHOLDER_MONEDA = '{MONEDA}';
+
+    /**
+     * @return array<string, string> placeholder => language key for Ajustes UI
+     */
+    public static function getPlaceholdersForUi(): array
+    {
+        return [
+            self::PLACEHOLDER_NUMERO_AUTORIZACION        => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NUMERO_AUTORIZACION',
+            self::PLACEHOLDER_SERIE                      => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_SERIE',
+            self::PLACEHOLDER_NUMERO_DTE               => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NUMERO_DTE',
+            self::PLACEHOLDER_NIT_RECEPTOR             => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NIT_RECEPTOR',
+            self::PLACEHOLDER_NOMBRE_RECEPTOR          => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NOMBRE_RECEPTOR',
+            self::PLACEHOLDER_DIRECCION_COMPRADOR      => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_DIRECCION_COMPRADOR',
+            self::PLACEHOLDER_FECHA_HORA_EMISION       => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_FECHA_HORA_EMISION',
+            self::PLACEHOLDER_FECHA_HORA_CERTIFICACION => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_FECHA_HORA_CERTIFICACION',
+            self::PLACEHOLDER_MONEDA                   => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_MONEDA',
+        ];
+    }
+
+    /**
+     * Same resolution as invoice detail: local XML file or XML inside fel_response_json (base64 responseData*).
+     */
+    public static function getXmlRawForInvoiceTemplate(object $item): string
+    {
+        $xmlRaw  = '';
+        $relXml = trim((string) ($item->fel_local_xml_path ?? ''));
+        if ($relXml !== '' && is_file(JPATH_ROOT . '/' . $relXml)) {
+            $fromDisk = @file_get_contents(JPATH_ROOT . '/' . $relXml);
+            if ($fromDisk !== false && $fromDisk !== '') {
+                $xmlRaw = $fromDisk;
+            }
+        }
+        if ($xmlRaw === '' && !empty($item->fel_response_json) && is_string($item->fel_response_json)) {
+            $xmlRaw = FelXmlHelper::tryExtractXmlFromDigifactResponseBody($item->fel_response_json);
+        }
+
+        return $xmlRaw;
+    }
+
+    /**
+     * Build placeholder => display value (escaped in {@see applyTemplate()}).
+     *
+     * @param   array<string, mixed>  $felExtra  Decoded fel_extra JSON
+     *
+     * @return  array<string, string>
+     */
+    public static function buildPlaceholderValues(object $item, array $felExtra): array
+    {
+        $authUuid = trim((string) ($item->fel_autorizacion_uuid ?? ''));
+        if ($authUuid === '') {
+            $authUuid = trim((string) ($item->felplex_uuid ?? ''));
+        }
+
+        $cert = isset($felExtra['certificacion']) && is_array($felExtra['certificacion']) ? $felExtra['certificacion'] : [];
+
+        $serie   = trim((string) ($felExtra['autorizacion_serie'] ?? ''));
+        $numDte  = trim((string) ($felExtra['autorizacion_numero_dte'] ?? ''));
+        $numAuth = $authUuid;
+        if ($numAuth === '') {
+            $numAuth = trim((string) ($felExtra['numero_autorizacion_text'] ?? ''));
+        }
+
+        $nit     = trim((string) ($item->client_nit ?? $item->fel_receptor_id ?? ''));
+        $nombre  = trim((string) ($item->client_name ?? ''));
+        $dir     = trim((string) ($item->client_address ?? $item->fel_receptor_direccion ?? ''));
+
+        $fechaEmisionRaw = '';
+        if (!empty($item->fel_fecha_emision)) {
+            $fechaEmisionRaw = trim((string) $item->fel_fecha_emision);
+        }
+        $fechaCertRaw = trim((string) ($cert['fecha_hora_certificacion'] ?? ''));
+
+        $moneda = trim((string) ($item->currency ?? 'Q'));
+
+        $xml = self::getXmlRawForInvoiceTemplate($item);
+        if ($xml !== '') {
+            $xf = FelXmlHelper::extractInvoiceTemplateFieldsFromXml($xml);
+            if ($xf['serie'] !== '') {
+                $serie = $xf['serie'];
+            }
+            if ($xf['numero_dte'] !== '') {
+                $numDte = $xf['numero_dte'];
+            }
+            if ($xf['numero_autorizacion'] !== '') {
+                $numAuth = $xf['numero_autorizacion'];
+            }
+            if ($xf['nit_receptor'] !== '') {
+                $nit = $xf['nit_receptor'];
+            }
+            if ($xf['nombre_receptor'] !== '') {
+                $nombre = $xf['nombre_receptor'];
+            }
+            if ($xf['direccion_comprador'] !== '') {
+                $dir = $xf['direccion_comprador'];
+            }
+            if ($xf['fecha_hora_emision_raw'] !== '') {
+                $fechaEmisionRaw = $xf['fecha_hora_emision_raw'];
+            }
+            if ($xf['fecha_hora_certificacion_raw'] !== '') {
+                $fechaCertRaw = $xf['fecha_hora_certificacion_raw'];
+            }
+            if ($xf['moneda'] !== '') {
+                $moneda = $xf['moneda'];
+            }
+        }
+
+        return [
+            self::PLACEHOLDER_NUMERO_AUTORIZACION        => $numAuth,
+            self::PLACEHOLDER_SERIE                      => $serie,
+            self::PLACEHOLDER_NUMERO_DTE                 => $numDte,
+            self::PLACEHOLDER_NIT_RECEPTOR               => $nit,
+            self::PLACEHOLDER_NOMBRE_RECEPTOR            => $nombre,
+            self::PLACEHOLDER_DIRECCION_COMPRADOR        => $dir,
+            self::PLACEHOLDER_FECHA_HORA_EMISION         => self::formatDisplayDateTime($fechaEmisionRaw),
+            self::PLACEHOLDER_FECHA_HORA_CERTIFICACION   => self::formatDisplayDateTime($fechaCertRaw),
+            self::PLACEHOLDER_MONEDA                     => $moneda,
+        ];
+    }
+
+    /**
+     * Replace placeholders; dynamic values are HTML-escaped. Template HTML is trusted (Administración only).
+     *
+     * @param   array<string, string>  $values  From {@see buildPlaceholderValues()}
+     */
+    public static function applyTemplate(string $html, array $values): string
+    {
+        if ($html === '') {
+            return '';
+        }
+        $search  = [];
+        $replace = [];
+        foreach ($values as $token => $val) {
+            $search[]  = $token;
+            $replace[] = htmlspecialchars((string) $val, ENT_QUOTES, 'UTF-8');
+        }
+
+        return str_replace($search, $replace, $html);
+    }
+
+    private static function formatDisplayDateTime(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        $ts = strtotime($raw);
+
+        return $ts !== false ? date('d-m-Y H:i:s', $ts) : $raw;
+    }
+}

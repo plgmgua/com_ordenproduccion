@@ -3299,6 +3299,36 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Invoice HTML templates (optional header/footer on invoice detail). Stored in #__ordenproduccion_config.
+     *
+     * @return  array{header_html:string, footer_html:string}
+     *
+     * @since   3.118.81
+     */
+    public function getInvoiceFacturaPlantillaSettings(): array
+    {
+        return [
+            'header_html' => $this->getOrdenproduccionConfigValue('invoice_factura_plantilla_header_html'),
+            'footer_html' => $this->getOrdenproduccionConfigValue('invoice_factura_plantilla_footer_html'),
+        ];
+    }
+
+    /**
+     * Save invoice HTML templates (WYSIWYG HTML allowed).
+     *
+     * @param   array<string, mixed>  $data  keys: header_html, footer_html
+     *
+     * @since   3.118.81
+     */
+    public function saveInvoiceFacturaPlantillaSettings(array $data): void
+    {
+        $header = isset($data['header_html']) ? (string) $data['header_html'] : '';
+        $footer = isset($data['footer_html']) ? (string) $data['footer_html'] : '';
+        $this->upsertOrdenproduccionConfigValue('invoice_factura_plantilla_header_html', $header);
+        $this->upsertOrdenproduccionConfigValue('invoice_factura_plantilla_footer_html', $footer);
+    }
+
+    /**
      * Get Solicitud de Orden URL from config (webhook URL called when finishing confirmar steps with next order number).
      *
      * @return  string

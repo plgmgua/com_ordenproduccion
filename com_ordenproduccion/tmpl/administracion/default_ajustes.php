@@ -87,6 +87,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-clipboard-list"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_CERTIFICADOR_FACT_LOGS'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=plantilla_factura'); ?>"
+       class="ajustes-subtab <?php echo $activeSubTab === 'plantilla_factura' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-file-invoice"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_PLANTILLA_FACTURA'); ?>
+    </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=numeracion_ordenes'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'numeracion_ordenes' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-sort-numeric-up"></i>
@@ -127,6 +132,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php include __DIR__ . '/default_ajustes_certificador_fact.php'; ?>
     <?php elseif ($activeSubTab === 'certificador_fact_logs'): ?>
         <?php include __DIR__ . '/default_ajustes_certificador_fact_logs.php'; ?>
+    <?php elseif ($activeSubTab === 'plantilla_factura'): ?>
+        <?php include __DIR__ . '/default_ajustes_plantilla_factura.php'; ?>
     <?php elseif ($activeSubTab === 'numeracion_ordenes'): ?>
         <?php include __DIR__ . '/default_ajustes_numeracion_ordenes.php'; ?>
     <?php elseif ($activeSubTab === 'creacion_logs'): ?>

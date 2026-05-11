@@ -15,6 +15,7 @@ use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFacturaTemplateHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
@@ -62,6 +63,17 @@ if ($isFel && (($felExtra['autorizacion_serie'] ?? '') === '' || ($felExtra['aut
         }
     }
 }
+
+$plant = isset($this->invoiceFacturaPlantillaSettings) && is_array($this->invoiceFacturaPlantillaSettings)
+    ? $this->invoiceFacturaPlantillaSettings
+    : ['header_html' => '', 'footer_html' => ''];
+$tplVals = InvoiceFacturaTemplateHelper::buildPlaceholderValues($item, $felExtra);
+$invoiceTplHeaderHtml = trim((string) ($plant['header_html'] ?? '')) !== ''
+    ? InvoiceFacturaTemplateHelper::applyTemplate((string) $plant['header_html'], $tplVals)
+    : '';
+$invoiceTplFooterHtml = trim((string) ($plant['footer_html'] ?? '')) !== ''
+    ? InvoiceFacturaTemplateHelper::applyTemplate((string) $plant['footer_html'], $tplVals)
+    : '';
 
 $l = function ($key, $fallback) {
     $t = Text::_($key);
@@ -111,6 +123,9 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
     <?php endif; ?>
 
     <div class="invoice-pdf-layout border rounded p-3 bg-white">
+        <?php if ($invoiceTplHeaderHtml !== '') : ?>
+        <div class="invoice-factura-template-header mb-3 small"><?php echo $invoiceTplHeaderHtml; ?></div>
+        <?php endif; ?>
         <!-- Row: Emisor (left) | Autorización / Fechas / Moneda (right) -->
         <div class="row mb-3">
             <div class="col-md-6">
@@ -322,6 +337,10 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
             <?php if (!empty($cert['nombre_certificador'])) : ?> NIT: <?php endif; ?><?php echo htmlspecialchars($cert['nit_certificador']); ?>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
+
+        <?php if ($invoiceTplFooterHtml !== '') : ?>
+        <div class="invoice-factura-template-footer pt-2 mt-2 border-top small"><?php echo $invoiceTplFooterHtml; ?></div>
         <?php endif; ?>
 
         <?php
