@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.75-STABLE] - 2026-05-11
+
+### Fixed
+- **mod_ordop_pending_approvals:** Filas **Serv.Ext.** sin `pre_cotizacion_id` en metadata no generaban enlace (`record_link` vacío → fila no clicable) y la columna ID mostraba el **id de línea** en lugar del **PRE-**. Se resuelve el pre-cot desde `#__ordenproduccion_pre_cotizacion_line` con caché por petición; plantilla trata `servicios_elementos_externos` como referencia pre-cot. Módulo **1.2.12-STABLE**.
+
 ## [3.118.74-STABLE] - 2026-05-11
 
 ### Changed

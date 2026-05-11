@@ -24,6 +24,47 @@ final class RecordLink
     /** @var bool|null */
     private static $hasPaymentOrdersTable;
 
+    /** @var array<int,int> pre_cotizacion_line.id → pre_cotizacion_id */
+    private static array $servExtLinePreCotCache = [];
+
+    /**
+     * Resolve parent pre-cotización PK for servicios_elementos_externos (metadata or line table).
+     *
+     * @since  1.2.12
+     */
+    public static function resolvePreCotizacionIdForServiciosExternosRow(DatabaseInterface $db, object $row): int
+    {
+        $meta = self::decodeMetadata($row);
+        $preId = isset($meta['pre_cotizacion_id']) ? (int) $meta['pre_cotizacion_id'] : 0;
+        if ($preId > 0) {
+            return $preId;
+        }
+        $lineId = (int) ($row->entity_id ?? 0);
+        if ($lineId < 1) {
+            return 0;
+        }
+        if (isset(self::$servExtLinePreCotCache[$lineId])) {
+            return (int) self::$servExtLinePreCotCache[$lineId];
+        }
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('pre_cotizacion_id'))
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                    ->where($db->quoteName('id') . ' = ' . $lineId)
+                    ->setLimit(1)
+            );
+            $preId = (int) $db->loadResult();
+            self::$servExtLinePreCotCache[$lineId] = $preId;
+
+            return $preId;
+        } catch (\Throwable $e) {
+            self::$servExtLinePreCotCache[$lineId] = 0;
+
+            return 0;
+        }
+    }
+
     /**
      * Relative internal URL (for Route::_) or null when no safe target exists.
      */
@@ -71,8 +112,7 @@ final class RecordLink
                 return 'index.php?option=com_ordenproduccion&view=ordencompra&id=' . $eid;
 
             case ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS:
-                $meta = self::decodeMetadata($row);
-                $preId = isset($meta['pre_cotizacion_id']) ? (int) $meta['pre_cotizacion_id'] : 0;
+                $preId = self::resolvePreCotizacionIdForServiciosExternosRow($db, $row);
 
                 return $preId > 0
                     ? 'index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preId

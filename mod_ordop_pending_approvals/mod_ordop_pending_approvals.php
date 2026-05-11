@@ -78,15 +78,9 @@ if ($rows !== []) {
             }
         }
         if ($et === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
-            $rawM = isset($row->metadata) ? trim((string) $row->metadata) : '';
-            if ($rawM !== '') {
-                $dm = json_decode($rawM, true);
-                if (is_array($dm) && isset($dm['pre_cotizacion_id'])) {
-                    $ppk = (int) $dm['pre_cotizacion_id'];
-                    if ($ppk > 0) {
-                        $preCotIds[$ppk] = true;
-                    }
-                }
+            $ppk = ApprovalRecordLink::resolvePreCotizacionIdForServiciosExternosRow($db, $row);
+            if ($ppk > 0) {
+                $preCotIds[$ppk] = true;
             }
         }
     }
@@ -145,14 +139,7 @@ if ($rows !== []) {
                 : '';
         }
         if ($et === ApprovalWorkflowService::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
-            $prePk = 0;
-            $metaR = isset($row->metadata) ? trim((string) $row->metadata) : '';
-            if ($metaR !== '') {
-                $dm2 = json_decode($metaR, true);
-                if (is_array($dm2) && isset($dm2['pre_cotizacion_id'])) {
-                    $prePk = (int) $dm2['pre_cotizacion_id'];
-                }
-            }
+            $prePk = ApprovalRecordLink::resolvePreCotizacionIdForServiciosExternosRow($db, $row);
             $row->precotizacion_number = $prePk > 0
                 ? ($preCotNumberById[$prePk] ?? $formatPreCotDisplayNumber($prePk, ''))
                 : '';

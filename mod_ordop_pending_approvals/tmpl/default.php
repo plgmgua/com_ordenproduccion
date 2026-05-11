@@ -82,6 +82,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         $isCreacionOt   = $etype === 'creacion_orden_trabajo';
                         $isPaymentProof = $etype === 'payment_proof';
                         $isOrdenCompra  = $etype === 'orden_compra';
+                        $isServiciosExternos = $etype === 'servicios_elementos_externos';
                         if ($wfTypeLabel !== '') {
                             $tipoLabel = $wfTypeLabel;
                         } else {
@@ -100,6 +101,10 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                             $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
                                 ? (string) $row->precotizacion_number
                                 : ($eid > 0 ? 'PRE-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT) : '');
+                        } elseif ($isServiciosExternos) {
+                            $idLabel = isset($row->precotizacion_number) && (string) $row->precotizacion_number !== ''
+                                ? (string) $row->precotizacion_number
+                                : ($eid > 0 ? (string) $eid : '');
                         } elseif ($isOrdenCompra) {
                             $idLabel = isset($row->orden_compra_number) && (string) $row->orden_compra_number !== ''
                                 ? (string) $row->orden_compra_number
