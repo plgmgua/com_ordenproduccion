@@ -3299,17 +3299,20 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * Invoice HTML templates (optional header/footer on invoice detail). Stored in #__ordenproduccion_config.
+     * Invoice factura PDF templates (optional left/right HTML headers, footer, logo). Stored in #__ordenproduccion_config.
      *
      * @return  array{
-     *   header_html:string,
+     *   header_izq_html:string,
+     *   header_der_html:string,
      *   footer_html:string,
      *   logo_path:string,
      *   logo_x:float,
      *   logo_y:float,
      *   logo_width:float,
-     *   encabezado_x:float,
-     *   encabezado_y:float,
+     *   encabezado_izq_x:float,
+     *   encabezado_izq_y:float,
+     *   encabezado_der_x:float,
+     *   encabezado_der_y:float,
      *   pie_x:float,
      *   pie_y:float
      * }
@@ -3321,6 +3324,8 @@ class AdministracionModel extends BaseDatabaseModel
         $db = Factory::getDbo();
         $keys = [
             'invoice_factura_plantilla_header_html',
+            'invoice_factura_plantilla_header_izq_html',
+            'invoice_factura_plantilla_header_der_html',
             'invoice_factura_plantilla_footer_html',
             'invoice_factura_plantilla_logo_path',
             'invoice_factura_plantilla_logo_x',
@@ -3328,6 +3333,10 @@ class AdministracionModel extends BaseDatabaseModel
             'invoice_factura_plantilla_logo_width',
             'invoice_factura_plantilla_encabezado_x',
             'invoice_factura_plantilla_encabezado_y',
+            'invoice_factura_plantilla_encabezado_izq_x',
+            'invoice_factura_plantilla_encabezado_izq_y',
+            'invoice_factura_plantilla_encabezado_der_x',
+            'invoice_factura_plantilla_encabezado_der_y',
             'invoice_factura_plantilla_pie_x',
             'invoice_factura_plantilla_pie_y',
         ];
@@ -3345,42 +3354,71 @@ class AdministracionModel extends BaseDatabaseModel
             return (float) $rows[$key]->setting_value;
         };
 
+        $legacyHeader = isset($rows['invoice_factura_plantilla_header_html'])
+            ? trim((string) $rows['invoice_factura_plantilla_header_html']->setting_value)
+            : '';
+        $izqFromRow = isset($rows['invoice_factura_plantilla_header_izq_html'])
+            ? (string) $rows['invoice_factura_plantilla_header_izq_html']->setting_value
+            : '';
+        $izqHtml = trim($izqFromRow) !== '' ? $izqFromRow : $legacyHeader;
+
+        $hasNewIzqCoords = isset($rows['invoice_factura_plantilla_encabezado_izq_x'])
+            || isset($rows['invoice_factura_plantilla_encabezado_izq_y']);
+        $legX = $getFloat('invoice_factura_plantilla_encabezado_x', 15.0);
+        $legY = $getFloat('invoice_factura_plantilla_encabezado_y', 15.0);
+        $izqX = $hasNewIzqCoords
+            ? $getFloat('invoice_factura_plantilla_encabezado_izq_x', 15.0)
+            : $legX;
+        $izqY = $hasNewIzqCoords
+            ? $getFloat('invoice_factura_plantilla_encabezado_izq_y', 15.0)
+            : $legY;
+
         return [
-            'header_html'   => isset($rows['invoice_factura_plantilla_header_html']) ? (string) $rows['invoice_factura_plantilla_header_html']->setting_value : '',
-            'footer_html'   => isset($rows['invoice_factura_plantilla_footer_html']) ? (string) $rows['invoice_factura_plantilla_footer_html']->setting_value : '',
-            'logo_path'     => isset($rows['invoice_factura_plantilla_logo_path']) ? (string) $rows['invoice_factura_plantilla_logo_path']->setting_value : '',
-            'logo_x'        => $getFloat('invoice_factura_plantilla_logo_x', 15.0),
-            'logo_y'        => $getFloat('invoice_factura_plantilla_logo_y', 15.0),
-            'logo_width'    => $getFloat('invoice_factura_plantilla_logo_width', 50.0),
-            'encabezado_x'  => $getFloat('invoice_factura_plantilla_encabezado_x', 15.0),
-            'encabezado_y'  => $getFloat('invoice_factura_plantilla_encabezado_y', 15.0),
-            'pie_x'         => $getFloat('invoice_factura_plantilla_pie_x', 0.0),
-            'pie_y'         => $getFloat('invoice_factura_plantilla_pie_y', 0.0),
+            'header_izq_html'   => $izqHtml,
+            'header_der_html'   => isset($rows['invoice_factura_plantilla_header_der_html']) ? (string) $rows['invoice_factura_plantilla_header_der_html']->setting_value : '',
+            'footer_html'       => isset($rows['invoice_factura_plantilla_footer_html']) ? (string) $rows['invoice_factura_plantilla_footer_html']->setting_value : '',
+            'logo_path'         => isset($rows['invoice_factura_plantilla_logo_path']) ? (string) $rows['invoice_factura_plantilla_logo_path']->setting_value : '',
+            'logo_x'            => $getFloat('invoice_factura_plantilla_logo_x', 15.0),
+            'logo_y'            => $getFloat('invoice_factura_plantilla_logo_y', 15.0),
+            'logo_width'        => $getFloat('invoice_factura_plantilla_logo_width', 50.0),
+            'encabezado_izq_x'  => $izqX,
+            'encabezado_izq_y'  => $izqY,
+            'encabezado_der_x'  => $getFloat('invoice_factura_plantilla_encabezado_der_x', 115.0),
+            'encabezado_der_y'  => $getFloat('invoice_factura_plantilla_encabezado_der_y', 15.0),
+            'pie_x'             => $getFloat('invoice_factura_plantilla_pie_x', 0.0),
+            'pie_y'             => $getFloat('invoice_factura_plantilla_pie_y', 0.0),
         ];
     }
 
     /**
      * Save invoice HTML templates (WYSIWYG HTML allowed) and logo/position fields (mm, same semantics as cotización PDF).
      *
-     * @param   array<string, mixed>  $data  keys: header_html, footer_html, logo_path, logo_x, logo_y, logo_width, encabezado_x, encabezado_y, pie_x, pie_y
+     * @param   array<string, mixed>  $data  keys: header_izq_html, header_der_html, footer_html, logo_path, logo_x, logo_y, logo_width, encabezado_izq_x/y, encabezado_der_x/y, pie_x, pie_y
      *
      * @since   3.118.81
      */
     public function saveInvoiceFacturaPlantillaSettings(array $data): void
     {
         $map = [
-            'header_html'   => 'invoice_factura_plantilla_header_html',
-            'footer_html'   => 'invoice_factura_plantilla_footer_html',
-            'logo_path'     => 'invoice_factura_plantilla_logo_path',
-            'logo_x'        => 'invoice_factura_plantilla_logo_x',
-            'logo_y'        => 'invoice_factura_plantilla_logo_y',
-            'logo_width'    => 'invoice_factura_plantilla_logo_width',
-            'encabezado_x'  => 'invoice_factura_plantilla_encabezado_x',
-            'encabezado_y'  => 'invoice_factura_plantilla_encabezado_y',
-            'pie_x'         => 'invoice_factura_plantilla_pie_x',
-            'pie_y'         => 'invoice_factura_plantilla_pie_y',
+            'header_izq_html'   => 'invoice_factura_plantilla_header_izq_html',
+            'header_der_html'   => 'invoice_factura_plantilla_header_der_html',
+            'footer_html'       => 'invoice_factura_plantilla_footer_html',
+            'logo_path'         => 'invoice_factura_plantilla_logo_path',
+            'logo_x'            => 'invoice_factura_plantilla_logo_x',
+            'logo_y'            => 'invoice_factura_plantilla_logo_y',
+            'logo_width'        => 'invoice_factura_plantilla_logo_width',
+            'encabezado_izq_x'  => 'invoice_factura_plantilla_encabezado_izq_x',
+            'encabezado_izq_y'  => 'invoice_factura_plantilla_encabezado_izq_y',
+            'encabezado_der_x'  => 'invoice_factura_plantilla_encabezado_der_x',
+            'encabezado_der_y'  => 'invoice_factura_plantilla_encabezado_der_y',
+            'pie_x'             => 'invoice_factura_plantilla_pie_x',
+            'pie_y'             => 'invoice_factura_plantilla_pie_y',
         ];
-        $floatKeys = ['logo_x', 'logo_y', 'logo_width', 'encabezado_x', 'encabezado_y', 'pie_x', 'pie_y'];
+        $floatKeys = [
+            'logo_x', 'logo_y', 'logo_width',
+            'encabezado_izq_x', 'encabezado_izq_y', 'encabezado_der_x', 'encabezado_der_y',
+            'pie_x', 'pie_y',
+        ];
 
         foreach ($map as $inputKey => $settingKey) {
             $raw = $data[$inputKey] ?? '';
@@ -3391,6 +3429,11 @@ class AdministracionModel extends BaseDatabaseModel
             }
             $this->upsertOrdenproduccionConfigValue($settingKey, $value);
         }
+
+        // Deprecate single-header keys so migrated installs do not duplicate content on read.
+        $this->upsertOrdenproduccionConfigValue('invoice_factura_plantilla_header_html', '');
+        $this->upsertOrdenproduccionConfigValue('invoice_factura_plantilla_encabezado_x', '');
+        $this->upsertOrdenproduccionConfigValue('invoice_factura_plantilla_encabezado_y', '');
     }
 
     /**

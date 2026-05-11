@@ -338,16 +338,19 @@ class HtmlView extends BaseHtmlView
      * @since  3.118.81
      */
     protected $invoiceFacturaPlantillaSettings = [
-        'header_html' => '',
-        'footer_html' => '',
-        'logo_path' => '',
-        'logo_x' => 15,
-        'logo_y' => 15,
-        'logo_width' => 50,
-        'encabezado_x' => 15,
-        'encabezado_y' => 15,
-        'pie_x' => 0,
-        'pie_y' => 0,
+        'header_izq_html'   => '',
+        'header_der_html'   => '',
+        'footer_html'       => '',
+        'logo_path'         => '',
+        'logo_x'            => 15,
+        'logo_y'            => 15,
+        'logo_width'        => 50,
+        'encabezado_izq_x'  => 15,
+        'encabezado_izq_y'  => 15,
+        'encabezado_der_x'  => 115,
+        'encabezado_der_y'  => 15,
+        'pie_x'             => 0,
+        'pie_y'             => 0,
     ];
 
     /**
@@ -2094,16 +2097,19 @@ class HtmlView extends BaseHtmlView
                 $this->invoiceFacturaPlantillaSettings = $statsModel->getInvoiceFacturaPlantillaSettings();
             } catch (\Exception $e) {
                 $this->invoiceFacturaPlantillaSettings = [
-                    'header_html' => '',
-                    'footer_html' => '',
-                    'logo_path' => '',
-                    'logo_x' => 15,
-                    'logo_y' => 15,
-                    'logo_width' => 50,
-                    'encabezado_x' => 15,
-                    'encabezado_y' => 15,
-                    'pie_x' => 0,
-                    'pie_y' => 0,
+                    'header_izq_html'   => '',
+                    'header_der_html'   => '',
+                    'footer_html'       => '',
+                    'logo_path'         => '',
+                    'logo_x'            => 15,
+                    'logo_y'            => 15,
+                    'logo_width'        => 50,
+                    'encabezado_izq_x'  => 15,
+                    'encabezado_izq_y'  => 15,
+                    'encabezado_der_x'  => 115,
+                    'encabezado_der_y'  => 15,
+                    'pie_x'             => 0,
+                    'pie_y'             => 0,
                 ];
             }
         }

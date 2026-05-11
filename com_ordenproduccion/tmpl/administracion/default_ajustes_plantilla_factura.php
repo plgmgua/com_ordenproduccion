@@ -27,25 +27,31 @@ $app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/compone
 $settings = isset($this->invoiceFacturaPlantillaSettings) && is_array($this->invoiceFacturaPlantillaSettings)
     ? $this->invoiceFacturaPlantillaSettings
     : [
-        'header_html' => '',
-        'footer_html' => '',
-        'logo_path' => '',
-        'logo_x' => 15,
-        'logo_y' => 15,
-        'logo_width' => 50,
-        'encabezado_x' => 15,
-        'encabezado_y' => 15,
-        'pie_x' => 0,
-        'pie_y' => 0,
+        'header_izq_html'   => '',
+        'header_der_html'   => '',
+        'footer_html'       => '',
+        'logo_path'         => '',
+        'logo_x'            => 15,
+        'logo_y'            => 15,
+        'logo_width'        => 50,
+        'encabezado_izq_x'  => 15,
+        'encabezado_izq_y'  => 15,
+        'encabezado_der_x'  => 115,
+        'encabezado_der_y'  => 15,
+        'pie_x'             => 0,
+        'pie_y'             => 0,
     ];
-$headerHtml   = isset($settings['header_html']) ? $settings['header_html'] : '';
+$headerIzqHtml = isset($settings['header_izq_html']) ? $settings['header_izq_html'] : '';
+$headerDerHtml = isset($settings['header_der_html']) ? $settings['header_der_html'] : '';
 $footerHtml   = isset($settings['footer_html']) ? $settings['footer_html'] : '';
 $logo_path    = isset($settings['logo_path']) ? $settings['logo_path'] : '';
 $logo_x       = isset($settings['logo_x']) ? (float) $settings['logo_x'] : 15;
 $logo_y       = isset($settings['logo_y']) ? (float) $settings['logo_y'] : 15;
 $logo_width   = isset($settings['logo_width']) ? (float) $settings['logo_width'] : 50;
-$encabezado_x = isset($settings['encabezado_x']) ? (float) $settings['encabezado_x'] : 15;
-$encabezado_y = isset($settings['encabezado_y']) ? (float) $settings['encabezado_y'] : 15;
+$encabezado_izq_x = isset($settings['encabezado_izq_x']) ? (float) $settings['encabezado_izq_x'] : 15;
+$encabezado_izq_y = isset($settings['encabezado_izq_y']) ? (float) $settings['encabezado_izq_y'] : 15;
+$encabezado_der_x = isset($settings['encabezado_der_x']) ? (float) $settings['encabezado_der_x'] : 115;
+$encabezado_der_y = isset($settings['encabezado_der_y']) ? (float) $settings['encabezado_der_y'] : 15;
 $pie_x        = isset($settings['pie_x']) ? (float) $settings['pie_x'] : 0;
 $pie_y        = isset($settings['pie_y']) ? (float) $settings['pie_y'] : 0;
 
@@ -155,44 +161,85 @@ $editorButtons = true;
                 <?php endif; ?>
             </div>
 
-            <!-- Encabezado -->
-            <div class="mb-4">
-                <label for="jform_invoice_factura_header_html" class="form-label fw-bold">
-                    <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_HEADER'); ?>
+            <!-- Encabezado izquierdo -->
+            <div class="mb-4 p-3 border rounded">
+                <label for="jform_invoice_factura_header_izq_html" class="form-label fw-bold">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_HEADER_LEFT'); ?>
                 </label>
                 <div class="row g-2 mb-2">
                     <div class="col-auto">
-                        <label for="inv_plant_enc_x" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_X'); ?></label>
-                        <input type="number" step="0.1" min="0" name="jform[encabezado_x]" id="inv_plant_enc_x"
+                        <label for="inv_plant_enc_izq_x" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_X'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[encabezado_izq_x]" id="inv_plant_enc_izq_x"
                                class="form-control form-control-sm" style="width:5rem;"
-                               value="<?php echo htmlspecialchars((string) $encabezado_x, ENT_QUOTES, 'UTF-8'); ?>"
+                               value="<?php echo htmlspecialchars((string) $encabezado_izq_x, ENT_QUOTES, 'UTF-8'); ?>"
                                title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_POS_MM_VIEW'); ?>" />
                     </div>
                     <div class="col-auto">
-                        <label for="inv_plant_enc_y" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_Y'); ?></label>
-                        <input type="number" step="0.1" min="0" name="jform[encabezado_y]" id="inv_plant_enc_y"
+                        <label for="inv_plant_enc_izq_y" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_Y'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[encabezado_izq_y]" id="inv_plant_enc_izq_y"
                                class="form-control form-control-sm" style="width:5rem;"
-                               value="<?php echo htmlspecialchars((string) $encabezado_y, ENT_QUOTES, 'UTF-8'); ?>"
+                               value="<?php echo htmlspecialchars((string) $encabezado_izq_y, ENT_QUOTES, 'UTF-8'); ?>"
                                title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_POS_MM_VIEW'); ?>" />
                     </div>
                 </div>
                 <?php if ($editor) : ?>
                     <?php echo $editor->display(
-                        'jform[invoice_factura_header_html]',
-                        $headerHtml,
+                        'jform[invoice_factura_header_izq_html]',
+                        $headerIzqHtml,
                         $editorWidth,
                         $editorHeight,
                         $editorCols,
                         $editorRows,
                         $editorButtons,
-                        'jform_invoice_factura_header_html',
+                        'jform_invoice_factura_header_izq_html',
                         null,
                         null,
                         []
                     ); ?>
                 <?php else : ?>
-                    <textarea name="jform[invoice_factura_header_html]" id="jform_invoice_factura_header_html"
-                              class="form-control" rows="<?php echo (int) $editorRows; ?>" cols="<?php echo (int) $editorCols; ?>"><?php echo htmlspecialchars($headerHtml, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    <textarea name="jform[invoice_factura_header_izq_html]" id="jform_invoice_factura_header_izq_html"
+                              class="form-control" rows="<?php echo (int) $editorRows; ?>" cols="<?php echo (int) $editorCols; ?>"><?php echo htmlspecialchars($headerIzqHtml, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                <?php endif; ?>
+            </div>
+
+            <!-- Encabezado derecho -->
+            <div class="mb-4 p-3 border rounded">
+                <label for="jform_invoice_factura_header_der_html" class="form-label fw-bold">
+                    <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_HEADER_RIGHT'); ?>
+                </label>
+                <div class="row g-2 mb-2">
+                    <div class="col-auto">
+                        <label for="inv_plant_enc_der_x" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_X'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[encabezado_der_x]" id="inv_plant_enc_der_x"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars((string) $encabezado_der_x, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_POS_MM_VIEW'); ?>" />
+                    </div>
+                    <div class="col-auto">
+                        <label for="inv_plant_enc_der_y" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_Y'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[encabezado_der_y]" id="inv_plant_enc_der_y"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars((string) $encabezado_der_y, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_POS_MM_VIEW'); ?>" />
+                    </div>
+                </div>
+                <?php if ($editor) : ?>
+                    <?php echo $editor->display(
+                        'jform[invoice_factura_header_der_html]',
+                        $headerDerHtml,
+                        $editorWidth,
+                        $editorHeight,
+                        $editorCols,
+                        $editorRows,
+                        $editorButtons,
+                        'jform_invoice_factura_header_der_html',
+                        null,
+                        null,
+                        []
+                    ); ?>
+                <?php else : ?>
+                    <textarea name="jform[invoice_factura_header_der_html]" id="jform_invoice_factura_header_der_html"
+                              class="form-control" rows="<?php echo (int) $editorRows; ?>" cols="<?php echo (int) $editorCols; ?>"><?php echo htmlspecialchars($headerDerHtml, ENT_QUOTES, 'UTF-8'); ?></textarea>
                 <?php endif; ?>
             </div>
 

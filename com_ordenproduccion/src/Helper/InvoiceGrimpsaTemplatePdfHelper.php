@@ -190,10 +190,11 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $acceso = '';
         }
 
-        $plantilla            = null;
-        $headerHtmlProcessed  = '';
-        $footerHtmlProcessed  = '';
-        $fixEnc               = static function ($t) {
+        $plantilla                 = null;
+        $headerIzqHtmlProcessed    = '';
+        $headerDerHtmlProcessed    = '';
+        $footerHtmlProcessed       = '';
+        $fixEnc                    = static function ($t) {
             return CotizacionPdfHelper::encodeTextForFpdf((string) $t);
         };
 
@@ -207,9 +208,15 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $plantilla = self::loadInvoiceFacturaPlantillaSettings();
         if (\is_array($plantilla)) {
             $tplVals = InvoiceFacturaTemplateHelper::buildPlaceholderValues($inv, $felExtra);
-            if (trim((string) ($plantilla['header_html'] ?? '')) !== '') {
-                $headerHtmlProcessed = InvoiceFacturaTemplateHelper::applyTemplate(
-                    (string) $plantilla['header_html'],
+            if (trim((string) ($plantilla['header_izq_html'] ?? '')) !== '') {
+                $headerIzqHtmlProcessed = InvoiceFacturaTemplateHelper::applyTemplate(
+                    (string) $plantilla['header_izq_html'],
+                    $tplVals
+                );
+            }
+            if (trim((string) ($plantilla['header_der_html'] ?? '')) !== '') {
+                $headerDerHtmlProcessed = InvoiceFacturaTemplateHelper::applyTemplate(
+                    (string) $plantilla['header_der_html'],
                     $tplVals
                 );
             }
@@ -223,16 +230,21 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
         $yBody = self::CMY_BAR_MM + self::BODY_TOP_MM;
         if (\is_array($plantilla)) {
-            $hasLogo   = trim((string) ($plantilla['logo_path'] ?? '')) !== '';
-            $encBlocks = $headerHtmlProcessed !== ''
-                ? CotizacionFpdfBlocksHelper::parseHtmlBlocks($headerHtmlProcessed, $fixEnc)
+            $hasLogo    = trim((string) ($plantilla['logo_path'] ?? '')) !== '';
+            $izqBlocks  = $headerIzqHtmlProcessed !== ''
+                ? CotizacionFpdfBlocksHelper::parseHtmlBlocks($headerIzqHtmlProcessed, $fixEnc)
                 : [];
-            if ($hasLogo || $encBlocks !== []) {
-                $logoX = (float) ($plantilla['logo_x'] ?? 15);
-                $logoY = (float) ($plantilla['logo_y'] ?? 15);
-                $logoW = (float) ($plantilla['logo_width'] ?? 50);
-                $encX  = (float) ($plantilla['encabezado_x'] ?? 15);
-                $encY  = (float) ($plantilla['encabezado_y'] ?? 15);
+            $derBlocks  = $headerDerHtmlProcessed !== ''
+                ? CotizacionFpdfBlocksHelper::parseHtmlBlocks($headerDerHtmlProcessed, $fixEnc)
+                : [];
+            if ($hasLogo || $izqBlocks !== [] || $derBlocks !== []) {
+                $logoX  = (float) ($plantilla['logo_x'] ?? 15);
+                $logoY  = (float) ($plantilla['logo_y'] ?? 15);
+                $logoW  = (float) ($plantilla['logo_width'] ?? 50);
+                $izqX   = (float) ($plantilla['encabezado_izq_x'] ?? 15);
+                $izqY   = (float) ($plantilla['encabezado_izq_y'] ?? 15);
+                $derX   = (float) ($plantilla['encabezado_der_x'] ?? 115);
+                $derY   = (float) ($plantilla['encabezado_der_y'] ?? 15);
 
                 if ($hasLogo) {
                     $resolvedLogo = CotizacionFpdfBlocksHelper::resolveImagePath((string) $plantilla['logo_path']);
@@ -243,11 +255,27 @@ final class InvoiceGrimpsaTemplatePdfHelper
                     }
                 }
 
-                if ($encBlocks !== []) {
-                    $pdf->SetXY($encX, $encY);
+                if ($izqBlocks !== []) {
+                    $pdf->SetXY($izqX, $izqY);
                     CotizacionFpdfBlocksHelper::renderPdfBlocks(
                         $pdf,
-                        $encBlocks,
+                        $izqBlocks,
+                        5.0,
+                        9,
+                        $pageW,
+                        self::MARGIN_X,
+                        self::MARGIN_X,
+                        3.0,
+                        $fixEnc
+                    );
+                    $yBody = max($yBody, $pdf->GetY() + 3.0);
+                }
+
+                if ($derBlocks !== []) {
+                    $pdf->SetXY($derX, $derY);
+                    CotizacionFpdfBlocksHelper::renderPdfBlocks(
+                        $pdf,
+                        $derBlocks,
                         5.0,
                         9,
                         $pageW,
