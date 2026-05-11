@@ -339,14 +339,81 @@ $l = function ($key, $fallback) {
                     <?php if (empty($this->sizes)) : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_SIZES', 'No hay tamaños definidos.'); ?></p>
                     <?php else : ?>
+                        <?php HTMLHelper::_('bootstrap.collapse'); ?>
                         <table class="table table-sm">
-                            <thead><tr><th>#</th><th><?php echo $l('COM_ORDENPRODUCCION_SIZE_NAME', 'Nombre'); ?></th><th>Dimensiones (in)</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th><?php echo $l('COM_ORDENPRODUCCION_SIZE_NAME', 'Nombre'); ?></th>
+                                    <th>Dimensiones (in)</th>
+                                    <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_ACTIONS', 'Acciones'); ?></th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                <?php foreach ($this->sizes as $s) : ?>
+                                <?php foreach ($this->sizes as $s) :
+                                    $sid     = (int) $s->id;
+                                    $dimsCol = htmlspecialchars(
+                                        trim((string) ($s->width_in ?? $s->width_cm ?? ''))
+                                        . ' x '
+                                        . trim((string) ($s->height_in ?? $s->height_cm ?? '')),
+                                        ENT_QUOTES,
+                                        'UTF-8'
+                                    );
+                                    $win = isset($s->width_in) && $s->width_in !== '' && $s->width_in !== null
+                                        ? htmlspecialchars(number_format((float) $s->width_in, 2, '.', ''), ENT_QUOTES, 'UTF-8')
+                                        : '';
+                                    $hin = isset($s->height_in) && $s->height_in !== '' && $s->height_in !== null
+                                        ? htmlspecialchars(number_format((float) $s->height_in, 2, '.', ''), ENT_QUOTES, 'UTF-8')
+                                        : '';
+                                    $cid = 'edit-pliego-size-' . $sid;
+                                    ?>
                                     <tr>
-                                        <td><?php echo (int) $s->id; ?></td>
-                                        <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
-                                        <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
+                                        <td><?php echo $sid; ?></td>
+                                        <td><?php echo htmlspecialchars($s->name ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td><?php echo $dimsCol; ?></td>
+                                        <td class="text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#<?php echo $cid; ?>"
+                                                    aria-expanded="false"
+                                                    aria-controls="<?php echo $cid; ?>">
+                                                <?php echo Text::_('JACTION_EDIT'); ?>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="collapse bg-light" id="<?php echo $cid; ?>">
+                                        <td colspan="4" class="py-3">
+                                            <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveSize'); ?>"
+                                                  method="post"
+                                                  class="row g-2 align-items-end flex-wrap mx-0">
+                                                <?php echo HTMLHelper::_('form.token'); ?>
+                                                <input type="hidden" name="id" value="<?php echo $sid; ?>">
+                                                <input type="hidden" name="code" value="<?php echo htmlspecialchars((string) ($s->code ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                                <input type="hidden" name="ordering" value="<?php echo (int) ($s->ordering ?? 0); ?>">
+                                                <div class="col-auto">
+                                                    <label class="form-label mb-0" for="size_name_<?php echo $sid; ?>"><?php echo $l('COM_ORDENPRODUCCION_SIZE_NAME', 'Nombre'); ?></label>
+                                                    <input type="text" name="name" id="size_name_<?php echo $sid; ?>"
+                                                           class="form-control form-control-sm"
+                                                           required maxlength="100"
+                                                           value="<?php echo htmlspecialchars($s->name ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                                                </div>
+                                                <div class="col-auto">
+                                                    <label class="form-label mb-0" for="size_width_<?php echo $sid; ?>">Ancho (in)</label>
+                                                    <input type="number" name="width_in" id="size_width_<?php echo $sid; ?>"
+                                                           class="form-control form-control-sm"
+                                                           step="0.01" placeholder="23.6" value="<?php echo $win; ?>">
+                                                </div>
+                                                <div class="col-auto">
+                                                    <label class="form-label mb-0" for="size_height_<?php echo $sid; ?>">Alto (in)</label>
+                                                    <input type="number" name="height_in" id="size_height_<?php echo $sid; ?>"
+                                                           class="form-control form-control-sm"
+                                                           step="0.01" placeholder="35.4" value="<?php echo $hin; ?>">
+                                                </div>
+                                                <div class="col-auto pb-1">
+                                                    <button type="submit" class="btn btn-sm btn-success"><?php echo Text::_('JSAVE'); ?></button>
+                                                </div>
+                                            </form>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
