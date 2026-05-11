@@ -231,7 +231,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     </div>
                     <div class="cotizacion-add-descripcion">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_LABEL', 'Custom description', 'Descripción personalizada'); ?> <span class="text-danger">*</span></label>
-                        <textarea id="precotizacionDescription" class="form-control form-control-sm" rows="2" style="min-width: 200px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Enter description...', 'Ingrese descripción...'); ?>" aria-label="Descripción personalizada"></textarea>
+                        <textarea id="precotizacionDescription" class="form-control form-control-sm w-100" rows="5" style="resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Enter description...', 'Ingrese descripción...'); ?>" aria-label="Descripción personalizada"></textarea>
                     </div>
                     <div class="cotizacion-add-btn align-self-end">
                         <button type="button" class="btn btn-primary btn-sm" id="btnAddPrecotizacionLine" title="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
@@ -245,7 +245,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <tr>
                         <th class="col-precotizacion" style="width: 9%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
                         <th class="col-cotizacion-items-qty-th" style="width: 5%;"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.'); ?></th>
-                        <th style="width: 33%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th class="col-cotizacion-line-desc-th" style="width: 33%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
                         <th style="width: 9%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
@@ -290,7 +290,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="<?php echo $qty; ?>"></td>
-                        <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
+                        <td class="cotizacion-line-desc-cell"><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
                         <td class="text-end">Q <span class="line-subtotal-ref"><?php echo number_format($subtotalRef, 2); ?></span></td>
                         <td class="text-end align-middle">Q
@@ -658,7 +658,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
                 '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
-                '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
+                '<td class="cotizacion-line-desc-cell"><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
                 '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +

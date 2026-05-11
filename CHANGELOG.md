@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.70-STABLE] - 2026-05-11
+
+### Changed
+- **Cotización (editar):** La columna **Descripción** usa el ancho completo de la celda (`table-layout: fixed`); textareas en **5 filas**, con estilos específicos en `cotizacion.css`. El área previa (“Descripción personalizada”) igual en altura/ancho dentro del bloque de alta.
+
 ## [3.118.69-STABLE] - 2026-05-11
 
 ### Changed

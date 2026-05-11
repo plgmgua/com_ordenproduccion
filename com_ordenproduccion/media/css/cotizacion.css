@@ -1,6 +1,6 @@
 /**
  * Cotizacion (Quotation) Form Styles
- * Version: 3.52.0
+ * Version: 3.118.70
  */
 
 /* Compact layout: smaller base font */
@@ -132,8 +132,22 @@
     box-sizing: border-box;
 }
 
-.cotizacion-container .items-table tbody td:first-child {
-    max-width: none;
+.cotizacion-container .items-table td.cotizacion-line-desc-cell {
+    width: auto;
+    min-width: 0;
+    vertical-align: top;
+}
+
+.cotizacion-container .items-table td.cotizacion-line-desc-cell textarea.cotizacion-line-descripcion-input {
+    display: block;
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 7.5rem;
+}
+
+.cotizacion-container .items-table thead th.col-cotizacion-line-desc-th {
+    min-width: 0;
 }
 
 /* Line images: keep attach control inside its column (avoid overlap with add-line controls on small widths) */
