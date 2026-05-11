@@ -1,6 +1,6 @@
 /**
  * Cotizacion (Quotation) Form Styles
- * Version: 3.118.70
+ * Version: 3.118.71
  */
 
 /* Compact layout: smaller base font */
@@ -110,17 +110,22 @@
 }
 
 .cotizacion-container .items-table thead th.col-cotizacion-items-qty-th {
-    width: 5%;
-    min-width: 6.5rem;
+    width: 1%;
+    min-width: 0;
     white-space: nowrap !important;
+    padding-left: 4px;
+    padding-right: 4px;
+    vertical-align: bottom;
 }
 
-/* Cant.: room for at least 4 digits plus browser number spinners */
+/* Cant.: apenas el ancho del input numérico (7.5ch) + celda compacta */
 .cotizacion-container .items-table td.cotizacion-line-qty-cell {
     width: 1%;
-    min-width: 6.5rem;
+    min-width: 0;
     white-space: nowrap;
     vertical-align: middle;
+    padding-left: 4px;
+    padding-right: 4px;
 }
 
 .cotizacion-container .items-table input.line-cantidad-input.cotizacion-qty-input,
@@ -148,6 +153,38 @@
 
 .cotizacion-container .items-table thead th.col-cotizacion-line-desc-th {
     min-width: 0;
+}
+
+.cotizacion-container .items-table thead th.col-cotizacion-line-action-th {
+    width: 1%;
+    min-width: 0;
+    max-width: 3rem;
+    padding: 6px 4px;
+    white-space: normal !important;
+    line-height: 1.1;
+}
+
+.cotizacion-container .items-table thead th.col-cotizacion-line-action-th i {
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.cotizacion-container .items-table td.cotizacion-line-action-cell {
+    width: 1%;
+    min-width: 0;
+    max-width: 3.25rem;
+    vertical-align: middle;
+    text-align: center;
+    padding: 4px 2px;
+}
+
+.cotizacion-container .items-table td.cotizacion-line-action-cell .cotizacion-line-actions {
+    width: 100%;
+}
+
+.cotizacion-container .items-table td.cotizacion-line-action-cell .btn {
+    margin: 0 !important;
+    padding: 0.2rem 0.35rem;
 }
 
 /* Line images: keep attach control inside its column (avoid overlap with add-line controls on small widths) */

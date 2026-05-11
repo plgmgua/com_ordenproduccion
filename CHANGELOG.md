@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.71-STABLE] - 2026-05-11
+
+### Changed
+- **Cotización (editar):** Columna **Cant.** compacta según el ancho del campo numérico; columna **Acción** más estrecha con botones apilados en vertical; cabecera con icono `fa-person-walking` en lugar del texto «Acción» (accesibilidad conservada con `visually-hidden` + `title`).
+
 ## [3.118.70-STABLE] - 2026-05-11
 
 ### Changed

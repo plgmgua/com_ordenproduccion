@@ -244,13 +244,16 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <thead>
                     <tr>
                         <th class="col-precotizacion" style="width: 9%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                        <th class="col-cotizacion-items-qty-th" style="width: 5%;"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.'); ?></th>
+                        <th class="col-cotizacion-items-qty-th"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.'); ?></th>
                         <th class="col-cotizacion-line-desc-th" style="width: 33%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
                         <th style="width: 9%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
                         <th style="width: 11%;" class="text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
-                        <th style="width: 11%;"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></th>
+                        <th class="col-cotizacion-line-action-th text-center" scope="col" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'), ENT_QUOTES, 'UTF-8'); ?>">
+                            <span class="visually-hidden"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></span>
+                            <i class="fas fa-person-walking" aria-hidden="true"></i>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="quotationItemsBody">
@@ -308,9 +311,11 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                                 <i class="fas fa-paperclip" aria-hidden="true"></i>
                             </button>
                         </td>
-                        <td>
-                            <button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea'); ?>"><i class="fas fa-save"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button>
+                        <td class="cotizacion-line-action-cell align-middle">
+                            <div class="cotizacion-line-actions d-flex flex-column align-items-center gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-save-line m-0" onclick="window.saveQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea'); ?>"><i class="fas fa-save"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row m-0" onclick="window.removeQuotationLine(this)" title="<?php echo $l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar'); ?>"><i class="fas fa-trash"></i></button>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -368,6 +373,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     var initialPrecotizacionId = <?php echo !$isEdit ? (int) ($this->initialPrecotizacionId ?? 0) : 0; ?>;
     var initialPrecotizacionFirstQty = <?php echo !$isEdit ? (int) ($this->initialPrecotizacionFirstLineQty ?? 0) : 0; ?>;
     var msgLineAttach = <?php echo json_encode($l('COM_ORDENPRODUCCION_QUOTATION_LINE_ATTACH', 'Attach images', 'Adjuntar imágenes')); ?>;
+    var msgSaveLineBtn = <?php echo json_encode($l('COM_ORDENPRODUCCION_SAVE_LINE', 'Save line', 'Guardar línea')); ?>;
+    var msgDeleteLineBtn = <?php echo json_encode($l('COM_ORDENPRODUCCION_DELETE', 'Delete', 'Eliminar')); ?>;
 
     (function mergePreFromUrl() {
         try {
@@ -668,7 +675,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 '<div class="line-images-preview d-flex flex-wrap gap-1 align-items-center mb-1"></div>' +
                 '<button type="button" class="btn btn-sm btn-outline-secondary btn-line-attach" aria-label="' + escapeAttr(msgLineAttach) + '"><i class="fas fa-paperclip" aria-hidden="true"></i></button>' +
                 '</td>' +
-                '<td><button type="button" class="btn btn-sm btn-outline-primary btn-save-line me-1" onclick="window.saveQuotationLine(this)"><i class="fas fa-save"></i></button><button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" onclick="window.removeQuotationLine(this)"><i class="fas fa-trash"></i></button></td>';
+                '<td class="cotizacion-line-action-cell align-middle"><div class="cotizacion-line-actions d-flex flex-column align-items-center gap-1">' +
+                '<button type="button" class="btn btn-sm btn-outline-primary btn-save-line m-0" onclick="window.saveQuotationLine(this)" title="' + escapeAttr(msgSaveLineBtn) + '"><i class="fas fa-save"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-row m-0" onclick="window.removeQuotationLine(this)" title="' + escapeAttr(msgDeleteLineBtn) + '"><i class="fas fa-trash"></i></button>' +
+                '</div></td>';
             tbody.appendChild(tr);
             if (typeof window.initLineImagesRow === 'function') {
                 window.initLineImagesRow(tr);
