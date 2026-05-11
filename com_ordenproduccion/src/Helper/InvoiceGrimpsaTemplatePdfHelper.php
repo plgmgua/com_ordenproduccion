@@ -37,6 +37,13 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
     private const BODY_TOP_MM = 8.0;
 
+    /** Invoice detail table accent (header row + TOTALES row) — soft ice #E7FAFE. */
+    private const TABLE_ACCENT_FILL_R = 231;
+
+    private const TABLE_ACCENT_FILL_G = 250;
+
+    private const TABLE_ACCENT_FILL_B = 254;
+
     /** @deprecated No longer used; PDF is fully generated. */
     public const TEMPLATE_REL_PATH = 'media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf';
 
@@ -287,11 +294,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
 
         $pdf->SetFont('Helvetica', 'B', 7.6);
-        $pdf->SetFillColor(
-            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_R,
-            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_G,
-            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_B
-        );
+        $pdf->SetFillColor(self::TABLE_ACCENT_FILL_R, self::TABLE_ACCENT_FILL_G, self::TABLE_ACCENT_FILL_B);
         $xTot = self::MARGIN_X;
         $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4];
         $totH = 5.5;
@@ -387,11 +390,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $headerH = max(6.8, ($hdrLineH * $maxLines) + 1.1);
 
         $pdf->SetDrawColor(0, 0, 0);
-        $pdf->SetFillColor(
-            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_R,
-            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_G,
-            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_B
-        );
+        $pdf->SetFillColor(self::TABLE_ACCENT_FILL_R, self::TABLE_ACCENT_FILL_G, self::TABLE_ACCENT_FILL_B);
         $x = self::MARGIN_X;
 
         foreach ($hdr as $i => $text) {
@@ -504,7 +503,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
     /**
      * Impuestos: sub-celda "IVA" + importe (como factura GRIMPSA de referencia).
      *
-     * @param   bool   $accentFill  When true, fill matches first segment of the top CMY brand bar (cyan).
+     * @param   bool   $accentFill  When true, fill uses {@see TABLE_ACCENT_FILL_*} (header/totales band).
      */
     private static function drawImpuestosSubCells(
         InvoiceGrimpsaPdfDocument $pdf,
@@ -524,11 +523,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
         $pdf->SetXY($x, $y);
         if ($accentFill) {
-            $pdf->SetFillColor(
-                CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_R,
-                CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_G,
-                CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_B
-            );
+            $pdf->SetFillColor(self::TABLE_ACCENT_FILL_R, self::TABLE_ACCENT_FILL_G, self::TABLE_ACCENT_FILL_B);
         } else {
             $pdf->SetFillColor(255, 255, 255);
         }
