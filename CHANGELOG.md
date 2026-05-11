@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.69-STABLE] - 2026-05-11
+
+### Changed
+- **Cotización desde pre-cotización:** La cantidad de la línea usa **cantidad total** del encabezado de la pre-cot cuando está definida; solo si no aplica se conserva el fallback por línea interna de la pre-cot (p. ej. folios Cant. 1).
+- **Cotización (editar / default):** Columnas **Pre-cotización → Cant. → Descripción** en la tabla; barra de alta con cantidad antes de descripción; selector con `data-cantidad-total` / fallback de línea.
+- **Cotización (ver / display):** Mismo orden de columnas (**Cant.** antes de **Descripción**) en tabla de líneas.
+
 ## [3.118.68-STABLE] - 2026-05-11
 
 ### Changed

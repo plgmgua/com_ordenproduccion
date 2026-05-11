@@ -205,24 +205,33 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                             if (isset($pre->total_con_tarjeta) && $pre->total_con_tarjeta !== null && $pre->total_con_tarjeta !== '') {
                                 $tcAttr = ' data-total-con-tarjeta="' . htmlspecialchars(number_format((float) $pre->total_con_tarjeta, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                             }
+                            $qtyFromHeader = CotizacionHelper::parsePreCotCantidadTotalForQuotation(isset($pre->cantidad_total) ? (string) $pre->cantidad_total : '');
+                            $qtyLineFb = (int) ($pre->line_qty_fallback ?? 0);
+                            $cotQtyAttr = '';
+                            if ($qtyFromHeader > 0) {
+                                $cotQtyAttr .= ' data-cantidad-total="' . (int) $qtyFromHeader . '"';
+                            }
+                            if ($qtyLineFb > 0) {
+                                $cotQtyAttr .= ' data-cantidad-linea-fallback="' . $qtyLineFb . '"';
+                            }
                         ?>
                             <?php /* option value = pre_cotizacion.id (PK). Label uses $pre->number (PRE-xxxxx), never mix them. */ ?>
-                            <option value="<?php echo (int) $pre->id; ?>" <?php echo $warmSelected ? ' selected' : ''; ?> data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr; ?>>
+                            <option value="<?php echo (int) $pre->id; ?>" <?php echo $warmSelected ? ' selected' : ''; ?> data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr . $cotQtyAttr; ?>>
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="cotizacion-add-line-row-second d-flex flex-wrap align-items-end gap-2">
-                    <div class="cotizacion-add-descripcion">
-                        <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_LABEL', 'Custom description', 'Descripción personalizada'); ?> <span class="text-danger">*</span></label>
-                        <textarea id="precotizacionDescription" class="form-control form-control-sm" rows="2" style="min-width: 200px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Enter description...', 'Ingrese descripción...'); ?>" aria-label="Descripción personalizada"></textarea>
-                    </div>
                     <div id="cotizacion-add-line-cantidad-wrap" class="cotizacion-add-line-cantidad-wrap d-none">
                     <div class="cotizacion-add-cantidad">
                         <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_CANTIDAD', 'Qty', 'Cantidad'); ?> <span class="text-danger">*</span></label>
                         <input type="number" id="precotizacionCantidad" class="form-control form-control-sm text-end cotizacion-qty-input" min="1" step="1" value="0" aria-label="Cantidad" disabled>
                     </div>
+                    </div>
+                    <div class="cotizacion-add-descripcion">
+                        <label class="me-1"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_LABEL', 'Custom description', 'Descripción personalizada'); ?> <span class="text-danger">*</span></label>
+                        <textarea id="precotizacionDescription" class="form-control form-control-sm" rows="2" style="min-width: 200px; resize: vertical;" placeholder="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_DESCRIPTION_PLACEHOLDER', 'Enter description...', 'Ingrese descripción...'); ?>" aria-label="Descripción personalizada"></textarea>
                     </div>
                     <div class="cotizacion-add-btn align-self-end">
                         <button type="button" class="btn btn-primary btn-sm" id="btnAddPrecotizacionLine" title="<?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
@@ -235,8 +244,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <thead>
                     <tr>
                         <th class="col-precotizacion" style="width: 9%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
-                        <th style="width: 33%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
                         <th class="col-cotizacion-items-qty-th" style="width: 5%;"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.'); ?></th>
+                        <th style="width: 33%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
                         <th style="width: 9%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
                         <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
@@ -280,8 +289,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     ?>
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
-                        <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="<?php echo $qty; ?>"></td>
+                        <td><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
                         <td class="text-end">Q <span class="line-subtotal-ref"><?php echo number_format($subtotalRef, 2); ?></span></td>
                         <td class="text-end align-middle">Q
@@ -389,6 +398,34 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         return num ? String(num).trim() : '';
     }
 
+    function readEffectivePrecotCantidad(opt) {
+        if (!opt || !opt.value) {
+            return 0;
+        }
+        var ht = parseInt(String(opt.getAttribute('data-cantidad-total') || '').trim(), 10);
+        if (!isNaN(ht) && ht > 0) {
+            return ht;
+        }
+        var fb = parseInt(String(opt.getAttribute('data-cantidad-linea-fallback') || '').trim(), 10);
+        if (!isNaN(fb) && fb > 0) {
+            return fb;
+        }
+        return 0;
+    }
+
+    function fillCantidadFromPrecotizacion() {
+        if (!cantidadEl || !selectEl) {
+            return;
+        }
+        var opt = selectEl.options[selectEl.selectedIndex];
+        var hasPre = !!(opt && opt.value && parseInt(opt.value, 10) > 0);
+        if (!hasPre) {
+            return;
+        }
+        var n = readEffectivePrecotCantidad(opt);
+        cantidadEl.value = n > 0 ? String(n) : '1';
+    }
+
     function syncPrecotCantidadWrapVisibility() {
         if (!cantidadWrapEl || !selectEl) {
             return;
@@ -399,6 +436,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             cantidadWrapEl.classList.remove('d-none');
             if (cantidadEl) {
                 cantidadEl.disabled = false;
+                fillCantidadFromPrecotizacion();
             }
         } else {
             cantidadWrapEl.classList.add('d-none');
@@ -591,8 +629,11 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 if (descEl) descEl.focus();
                 return;
             }
-            var qtyForNewRowPre = cantidadEl ? parseInt(String(cantidadEl.value).trim(), 10) : 0;
-            if (isNaN(qtyForNewRowPre) || qtyForNewRowPre < 1) {
+            var qtyFromAttrs = readEffectivePrecotCantidad(opt);
+            var qtyTyped = cantidadEl ? parseInt(String(cantidadEl.value).trim(), 10) : 0;
+            if (isNaN(qtyTyped) || qtyTyped < 1) qtyTyped = 0;
+            var qtyForNewRowPre = qtyFromAttrs > 0 ? qtyFromAttrs : qtyTyped;
+            if (qtyForNewRowPre < 1) {
                 alert(msgCantidadRequired);
                 if (cantidadEl) {
                     cantidadEl.focus();
@@ -616,8 +657,8 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var unitPrice = '0.0000';
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
-                '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
+                '<td><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm" rows="2" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
                 '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +

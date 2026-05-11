@@ -1342,6 +1342,9 @@ class PrecotizacionModel extends ListModel
             return $this->getItems() ?: [];
         }
         $cols = ['a.id', 'a.number', 'a.descripcion', 'a.oferta', 'a.created_by'];
+        if (isset($tableCols['cantidad_total'])) {
+            $cols[] = 'a.cantidad_total';
+        }
         if (isset($tableCols['total'])) {
             $cols[] = 'a.total AS total_snapshot';
         }
@@ -1357,6 +1360,12 @@ class PrecotizacionModel extends ListModel
             ->order($db->quoteName('a.id') . ' DESC');
         $db->setQuery($query);
         $rows = $db->loadObjectList();
+        $preIdsForLines = [];
+        foreach ($rows ?: [] as $row) {
+            $preIdsForLines[] = (int) $row->id;
+        }
+        $firstLineQtyByPre = $this->getFirstNonEnvioLineQtyByPreIds($preIdsForLines);
+
         $list = [];
         foreach ($rows ?: [] as $row) {
             $total = isset($row->total_snapshot) && $row->total_snapshot !== null && $row->total_snapshot !== ''
@@ -1367,16 +1376,82 @@ class PrecotizacionModel extends ListModel
                 $tc = round((float) $row->total_con_tarjeta_snapshot, 2);
                 $totalConTarjeta = $tc > 0 ? $tc : null;
             }
+            $pid = (int) $row->id;
             $list[] = (object) [
-                'id'                  => (int) $row->id,
-                'number'              => $row->number ?? ('PRE-' . $row->id),
-                'total'               => $total,
-                'total_con_tarjeta'   => $totalConTarjeta,
-                'descripcion'         => isset($row->descripcion) ? trim((string) $row->descripcion) : '',
-                'oferta'              => !empty($row->oferta),
+                'id'                      => $pid,
+                'number'                  => $row->number ?? ('PRE-' . $row->id),
+                'total'                   => $total,
+                'total_con_tarjeta'       => $totalConTarjeta,
+                'descripcion'             => isset($row->descripcion) ? trim((string) $row->descripcion) : '',
+                'oferta'                  => !empty($row->oferta),
+                'cantidad_total'          => isset($row->cantidad_total) ? (string) $row->cantidad_total : '',
+                'line_qty_fallback'       => (int) ($firstLineQtyByPre[$pid] ?? 0),
             ];
         }
         return $list;
+    }
+
+    /**
+     * First non-envío `quantity` per pre-cotización id (ordering matches document lines).
+     *
+     * @param   int[]  $preIds
+     *
+     * @return  array<int, int>  pre_id => qty (0 omitted if none)
+     *
+     * @since   3.118.69
+     */
+    public function getFirstNonEnvioLineQtyByPreIds(array $preIds): array
+    {
+        $ids = [];
+        foreach ($preIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+        $filtered = array_keys($ids);
+        if ($filtered === []) {
+            return [];
+        }
+
+        $db     = $this->getDatabase();
+        $cols   = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $cols   = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $hasLt  = isset($cols['line_type']);
+
+        $select = [$db->quoteName('l.pre_cotizacion_id'), $db->quoteName('l.quantity')];
+        if ($hasLt) {
+            $select[] = $db->quoteName('l.line_type');
+        }
+
+        $query = $db->getQuery(true)
+            ->select($select)
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line', 'l'))
+            ->whereIn($db->quoteName('l.pre_cotizacion_id'), $filtered)
+            ->order($db->quoteName('l.pre_cotizacion_id') . ' ASC')
+            ->order($db->quoteName('l.ordering') . ' ASC')
+            ->order($db->quoteName('l.id') . ' ASC');
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+
+        $out = [];
+        foreach ($rows as $row) {
+            $pid = (int) ($row->pre_cotizacion_id ?? 0);
+            if ($pid < 1 || isset($out[$pid])) {
+                continue;
+            }
+            $lt = ($hasLt && isset($row->line_type)) ? (string) $row->line_type : 'pliego';
+            if ($lt === 'envio') {
+                continue;
+            }
+            $q = isset($row->quantity) ? (int) $row->quantity : 0;
+            if ($q > 0) {
+                $out[$pid] = $q;
+            }
+        }
+
+        return $out;
     }
 
     /**

@@ -116,4 +116,31 @@ abstract class CotizacionHelper
 
         return (strpos((string) $tag, 'es') === 0) ? $fallbackEs : $fallbackEn;
     }
+
+    /**
+     * Parse pre-cotización cabecera `cantidad_total` for default línea quantity on la cotización.
+     *
+     * @since  3.118.69
+     */
+    public static function parsePreCotCantidadTotalForQuotation(?string $raw): int
+    {
+        $raw = trim((string) ($raw ?? ''));
+        if ($raw === '') {
+            return 0;
+        }
+
+        if (preg_match('/^\s*(\d+)\s*$/', $raw, $m)) {
+            $n = (int) $m[1];
+
+            return $n > 0 ? $n : 0;
+        }
+
+        if (preg_match('/^\s*(\d+)/', $raw, $m)) {
+            $n = (int) $m[1];
+
+            return $n > 0 ? $n : 0;
+        }
+
+        return 0;
+    }
 }

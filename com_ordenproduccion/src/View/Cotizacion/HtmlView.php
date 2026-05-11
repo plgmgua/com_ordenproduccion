@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -485,6 +486,8 @@ class HtmlView extends BaseHtmlView
                         'total'               => $item->total,
                         'total_con_tarjeta'   => isset($item->total_con_tarjeta) ? $item->total_con_tarjeta : null,
                         'descripcion'         => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
+                        'cantidad_total'      => isset($item->cantidad_total) ? (string) $item->cantidad_total : '',
+                        'line_qty_fallback'    => isset($item->line_qty_fallback) ? (int) $item->line_qty_fallback : 0,
                     ];
                 }
                 $this->preCotizacionesList = $list;
@@ -497,9 +500,11 @@ class HtmlView extends BaseHtmlView
                         $warm = $this->buildPrecotWarmupOption($wantPreId, $precotModel);
                         if ($warm !== null) {
                             $this->initialPrecotizacionId           = $wantPreId;
-                            $precotLines                             = $precotModel->getLines($wantPreId);
-                            $this->initialPrecotizacionFirstLineQty = $this->getFirstNonEnvioLineQuantityFromPreLines(
-                                is_array($precotLines) ? $precotLines : []
+                            $itemWarm = $precotModel->getItem($wantPreId);
+                            $warmLines                               = $precotModel->getLines($wantPreId);
+                            $this->initialPrecotizacionFirstLineQty = $this->resolvePrecotCantidadParaCotizacion(
+                                $itemWarm ?: null,
+                                \is_array($warmLines) ? $warmLines : []
                             );
                             $inDropdown = false;
                             foreach ($list as $pc) {
@@ -836,13 +841,38 @@ class HtmlView extends BaseHtmlView
         $totalTarjRaw = $precotModel->getTotalConTarjetaForPreCotizacion($id);
         $totalTarj   = ($totalTarjRaw !== null && (float) $totalTarjRaw > 0) ? round((float) $totalTarjRaw, 2) : null;
 
+        $linesWarm = $precotModel->getLines($id);
+
         return (object) [
-            'id'                  => $id,
-            'number'              => isset($item->number) ? (string) $item->number : ('PRE-' . $id),
-            'total'               => $total,
-            'total_con_tarjeta'   => $totalTarj,
-            'descripcion'         => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
+            'id'                    => $id,
+            'number'                => isset($item->number) ? (string) $item->number : ('PRE-' . $id),
+            'total'                 => $total,
+            'total_con_tarjeta'     => $totalTarj,
+            'descripcion'           => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
+            'cantidad_total'        => isset($item->cantidad_total) ? (string) $item->cantidad_total : '',
+            'line_qty_fallback'     => $this->getFirstNonEnvioLineQuantityFromPreLines(
+                \is_array($linesWarm) ? $linesWarm : []
+            ),
         ];
+    }
+
+    /**
+     * Cantidad inicial para nueva línea de cotización: cabecera `cantidad_total` si es válido; si no, primera línea no-envío.
+     *
+     * @param   array<int, object>  $lines
+     *
+     * @since   3.118.69
+     */
+    protected function resolvePrecotCantidadParaCotizacion(?object $item, array $lines): int
+    {
+        if ($item !== null && isset($item->cantidad_total)) {
+            $h = CotizacionHelper::parsePreCotCantidadTotalForQuotation((string) $item->cantidad_total);
+            if ($h > 0) {
+                return $h;
+            }
+        }
+
+        return $this->getFirstNonEnvioLineQuantityFromPreLines($lines);
     }
 
     /**
