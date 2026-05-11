@@ -57,20 +57,50 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
-     * Digifact SHARED_GETINFONIT must use GET /api/Shared. Some installs store the
-     * invoice transform URL (/api/v2/transform/nuc_json); that route returns 405 for this flow.
+     * Ensure the URL path targets Digifact SHARED GET. Users often paste the NUC transform URL
+     * (/api/v2/transform/nuc_json); that route is not valid for SHARED_GETINFONIT.
+     *
+     * Guatemala NUC production (and test stacks on *nucgt.digifact.com) use a site prefix:
+     * `/gt.com.apinuc/api/SHARED` — not `/api/Shared`. Flat `/api/Shared` returns 404 there.
+     *
+     * Other regions / hosts keep the historical `/api/Shared` rewrite after stripping transform paths.
      */
     protected static function normalizeDigifactSharedUrlParts(array $parts): array
     {
         $path = isset($parts['path']) ? $parts['path'] : '/';
         $pn   = strtolower(str_replace('\\', '/', $path));
+        $host = strtolower((string) ($parts['host'] ?? ''));
 
-        if ($pn !== '' && strpos($pn, '/api/shared') === false) {
-            if (strpos($pn, 'nuc_json') !== false
-                || strpos($pn, '/api/v2/transform') !== false
-                || strpos($pn, 'transform/nuc') !== false) {
-                $parts['path'] = '/api/Shared';
+        $isDigifactGtNucHost = strpos($host, 'nucgt.digifact.com') !== false;
+        $gtApinucSharedPath  = '/gt.com.apinuc/api/SHARED';
+
+        if ($isDigifactGtNucHost) {
+            $hasApinucShared = ($pn !== '' && strpos($pn, 'gt.com.apinuc') !== false && strpos($pn, 'shared') !== false);
+            if ($hasApinucShared) {
+                return $parts;
             }
+
+            $fromTransform = strpos($pn, 'nuc_json') !== false
+                || strpos($pn, '/api/v2/transform') !== false
+                || strpos($pn, 'transform/nuc') !== false;
+            $legacyFlatShared = $pn === '/api/shared'; // strtolower of /api/Shared
+            $rootish          = $pn === '' || $pn === '/';
+
+            if ($fromTransform || $legacyFlatShared || $rootish) {
+                $parts['path'] = $gtApinucSharedPath;
+            }
+
+            return $parts;
+        }
+
+        // Other hosts: keep flat /api/Shared when rewriting off transform URLs
+        if ($pn !== '' && strpos($pn, '/api/shared') !== false) {
+            return $parts;
+        }
+        if (strpos($pn, 'nuc_json') !== false
+            || strpos($pn, '/api/v2/transform') !== false
+            || strpos($pn, 'transform/nuc') !== false) {
+            $parts['path'] = '/api/Shared';
         }
 
         return $parts;

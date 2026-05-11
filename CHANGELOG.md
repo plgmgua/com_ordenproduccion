@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.62-STABLE] - 2026-05-11
+
+### Fixed
+- **Digifact SHARED (NIT/GT):** En hosts `*.nucgt.digifact.com` la lookup GET debe ir a **`/gt.com.apinuc/api/SHARED`**, no a `/api/Shared` (evita 404 cuando la URL configurada viene del transform `nuc_json` o equivalía al path legacy plano).
+
 ## [3.118.61-STABLE] - 2026-05-11
 
 ### Fixed
