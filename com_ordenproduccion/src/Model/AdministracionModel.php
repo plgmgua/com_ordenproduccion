@@ -3313,6 +3313,9 @@ class AdministracionModel extends BaseDatabaseModel
      *   encabezado_izq_y:float,
      *   encabezado_der_x:float,
      *   encabezado_der_y:float,
+     *   qr_x:float,
+     *   qr_y:float,
+     *   qr_size_mm:float,
      *   pie_x:float,
      *   pie_y:float
      * }
@@ -3337,6 +3340,9 @@ class AdministracionModel extends BaseDatabaseModel
             'invoice_factura_plantilla_encabezado_izq_y',
             'invoice_factura_plantilla_encabezado_der_x',
             'invoice_factura_plantilla_encabezado_der_y',
+            'invoice_factura_plantilla_qr_x',
+            'invoice_factura_plantilla_qr_y',
+            'invoice_factura_plantilla_qr_size_mm',
             'invoice_factura_plantilla_pie_x',
             'invoice_factura_plantilla_pie_y',
         ];
@@ -3385,6 +3391,9 @@ class AdministracionModel extends BaseDatabaseModel
             'encabezado_izq_y'  => $izqY,
             'encabezado_der_x'  => $getFloat('invoice_factura_plantilla_encabezado_der_x', 115.0),
             'encabezado_der_y'  => $getFloat('invoice_factura_plantilla_encabezado_der_y', 15.0),
+            'qr_x'              => $getFloat('invoice_factura_plantilla_qr_x', 150.0),
+            'qr_y'              => $getFloat('invoice_factura_plantilla_qr_y', 18.0),
+            'qr_size_mm'        => $getFloat('invoice_factura_plantilla_qr_size_mm', 0.0),
             'pie_x'             => $getFloat('invoice_factura_plantilla_pie_x', 0.0),
             'pie_y'             => $getFloat('invoice_factura_plantilla_pie_y', 0.0),
         ];
@@ -3393,7 +3402,7 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Save invoice HTML templates (WYSIWYG HTML allowed) and logo/position fields (mm, same semantics as cotización PDF).
      *
-     * @param   array<string, mixed>  $data  keys: header_izq_html, header_der_html, footer_html, logo_path, logo_x, logo_y, logo_width, encabezado_izq_x/y, encabezado_der_x/y, pie_x, pie_y
+     * @param   array<string, mixed>  $data  keys: header_izq_html, header_der_html, footer_html, logo_*, encabezado_izq_* / encabezado_der_* , qr_x, qr_y, qr_size_mm, pie_x, pie_y
      *
      * @since   3.118.81
      */
@@ -3411,12 +3420,16 @@ class AdministracionModel extends BaseDatabaseModel
             'encabezado_izq_y'  => 'invoice_factura_plantilla_encabezado_izq_y',
             'encabezado_der_x'  => 'invoice_factura_plantilla_encabezado_der_x',
             'encabezado_der_y'  => 'invoice_factura_plantilla_encabezado_der_y',
+            'qr_x'              => 'invoice_factura_plantilla_qr_x',
+            'qr_y'              => 'invoice_factura_plantilla_qr_y',
+            'qr_size_mm'        => 'invoice_factura_plantilla_qr_size_mm',
             'pie_x'             => 'invoice_factura_plantilla_pie_x',
             'pie_y'             => 'invoice_factura_plantilla_pie_y',
         ];
         $floatKeys = [
             'logo_x', 'logo_y', 'logo_width',
             'encabezado_izq_x', 'encabezado_izq_y', 'encabezado_der_x', 'encabezado_der_y',
+            'qr_x', 'qr_y', 'qr_size_mm',
             'pie_x', 'pie_y',
         ];
 

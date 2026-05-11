@@ -446,6 +446,159 @@ class FelXmlHelper
     }
 
     /**
+     * Text to encode in a verification QR for the invoice PDF (SAT/Digifact XML or JSON response).
+     *
+     * @since  3.118.88
+     */
+    public static function extractFelQrPayloadForInvoice(?string $xmlRaw, ?string $felResponseJson): string
+    {
+        $xmlRaw = $xmlRaw !== null ? trim($xmlRaw) : '';
+        if ($xmlRaw !== '') {
+            $fromXml = self::extractQrPayloadFromFelXml($xmlRaw);
+            if ($fromXml !== '') {
+                return $fromXml;
+            }
+        }
+
+        return self::extractQrPayloadFromFelResponseJson($felResponseJson);
+    }
+
+    /**
+     * Digifact / certifier JSON may carry a QR string or URL under varying keys.
+     *
+     * @since  3.118.88
+     */
+    public static function extractQrPayloadFromFelResponseJson(?string $body): string
+    {
+        $body = trim((string) $body);
+        if ($body === '' || $body[0] !== '{') {
+            return '';
+        }
+        $j = json_decode($body, true);
+        if (!\is_array($j)) {
+            return '';
+        }
+        $preferred = [
+            'InformacionCodificada',
+            'informacionCodificada',
+            'TextoQR',
+            'textoQR',
+            'TextoQr',
+            'textoQr',
+            'QRCode',
+            'QrCode',
+            'qrCode',
+            'CodigoQR',
+            'codigoQR',
+            'CodigoQr',
+            'codigoQr',
+            'BarcodeValue',
+            'barcodeValue',
+            'CodigoBarras',
+            'codigoBarras',
+        ];
+        foreach ($preferred as $k) {
+            if (!isset($j[$k]) || !\is_string($j[$k])) {
+                continue;
+            }
+            $v = trim($j[$k]);
+            if ($v !== '') {
+                return $v;
+            }
+        }
+
+        return self::deepScanFelJsonForQrPayload($j, 0);
+    }
+
+    /**
+     * @param  array<mixed>  $node
+     *
+     * @since  3.118.88
+     */
+    private static function deepScanFelJsonForQrPayload(array $node, int $depth): string
+    {
+        if ($depth > 10) {
+            return '';
+        }
+        foreach ($node as $key => $value) {
+            if (\is_string($key) && preg_match('/qr|codifica|barcode|dato.*qr|img.*qr/i', $key)) {
+                if (\is_string($value) && trim($value) !== '') {
+                    return trim($value);
+                }
+            }
+            if (\is_array($value)) {
+                $sub = self::deepScanFelJsonForQrPayload($value, $depth + 1);
+                if ($sub !== '') {
+                    return $sub;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Try common SAT / complement element names for encoded invoice verification data.
+     *
+     * @since  3.118.88
+     */
+    public static function extractQrPayloadFromFelXml(string $xml): string
+    {
+        $xml = trim($xml);
+        if ($xml === '' || strpos(ltrim($xml), '<') !== 0) {
+            return '';
+        }
+        $localNames = [
+            'InformacionCodificada',
+            'InformacionCodificada32',
+            'InformacionQR',
+            'InformacionQr',
+            'TextoInformacionCodificada',
+            'ValorInformacionCodificada',
+            'DatosCodificados',
+            'TextoQR',
+            'TextoQr',
+            'CodigoQr',
+            'CodigoQR',
+        ];
+        $dom = new \DOMDocument();
+        if (!@$dom->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING)) {
+            foreach ($localNames as $ln) {
+                if (preg_match(
+                    '/<(?:[\w.-]+:)?' . preg_quote($ln, '/') . '\b[^>]*>([^<]+)<\/(?:[\w.-]+:)?' . preg_quote($ln, '/') . '>/ui',
+                    $xml,
+                    $m
+                )) {
+                    $t = trim(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+                    return $t !== '' ? self::ensureUtf8String($t) : '';
+                }
+            }
+
+            return '';
+        }
+        $xp = new \DOMXPath($dom);
+        foreach ($localNames as $ln) {
+            $list = $xp->query('//*[local-name()="' . $ln . '"]');
+            if (!$list || $list->length < 1) {
+                continue;
+            }
+            for ($i = 0; $i < $list->length; $i++) {
+                $el = $list->item($i);
+                if (!$el instanceof \DOMElement) {
+                    continue;
+                }
+                $text = trim(preg_replace('/\s+/u', ' ', $el->textContent));
+                if ($text !== '') {
+                    return self::ensureUtf8String($text);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * @return  array{serie:string, numero:string, text:string}
      */
     private static function extractNumeroAutorizacionFromDom(string $xml): array

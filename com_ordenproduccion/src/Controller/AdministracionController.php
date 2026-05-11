@@ -953,6 +953,9 @@ class AdministracionController extends BaseController
                 'encabezado_izq_y'  => isset($jform['encabezado_izq_y']) ? (float) $jform['encabezado_izq_y'] : 15,
                 'encabezado_der_x'  => isset($jform['encabezado_der_x']) ? (float) $jform['encabezado_der_x'] : 115,
                 'encabezado_der_y'  => isset($jform['encabezado_der_y']) ? (float) $jform['encabezado_der_y'] : 15,
+                'qr_x'              => isset($jform['qr_x']) ? (float) $jform['qr_x'] : 150,
+                'qr_y'              => isset($jform['qr_y']) ? (float) $jform['qr_y'] : 18,
+                'qr_size_mm'        => isset($jform['qr_size_mm']) ? (float) $jform['qr_size_mm'] : 0,
                 'pie_x'             => isset($jform['pie_x']) ? (float) $jform['pie_x'] : 0,
                 'pie_y'             => isset($jform['pie_y']) ? (float) $jform['pie_y'] : 0,
             ]);

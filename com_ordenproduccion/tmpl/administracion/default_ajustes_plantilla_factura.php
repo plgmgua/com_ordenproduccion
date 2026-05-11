@@ -38,6 +38,9 @@ $settings = isset($this->invoiceFacturaPlantillaSettings) && is_array($this->inv
         'encabezado_izq_y'  => 15,
         'encabezado_der_x'  => 115,
         'encabezado_der_y'  => 15,
+        'qr_x'              => 150,
+        'qr_y'              => 18,
+        'qr_size_mm'        => 0,
         'pie_x'             => 0,
         'pie_y'             => 0,
     ];
@@ -52,6 +55,9 @@ $encabezado_izq_x = isset($settings['encabezado_izq_x']) ? (float) $settings['en
 $encabezado_izq_y = isset($settings['encabezado_izq_y']) ? (float) $settings['encabezado_izq_y'] : 15;
 $encabezado_der_x = isset($settings['encabezado_der_x']) ? (float) $settings['encabezado_der_x'] : 115;
 $encabezado_der_y = isset($settings['encabezado_der_y']) ? (float) $settings['encabezado_der_y'] : 15;
+$qr_x             = isset($settings['qr_x']) ? (float) $settings['qr_x'] : 150;
+$qr_y             = isset($settings['qr_y']) ? (float) $settings['qr_y'] : 18;
+$qr_size_mm       = isset($settings['qr_size_mm']) ? (float) $settings['qr_size_mm'] : 0;
 $pie_x        = isset($settings['pie_x']) ? (float) $settings['pie_x'] : 0;
 $pie_y        = isset($settings['pie_y']) ? (float) $settings['pie_y'] : 0;
 
@@ -159,6 +165,39 @@ $editorButtons = true;
                          alt="Logo preview" style="max-height:80px; max-width:200px; border:1px solid #dee2e6; padding:4px; background:#fff;" />
                 </div>
                 <?php endif; ?>
+            </div>
+
+            <!-- Verification QR (from certified XML / Digifact JSON when available) -->
+            <div class="mb-4 p-3 border rounded bg-white">
+                <label class="form-label fw-bold">
+                    <i class="fas fa-qrcode me-1"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_QR_HEADING'); ?>
+                </label>
+                <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_QR_DESC'); ?></p>
+                <div class="row g-2 mb-2">
+                    <div class="col-auto">
+                        <label for="inv_plant_qr_x" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_X'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[qr_x]" id="inv_plant_qr_x"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars((string) $qr_x, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_POS_MM_VIEW'); ?>" />
+                    </div>
+                    <div class="col-auto">
+                        <label for="inv_plant_qr_y" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_COTIZACION_PDF_POS_Y'); ?></label>
+                        <input type="number" step="0.1" min="0" name="jform[qr_y]" id="inv_plant_qr_y"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars((string) $qr_y, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_POS_MM_VIEW'); ?>" />
+                    </div>
+                    <div class="col-auto">
+                        <label for="inv_plant_qr_size_mm" class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_QR_SIZE_MM'); ?></label>
+                        <input type="number" step="0.5" min="0" name="jform[qr_size_mm]" id="inv_plant_qr_size_mm"
+                               class="form-control form-control-sm" style="width:5rem;"
+                               value="<?php echo htmlspecialchars((string) $qr_size_mm, ENT_QUOTES, 'UTF-8'); ?>"
+                               title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_QR_SIZE_MM_DESC'); ?>" />
+                    </div>
+                </div>
+                <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_QR_SIZE_MM_DESC'); ?></div>
             </div>
 
             <!-- Encabezado izquierdo -->

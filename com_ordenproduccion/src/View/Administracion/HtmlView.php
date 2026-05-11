@@ -349,6 +349,9 @@ class HtmlView extends BaseHtmlView
         'encabezado_izq_y'  => 15,
         'encabezado_der_x'  => 115,
         'encabezado_der_y'  => 15,
+        'qr_x'              => 150,
+        'qr_y'              => 18,
+        'qr_size_mm'        => 0,
         'pie_x'             => 0,
         'pie_y'             => 0,
     ];
@@ -2108,6 +2111,9 @@ class HtmlView extends BaseHtmlView
                     'encabezado_izq_y'  => 15,
                     'encabezado_der_x'  => 115,
                     'encabezado_der_y'  => 15,
+                    'qr_x'              => 150,
+                    'qr_y'              => 18,
+                    'qr_size_mm'        => 0,
                     'pie_x'             => 0,
                     'pie_y'             => 0,
                 ];

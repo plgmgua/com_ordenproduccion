@@ -18,7 +18,9 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFacturaTemplateHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFelQrPngHelper;
 
 /**
  * @internal  Class name kept for backwards compatibility with controllers and templates.
@@ -98,10 +100,10 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
         self::enrichFelExtraFromArtifacts($inv, $felExtra);
 
+        $felXmlRaw = self::readInvoiceFelXmlForPdf($inv);
         $lineItems = is_array($inv->line_items ?? null) ? array_values($inv->line_items) : [];
-        $xmlForLines = self::readInvoiceFelXmlForPdf($inv);
-        if ($xmlForLines !== '') {
-            $lineItems = self::mergeStoredLineItemsWithFelXml($lineItems, $xmlForLines);
+        if ($felXmlRaw !== '') {
+            $lineItems = self::mergeStoredLineItemsWithFelXml($lineItems, $felXmlRaw);
         }
         $plantilla                 = null;
         $headerIzqHtmlProcessed    = '';
@@ -150,7 +152,9 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $derBlocks  = $headerDerHtmlProcessed !== ''
                 ? CotizacionFpdfBlocksHelper::parseHtmlBlocks($headerDerHtmlProcessed, $fixEnc)
                 : [];
-            if ($hasLogo || $izqBlocks !== [] || $derBlocks !== []) {
+            $qrSizeMm = (float) ($plantilla['qr_size_mm'] ?? 0);
+            $doHeaderLayout = $hasLogo || $izqBlocks !== [] || $derBlocks !== [] || $qrSizeMm > 0;
+            if ($doHeaderLayout) {
                 $logoX  = (float) ($plantilla['logo_x'] ?? 15);
                 $logoY  = (float) ($plantilla['logo_y'] ?? 15);
                 $logoW  = (float) ($plantilla['logo_width'] ?? 50);
@@ -198,6 +202,23 @@ final class InvoiceGrimpsaTemplatePdfHelper
                         $fixEnc
                     );
                     $yBody = max($yBody, $pdf->GetY() + 3.0);
+                }
+
+                if ($qrSizeMm > 0) {
+                    $payloadQr = FelXmlHelper::extractFelQrPayloadForInvoice(
+                        $felXmlRaw !== '' ? $felXmlRaw : null,
+                        !empty($inv->fel_response_json) && is_string($inv->fel_response_json) ? $inv->fel_response_json : null
+                    );
+                    if ($payloadQr !== '') {
+                        $qrPath = InvoiceFelQrPngHelper::writeTempQrPng($payloadQr);
+                        if ($qrPath !== null) {
+                            $qx = (float) ($plantilla['qr_x'] ?? 150);
+                            $qy = (float) ($plantilla['qr_y'] ?? 18);
+                            $pdf->Image($qrPath, $qx, $qy, $qrSizeMm);
+                            @unlink($qrPath);
+                            $yBody = max($yBody, $qy + $qrSizeMm + 2.0);
+                        }
+                    }
                 }
 
                 $pdf->SetFont('Helvetica', '', 8);
