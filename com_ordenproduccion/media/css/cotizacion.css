@@ -1,6 +1,6 @@
 /**
  * Cotizacion (Quotation) Form Styles
- * Version: 3.118.71
+ * Version: 3.118.72
  */
 
 /* Compact layout: smaller base font */
@@ -105,86 +105,159 @@
 
 .cotizacion-container .items-table th.col-precotizacion {
     width: 9%;
-    min-width: 5.5rem;
+    min-width: 0;
     max-width: none;
 }
 
-.cotizacion-container .items-table thead th.col-cotizacion-items-qty-th {
-    width: 1%;
-    min-width: 0;
-    white-space: nowrap !important;
-    padding-left: 4px;
-    padding-right: 4px;
-    vertical-align: bottom;
+/* #quotationItemsTable: col widths sum 100%; keeps Cant./Descripción/Acción readable with table-layout: fixed */
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-pre {
+    width: 9%;
+}
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-qty {
+    width: 9%;
+}
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-desc {
+    width: 34%;
+}
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-unit {
+    width: 9%;
+}
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-sub {
+    width: 10%;
+}
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-vf {
+    width: 11%;
+}
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-img {
+    width: 10%;
+}
+.cotizacion-container #quotationItemsTable.items-table-edit-lines col.col-edit-line-action {
+    width: 8%;
 }
 
-/* Cant.: apenas el ancho del input numérico (7.5ch) + celda compacta */
-.cotizacion-container .items-table td.cotizacion-line-qty-cell {
-    width: 1%;
+.cotizacion-items-table-wrap.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines thead th.col-cotizacion-items-qty-th {
     min-width: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    white-space: nowrap !important;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines td.cotizacion-line-qty-cell {
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
     white-space: nowrap;
     vertical-align: middle;
-    padding-left: 4px;
-    padding-right: 4px;
+    padding-left: 6px;
+    padding-right: 6px;
+    text-align: end;
 }
 
-.cotizacion-container .items-table input.line-cantidad-input.cotizacion-qty-input,
+.cotizacion-container #quotationItemsTable.items-table-edit-lines input.line-cantidad-input.cotizacion-qty-input {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 8rem;
+    min-width: 0;
+    margin-inline-start: auto;
+}
+
 .cotizacion-container #precotizacionCantidad.cotizacion-qty-input {
-    /* ~4 digit positions + space for native steppers (varies by browser) */
+    width: 7.5rem;
+    max-width: 100%;
+    min-width: 7.5ch;
+    box-sizing: border-box;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines td.cotizacion-line-desc-cell {
+    min-width: 0;
+    vertical-align: top;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines tbody td.cotizacion-line-desc-cell textarea.cotizacion-line-descripcion-input {
+    display: block;
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 7.5rem;
+    resize: vertical;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines thead th.col-cotizacion-line-desc-th {
+    min-width: 0;
+    white-space: normal !important;
+    overflow-wrap: break-word;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines thead th.col-cotizacion-line-action-th {
+    min-width: 0;
+    max-width: none;
+    padding: 6px 4px;
+    white-space: normal !important;
+    line-height: 1.15;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines thead th.col-cotizacion-line-action-th i {
+    font-size: 1rem;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines td.cotizacion-line-action-cell {
+    min-width: 3rem;
+    max-width: none;
+    overflow: visible;
+    vertical-align: middle;
+    text-align: center;
+    padding: 6px 4px;
+    box-sizing: border-box;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines td.cotizacion-line-action-cell .cotizacion-line-actions {
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.cotizacion-container #quotationItemsTable.items-table-edit-lines td.cotizacion-line-action-cell .btn {
+    margin: 0 !important;
+    padding: 0.25rem 0.45rem;
+    min-width: 2rem;
+}
+
+.cotizacion-container .items-table:not(.items-table-edit-lines) thead th.col-cotizacion-items-qty-th {
+    white-space: nowrap !important;
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+.cotizacion-container .items-table:not(.items-table-edit-lines) td.cotizacion-line-qty-cell {
+    min-width: 0;
+}
+
+.cotizacion-container .items-table:not(.items-table-edit-lines) input.line-cantidad-input.cotizacion-qty-input {
     width: 7.5ch !important;
     min-width: 7.5ch;
     max-width: 100%;
     box-sizing: border-box;
 }
 
-.cotizacion-container .items-table td.cotizacion-line-desc-cell {
-    width: auto;
+.cotizacion-container .items-table:not(.items-table-edit-lines) td.cotizacion-line-desc-cell {
     min-width: 0;
     vertical-align: top;
 }
 
-.cotizacion-container .items-table td.cotizacion-line-desc-cell textarea.cotizacion-line-descripcion-input {
+.cotizacion-container .items-table:not(.items-table-edit-lines) td.cotizacion-line-desc-cell textarea.cotizacion-line-descripcion-input {
     display: block;
     width: 100% !important;
     max-width: 100%;
     box-sizing: border-box;
     min-height: 7.5rem;
-}
-
-.cotizacion-container .items-table thead th.col-cotizacion-line-desc-th {
-    min-width: 0;
-}
-
-.cotizacion-container .items-table thead th.col-cotizacion-line-action-th {
-    width: 1%;
-    min-width: 0;
-    max-width: 3rem;
-    padding: 6px 4px;
-    white-space: normal !important;
-    line-height: 1.1;
-}
-
-.cotizacion-container .items-table thead th.col-cotizacion-line-action-th i {
-    font-size: 1.05rem;
-    line-height: 1;
-}
-
-.cotizacion-container .items-table td.cotizacion-line-action-cell {
-    width: 1%;
-    min-width: 0;
-    max-width: 3.25rem;
-    vertical-align: middle;
-    text-align: center;
-    padding: 4px 2px;
-}
-
-.cotizacion-container .items-table td.cotizacion-line-action-cell .cotizacion-line-actions {
-    width: 100%;
-}
-
-.cotizacion-container .items-table td.cotizacion-line-action-cell .btn {
-    margin: 0 !important;
-    padding: 0.2rem 0.35rem;
 }
 
 /* Line images: keep attach control inside its column (avoid overlap with add-line controls on small widths) */

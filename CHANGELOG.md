@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.72-STABLE] - 2026-05-11
+
+### Fixed
+- **Cotización (editar / líneas):** Repartición estable de columnas con `<colgroup>` (suma 100%), contenedor `table-responsive` y reglas solo en `#quotationItemsTable.items-table-edit-lines`. Evita encabezados **Cant.**/**Descripción** pisados, cantidad desbordando, textarea de descripción sin ancho de columna e iconos de acción recortados. **Pre-cotización** sin `min-width` forzado amplio; celda **Cant.** con `overflow-x` y campo a `width:100%` hasta `max-width:8rem`; **Acción** sin `max-width` estrecho.
+
 ## [3.118.71-STABLE] - 2026-05-11
 
 ### Changed

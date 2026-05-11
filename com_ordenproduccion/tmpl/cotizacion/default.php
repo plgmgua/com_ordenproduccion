@@ -240,16 +240,27 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     </div>
                 </div>
             </div>
-            <table class="items-table table table-bordered table-sm" id="quotationItemsTable">
+            <div class="cotizacion-items-table-wrap table-responsive">
+            <table class="items-table items-table-edit-lines table table-bordered table-sm" id="quotationItemsTable">
+                <colgroup>
+                    <col class="col-edit-line-pre" span="1" />
+                    <col class="col-edit-line-qty" span="1" />
+                    <col class="col-edit-line-desc" span="1" />
+                    <col class="col-edit-line-unit" span="1" />
+                    <col class="col-edit-line-sub" span="1" />
+                    <col class="col-edit-line-vf" span="1" />
+                    <col class="col-edit-line-img" span="1" />
+                    <col class="col-edit-line-action" span="1" />
+                </colgroup>
                 <thead>
                     <tr>
-                        <th class="col-precotizacion" style="width: 9%;"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
+                        <th class="col-precotizacion"><?php echo $l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización'); ?></th>
                         <th class="col-cotizacion-items-qty-th"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.'); ?></th>
-                        <th class="col-cotizacion-line-desc-th" style="width: 33%;"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
-                        <th style="width: 9%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
-                        <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
-                        <th style="width: 11%;" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
-                        <th style="width: 11%;" class="text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
+                        <th class="col-cotizacion-line-desc-th"><?php echo $l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción'); ?></th>
+                        <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PRECIO_UNIDAD', 'Unit price', 'Precio unidad.'); ?></th>
+                        <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_SUBTOTAL', 'Subtotal', 'Subtotal'); ?></th>
+                        <th class="text-end"><?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL', 'Final value', 'Valor final'); ?></th>
+                        <th class="text-nowrap"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINE_IMAGES', 'Images', 'Imágenes'); ?></th>
                         <th class="col-cotizacion-line-action-th text-center" scope="col" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'), ENT_QUOTES, 'UTF-8'); ?>">
                             <span class="visually-hidden"><?php echo $l('COM_ORDENPRODUCCION_ACTION', 'Action', 'Acción'); ?></span>
                             <i class="fas fa-person-walking" aria-hidden="true"></i>
@@ -329,6 +340,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     </tr>
                 </tfoot>
             </table>
+            </div>
         </div>
 
         <!-- Form Actions -->
