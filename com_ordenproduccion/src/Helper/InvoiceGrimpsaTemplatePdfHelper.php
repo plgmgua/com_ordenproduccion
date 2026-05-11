@@ -36,18 +36,35 @@ final class InvoiceGrimpsaTemplatePdfHelper
     public const TEMPLATE_REL_PATH = 'media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf';
 
     /**
-     * Column widths (mm) — orden alineado a tabla Digifact SAT: #, tipo, cant, UM, descr, PU, descuentos, total, impuesto.
-     * Debe cuadrar con inner width (page − 2×MARGIN_X).
+     * Column widths (mm), sin UdM — #, tipo, cant, descripción (≥50% ancho útil),
+     * P. Unitario, descuentos, otros, total, Impuestos (IVA dibujado en sub-celdas).
      */
     private static function columnWidths(): array
     {
         $inner = self::PAGE_W_MM - 2 * self::MARGIN_X;
-        //                #    B/S  Cant UM   Desc               P.Unit   Desc ODesc Total  Imp
-        $w     = [5.2, 6.8, 10.5, 7.6, 64.0, 21.5, 9.9, 9.9, 22.8];
-        $sum   = array_sum($w);
-        $w[]   = round($inner - $sum, 2);
 
-        return $w;
+        $descW = round($inner * 0.50, 2);
+        $rest  = round($inner - $descW, 2);
+
+        $c0 = 6.2;
+        $c1 = 9.8;
+        $c2 = 16.8;
+        $narrow = round($c0 + $c1 + $c2, 2);
+        $afterNarrow = round($rest - $narrow, 2);
+
+        $cImp = max(23.8, round($afterNarrow * 0.265, 2));
+        $forNumeric = round(max(0.0, $afterNarrow - $cImp), 2);
+
+        $cPu  = round($forNumeric * 0.28, 2);
+        $cDq  = round($forNumeric * 0.24, 2);
+        $cOd  = round($forNumeric * 0.24, 2);
+        $cTot = round($forNumeric - $cPu - $cDq - $cOd, 2);
+
+        $widths = [$c0, $c1, $c2, $descW, $cPu, $cDq, $cOd, $cTot, $cImp];
+        $drift  = round($inner - array_sum($widths), 2);
+        $widths[8] = round($widths[8] + $drift, 2);
+
+        return $widths;
     }
 
     /**
@@ -260,21 +277,40 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->Ln(2.5);
 
         $colWidths = self::columnWidths();
-        $hdr       = ['#', 'B/S', 'Cant.', 'UdM', 'Descripción', 'P. Unit. (Q)', 'Desc.(Q)', 'O.Desc.(Q)', 'Total (Q)', 'Imp. (Q)'];
+        $hdr       = [
+            '#No.',
+            'B/S',
+            'Cantidad',
+            'Descripción',
+            'P. Unitario con IVA (Q)',
+            'Descuentos (Q)',
+            'Otros Descuentos(Q)',
+            'Total (Q)',
+            'Impuestos',
+        ];
 
         $footerReserve = self::CMY_BAR_MM + 14;
         $tableBottom   = self::PAGE_H_MM - $footerReserve;
 
         $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
-        $pdf->SetFont('Helvetica', '', 6.9);
+        $lineHBody = 3.5;
+        $pdf->SetFont('Helvetica', '', 7.5);
 
-        $rowH     = 4.1;
         $totalIva = 0.0;
         $i        = 0;
         $nLines   = \count($lineItems);
 
         while ($i < $nLines) {
-            if ($yTable + $rowH > $tableBottom) {
+            $row     = $lineItems[$i];
+            $descChk = trim((string) ($row['descripcion'] ?? ''));
+            $descEnc = CotizacionPdfHelper::encodeTextForFpdf($descChk);
+            $pdf->SetFont('Helvetica', '', 7.5);
+            $padX    = 0.9;
+            $descInnerW = max(12.0, $colWidths[3] - 2 * $padX);
+            $nDesc   = max(1, $pdf->countMultiCellLines($descInnerW, $descEnc));
+            $nextH   = max(4.6, $nDesc * $lineHBody + 1.0);
+
+            if ($yTable + $nextH > $tableBottom) {
                 $pdf->AddPage();
                 $pdf->SetXY(self::MARGIN_X, self::CMY_BAR_MM + 4);
                 $pdf->SetFont('Helvetica', 'B', 8);
@@ -282,23 +318,33 @@ final class InvoiceGrimpsaTemplatePdfHelper
                     'Continuación — ' . (string) ($inv->invoice_number ?? '')
                 ), 0, 1, 'L');
                 $pdf->Ln(1);
-                $pdf->SetFont('Helvetica', '', 6.9);
                 $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
+                $pdf->SetFont('Helvetica', '', 7.5);
             }
-            $row       = $lineItems[$i];
+
             $totalIva += self::rowIva($row);
-            $yTable    = self::drawTableDataRow($pdf, $yTable, $colWidths, $row, (int) ($row['numero_linea'] ?? ($i + 1)), $rowH);
+            $yTable = self::drawTableDataRow(
+                $pdf,
+                $yTable,
+                $colWidths,
+                $row,
+                (int) ($row['numero_linea'] ?? ($i + 1)),
+                $lineHBody
+            );
             $i++;
         }
 
-        $pdf->SetFont('Helvetica', 'B', 7.5);
+        $pdf->SetFont('Helvetica', 'B', 7.6);
         $pdf->SetFillColor(228, 228, 228);
         $xTot = self::MARGIN_X;
-        $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4] + $colWidths[5] + $colWidths[6] + $colWidths[7];
+        $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4] + $colWidths[5] + $colWidths[6];
+        $totH = 5.5;
         $pdf->SetXY($xTot, $yTable);
-        $pdf->Cell($wSum, 5.2, CotizacionPdfHelper::encodeTextForFpdf('TOTALES:'), 1, 0, 'R', true);
-        $pdf->Cell($colWidths[8], 5.2, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
-        $pdf->Cell($colWidths[9], 5.2, number_format($totalIva, 2, '.', ''), 1, 1, 'R', true);
+        $pdf->Cell($wSum, $totH, CotizacionPdfHelper::encodeTextForFpdf('TOTALES:'), 1, 0, 'R', true);
+        $pdf->Cell($colWidths[7], $totH, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
+        $xImp = $xTot + $wSum + $colWidths[7];
+        self::drawImpuestosSubCells($pdf, $xImp, $yTable, $totH, $colWidths[8], number_format($totalIva, 2, '.', ''), true);
+        $pdf->SetXY(self::MARGIN_X, $yTable + $totH);
         $pdf->SetFillColor(255, 255, 255);
 
         return (string) $pdf->Output('S');
@@ -308,70 +354,162 @@ final class InvoiceGrimpsaTemplatePdfHelper
      * @param  list<string>  $hdr
      * @param  list<float>   $colWidths
      */
-    private static function drawTableHeader(\FPDF $pdf, float $y, array $colWidths, array $hdr): float
+    private static function drawTableHeader(InvoiceGrimpsaPdfDocument $pdf, float $y, array $colWidths, array $hdr): float
     {
-        $pdf->SetFont('Helvetica', 'B', 6.7);
+        $hdrLineH = 3.35;
+        $pdf->SetFont('Helvetica', 'B', 7.05);
+        $maxLines = 1;
+        foreach ($hdr as $i => $text) {
+            $enc = CotizacionPdfHelper::encodeTextForFpdf($text);
+            $usableW = max(14.0, $colWidths[$i] - 1.2);
+            $maxLines = max($maxLines, $pdf->countMultiCellLines($usableW, $enc));
+        }
+
+        $headerH = max(6.8, ($hdrLineH * $maxLines) + 1.1);
+
+        $pdf->SetDrawColor(0, 0, 0);
         $pdf->SetFillColor(236, 236, 236);
         $x = self::MARGIN_X;
-        $pdf->SetXY($x, $y);
-        $h = 5.0;
-        foreach ($hdr as $i => $text) {
-            $pdf->Cell($colWidths[$i], $h, CotizacionPdfHelper::encodeTextForFpdf($text), 1, 0, 'C', true);
-        }
-        $pdf->Ln();
 
-        return $y + $h + 0.2;
+        foreach ($hdr as $i => $text) {
+            $wEnc = $colWidths[$i];
+            $enc  = CotizacionPdfHelper::encodeTextForFpdf($text);
+            $pdf->Rect($x, $y, $wEnc, $headerH, 'DF');
+
+            $usableHdrW = max(14.0, $wEnc - 1.2);
+            $n = max(1, $pdf->countMultiCellLines($usableHdrW, $enc));
+            $blockH = $n * $hdrLineH;
+            $yTxt   = $y + max(0.35, ($headerH - $blockH) / 2);
+
+            $pdf->SetXY($x + 0.6, $yTxt);
+            $pdf->MultiCell($wEnc - 1.2, $hdrLineH, $enc, 0, 'C');
+
+            $x += $wEnc;
+        }
+
+        return $y + $headerH + 0.2;
     }
 
     /**
      * @param  array<string, mixed>  $row
      * @param  list<float>           $cw
      */
-    private static function drawTableDataRow(\FPDF $pdf, float $y, array $cw, array $row, int $lineNo, float $h): float
-    {
+    private static function drawTableDataRow(
+        InvoiceGrimpsaPdfDocument $pdf,
+        float $y,
+        array $cw,
+        array $row,
+        int $lineNo,
+        float $lineH
+    ): float {
         $bs   = trim((string) ($row['bien_servicio'] ?? ''));
         $qty  = $row['cantidad'] ?? '';
         $desc = trim((string) ($row['descripcion'] ?? ''));
-        if (strlen($desc) > 95) {
-            $desc = substr($desc, 0, 92) . '...';
-        }
-        $pu = (float) ($row['precio_unitario'] ?? $row['valor_unitario'] ?? 0);
-        $st = (float) ($row['subtotal'] ?? 0);
+        $pu   = (float) ($row['precio_unitario'] ?? $row['valor_unitario'] ?? 0);
+        $st   = (float) ($row['subtotal'] ?? 0);
         if ($pu <= 0.00001 && (float) $qty > 0 && $st > 0) {
             $pu = $st / (float) $qty;
         }
         $iva = self::rowIva($row);
 
-        $um = trim((string) ($row['unidad_medida'] ?? ''));
-        $cells = [
+        $padXDesc = 0.9;
+
+        $descEnc = CotizacionPdfHelper::encodeTextForFpdf($desc);
+        $pdf->SetFont('Helvetica', '', 7.5);
+        $descInnerW = max(12.0, $cw[3] - 2 * $padXDesc);
+        $nDesc       = max(1, $pdf->countMultiCellLines($descInnerW, $descEnc));
+        $rowH        = max(4.6, $nDesc * $lineH + 1.0);
+
+        $leftCells = [
             (string) $lineNo,
-            $bs,
+            $bs !== '' ? $bs : '',
             (string) $qty,
-            $um !== '' ? $um : '—',
-            $desc,
             number_format($pu, 2, '.', ''),
             number_format((float) ($row['descuento'] ?? 0), 2, '.', ''),
             number_format((float) ($row['otros_descuento'] ?? 0), 2, '.', ''),
             number_format($st, 2, '.', ''),
-            number_format($iva, 2, '.', ''),
         ];
 
         $x = self::MARGIN_X;
-        for ($ci = 0; $ci < 10; $ci++) {
+
+        for ($ci = 0; $ci < 3; $ci++) {
             $pdf->SetXY($x, $y);
-            $align = 'R';
-            if ($ci === 1 || $ci === 3) {
-                $align = 'C';
-            }
-            if ($ci === 4) {
-                $align = 'L';
-            }
-            $ln = ($ci === 9) ? 1 : 0;
-            $pdf->Cell($cw[$ci], $h, CotizacionPdfHelper::encodeTextForFpdf($cells[$ci]), 1, $ln, $align);
+            $align = $ci <= 1 ? 'C' : 'R';
+            $pdf->Cell(
+                $cw[$ci],
+                $rowH,
+                CotizacionPdfHelper::encodeTextForFpdf($leftCells[$ci]),
+                1,
+                0,
+                $align
+            );
             $x += $cw[$ci];
         }
 
-        return $y + $h;
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($cw[3], $rowH, '', 1, 0);
+        $padY = 0.55;
+        $pdf->SetXY($x + $padXDesc, $y + $padY);
+        $innerW = $cw[3] - 2 * $padXDesc;
+        $pdf->MultiCell($innerW, $lineH, $descEnc, 0, 'L');
+        $x += $cw[3];
+
+        for ($j = 0; $j < 4; $j++) {
+            $pdf->SetXY($x, $y);
+            $pdf->Cell(
+                $cw[4 + $j],
+                $rowH,
+                CotizacionPdfHelper::encodeTextForFpdf($leftCells[3 + $j]),
+                1,
+                0,
+                'R'
+            );
+            $x += $cw[4 + $j];
+        }
+
+        self::drawImpuestosSubCells(
+            $pdf,
+            $x,
+            $y,
+            $rowH,
+            $cw[8],
+            number_format($iva, 2, '.', ''),
+            false
+        );
+
+        return $y + $rowH;
+    }
+
+    /**
+     * Impuestos: sub-celda "IVA" + importe (como factura GRIMPSA de referencia).
+     */
+    private static function drawImpuestosSubCells(
+        InvoiceGrimpsaPdfDocument $pdf,
+        float $x,
+        float $y,
+        float $rowH,
+        float $wImp,
+        string $ivaText,
+        bool $fillGray
+    ): void {
+        $wLabel = max(11.5, min(17.5, round($wImp * 0.36, 2)));
+        $wVal   = round($wImp - $wLabel, 2);
+        if ($wVal < 8.0) {
+            $wLabel = round($wImp * 0.33, 2);
+            $wVal   = round($wImp - $wLabel, 2);
+        }
+
+        $pdf->SetXY($x, $y);
+        if ($fillGray) {
+            $pdf->SetFillColor(228, 228, 228);
+        } else {
+            $pdf->SetFillColor(255, 255, 255);
+        }
+
+        $pdf->SetFont('Helvetica', 'B', 7.0);
+        $pdf->Cell($wLabel, $rowH, 'IVA', 'LBT', 0, 'C', $fillGray);
+        $pdf->SetFont('Helvetica', '', 7.2);
+        $pdf->Cell($wVal, $rowH, $ivaText, 'LRTB', 0, 'R', $fillGray);
     }
 
     /**

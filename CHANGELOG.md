@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.65-STABLE] - 2026-05-11
+
+### Changed
+- **PDF Grimpsa (factura):** Tabla al estilo GRIMPSA sin UdM; encabezados completos (**P. Unitario con IVA (Q)**, etc.); **descripcion en el 50% del ancho** con `MultiCell` y alto de fila por numero de lineas. **Impuestos** en dos cajas (**IVA** + monto). Cabeceras en varias lineas; texto ~7 pt. **`countMultiCellLines()`** igual reglas que **`FPDF::MultiCell`**.
+
 ## [3.118.64-STABLE] - 2026-05-11
 
 ### Fixed

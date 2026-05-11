@@ -48,4 +48,76 @@ final class InvoiceGrimpsaPdfDocument extends \FPDF
         $this->SetXY(0, $ph - self::CMY_H);
         CotizacionFpdfBlocksHelper::drawCmyBrandBar($this, $thirdW, self::CMY_H, 1);
     }
+
+    /**
+     * Line count {@see \FPDF::MultiCell} would occupy (aligned with core wrap rules).
+     * Pass the same `$txt` you pass to MultiCell (e.g. after {@see CotizacionPdfHelper::encodeTextForFpdf}).
+     *
+     * @since  3.118.65
+     */
+    public function countMultiCellLines(float $w, string $txt): int
+    {
+        if (!isset($this->CurrentFont)) {
+            $this->Error('No font has been set');
+        }
+
+        /** @phpstan-ignore-next-line */
+        $cw = $this->CurrentFont['cw'];
+
+        if ($w === 0.0) {
+            $w = $this->w - $this->rMargin - $this->x;
+        }
+
+        $wmax = ($w - 2 * $this->cMargin) * 1000 / $this->FontSize;
+        $s    = \str_replace("\r", '', (string) $txt);
+        $nb   = \strlen($s);
+        if ($nb > 0 && $s[$nb - 1] === "\n") {
+            $nb--;
+        }
+
+        $sep = -1;
+        $i   = 0;
+        $j   = 0;
+        $l   = 0;
+        $nl  = 1;
+
+        while ($i < $nb) {
+            $c = $s[$i];
+
+            if ($c === "\n") {
+                $i++;
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+                continue;
+            }
+
+            if ($c === ' ') {
+                $sep = $i;
+            }
+
+            $l += isset($cw[$c]) ? (int) $cw[$c] : 600;
+
+            if ($l > $wmax) {
+                if ($sep === -1) {
+                    if ($i === $j) {
+                        $i++;
+                    }
+                } else {
+                    $i = $sep + 1;
+                }
+
+                $sep = -1;
+                $j = $i;
+                $l = 0;
+                $nl++;
+                continue;
+            }
+
+            $i++;
+        }
+
+        return $nl;
+    }
 }
