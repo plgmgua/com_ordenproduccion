@@ -37,13 +37,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
     private const BODY_TOP_MM = 8.0;
 
-    /** SAT-style table header background (sky blue #AEE4F5). */
-    private const TABLE_HEADER_FILL_R = 174;
-
-    private const TABLE_HEADER_FILL_G = 228;
-
-    private const TABLE_HEADER_FILL_B = 245;
-
     /** @deprecated No longer used; PDF is fully generated. */
     public const TEMPLATE_REL_PATH = 'media/com_ordenproduccion/pdf_templates/factura_grimpsa_template.pdf';
 
@@ -294,7 +287,11 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
 
         $pdf->SetFont('Helvetica', 'B', 7.6);
-        $pdf->SetFillColor(228, 228, 228);
+        $pdf->SetFillColor(
+            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_R,
+            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_G,
+            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_B
+        );
         $xTot = self::MARGIN_X;
         $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4];
         $totH = 5.5;
@@ -390,7 +387,11 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $headerH = max(6.8, ($hdrLineH * $maxLines) + 1.1);
 
         $pdf->SetDrawColor(0, 0, 0);
-        $pdf->SetFillColor(self::TABLE_HEADER_FILL_R, self::TABLE_HEADER_FILL_G, self::TABLE_HEADER_FILL_B);
+        $pdf->SetFillColor(
+            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_R,
+            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_G,
+            CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_B
+        );
         $x = self::MARGIN_X;
 
         foreach ($hdr as $i => $text) {
@@ -502,6 +503,8 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
     /**
      * Impuestos: sub-celda "IVA" + importe (como factura GRIMPSA de referencia).
+     *
+     * @param   bool   $accentFill  When true, fill matches first segment of the top CMY brand bar (cyan).
      */
     private static function drawImpuestosSubCells(
         InvoiceGrimpsaPdfDocument $pdf,
@@ -510,7 +513,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         float $rowH,
         float $wImp,
         string $ivaText,
-        bool $fillGray
+        bool $accentFill
     ): void {
         $wLabel = max(11.5, min(17.5, round($wImp * 0.36, 2)));
         $wVal   = round($wImp - $wLabel, 2);
@@ -520,16 +523,20 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
 
         $pdf->SetXY($x, $y);
-        if ($fillGray) {
-            $pdf->SetFillColor(228, 228, 228);
+        if ($accentFill) {
+            $pdf->SetFillColor(
+                CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_R,
+                CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_G,
+                CotizacionFpdfBlocksHelper::BRAND_BAR_CYAN_B
+            );
         } else {
             $pdf->SetFillColor(255, 255, 255);
         }
 
         $pdf->SetFont('Helvetica', 'B', 7.0);
-        $pdf->Cell($wLabel, $rowH, 'IVA', 'LBT', 0, 'C', $fillGray);
+        $pdf->Cell($wLabel, $rowH, 'IVA', 'LBT', 0, 'C', $accentFill);
         $pdf->SetFont('Helvetica', '', 7.2);
-        $pdf->Cell($wVal, $rowH, $ivaText, 'LRTB', 0, 'R', $fillGray);
+        $pdf->Cell($wVal, $rowH, $ivaText, 'LRTB', 0, 'R', $accentFill);
     }
 
     /**

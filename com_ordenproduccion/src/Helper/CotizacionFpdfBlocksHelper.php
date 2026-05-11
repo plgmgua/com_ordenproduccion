@@ -18,6 +18,13 @@ use Joomla\CMS\Uri\Uri;
  */
 class CotizacionFpdfBlocksHelper
 {
+    /** Left segment of {@see drawCmyBrandBar()} — cyan / PMS 2925C (#009FE3 sRGB approx.). */
+    public const BRAND_BAR_CYAN_R = 0;
+
+    public const BRAND_BAR_CYAN_G = 159;
+
+    public const BRAND_BAR_CYAN_B = 227;
+
     /**
      * Full-width three-strip bar: Cyan (PMS 2925C) | Yellow (PMS 803C) | Magenta (PMS 213C).
      * Set position (e.g. SetY/SetX) before calling; restores fill colour to white.
@@ -34,7 +41,7 @@ class CotizacionFpdfBlocksHelper
     public static function drawCmyBrandBar(\FPDF $pdf, float $thirdW, float $barH, int $ln = 1): void
     {
         // #009FE3, #FFED00, #E6007E (sRGB approximations for print specs)
-        $pdf->SetFillColor(0, 159, 227);
+        $pdf->SetFillColor(self::BRAND_BAR_CYAN_R, self::BRAND_BAR_CYAN_G, self::BRAND_BAR_CYAN_B);
         $pdf->Cell($thirdW, $barH, '', 0, 0, 'L', true);
         $pdf->SetFillColor(255, 237, 0);
         $pdf->Cell($thirdW, $barH, '', 0, 0, 'L', true);
