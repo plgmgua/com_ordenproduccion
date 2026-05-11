@@ -12,6 +12,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
@@ -66,7 +67,18 @@ if ($isFel && (($felExtra['autorizacion_serie'] ?? '') === '' || ($felExtra['aut
 
 $plant = isset($this->invoiceFacturaPlantillaSettings) && is_array($this->invoiceFacturaPlantillaSettings)
     ? $this->invoiceFacturaPlantillaSettings
-    : ['header_html' => '', 'footer_html' => ''];
+    : [
+        'header_html' => '',
+        'footer_html' => '',
+        'logo_path' => '',
+        'logo_x' => 15,
+        'logo_y' => 15,
+        'logo_width' => 50,
+        'encabezado_x' => 15,
+        'encabezado_y' => 15,
+        'pie_x' => 0,
+        'pie_y' => 0,
+    ];
 $tplVals = InvoiceFacturaTemplateHelper::buildPlaceholderValues($item, $felExtra);
 $invoiceTplHeaderHtml = trim((string) ($plant['header_html'] ?? '')) !== ''
     ? InvoiceFacturaTemplateHelper::applyTemplate((string) $plant['header_html'], $tplVals)
@@ -74,6 +86,36 @@ $invoiceTplHeaderHtml = trim((string) ($plant['header_html'] ?? '')) !== ''
 $invoiceTplFooterHtml = trim((string) ($plant['footer_html'] ?? '')) !== ''
     ? InvoiceFacturaTemplateHelper::applyTemplate((string) $plant['footer_html'], $tplVals)
     : '';
+
+$logoPath    = trim((string) ($plant['logo_path'] ?? ''));
+$logoX       = isset($plant['logo_x']) ? (float) $plant['logo_x'] : 15.0;
+$logoY       = isset($plant['logo_y']) ? (float) $plant['logo_y'] : 15.0;
+$logoWidth   = isset($plant['logo_width']) ? (float) $plant['logo_width'] : 50.0;
+$encabezadoX = isset($plant['encabezado_x']) ? (float) $plant['encabezado_x'] : 15.0;
+$encabezadoY = isset($plant['encabezado_y']) ? (float) $plant['encabezado_y'] : 15.0;
+$pieX        = isset($plant['pie_x']) ? (float) $plant['pie_x'] : 0.0;
+$pieY        = isset($plant['pie_y']) ? (float) $plant['pie_y'] : 0.0;
+
+$invoiceLogoUrl = '';
+if ($logoPath !== '') {
+    if (preg_match('/^https?:\/\//i', $logoPath) || strpos($logoPath, '//') === 0) {
+        $invoiceLogoUrl = $logoPath;
+    } else {
+        $invoiceLogoUrl = Uri::root() . ltrim($logoPath, '/');
+    }
+}
+
+$showInvoiceTplHeaderZone = ($invoiceLogoUrl !== '' || $invoiceTplHeaderHtml !== '');
+$invoiceTplHeaderMinHMm   = 0.0;
+if ($showInvoiceTplHeaderZone) {
+    $invoiceTplHeaderMinHMm = max(28.0, $logoY + ($logoWidth * 0.35), $encabezadoY + 28.0);
+}
+
+$showInvoiceTplFooterZone = ($invoiceTplFooterHtml !== '');
+$invoiceTplFooterMinHMm   = 0.0;
+if ($showInvoiceTplFooterZone) {
+    $invoiceTplFooterMinHMm = max(20.0, $pieY + 25.0);
+}
 
 $l = function ($key, $fallback) {
     $t = Text::_($key);
@@ -123,8 +165,19 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
     <?php endif; ?>
 
     <div class="invoice-pdf-layout border rounded p-3 bg-white">
-        <?php if ($invoiceTplHeaderHtml !== '') : ?>
-        <div class="invoice-factura-template-header mb-3 small"><?php echo $invoiceTplHeaderHtml; ?></div>
+        <?php if ($showInvoiceTplHeaderZone) : ?>
+        <div class="invoice-factura-template-header-zone position-relative mb-3" style="min-height: <?php echo htmlspecialchars((string) $invoiceTplHeaderMinHMm, ENT_QUOTES, 'UTF-8'); ?>mm;">
+            <?php if ($invoiceLogoUrl !== '') : ?>
+            <img src="<?php echo htmlspecialchars($invoiceLogoUrl, ENT_QUOTES, 'UTF-8'); ?>" alt=""
+                 class="invoice-factura-template-logo"
+                 style="position:absolute;left:<?php echo htmlspecialchars((string) $logoX, ENT_QUOTES, 'UTF-8'); ?>mm;top:<?php echo htmlspecialchars((string) $logoY, ENT_QUOTES, 'UTF-8'); ?>mm;width:<?php echo htmlspecialchars((string) $logoWidth, ENT_QUOTES, 'UTF-8'); ?>mm;height:auto;max-width:none;z-index:2;" />
+            <?php endif; ?>
+            <?php if ($invoiceTplHeaderHtml !== '') : ?>
+            <div class="invoice-factura-template-header-inner small" style="position:absolute;left:<?php echo htmlspecialchars((string) $encabezadoX, ENT_QUOTES, 'UTF-8'); ?>mm;top:<?php echo htmlspecialchars((string) $encabezadoY, ENT_QUOTES, 'UTF-8'); ?>mm;right:0;z-index:1;">
+                <?php echo $invoiceTplHeaderHtml; ?>
+            </div>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
         <!-- Row: Emisor (left) | Autorización / Fechas / Moneda (right) -->
         <div class="row mb-3">
@@ -339,8 +392,12 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
         </div>
         <?php endif; ?>
 
-        <?php if ($invoiceTplFooterHtml !== '') : ?>
-        <div class="invoice-factura-template-footer pt-2 mt-2 border-top small"><?php echo $invoiceTplFooterHtml; ?></div>
+        <?php if ($showInvoiceTplFooterZone) : ?>
+        <div class="invoice-factura-template-footer-zone position-relative pt-2 mt-2 border-top small" style="min-height: <?php echo htmlspecialchars((string) $invoiceTplFooterMinHMm, ENT_QUOTES, 'UTF-8'); ?>mm;">
+            <div class="invoice-factura-template-footer-inner" style="position:absolute;left:<?php echo htmlspecialchars((string) $pieX, ENT_QUOTES, 'UTF-8'); ?>mm;top:<?php echo htmlspecialchars((string) $pieY, ENT_QUOTES, 'UTF-8'); ?>mm;right:0;">
+                <?php echo $invoiceTplFooterHtml; ?>
+            </div>
+        </div>
         <?php endif; ?>
 
         <?php

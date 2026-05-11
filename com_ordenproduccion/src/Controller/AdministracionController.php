@@ -942,8 +942,16 @@ class AdministracionController extends BaseController
         try {
             $model = $this->getModel('Administracion');
             $model->saveInvoiceFacturaPlantillaSettings([
-                'header_html' => isset($jform['invoice_factura_header_html']) ? (string) $jform['invoice_factura_header_html'] : '',
-                'footer_html' => isset($jform['invoice_factura_footer_html']) ? (string) $jform['invoice_factura_footer_html'] : '',
+                'header_html'   => isset($jform['invoice_factura_header_html']) ? (string) $jform['invoice_factura_header_html'] : '',
+                'footer_html'   => isset($jform['invoice_factura_footer_html']) ? (string) $jform['invoice_factura_footer_html'] : '',
+                'logo_path'     => isset($jform['logo_path']) ? trim((string) $jform['logo_path']) : '',
+                'logo_x'        => isset($jform['logo_x']) ? (float) $jform['logo_x'] : 15,
+                'logo_y'        => isset($jform['logo_y']) ? (float) $jform['logo_y'] : 15,
+                'logo_width'    => isset($jform['logo_width']) ? (float) $jform['logo_width'] : 50,
+                'encabezado_x'  => isset($jform['encabezado_x']) ? (float) $jform['encabezado_x'] : 15,
+                'encabezado_y'  => isset($jform['encabezado_y']) ? (float) $jform['encabezado_y'] : 15,
+                'pie_x'         => isset($jform['pie_x']) ? (float) $jform['pie_x'] : 0,
+                'pie_y'         => isset($jform['pie_y']) ? (float) $jform['pie_y'] : 0,
             ]);
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_TEMPLATE_SAVED'), 'success');
         } catch (\Exception $e) {

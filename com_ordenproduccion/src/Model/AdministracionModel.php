@@ -3301,31 +3301,96 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * Invoice HTML templates (optional header/footer on invoice detail). Stored in #__ordenproduccion_config.
      *
-     * @return  array{header_html:string, footer_html:string}
+     * @return  array{
+     *   header_html:string,
+     *   footer_html:string,
+     *   logo_path:string,
+     *   logo_x:float,
+     *   logo_y:float,
+     *   logo_width:float,
+     *   encabezado_x:float,
+     *   encabezado_y:float,
+     *   pie_x:float,
+     *   pie_y:float
+     * }
      *
      * @since   3.118.81
      */
     public function getInvoiceFacturaPlantillaSettings(): array
     {
+        $db = Factory::getDbo();
+        $keys = [
+            'invoice_factura_plantilla_header_html',
+            'invoice_factura_plantilla_footer_html',
+            'invoice_factura_plantilla_logo_path',
+            'invoice_factura_plantilla_logo_x',
+            'invoice_factura_plantilla_logo_y',
+            'invoice_factura_plantilla_logo_width',
+            'invoice_factura_plantilla_encabezado_x',
+            'invoice_factura_plantilla_encabezado_y',
+            'invoice_factura_plantilla_pie_x',
+            'invoice_factura_plantilla_pie_y',
+        ];
+        $query = $db->getQuery(true)
+            ->select($db->quoteName(['setting_key', 'setting_value']))
+            ->from($db->quoteName('#__ordenproduccion_config'))
+            ->whereIn($db->quoteName('setting_key'), array_map([$db, 'quote'], $keys));
+        $db->setQuery($query);
+        $rows = $db->loadObjectList('setting_key') ?: [];
+        $getFloat = static function (string $key, float $default) use ($rows): float {
+            if (!isset($rows[$key]) || $rows[$key]->setting_value === '') {
+                return $default;
+            }
+
+            return (float) $rows[$key]->setting_value;
+        };
+
         return [
-            'header_html' => $this->getOrdenproduccionConfigValue('invoice_factura_plantilla_header_html'),
-            'footer_html' => $this->getOrdenproduccionConfigValue('invoice_factura_plantilla_footer_html'),
+            'header_html'   => isset($rows['invoice_factura_plantilla_header_html']) ? (string) $rows['invoice_factura_plantilla_header_html']->setting_value : '',
+            'footer_html'   => isset($rows['invoice_factura_plantilla_footer_html']) ? (string) $rows['invoice_factura_plantilla_footer_html']->setting_value : '',
+            'logo_path'     => isset($rows['invoice_factura_plantilla_logo_path']) ? (string) $rows['invoice_factura_plantilla_logo_path']->setting_value : '',
+            'logo_x'        => $getFloat('invoice_factura_plantilla_logo_x', 15.0),
+            'logo_y'        => $getFloat('invoice_factura_plantilla_logo_y', 15.0),
+            'logo_width'    => $getFloat('invoice_factura_plantilla_logo_width', 50.0),
+            'encabezado_x'  => $getFloat('invoice_factura_plantilla_encabezado_x', 15.0),
+            'encabezado_y'  => $getFloat('invoice_factura_plantilla_encabezado_y', 15.0),
+            'pie_x'         => $getFloat('invoice_factura_plantilla_pie_x', 0.0),
+            'pie_y'         => $getFloat('invoice_factura_plantilla_pie_y', 0.0),
         ];
     }
 
     /**
-     * Save invoice HTML templates (WYSIWYG HTML allowed).
+     * Save invoice HTML templates (WYSIWYG HTML allowed) and logo/position fields (mm, same semantics as cotización PDF).
      *
-     * @param   array<string, mixed>  $data  keys: header_html, footer_html
+     * @param   array<string, mixed>  $data  keys: header_html, footer_html, logo_path, logo_x, logo_y, logo_width, encabezado_x, encabezado_y, pie_x, pie_y
      *
      * @since   3.118.81
      */
     public function saveInvoiceFacturaPlantillaSettings(array $data): void
     {
-        $header = isset($data['header_html']) ? (string) $data['header_html'] : '';
-        $footer = isset($data['footer_html']) ? (string) $data['footer_html'] : '';
-        $this->upsertOrdenproduccionConfigValue('invoice_factura_plantilla_header_html', $header);
-        $this->upsertOrdenproduccionConfigValue('invoice_factura_plantilla_footer_html', $footer);
+        $map = [
+            'header_html'   => 'invoice_factura_plantilla_header_html',
+            'footer_html'   => 'invoice_factura_plantilla_footer_html',
+            'logo_path'     => 'invoice_factura_plantilla_logo_path',
+            'logo_x'        => 'invoice_factura_plantilla_logo_x',
+            'logo_y'        => 'invoice_factura_plantilla_logo_y',
+            'logo_width'    => 'invoice_factura_plantilla_logo_width',
+            'encabezado_x'  => 'invoice_factura_plantilla_encabezado_x',
+            'encabezado_y'  => 'invoice_factura_plantilla_encabezado_y',
+            'pie_x'         => 'invoice_factura_plantilla_pie_x',
+            'pie_y'         => 'invoice_factura_plantilla_pie_y',
+        ];
+        $floatKeys = ['logo_x', 'logo_y', 'logo_width', 'encabezado_x', 'encabezado_y', 'pie_x', 'pie_y'];
+
+        foreach ($map as $inputKey => $settingKey) {
+            $raw = $data[$inputKey] ?? '';
+            if (in_array($inputKey, $floatKeys, true)) {
+                $value = (string) (float) $raw;
+            } else {
+                $value = is_string($raw) ? $raw : '';
+            }
+            $this->upsertOrdenproduccionConfigValue($settingKey, $value);
+        }
     }
 
     /**
