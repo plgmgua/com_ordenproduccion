@@ -4706,12 +4706,68 @@ class AdministracionModel extends BaseDatabaseModel
             $dt = '';
         }
 
+        if (strlen($agent) > 300) {
+            $agent = substr($agent, 0, 300);
+        }
+
+        $agent = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/u', '', $agent);
+        $agent = trim(preg_replace('/\s+/u', ' ', $agent));
+
         return [
             'date_from' => $df,
             'date_to' => $dt,
             'agent' => $agent,
             'facturar' => $facturar,
         ];
+    }
+
+    /**
+     * Read Financiero list filters from the request — prefer $_GET on GET submissions so Joomla Input
+     * cannot swallow values with some routing/SEF setups; then fallback to Input.
+     *
+     * @param   \Joomla\CMS\Input\Input  $input  Application input object
+     *
+     * @return  array<string, string>
+     *
+     * @since   3.119.08
+     */
+    public static function financieroFiltersFromInput($input): array
+    {
+        $keys  = ['financiero_filter_date_from', 'financiero_filter_date_to', 'financiero_filter_agent', 'financiero_filter_facturar'];
+        $pairs = [
+            'financiero_filter_date_from' => '',
+            'financiero_filter_date_to' => '',
+            'financiero_filter_agent' => '',
+            'financiero_filter_facturar' => '',
+        ];
+
+        $methodIsGet = strtolower((string) $input->getMethod()) === 'get';
+
+        if ($methodIsGet && isset($_GET) && is_array($_GET)) {
+            foreach ($keys as $key) {
+                if (!array_key_exists($key, $_GET)) {
+                    continue;
+                }
+                $v = $_GET[$key];
+                if (is_scalar($v)) {
+                    $pairs[$key] = trim((string) $v);
+                }
+            }
+        }
+
+        foreach ($keys as $key) {
+            if ($pairs[$key] !== '') {
+                continue;
+            }
+
+            try {
+                $pairs[$key] = trim((string) $input->getString($key, ''));
+            } catch (\Throwable $e) {
+                $pairs[$key] = '';
+            }
+        }
+
+        return self::normalizeFinancieroFilters($pairs);
     }
 
     /**

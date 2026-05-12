@@ -18,8 +18,14 @@ $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion
 $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
 $fst = isset($this->financieroSubtab) ? (string) $this->financieroSubtab : 'listado';
-$finItemId       = (int) Factory::getApplication()->input->getInt('Itemid', 0);
-$finItemSuffix   = $finItemId > 0 ? '&Itemid=' . $finItemId : '';
+$finItemId = isset($this->financieroResolvedItemId) ? max(0, (int) $this->financieroResolvedItemId) : 0;
+
+if ($finItemId <= 0) {
+    $finItemId = (int) Factory::getApplication()->input->getInt('Itemid', 0);
+}
+
+$finItemSuffix = $finItemId > 0 ? '&Itemid=' . $finItemId : '';
+$formActionRaw = Route::_('index.php', false);
 
 $fmt = static function ($v): string {
     $n = round((float) $v, 2);
@@ -76,7 +82,7 @@ $fmtProofVerified = static function ($v): string {
     }
 
     try {
-        return HTMLHelper::_('date', $v, Text::_('DATE_FORMAT_LC4'));
+        return HTMLHelper::_('date', $v, Text::_('COM_ORDENPRODUCCION_FINANCIERO_VERIFIED_DATETIME_FMT'));
     } catch (\Throwable $e) {
         return '—';
     }
@@ -154,7 +160,10 @@ $pagoConfirmadoBadge = static function ($r): string {
     $agentsOp = isset($this->financieroAgentFilterOptions) && is_array($this->financieroAgentFilterOptions) ? $this->financieroAgentFilterOptions : [];
     $fLim     = isset($this->financieroListLimit) ? max(5, min(200, (int) $this->financieroListLimit)) : 15;
     ?>
-    <form method="get" action="" class="d-flex flex-wrap gap-2 align-items-end mb-3 search-filter-bar">
+    <form method="get"
+          action="<?php echo htmlspecialchars((string) $formActionRaw, ENT_QUOTES, 'UTF-8'); ?>"
+          accept-charset="utf-8"
+          class="d-flex flex-wrap gap-2 align-items-end mb-3 search-filter-bar">
         <input type="hidden" name="option" value="com_ordenproduccion" />
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="financiero" />
@@ -230,7 +239,10 @@ $pagoConfirmadoBadge = static function ($r): string {
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_NUMBER'); ?></th>
-                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_DATE'); ?></th>
+                        <th class="align-top">
+                            <div><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_DATE'); ?></div>
+                            <div class="fw-normal small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_HINT'); ?></div>
+                        </th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAGO_CONFIRMADO'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_SUBTOTAL'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN'); ?></th>

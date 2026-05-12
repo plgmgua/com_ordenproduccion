@@ -396,12 +396,7 @@ class AdministracionController extends BaseController
         }
 
         $input = $app->input;
-        $f     = AdministracionModel::normalizeFinancieroFilters([
-            'financiero_filter_date_from' => $input->getString('financiero_filter_date_from', ''),
-            'financiero_filter_date_to' => $input->getString('financiero_filter_date_to', ''),
-            'financiero_filter_agent' => $input->getString('financiero_filter_agent', ''),
-            'financiero_filter_facturar' => $input->getString('financiero_filter_facturar', ''),
-        ]);
+        $f     = AdministracionModel::financieroFiltersFromInput($input);
 
         try {
             /** @var AdministracionModel $model */

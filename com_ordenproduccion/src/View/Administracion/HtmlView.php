@@ -662,7 +662,20 @@ class HtmlView extends BaseHtmlView
     protected $financieroListLimit = 15;
 
     /**
+     * Active menu Itemid for Financiero (query or active Site menu entry). Used so filter GET survives SEF/component URLs.
+     *
+     * @var    int
+     * @since  3.119.08
+     */
+    protected $financieroResolvedItemId = 0;
+
+    /**
      * Bonos summary by agent label.
+     *
+     * @var    array<int|string, mixed>
+     * @since  3.115.24
+     */
+    protected $financieroBonosByAgent = [];
 
     /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
@@ -1239,7 +1252,8 @@ class HtmlView extends BaseHtmlView
         $this->financieroFilterFacturar             = '';
         $this->financieroAgentFilterOptions         = [];
         $this->financieroListLimit                  = 15;
-        $this->financieroBonosByAgent             = [];
+        $this->financieroResolvedItemId            = 0;
+        $this->financieroBonosByAgent               = [];
 
         // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -1650,7 +1664,24 @@ class HtmlView extends BaseHtmlView
         }
 
         if ($activeTab === 'financiero') {
+            $itemIdResolved = max(0, (int) $input->getInt('Itemid', 0));
+
+            if ($itemIdResolved <= 0) {
+                $menuCurrent = Factory::getApplication()->getMenu()->getActive();
+
+                if ($menuCurrent !== null && (int) $menuCurrent->id > 0) {
+                    $itemIdResolved = (int) $menuCurrent->id;
+                }
+            }
+
+            $this->financieroResolvedItemId = $itemIdResolved;
+
             $fst = $input->getString('financiero_subtab', 'listado');
+
+            if ($fst === 'listado_pre') {
+                $fst = 'listado';
+            }
+
             if (!in_array($fst, ['listado', 'bonos'], true)) {
                 $fst = 'listado';
             }
@@ -1663,12 +1694,7 @@ class HtmlView extends BaseHtmlView
                 }
                 if ($admFin) {
                     if ($fst === 'listado') {
-                        $ff = AdministracionModel::normalizeFinancieroFilters([
-                            'financiero_filter_date_from' => $input->getString('financiero_filter_date_from', ''),
-                            'financiero_filter_date_to' => $input->getString('financiero_filter_date_to', ''),
-                            'financiero_filter_agent' => $input->getString('financiero_filter_agent', ''),
-                            'financiero_filter_facturar' => $input->getString('financiero_filter_facturar', ''),
-                        ]);
+                        $ff = AdministracionModel::financieroFiltersFromInput($input);
                         $this->financieroFilterDateFrom   = $ff['date_from'];
                         $this->financieroFilterDateTo     = $ff['date_to'];
                         $this->financieroFilterAgent      = $ff['agent'];
@@ -1699,9 +1725,9 @@ class HtmlView extends BaseHtmlView
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_date_to', $this->financieroFilterDateTo);
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_agent', $this->financieroFilterAgent);
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_facturar', $this->financieroFilterFacturar);
-                            $itemIdAdmin = max(0, (int) $input->getInt('Itemid', 0));
-                            if ($itemIdAdmin > 0) {
-                                $this->financieroPagination->setAdditionalUrlParam('Itemid', (string) $itemIdAdmin);
+
+                            if ($this->financieroResolvedItemId > 0) {
+                                $this->financieroPagination->setAdditionalUrlParam('Itemid', (string) $this->financieroResolvedItemId);
                             }
                         }
                     }
