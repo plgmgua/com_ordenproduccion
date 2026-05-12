@@ -4740,37 +4740,60 @@ class AdministracionModel extends BaseDatabaseModel
     public static function financieroFiltersFromInput($input): array
     {
         $keys  = ['financiero_filter_date_from', 'financiero_filter_date_to', 'financiero_filter_agent', 'financiero_filter_facturar', 'financiero_filter_cotiz_confirmada'];
-        $pairs = [
-            'financiero_filter_date_from' => '',
-            'financiero_filter_date_to' => '',
-            'financiero_filter_agent' => '',
-            'financiero_filter_facturar' => '',
-            'financiero_filter_cotiz_confirmada' => '',
-        ];
+        $pairs = array_fill_keys($keys, '');
+
+        $overlay = static function (&$dest, $source, array $keyList): void {
+            if (!is_array($source)) {
+                return;
+            }
+
+            foreach ($keyList as $key) {
+                if (!array_key_exists($key, $source)) {
+                    continue;
+                }
+                $v = $source[$key];
+                if (!is_scalar($v)) {
+                    continue;
+                }
+
+                // Last writer wins: later layers (especially $_GET) override URI/QUERY_STRING quirks.
+                $dest[$key] = trim((string) $v);
+            }
+        };
 
         $methodIsGet = strtolower((string) $input->getMethod()) === 'get';
 
-        if ($methodIsGet && isset($_GET) && is_array($_GET)) {
-            foreach ($keys as $key) {
-                if (!array_key_exists($key, $_GET)) {
-                    continue;
+        if ($methodIsGet) {
+            $ru = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+
+            if ($ru !== '') {
+                $qPos = strpos($ru, '?');
+
+                if ($qPos !== false) {
+                    parse_str(substr($ru, $qPos + 1), $ruParsed);
+                    $overlay($pairs, $ruParsed, $keys);
                 }
-                $v = $_GET[$key];
-                if (is_scalar($v)) {
-                    $pairs[$key] = trim((string) $v);
-                }
+            }
+
+            if (isset($_SERVER['QUERY_STRING']) && (string) $_SERVER['QUERY_STRING'] !== '') {
+                parse_str((string) $_SERVER['QUERY_STRING'], $qsParsed);
+                $overlay($pairs, $qsParsed, $keys);
+            }
+
+            if (isset($_GET) && is_array($_GET)) {
+                $overlay($pairs, $_GET, $keys);
             }
         }
 
         foreach ($keys as $key) {
-            if ($pairs[$key] !== '') {
-                continue;
+            try {
+                $fromInput = trim((string) $input->getString($key, ''));
+            } catch (\Throwable $e) {
+                $fromInput = '';
             }
 
-            try {
-                $pairs[$key] = trim((string) $input->getString($key, ''));
-            } catch (\Throwable $e) {
-                $pairs[$key] = '';
+            if (($pairs[$key] ?? '') === '' && $fromInput !== '') {
+                $pairs[$key] = $fromInput;
             }
         }
 

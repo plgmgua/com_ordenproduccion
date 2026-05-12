@@ -25,7 +25,8 @@ if ($finItemId <= 0) {
 }
 
 $finItemSuffix = $finItemId > 0 ? '&Itemid=' . $finItemId : '';
-$formActionRaw = Route::_('index.php', false);
+$finListadoActionQs = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=listado' . $finItemSuffix;
+$formActionRaw = Route::_($finListadoActionQs, false);
 
 $fmt = static function ($v): string {
     $n = round((float) $v, 2);
@@ -213,7 +214,7 @@ $pagoConfirmadoBadge = static function ($r): string {
         </div>
         <div>
             <label class="form-label small mb-0">&nbsp;</label>
-            <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
+            <button type="submit" name="financiero_filter_submit" value="1" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
         </div>
     </form>
     <?php
