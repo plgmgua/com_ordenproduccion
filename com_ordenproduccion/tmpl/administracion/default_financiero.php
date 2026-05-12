@@ -157,6 +157,7 @@ $pagoConfirmadoBadge = static function ($r): string {
     $fdTo     = isset($this->financieroFilterDateTo) ? (string) $this->financieroFilterDateTo : '';
     $fAgent   = isset($this->financieroFilterAgent) ? (string) $this->financieroFilterAgent : '';
     $fFactur  = isset($this->financieroFilterFacturar) ? (string) $this->financieroFilterFacturar : '';
+    $fCotConf = isset($this->financieroFilterCotizConfirmada) ? (string) $this->financieroFilterCotizConfirmada : '';
     $agentsOp = isset($this->financieroAgentFilterOptions) && is_array($this->financieroAgentFilterOptions) ? $this->financieroAgentFilterOptions : [];
     $fLim     = isset($this->financieroListLimit) ? max(5, min(200, (int) $this->financieroListLimit)) : 15;
     ?>
@@ -203,6 +204,14 @@ $pagoConfirmadoBadge = static function ($r): string {
             </select>
         </div>
         <div>
+            <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_COTIZ_CONFIRMADA'); ?></label>
+            <select class="form-select form-select-sm" name="financiero_filter_cotiz_confirmada" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_COTIZ_CONFIRMADA'), ENT_QUOTES, 'UTF-8'); ?>">
+                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_ALL'); ?></option>
+                <option value="1"<?php echo $fCotConf === '1' ? ' selected' : ''; ?>><?php echo Text::_('JYES'); ?></option>
+                <option value="0"<?php echo $fCotConf === '0' ? ' selected' : ''; ?>><?php echo Text::_('JNO'); ?></option>
+            </select>
+        </div>
+        <div>
             <label class="form-label small mb-0">&nbsp;</label>
             <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
         </div>
@@ -213,6 +222,7 @@ $pagoConfirmadoBadge = static function ($r): string {
             'financiero_filter_date_to' => $fdTo,
             'financiero_filter_agent' => $fAgent,
             'financiero_filter_facturar' => $fFactur,
+            'financiero_filter_cotiz_confirmada' => $fCotConf,
         ];
         $baseExport = 'index.php?option=com_ordenproduccion&task=administracion.exportFinancieroExcel&format=raw';
         foreach ($exportParams as $pk => $pv) {

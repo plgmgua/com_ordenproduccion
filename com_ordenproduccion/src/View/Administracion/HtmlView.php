@@ -646,7 +646,15 @@ class HtmlView extends BaseHtmlView
     protected $financieroFilterFacturar = '';
 
     /**
-     * Distinct agent labels for the financiero_filter_agent dropdown (respects date and facturar filters).
+     * Financiero listado: filter Cotiz. confirmada — '' | '1' | '0'.
+     *
+     * @var    string
+     * @since  3.119.09
+     */
+    protected $financieroFilterCotizConfirmada = '';
+
+    /**
+     * Distinct agent labels for the financiero_filter_agent dropdown (respects date, facturar, Cotiz. confirm.; ignores agent filter).
      *
      * @var    string[]
      * @since  3.115.26
@@ -1250,6 +1258,7 @@ class HtmlView extends BaseHtmlView
         $this->financieroFilterDateTo               = '';
         $this->financieroFilterAgent                = '';
         $this->financieroFilterFacturar             = '';
+        $this->financieroFilterCotizConfirmada      = '';
         $this->financieroAgentFilterOptions         = [];
         $this->financieroListLimit                  = 15;
         $this->financieroResolvedItemId            = 0;
@@ -1699,6 +1708,7 @@ class HtmlView extends BaseHtmlView
                         $this->financieroFilterDateTo     = $ff['date_to'];
                         $this->financieroFilterAgent      = $ff['agent'];
                         $this->financieroFilterFacturar   = $ff['facturar'];
+                        $this->financieroFilterCotizConfirmada = $ff['cotiz_confirmada'];
                         $this->financieroAgentFilterOptions = $admFin->getFinancieroAgentDistinctLabels($ff);
 
                         $limit      = max(5, min(200, (int) $input->getInt('financiero_limit', 15)));
@@ -1725,6 +1735,7 @@ class HtmlView extends BaseHtmlView
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_date_to', $this->financieroFilterDateTo);
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_agent', $this->financieroFilterAgent);
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_facturar', $this->financieroFilterFacturar);
+                            $this->financieroPagination->setAdditionalUrlParam('financiero_filter_cotiz_confirmada', $this->financieroFilterCotizConfirmada);
 
                             if ($this->financieroResolvedItemId > 0) {
                                 $this->financieroPagination->setAdditionalUrlParam('Itemid', (string) $this->financieroResolvedItemId);

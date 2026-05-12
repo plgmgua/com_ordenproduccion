@@ -4685,7 +4685,7 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @param   array<string, mixed>  $in  Request keys financiero_filter_* or generic filter_*
      *
-     * @return  array<string, string>  keys: date_from, date_to, agent, facturar ('' | '0' | '1')
+     * @return  array<string, string>  keys: date_from, date_to, agent, facturar ('' | '0' | '1'), cotiz_confirmada ('' | '0' | '1')
      *
      * @since   3.115.26
      */
@@ -4695,9 +4695,14 @@ class AdministracionModel extends BaseDatabaseModel
         $dt = trim((string) ($in['financiero_filter_date_to'] ?? $in['filter_date_to'] ?? ''));
         $agent = trim((string) ($in['financiero_filter_agent'] ?? $in['filter_agent'] ?? ''));
         $facturar = trim((string) ($in['financiero_filter_facturar'] ?? $in['filter_facturar'] ?? ''));
+        $cotizConfirm = trim((string) ($in['financiero_filter_cotiz_confirmada'] ?? $in['filter_cotiz_confirmada'] ?? ''));
 
         if ($facturar !== '' && $facturar !== '0' && $facturar !== '1') {
             $facturar = '';
+        }
+
+        if ($cotizConfirm !== '' && $cotizConfirm !== '0' && $cotizConfirm !== '1') {
+            $cotizConfirm = '';
         }
         if ($df !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $df)) {
             $df = '';
@@ -4718,6 +4723,7 @@ class AdministracionModel extends BaseDatabaseModel
             'date_to' => $dt,
             'agent' => $agent,
             'facturar' => $facturar,
+            'cotiz_confirmada' => $cotizConfirm,
         ];
     }
 
@@ -4733,12 +4739,13 @@ class AdministracionModel extends BaseDatabaseModel
      */
     public static function financieroFiltersFromInput($input): array
     {
-        $keys  = ['financiero_filter_date_from', 'financiero_filter_date_to', 'financiero_filter_agent', 'financiero_filter_facturar'];
+        $keys  = ['financiero_filter_date_from', 'financiero_filter_date_to', 'financiero_filter_agent', 'financiero_filter_facturar', 'financiero_filter_cotiz_confirmada'];
         $pairs = [
             'financiero_filter_date_from' => '',
             'financiero_filter_date_to' => '',
             'financiero_filter_agent' => '',
             'financiero_filter_facturar' => '',
+            'financiero_filter_cotiz_confirmada' => '',
         ];
 
         $methodIsGet = strtolower((string) $input->getMethod()) === 'get';
@@ -5228,12 +5235,13 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
-     * WHERE for date range (pc.created), facturar, agent label (must match list SELECT).
+     * WHERE for date range (pc.created), facturar, agent label (must match list SELECT), cotización confirmada filter.
      *
      * @since  3.115.26
      */
-    protected function financieroApplyListFilters($db, $query, array $filters, array $pcCols, bool $joinQuotations, bool $hasQSalesAgent): void
+    protected function financieroApplyListFilters($db, $query, array $filters, array $pcCols, bool $joinQuotations, bool $hasQSalesAgent, array $qCols = []): void
     {
+        $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
         if (isset($pcCols['created'])) {
             $created = $db->quoteName('pc') . '.' . $db->quoteName('created');
             $df      = isset($filters['date_from']) ? (string) $filters['date_from'] : '';
@@ -5261,10 +5269,40 @@ class AdministracionModel extends BaseDatabaseModel
             $expr = $this->financieroAgentSqlExpr($db, $joinQuotations, $hasQSalesAgent);
             $query->where('(' . $expr . ') = ' . $db->quote($agent));
         }
+
+        $cotConfirm = isset($filters['cotiz_confirmada']) ? trim((string) $filters['cotiz_confirmada']) : '';
+
+        if (
+            $cotConfirm !== ''
+            && $cotConfirm !== '0'
+            && $cotConfirm !== '1'
+        ) {
+            $cotConfirm = '';
+        }
+
+        $canFilterCotConfirm = $joinQuotations && isset($qCols['cotizacion_confirmada']);
+
+        if ($cotConfirm === '1' && !$canFilterCotConfirm) {
+            $query->where('1 = 0');
+        } elseif ($cotConfirm !== '' && $canFilterCotConfirm) {
+            $qn = $db->quoteName('q');
+
+            if ($cotConfirm === '1') {
+                $query->where($qn . '.' . $db->quoteName('id') . ' IS NOT NULL')
+                    ->where($qn . '.' . $db->quoteName('cotizacion_confirmada') . ' = 1');
+            } else {
+                // "No": no cotización row, cotización exists but not confirmed, or cotizacion_confirmada != 1
+                $query->where(
+                    'NOT ((' . $qn . '.' . $db->quoteName('id') . ' IS NOT NULL) AND ('
+                        . $qn . '.' . $db->quoteName('cotizacion_confirmada')
+                        . ' = 1))'
+                );
+            }
+        }
     }
 
     /**
-     * Distinct agent labels for Financiero filter dropdown (respects date + facturar; ignores agent filter).
+     * Distinct agent labels for Financiero filter dropdown (respects date, facturar, cotiz. confirm.; ignores agent filter).
      *
      * @param   array<string, string>  $filters  Normalized filters
      *
@@ -5296,7 +5334,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->select('DISTINCT ' . $agentExpr . ' AS ' . $db->quoteName('lbl'))
                 ->from($pcTbl . ' AS ' . $db->quoteName('pc'));
             $this->financieroAttachListJoins($db, $q, $joinQuotations, $subSql);
-            $this->financieroApplyListFilters($db, $q, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
+            $this->financieroApplyListFilters($db, $q, $filters, $pcCols, $joinQuotations, $hasQSalesAgent, $ctx['q_cols'] ?? []);
             $q->where('(' . $agentExpr . ') IS NOT NULL')->where('(' . $agentExpr . ") <> ''");
             $q->order($db->quoteName('lbl') . ' ASC');
             $db->setQuery($q, 0, 500);
@@ -5359,7 +5397,7 @@ class AdministracionModel extends BaseDatabaseModel
 
         $countQ = $db->getQuery(true)->select('COUNT(*)')->from($fromPc);
         $this->financieroAttachListJoins($db, $countQ, $joinQuotations, $subSql);
-        $this->financieroApplyListFilters($db, $countQ, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
+        $this->financieroApplyListFilters($db, $countQ, $filters, $pcCols, $joinQuotations, $hasQSalesAgent, $qCols);
 
         try {
             $db->setQuery($countQ);
@@ -5410,7 +5448,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->select($sel)
                 ->from($fromPc);
             $this->financieroAttachListJoins($db, $main, $joinQuotations, $subSql);
-            $this->financieroApplyListFilters($db, $main, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
+            $this->financieroApplyListFilters($db, $main, $filters, $pcCols, $joinQuotations, $hasQSalesAgent, $qCols);
             $main->order($db->quoteName('pc') . '.' . $db->quoteName('id') . ' DESC');
             $db->setQuery($main, $start, $limit);
 
@@ -5430,7 +5468,8 @@ class AdministracionModel extends BaseDatabaseModel
             $joinQuotations,
             $hasQSalesAgent,
             $pcCols,
-            $subSql
+            $subSql,
+            $qCols
         );
 
         return [
@@ -5451,7 +5490,8 @@ class AdministracionModel extends BaseDatabaseModel
      * @param   bool                               $joinQuotations
      * @param   bool                               $hasQSalesAgent
      * @param   array<string, mixed>                $pcCols
-     * @param   string                             $subSql        Quotation-per-PRE map subquery
+     * @param   string                              $subSql        Quotation-per-PRE map subquery
+     * @param   array<string, mixed>                $qCols         Quotation columns (cotizacion_confirmada)
      *
      * @return  \stdClass|null
      *
@@ -5464,7 +5504,8 @@ class AdministracionModel extends BaseDatabaseModel
         bool $joinQuotations,
         bool $hasQSalesAgent,
         array $pcCols,
-        string $subSql
+        string $subSql,
+        array $qCols = []
     ): ?\stdClass {
         $pcTbl = $db->quoteName('#__ordenproduccion_pre_cotizacion');
         $pcCols = array_change_key_case($pcCols, CASE_LOWER);
@@ -5505,7 +5546,7 @@ class AdministracionModel extends BaseDatabaseModel
             ])
             ->from($pcTbl . ' AS ' . $db->quoteName('pc'));
         $this->financieroAttachListJoins($db, $q, $joinQuotations, $subSql);
-        $this->financieroApplyListFilters($db, $q, $filters, $pcCols, $joinQuotations, $hasQSalesAgent);
+        $this->financieroApplyListFilters($db, $q, $filters, $pcCols, $joinQuotations, $hasQSalesAgent, $qCols);
 
         try {
             $db->setQuery($q);
