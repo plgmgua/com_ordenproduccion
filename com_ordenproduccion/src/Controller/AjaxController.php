@@ -339,7 +339,8 @@ class AjaxController extends BaseController
             $lines = $input->get('lines', [], 'array');
             $lines = QuotationLineImagesHelper::mergeLineImagesJsonFromRequest($lines);
             $items = $input->get('items', [], 'array');
-            
+            $qtyResolvedByPre = [];
+
             // Validate required fields
             if (empty($clientName) || empty($clientNit) || empty($quoteDate)) {
                 echo json_encode(['success' => false, 'message' => 'Missing required fields']);
@@ -371,6 +372,17 @@ class AjaxController extends BaseController
                     echo json_encode(['success' => false, 'message' => Text::_($precotErr)]);
                     exit;
                 }
+                $uniqPreQty = [];
+
+                foreach ($preIdsForQuote as $pip) {
+                    $pip = (int) $pip;
+
+                    if ($pip > 0) {
+                        $uniqPreQty[$pip] = true;
+                    }
+                }
+
+                $qtyResolvedByPre = $precotModel->getQuotationLineCantidadesByPreIds(array_keys($uniqPreQty));
             }
 
             // Generate autonumeric quotation number
@@ -390,7 +402,7 @@ class AjaxController extends BaseController
                 foreach ($lines as $lineOrder => $line) {
                     $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
                     $value = isset($line['value']) ? (float) $line['value'] : 0;
-                    $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 0;
+                    $cantidad = isset($qtyResolvedByPre[$preId]) ? (float) $qtyResolvedByPre[$preId] : 0.0;
                     $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
                     if ($preId > 0 && $value >= 0) {
                         if ($cantidad < 0.001) {
@@ -667,12 +679,27 @@ class AjaxController extends BaseController
             echo json_encode(['success' => false, 'message' => Text::_($precotErr)]);
             exit;
         }
+
+        $uniqPreQtyUpd = [];
+
+        foreach ($preIdsForQuote as $pip) {
+            $pip = (int) $pip;
+
+            if ($pip > 0) {
+                $uniqPreQtyUpd[$pip] = true;
+            }
+        }
+
+        $qtyResolvedByPre = $precotModel->getQuotationLineCantidadesByPreIds(array_keys($uniqPreQtyUpd));
         $lineItems = [];
         $totalAmount = 0;
+
         foreach ($lines as $lineOrder => $line) {
             $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
             $value = isset($line['value']) ? (float) $line['value'] : 0;
-            $cantidad = isset($line['cantidad']) ? (float) $line['cantidad'] : 0;
+            $cantidad = $preId > 0
+                ? (float) ($qtyResolvedByPre[$preId] ?? 0.0)
+                : (isset($line['cantidad']) ? (float) $line['cantidad'] : 0);
             $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
             if ($value >= 0 && ($preId > 0 || $desc !== '')) {
                 if ($cantidad < 0.001) {

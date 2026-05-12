@@ -1554,6 +1554,86 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Cotización línea quantity for a linked PRE: header {@see CotizacionHelper::parsePreCotCantidadTotalForQuotation}
+     * when usable, otherwise first non-envío línea quantity.
+     *
+     * @param   int[]  $preIds  Pre-cotización PKs
+     *
+     * @return  array<int, int>  pre_id => quantity (omit or 0 when unknown)
+     *
+     * @since   3.118.97
+     */
+    public function getQuotationLineCantidadesByPreIds(array $preIds): array
+    {
+        $uniq = [];
+
+        foreach ($preIds as $id) {
+            $id = (int) $id;
+
+            if ($id > 0) {
+                $uniq[$id] = true;
+            }
+        }
+
+        $idsList = array_keys($uniq);
+
+        if ($idsList === []) {
+            return [];
+        }
+
+        $fallback = $this->getFirstNonEnvioLineQtyByPreIds($idsList);
+
+        try {
+            $db        = $this->getDatabase();
+            $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+            $tableCols = \is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+            $sel       = [$db->quoteName('id')];
+
+            if (isset($tableCols['cantidad_total'])) {
+                $sel[] = $db->quoteName('cantidad_total');
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($sel)
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                    ->whereIn($db->quoteName('id'), $idsList)
+            );
+            $rows = $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            $rows = [];
+        }
+
+        $byPk = [];
+
+        foreach ($rows as $r) {
+            $pid = (int) ($r->id ?? 0);
+
+            if ($pid < 1) {
+                continue;
+            }
+
+            $byPk[$pid] = isset($r->cantidad_total) ? (string) $r->cantidad_total : '';
+        }
+
+        $out = [];
+
+        foreach ($idsList as $pid) {
+            $fromHeader = isset($byPk[$pid])
+                ? CotizacionHelper::parsePreCotCantidadTotalForQuotation($byPk[$pid])
+                : 0;
+            $fb = (int) ($fallback[$pid] ?? 0);
+            $n  = $fromHeader > 0 ? $fromHeader : ($fb > 0 ? $fb : 0);
+
+            if ($n > 0) {
+                $out[$pid] = $n;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Get total amount for a Pre-Cotización: sum of all line totals (including Envío), then Margen / IVA / ISR / Comisión from params.
      * When facturar=1, IVA and ISR are included; when 0, they are excluded.
      *

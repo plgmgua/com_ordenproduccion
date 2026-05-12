@@ -180,7 +180,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <i class="fas fa-list"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ITEMS', 'Quotation Details', 'Detalles de la cotización'); ?>
             </h4>
-            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation (description is filled automatically). Set quantity on each line (must be greater than zero before saving). Total is the sum of all line values.', 'Agregue líneas eligiendo una Pre-Cotización (la descripción se copia sola). Indique la cantidad en cada línea (debe ser mayor que cero para poder guardar). El total es la suma de todos los valores.'); ?></p>
+            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation (description is filled automatically). Quantity on each line matches the Pre-Cotización “Cantidad Total” and cannot be edited. Total is the sum of all line values.', 'Agregue líneas eligiendo una Pre-Cotización (la descripción se copia sola). La cantidad de cada línea corresponde a la “Cantidad Total” de la Pre-Cotización y no se puede editar. El total es la suma de todos los valores.'); ?></p>
             <?php if (empty($this->preCotizacionesList)) : ?>
                 <p class="alert alert-info"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES', 'You have no Pre-Quotations yet. Create one from Pre-Cotizaciones first.', 'Aún no tiene Pre-Cotizaciones. Cree una en Pre-Cotizaciones primero.'); ?></p>
             <?php endif; ?>
@@ -303,7 +303,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                     ?>
                     <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
-                        <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="<?php echo $qty; ?>"></td>
+                        <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end<?php echo $preId > 0 ? ' readonly-prepop bg-light' : ''; ?>" min="0" step="1" value="<?php echo $qty; ?>"<?php echo $preId > 0 ? ' readonly tabindex="-1"' : ''; ?>></td>
                         <td class="cotizacion-line-desc-cell"><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
                         <td class="text-end">Q <span class="line-subtotal-ref"><?php echo number_format($subtotalRef, 2); ?></span></td>
@@ -432,6 +432,16 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         return 0;
     }
 
+    function syncPrecotCantidadWrapVisibility() {
+        if (cantidadWrapEl) {
+            cantidadWrapEl.classList.add('d-none');
+        }
+        if (cantidadEl) {
+            cantidadEl.disabled = true;
+            cantidadEl.value = '0';
+        }
+    }
+
     function fillCantidadFromPrecotizacion() {
         if (!cantidadEl || !selectEl) {
             return;
@@ -443,27 +453,6 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
         }
         var n = readEffectivePrecotCantidad(opt);
         cantidadEl.value = n > 0 ? String(n) : '1';
-    }
-
-    function syncPrecotCantidadWrapVisibility() {
-        if (!cantidadWrapEl || !selectEl) {
-            return;
-        }
-        var opt = selectEl.options[selectEl.selectedIndex];
-        var hasPre = !!(opt && opt.value && parseInt(opt.value, 10) > 0);
-        if (hasPre) {
-            cantidadWrapEl.classList.remove('d-none');
-            if (cantidadEl) {
-                cantidadEl.disabled = false;
-                fillCantidadFromPrecotizacion();
-            }
-        } else {
-            cantidadWrapEl.classList.add('d-none');
-            if (cantidadEl) {
-                cantidadEl.value = '0';
-                cantidadEl.disabled = true;
-            }
-        }
     }
 
     function fillDescriptionFromPrecotizacion() {
@@ -599,7 +588,14 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var qc = parseInt(qtyInpCheck.value, 10);
             if (isNaN(qc) || qc < 1) {
                 alert(msgCantidadRequired);
-                qtyInpCheck.focus();
+                if (!qtyInpCheck.readOnly) {
+                    qtyInpCheck.focus();
+                } else {
+                    var vinp = tr.querySelector('input.line-value-input');
+                    if (vinp) {
+                        vinp.focus();
+                    }
+                }
                 return;
             }
         }
@@ -649,13 +645,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 return;
             }
             var qtyFromAttrs = readEffectivePrecotCantidad(opt);
-            var qtyTyped = cantidadEl ? parseInt(String(cantidadEl.value).trim(), 10) : 0;
-            if (isNaN(qtyTyped) || qtyTyped < 1) qtyTyped = 0;
-            var qtyForNewRowPre = qtyFromAttrs > 0 ? qtyFromAttrs : qtyTyped;
-            if (qtyForNewRowPre < 1) {
+            if (qtyFromAttrs < 1) {
                 alert(msgCantidadRequired);
-                if (cantidadEl) {
-                    cantidadEl.focus();
+                if (selectEl) {
+                    selectEl.focus();
                 }
                 return;
             }
@@ -665,7 +658,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var minValorLine = (tcRaw !== null && tcRaw !== '' && !isNaN(parseFloat(tcRaw))) ? parseFloat(tcRaw) : baseTotal;
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
             var value = minValorLine.toFixed(2);
-            var qtyForNewRow = qtyForNewRowPre;
+            var qtyForNewRow = qtyFromAttrs;
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
@@ -676,7 +669,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             var unitPrice = '0.0000';
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
-                '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
+                '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end readonly-prepop bg-light" readonly tabindex="-1" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
                 '<td class="cotizacion-line-desc-cell"><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
                 '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
@@ -696,7 +689,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 window.initLineImagesRow(tr);
             }
             var qtyInput = tr.querySelector('.line-cantidad-input');
-            if (qtyInput) qtyInput.addEventListener('input', function() { onRowCantidadChange(tr); });
+            if (qtyInput && !qtyInput.readOnly) {
+                qtyInput.addEventListener('input', function() { onRowCantidadChange(tr); });
+            }
             var valueInput = tr.querySelector('.line-value-input');
             if (valueInput) {
                 valueInput.addEventListener('input', function() { onValorFinalChange(tr); });
@@ -737,7 +732,7 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
     // Bind cantidad and valor final change/blur on existing rows (edit mode)
     tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
         var qtyInp = tr.querySelector('.line-cantidad-input');
-        if (qtyInp) qtyInp.addEventListener('input', function() { onRowCantidadChange(tr); });
+        if (qtyInp && !qtyInp.readOnly) qtyInp.addEventListener('input', function() { onRowCantidadChange(tr); });
         var valueInp = tr.querySelector('.line-value-input');
         if (valueInp) {
             valueInp.addEventListener('input', function() { onValorFinalChange(tr); });
@@ -914,7 +909,14 @@ function submitQuotationForm(event) {
             var qv = parseInt(qinp.value, 10);
             if (isNaN(qv) || qv < 1) {
                 alert(msgCantidadReq);
-                qinp.focus();
+                if (!qinp.readOnly) {
+                    qinp.focus();
+                } else {
+                    var v0 = rowsCant[ri].querySelector('input.line-value-input');
+                    if (v0) {
+                        v0.focus();
+                    }
+                }
                 return;
             }
         }

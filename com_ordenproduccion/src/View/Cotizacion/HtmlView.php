@@ -300,6 +300,19 @@ class HtmlView extends BaseHtmlView
                             $preIdsDistinct[$pid] = true;
                         }
                     }
+                    $qtyByPreForLines = [];
+
+                    if ($preIdsDistinct !== [] && $precotModel) {
+                        $qtyByPreForLines = $precotModel->getQuotationLineCantidadesByPreIds(array_keys($preIdsDistinct));
+                    }
+
+                    foreach ($this->quotationItems as $qiSync) {
+                        $qp = isset($qiSync->pre_cotizacion_id) ? (int) $qiSync->pre_cotizacion_id : 0;
+
+                        if ($qp > 0 && isset($qtyByPreForLines[$qp])) {
+                            $qiSync->cantidad = $qtyByPreForLines[$qp];
+                        }
+                    }
                     $this->quotationHasLinkedPreCotizacion = $preIdsDistinct !== [];
                     $this->ordenesPorPreCotizacionId = $this->buildOrdenesLinksByPreCotizacionIds($db, array_keys($preIdsDistinct));
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
