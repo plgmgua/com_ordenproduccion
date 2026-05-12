@@ -4980,7 +4980,151 @@ class AdministracionModel extends BaseDatabaseModel
             $extras[] = ['CAST(NULL AS DATETIME)', 'financiero_payment_proof_verified_date'];
         }
 
+        $extras[] = [$this->financieroPrecotPagoConfirmadoSelectExpr($db, $ctx), 'financiero_pago_confirmado'];
+
         return $extras;
+    }
+
+    /**
+     * CAST(COALESCE(invoice columns…)) expression for ordenes rows (valor a facturar operativo).
+     *
+     * @param   array<string, mixed>   $ordenCols  lower-case keyed getTableColumns
+     *
+     * @since   3.119.06
+     */
+    protected function financieroPrecotValorOrdenSql($db, string $aliasBare, array $ordenCols): string
+    {
+        $a          = $db->quoteName($aliasBare);
+        $ordenCols  = array_change_key_case($ordenCols, CASE_LOWER);
+
+        if (isset($ordenCols['invoice_value'], $ordenCols['valor_a_facturar'])) {
+            return 'CAST(COALESCE(' . $a . '.' . $db->quoteName('invoice_value') . ', '
+                . $a . '.' . $db->quoteName('valor_a_facturar') . ', 0) AS DECIMAL(14,4))';
+        }
+
+        if (isset($ordenCols['invoice_value'])) {
+            return 'CAST(COALESCE(' . $a . '.' . $db->quoteName('invoice_value') . ', 0) AS DECIMAL(14,4))';
+        }
+
+        if (isset($ordenCols['valor_a_facturar'])) {
+            return 'CAST(COALESCE(' . $a . '.' . $db->quoteName('valor_a_facturar') . ', 0) AS DECIMAL(14,4))';
+        }
+
+        return 'CAST(0 AS DECIMAL(14,4))';
+    }
+
+    /**
+     * 1 cuando la orden única ligada por pre_cotizacion_id está cobrada solo con pagos verificados,
+     * montos aplicados cubren valor de orden, y cada comprobante verificado relacionado tiene
+     * payment_amount = Σ amount_applied y = Σ valor de todas sus órdenes (sin duplicar filas PRE).
+     *
+     * @param   array<string, mixed>  $ctx  result of financieroPrecotFinanceContext()
+     *
+     * @since   3.119.06
+     */
+    protected function financieroPrecotPagoConfirmadoSelectExpr($db, array $ctx): string
+    {
+        $pc         = $db->quoteName('pc');
+        $ordenCols  = isset($ctx['orden_cols']) && \is_array($ctx['orden_cols']) ? array_change_key_case($ctx['orden_cols'], CASE_LOWER) : [];
+        $ppCols     = isset($ctx['pp_cols']) && \is_array($ctx['pp_cols']) ? array_change_key_case($ctx['pp_cols'], CASE_LOWER) : [];
+        $hasPo      = !empty($ctx['has_payment_orders']);
+
+        if (
+            !isset($ordenCols['pre_cotizacion_id'])
+            || !isset($ppCols['state'], $ppCols['payment_amount'])
+        ) {
+            return 'CAST(0 AS UNSIGNED)';
+        }
+
+        $tblOrden   = $db->quoteName('#__ordenproduccion_ordenes', 'oosub');
+        $pcMatch    = $db->quoteName('oosub') . '.' . $db->quoteName('pre_cotizacion_id')
+            . ' = ' . $pc . '.' . $db->quoteName('id');
+        $ordState   = $db->quoteName('oosub') . '.' . $db->quoteName('state') . ' = 1';
+
+        $oidSel     = '(SELECT ' . $db->quoteName('oosub') . '.' . $db->quoteName('id')
+            . ' FROM ' . $tblOrden
+            . ' WHERE ' . $pcMatch . ' AND ' . $ordState
+            . ' ORDER BY ' . $db->quoteName('oosub') . '.' . $db->quoteName('id') . ' ASC LIMIT 1)';
+
+        $valorSql   = '(SELECT ROUND(' . $this->financieroPrecotValorOrdenSql($db, 'oov', $ordenCols) . ', 2) FROM '
+            . $db->quoteName('#__ordenproduccion_ordenes', 'oov')
+            . ' WHERE ' . $db->quoteName('oov') . '.' . $db->quoteName('id') . ' = ' . $oidSel . ' LIMIT 1)';
+
+        $verifyJoinProof = '';
+
+        if (isset($ppCols['verification_status'])) {
+            $verifyJoinProof = ' AND pp.' . $db->quoteName('verification_status') . ' = ' . $db->quote('verificado');
+            $verifyJoinPpx   = ' AND ppx.' . $db->quoteName('verification_status') . ' = ' . $db->quote('verificado');
+        } else {
+            $verifyJoinPpx = '';
+        }
+
+        $allocConsistency = '1';
+        $valorConsistency = '1';
+
+        if ($hasPo) {
+            $paidSql = '(SELECT ROUND(CAST(COALESCE(SUM(po.' . $db->quoteName('amount_applied') . '), 0) AS DECIMAL(14,4)), 2) FROM '
+                . $db->quoteName('#__ordenproduccion_payment_orders', 'po')
+                . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp')
+                . ' ON pp.' . $db->quoteName('id') . ' = po.' . $db->quoteName('payment_proof_id')
+                . ' AND pp.' . $db->quoteName('state') . ' = 1'
+                . $verifyJoinProof
+                . ' WHERE po.' . $db->quoteName('order_id') . ' = ' . $oidSel . ')';
+
+            if ($verifyJoinProof !== '') {
+                $allocConsistency = '(NOT EXISTS (SELECT 1 FROM '
+                    . $db->quoteName('#__ordenproduccion_payment_orders', 'pox')
+                    . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'ppx')
+                    . ' ON ppx.' . $db->quoteName('id') . ' = pox.' . $db->quoteName('payment_proof_id')
+                    . ' AND ppx.' . $db->quoteName('state') . ' = 1'
+                    . $verifyJoinPpx
+                    . ' WHERE pox.' . $db->quoteName('order_id') . ' = ' . $oidSel
+                    . ' AND ABS(ROUND(ppx.' . $db->quoteName('payment_amount') . ', 2) - ROUND(COALESCE((SELECT SUM(poz.'
+                    . $db->quoteName('amount_applied') . ') FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'poz')
+                    . ' WHERE poz.' . $db->quoteName('payment_proof_id') . ' = ppx.' . $db->quoteName('id') . '), 0), 2)) >= 0.02'
+                    . '))';
+
+                $sumValorLinked = '(SELECT COALESCE(SUM(' . $this->financieroPrecotValorOrdenSql($db, 'oo2', $ordenCols) . '), 0) FROM '
+                    . $db->quoteName('#__ordenproduccion_payment_orders', 'poz2')
+                    . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_ordenes', 'oo2')
+                    . ' ON oo2.' . $db->quoteName('id') . ' = poz2.' . $db->quoteName('order_id')
+                    . ' AND oo2.' . $db->quoteName('state') . ' = 1'
+                    . ' WHERE poz2.' . $db->quoteName('payment_proof_id') . ' = ppx.' . $db->quoteName('id') . ')';
+
+                $valorConsistency = '(NOT EXISTS (SELECT 1 FROM '
+                    . $db->quoteName('#__ordenproduccion_payment_orders', 'pox2')
+                    . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'ppx')
+                    . ' ON ppx.' . $db->quoteName('id') . ' = pox2.' . $db->quoteName('payment_proof_id')
+                    . ' AND ppx.' . $db->quoteName('state') . ' = 1'
+                    . $verifyJoinPpx
+                    . ' WHERE pox2.' . $db->quoteName('order_id') . ' = ' . $oidSel
+                    . ' AND ABS(ROUND(ppx.' . $db->quoteName('payment_amount') . ', 2) - ROUND(' . $sumValorLinked . ', 2)) >= 0.02'
+                    . '))';
+            }
+        } else {
+            $legacyVerify = '';
+
+            if (isset($ppCols['verification_status'])) {
+                $legacyVerify = ' AND ppy.' . $db->quoteName('verification_status') . ' = ' . $db->quote('verificado');
+            }
+
+            $paidSql = '(SELECT ROUND(CAST(COALESCE(SUM(ppy.' . $db->quoteName('payment_amount') . '), 0) AS DECIMAL(14,4)), 2) FROM '
+                . $db->quoteName('#__ordenproduccion_payment_proofs', 'ppy')
+                . ' WHERE ppy.' . $db->quoteName('order_id') . ' = ' . $oidSel
+                . ' AND ppy.' . $db->quoteName('state') . ' = 1'
+                . $legacyVerify . ')';
+        }
+
+
+        $hasOrd = '(EXISTS (SELECT 1 FROM ' . $tblOrden . ' WHERE ' . $pcMatch . ' AND ' . $ordState . '))';
+
+        return 'CAST(CASE WHEN NOT ' . $hasOrd . ' THEN 0'
+            . ' WHEN ' . $oidSel . ' IS NULL THEN 0'
+            . ' WHEN COALESCE(' . $valorSql . ', 0) <= 0 THEN CASE WHEN COALESCE(' . $paidSql . ', 0) <= 0 THEN 1 ELSE 0 END'
+            . ' WHEN COALESCE(' . $paidSql . ', 0) + 0.005 < COALESCE(' . $valorSql . ', 0) THEN 0'
+            . ' WHEN NOT (' . $allocConsistency . ') THEN 0'
+            . ' WHEN NOT (' . $valorConsistency . ') THEN 0'
+            . ' ELSE 1 END AS UNSIGNED)';
     }
 
     /**

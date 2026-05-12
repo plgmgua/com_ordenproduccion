@@ -435,6 +435,7 @@ class AdministracionController extends BaseController
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_NUMBER'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_DATE'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAGO_CONFIRMADO'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_SUBTOTAL'),
             $lang->_('COM_ORDENPRODUCCION_PARAM_IVA'),
             $lang->_('COM_ORDENPRODUCCION_PARAM_ISR'),
@@ -495,6 +496,14 @@ class AdministracionController extends BaseController
             return $ts ? date('Y-m-d H:i', $ts) : '—';
         };
 
+        $pagoConfirmLabel = static function (object $r) use ($lang): string {
+            if (!\property_exists($r, 'financiero_pago_confirmado')) {
+                return '—';
+            }
+
+            return (int) $r->financiero_pago_confirmado === 1 ? $lang->_('JYES') : $lang->_('JNO');
+        };
+
         $outRows = [];
 
         foreach ($rows as $r) {
@@ -520,6 +529,7 @@ class AdministracionController extends BaseController
                 $invX !== '' ? $invX : '—',
                 $ppX !== '' ? $ppX : '—',
                 $fmtProofExport($r->financiero_payment_proof_verified_date ?? null),
+                $pagoConfirmLabel($r),
                 $numFmt((float) ($r->lines_subtotal ?? 0)),
                 $numFmt((float) ($r->iva_amount ?? 0)),
                 $numFmt((float) ($r->isr_amount ?? 0)),

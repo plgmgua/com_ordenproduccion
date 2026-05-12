@@ -78,6 +78,15 @@ $fmtProofVerified = static function ($v): string {
         return '—';
     }
 };
+
+$pagoConfirmadoBadge = static function ($r): string {
+    if (!\property_exists($r, 'financiero_pago_confirmado')) {
+        return '—';
+    }
+    $v = $r->financiero_pago_confirmado;
+
+    return ((int) $v === 1) ? Text::_('JYES') : Text::_('JNO');
+};
 ?>
 <style>
 .financiero-subtabs {
@@ -214,6 +223,7 @@ $fmtProofVerified = static function ($v): string {
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_NUMBER'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_DATE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAGO_CONFIRMADO'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_SUBTOTAL'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN_TOTAL_REF'); ?></th>
@@ -251,6 +261,7 @@ $fmtProofVerified = static function ($v): string {
                         <td><?php echo $invDisplay !== '' ? htmlspecialchars($invDisplay) : '—'; ?></td>
                         <td><?php echo $ppDoc !== '' ? htmlspecialchars($ppDoc) : '—'; ?></td>
                         <td><?php echo htmlspecialchars($fmtProofVerified($r->financiero_payment_proof_verified_date ?? null)); ?></td>
+                        <td><?php echo htmlspecialchars($pagoConfirmadoBadge($r)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($r->lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($margenAm)); ?></td>
                         <td class="text-end bg-margen-total-row"><?php echo htmlspecialchars($fmt($margenTotDisplay)); ?></td>
@@ -277,7 +288,7 @@ $fmtProofVerified = static function ($v): string {
                     ?>
                 <tfoot class="table-secondary fw-bold">
                     <tr>
-                        <td colspan="6"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
+                        <td colspan="7"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_margen_amount ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt(($agg->sum_margen_amount ?? 0) + ($agg->sum_margen_adicional ?? 0))); ?></td>

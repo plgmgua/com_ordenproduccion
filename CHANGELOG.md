@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.06-STABLE] - 2026-05-11
+
+### Added
+- **Financiero → listado PRE:** Columna «**Pago confirmado**»: Sí si la orden vinculada por `pre_cotizacion_id` tiene **pagos verificados** (`verification_status`) cuya suma de `amount_applied` cubre el valor de la orden (`invoice_value` / `valor_a_facturar`) y cada comprobante verificado relacionado tiene `payment_amount` alineado con la suma de aplicaciones del comprobante y con la suma de valores de **todas** las OT enlazadas a ese comprobante (evita falsos positivos con comprobantes multi-órden). Una fila por PRE; mismo criterio en Excel/CSV. Texto intro del listado ampliado en i18n.
+
 ## [3.119.05-STABLE] - 2026-05-11
 
 ### Added
