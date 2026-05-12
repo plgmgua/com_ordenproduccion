@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.99-STABLE] - 2026-05-11
+
+### Added
+- **Mis clientes / perfil Odoo:** Campo de solo lectura **Envío de facturas** sincronizado desde Odoo (`res.partner.invoice_sending_method`: correo / descargar / correo postal). Visible en la tarjeta de contabilidad del contacto, en el modal OT (clientes), y en la caja Odoo de aprobaciones.
+
 ## [3.118.98-STABLE] - 2026-05-11
 
 ### Fixed

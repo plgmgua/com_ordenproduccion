@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
 
 /**
@@ -473,6 +474,7 @@ class OdooHelper
                            <value><string>child_ids</string></value>
                            <value><string>credit_limit</string></value>
                            <value><string>property_payment_term_id</string></value>
+                           <value><string>invoice_sending_method</string></value>
                         </data>
                      </array>
                   </value>
@@ -837,6 +839,10 @@ class OdooHelper
                     $fieldValue = (string) $member['value']['int'];
                 } elseif (isset($member['value']['double'])) {
                     $fieldValue = (string) $member['value']['double'];
+                } elseif (isset($member['value']['boolean'])
+                    && $fieldName === 'invoice_sending_method') {
+                    // Odoo selection False → no method set
+                    $fieldValue = $member['value']['boolean'] ? '1' : '';
                 } elseif (isset($member['value']['boolean'])) {
                     $fieldValue = $member['value']['boolean'] ? '1' : '0';
                 } elseif (
@@ -868,7 +874,7 @@ class OdooHelper
 
     /**
      * Normalize Odoo accounting / sales fields after search_read parsing.
-     * Sets readable keys: payment_terms (label), credit_limit_numeric (float|null).
+     * Sets readable keys: payment_terms (label), credit_limit_numeric (float|null), invoice_sending_method_label.
      *
      * @param   array  $partner  Mutable row keyed by Odoo field names
      */
@@ -890,6 +896,41 @@ class OdooHelper
             $partner['credit_limit_numeric'] = null;
         } else {
             $partner['credit_limit_numeric'] = is_numeric($clRaw) ? (float) $clRaw : null;
+        }
+
+        // Envío de facturas (Odoo Accounting → res.partner.invoice_sending_method)
+        $ismRaw = isset($partner['invoice_sending_method']) ? trim((string) $partner['invoice_sending_method']) : '';
+        if ($ismRaw === '' || $ismRaw === '0' || strtolower($ismRaw) === 'false') {
+            $partner['invoice_sending_method']        = '';
+            $partner['invoice_sending_method_label'] = '';
+        } else {
+            $partner['invoice_sending_method_label'] = self::mapInvoiceSendingMethodToLabel($ismRaw);
+        }
+    }
+
+    /**
+     * Localized label for Odoo {@see res.partner} field invoice_sending_method (selection).
+     *
+     * @since  3.118.99
+     */
+    private static function mapInvoiceSendingMethodToLabel(string $code): string
+    {
+        $c = strtolower(trim($code));
+        if ($c === '' || $c === '0' || $c === 'false') {
+            return '';
+        }
+
+        switch ($c) {
+            case 'email':
+            case 'mail':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_EMAIL');
+            case 'manual':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_MANUAL');
+            case 'post':
+            case 'snailmail':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_POST');
+            default:
+                return $code;
         }
     }
 
@@ -1269,20 +1310,22 @@ class OdooHelper
     }
 
     /**
-     * Credit limit + customer payment term from Odoo (res.partner): Contabilidad + Ventas.
+     * Credit limit + customer payment term + invoice sending from Odoo (res.partner).
      *
-     * Field names match standard Odoo: credit_limit (Contabilidad), property_payment_term_id (Ventas y compras).
+     * Field names: credit_limit, property_payment_term_id (Ventas), invoice_sending_method (Accounting).
      *
      * @param   integer  $clientId  res.partner id
      *
-     * @return  array{credit_limit: ?float, payment_term_id: ?int, payment_term_name: string}
+     * @return  array{credit_limit: ?float, payment_term_id: ?int, payment_term_name: string, invoice_sending_method: string, invoice_sending_method_label: string}
      */
     public function getPartnerSalesAccountingInfo(int $clientId): array
     {
         $defaults = [
-            'credit_limit'       => null,
-            'payment_term_id'    => null,
-            'payment_term_name'  => '',
+            'credit_limit'                  => null,
+            'payment_term_id'               => null,
+            'payment_term_name'             => '',
+            'invoice_sending_method'        => '',
+            'invoice_sending_method_label'  => '',
         ];
 
         if ($clientId <= 0) {
@@ -1341,6 +1384,7 @@ class OdooHelper
                         <data>
                            <value><string>credit_limit</string></value>
                            <value><string>property_payment_term_id</string></value>
+                           <value><string>invoice_sending_method</string></value>
                         </data>
                      </array>
                   </value>
@@ -1380,6 +1424,13 @@ class OdooHelper
         if (isset($p['payment_term_id']) && $p['payment_term_id'] !== '') {
             $defaults['payment_term_id'] = (int) $p['payment_term_id'];
         }
+
+        $defaults['invoice_sending_method'] = isset($p['invoice_sending_method'])
+            ? trim((string) $p['invoice_sending_method'])
+            : '';
+        $defaults['invoice_sending_method_label'] = isset($p['invoice_sending_method_label'])
+            ? trim((string) $p['invoice_sending_method_label'])
+            : '';
 
         return $defaults;
     }

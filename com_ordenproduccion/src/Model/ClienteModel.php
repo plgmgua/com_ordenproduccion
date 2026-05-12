@@ -87,6 +87,8 @@ class ClienteModel extends AdminModel
             'payment_terms' => '',
             'payment_term_id' => '',
             'credit_limit_numeric' => null,
+            'invoice_sending_method' => '',
+            'invoice_sending_method_label' => '',
         ];
         
         // For new contacts, check if we have pre-filled data from URL parameters
@@ -147,6 +149,8 @@ class ClienteModel extends AdminModel
                 'payment_terms' => '',
                 'payment_term_id' => '',
                 'credit_limit_numeric' => null,
+                'invoice_sending_method' => '',
+                'invoice_sending_method_label' => '',
             ];
         }
     }

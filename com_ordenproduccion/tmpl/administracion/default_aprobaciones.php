@@ -292,6 +292,13 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
           lines.push(ptn + tid);
         }
 
+        var isl = (data.invoice_sending_method_label !== null && data.invoice_sending_method_label !== undefined)
+          ? String(data.invoice_sending_method_label).trim()
+          : '';
+        if (isl !== '') {
+          lines.push(isl);
+        }
+
         inner.textContent = lines.join(' · ');
 
         if (lines.length === 0) {

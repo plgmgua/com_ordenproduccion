@@ -134,7 +134,7 @@ $otStepIndicatorInitial = $otWizardLangIsEn
                     </div>
                 </div>
                 
-                <!-- Odoo accounting / sales (credit limit + payment terms) -->
+                <!-- Odoo accounting / sales (credit limit + payment terms + invoice sending) -->
                 <div id="otCreditLimitBanner" class="alert alert-info mb-3 py-2" style="display: none;">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-1" id="otCreditLimitCreditRow">
                         <i class="fas fa-credit-card"></i>
@@ -145,6 +145,10 @@ $otStepIndicatorInitial = $otWizardLangIsEn
                         <strong>Términos de pago:</strong>
                         <span id="otPaymentTermsText">—</span>
                         <span id="otPaymentTermIdHint" class="text-muted ms-1"></span>
+                    </div>
+                    <div class="small" id="otInvoiceSendingRow" style="display: none;">
+                        <strong><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_FIELD_INVOICE_SENDING'), ENT_QUOTES, 'UTF-8'); ?>:</strong>
+                        <span id="otInvoiceSendingText">—</span>
                     </div>
                 </div>
                 
@@ -734,7 +738,7 @@ window.openOTModal = openOTModal;
     }
 })();
 
-// Load Odoo finance (credit limit + payment terms) for the selected client
+// Load Odoo finance (credit limit + payment terms + invoice sending) for the selected client
 function loadCreditLimit(clientId) {
     var banner = document.getElementById('otCreditLimitBanner');
     var amountSpan = document.getElementById('otCreditLimitAmount');
@@ -742,6 +746,8 @@ function loadCreditLimit(clientId) {
     var payRow = document.getElementById('otPaymentTermsRow');
     var payText = document.getElementById('otPaymentTermsText');
     var payIdHint = document.getElementById('otPaymentTermIdHint');
+    var invRow = document.getElementById('otInvoiceSendingRow');
+    var invText = document.getElementById('otInvoiceSendingText');
 
     if (!banner || !amountSpan) {
         return;
@@ -758,6 +764,11 @@ function loadCreditLimit(clientId) {
         payRow.style.display = 'none';
         payText.textContent = '';
         payIdHint.textContent = '';
+    }
+
+    if (invRow && invText) {
+        invRow.style.display = 'none';
+        invText.textContent = '—';
     }
 
     fetch('<?php echo Route::_("index.php?option=com_ordenproduccion&task=cliente.getCreditLimit&format=json"); ?>&id=' + clientId)
@@ -796,6 +807,16 @@ function loadCreditLimit(clientId) {
                 }
 
                 payRow.style.display = 'block';
+                showBanner = true;
+            }
+
+            var isl = (data && data.invoice_sending_method_label)
+                ? String(data.invoice_sending_method_label).trim()
+                : '';
+
+            if (invRow && invText && isl !== '') {
+                invText.textContent = isl;
+                invRow.style.display = 'block';
                 showBanner = true;
             }
 

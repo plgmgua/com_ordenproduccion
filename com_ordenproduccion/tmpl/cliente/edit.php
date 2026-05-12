@@ -281,6 +281,11 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
                         $clDisplayTxt = (string) $clNumeric;
                     }
                 }
+
+                $invSendLbl = '';
+                if (isset($this->item->invoice_sending_method_label)) {
+                    $invSendLbl = trim((string) $this->item->invoice_sending_method_label);
+                }
                 ?>
                 <div class="row mt-4">
                     <div class="col-12">
@@ -295,7 +300,7 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
                                     <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_CARD_ODOO_FINANCE_INTRO'), ENT_QUOTES, 'UTF-8'); ?>
                                 </p>
                                 <div class="row">
-                                    <div class="col-md-6 mb-3 mb-md-0">
+                                    <div class="col-md-4 mb-3 mb-md-0">
                                         <div class="fw-bold small text-muted text-uppercase">
                                             <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_FIELD_CREDIT_LIMIT'), ENT_QUOTES, 'UTF-8'); ?>
                                         </div>
@@ -305,7 +310,7 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
                                                 : '—'; ?>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-4 mb-3 mb-md-0">
                                         <div class="fw-bold small text-muted text-uppercase">
                                             <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_FIELD_PAYMENT_TERMS'), ENT_QUOTES, 'UTF-8'); ?>
                                         </div>
@@ -323,6 +328,16 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
                                                     <?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_CLIENTE_PAYMENT_TERM_ID_NOTE', (int) $tid), ENT_QUOTES, 'UTF-8'); ?>
                                                 </div>
                                             <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fw-bold small text-muted text-uppercase">
+                                            <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_FIELD_INVOICE_SENDING'), ENT_QUOTES, 'UTF-8'); ?>
+                                        </div>
+                                        <div class="fs-6">
+                                            <?php echo ($invSendLbl !== '')
+                                                ? htmlspecialchars($invSendLbl, ENT_QUOTES, 'UTF-8')
+                                                : '—'; ?>
                                         </div>
                                     </div>
                                 </div>
