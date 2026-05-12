@@ -432,6 +432,9 @@ class AdministracionController extends BaseController
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_NUMBER'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_DATE'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_SUBTOTAL'),
             $lang->_('COM_ORDENPRODUCCION_PARAM_IVA'),
             $lang->_('COM_ORDENPRODUCCION_PARAM_ISR'),
@@ -483,6 +486,15 @@ class AdministracionController extends BaseController
             return (int) $r->cotizacion_confirmada === 1 ? $lang->_('JYES') : $lang->_('JNO');
         };
 
+        $fmtProofExport = static function ($v): string {
+            if ($v === null || $v === '' || $v === '0000-00-00 00:00:00') {
+                return '—';
+            }
+            $ts = strtotime((string) $v);
+
+            return $ts ? date('Y-m-d H:i', $ts) : '—';
+        };
+
         $outRows = [];
 
         foreach ($rows as $r) {
@@ -498,10 +510,16 @@ class AdministracionController extends BaseController
             $comisionVentas = isset($r->comision_amount) ? (float) $r->comision_amount : 0.0;
             $comisionMaAmt  = isset($r->comision_margen_adicional) ? (float) $r->comision_margen_adicional : 0.0;
 
+            $invX = isset($r->financiero_invoice_number) ? trim((string) $r->financiero_invoice_number) : '';
+            $ppX  = isset($r->financiero_payment_proof_number) ? trim((string) $r->financiero_payment_proof_number) : '';
+
             $outRows[] = [
                 $rowPrecotLabel($r),
                 $facturarLabel($r),
                 $ag !== '' ? $ag : '—',
+                $invX !== '' ? $invX : '—',
+                $ppX !== '' ? $ppX : '—',
+                $fmtProofExport($r->financiero_payment_proof_verified_date ?? null),
                 $numFmt((float) ($r->lines_subtotal ?? 0)),
                 $numFmt((float) ($r->iva_amount ?? 0)),
                 $numFmt((float) ($r->isr_amount ?? 0)),

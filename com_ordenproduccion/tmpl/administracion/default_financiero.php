@@ -8,6 +8,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
@@ -64,6 +65,18 @@ $facturarSiNo = static function ($r): string {
     $on = ($v === true || $v === 1 || $v === '1' || (string) $v === '1');
 
     return $on ? Text::_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_SI') : Text::_('COM_ORDENPRODUCCION_FINANCIERO_FACTURAR_NO');
+};
+
+$fmtProofVerified = static function ($v): string {
+    if ($v === null || $v === '' || $v === '0000-00-00 00:00:00') {
+        return '—';
+    }
+
+    try {
+        return HTMLHelper::_('date', $v, Text::_('DATE_FORMAT_LC4'));
+    } catch (\Throwable $e) {
+        return '—';
+    }
 };
 ?>
 <style>
@@ -198,6 +211,9 @@ $facturarSiNo = static function ($r): string {
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_NUMBER'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_DATE'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_SUBTOTAL'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN'); ?></th>
                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_MARGEN_TOTAL_REF'); ?></th>
@@ -220,6 +236,8 @@ $facturarSiNo = static function ($r): string {
                         $margenTotDisplay = round($margenAm + $margenAd, 2);
                         $qid               = isset($r->linked_quotation_id) ? (int) $r->linked_quotation_id : 0;
                         $qnum              = isset($r->linked_quotation_number) ? trim((string) $r->linked_quotation_number) : '';
+                        $invDisplay        = isset($r->financiero_invoice_number) ? trim((string) $r->financiero_invoice_number) : '';
+                        $ppDoc             = isset($r->financiero_payment_proof_number) ? trim((string) $r->financiero_payment_proof_number) : '';
                         ?>
                     <tr>
                         <td>
@@ -230,6 +248,9 @@ $facturarSiNo = static function ($r): string {
                             $ag = isset($r->financiero_agent_label) ? trim((string) $r->financiero_agent_label) : '';
                             echo $ag !== '' ? htmlspecialchars($ag) : '—';
 ?></td>
+                        <td><?php echo $invDisplay !== '' ? htmlspecialchars($invDisplay) : '—'; ?></td>
+                        <td><?php echo $ppDoc !== '' ? htmlspecialchars($ppDoc) : '—'; ?></td>
+                        <td><?php echo htmlspecialchars($fmtProofVerified($r->financiero_payment_proof_verified_date ?? null)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($r->lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($margenAm)); ?></td>
                         <td class="text-end bg-margen-total-row"><?php echo htmlspecialchars($fmt($margenTotDisplay)); ?></td>
@@ -256,7 +277,7 @@ $facturarSiNo = static function ($r): string {
                     ?>
                 <tfoot class="table-secondary fw-bold">
                     <tr>
-                        <td colspan="3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
+                        <td colspan="6"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_margen_amount ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt(($agg->sum_margen_amount ?? 0) + ($agg->sum_margen_adicional ?? 0))); ?></td>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.05-STABLE] - 2026-05-11
+
+### Added
+- **Financiero → listado PRE:** Columnas **número de factura** (factura ligada a cotización o a OT con `pre_cotizacion_id`), **número de comprobante de pago** y **fecha de verificación del comprobante**, en pantalla y en export Excel/CSV.
+
 ## [3.119.04-STABLE] - 2026-05-11
 
 ### Changed

@@ -4793,6 +4793,55 @@ class AdministracionModel extends BaseDatabaseModel
                 . ' GROUP BY ' . $db->quoteName('qi2') . '.' . $db->quoteName('pre_cotizacion_id') . ')';
         }
 
+        $hasOrd            = false;
+        $hasInvTbl         = false;
+        $hasPpTbl          = false;
+        $hasPoTbl          = false;
+        $ordenColsFlat     = [];
+        $invoiceColsFlat   = [];
+        $ppColsFlat        = [];
+
+        foreach ($tables as $tblName) {
+            $norm = strtolower((string) $tblName);
+
+            if ($norm === strtolower($prefix . 'ordenproduccion_ordenes')) {
+                $hasOrd = true;
+            } elseif ($norm === strtolower($prefix . 'ordenproduccion_invoices')) {
+                $hasInvTbl = true;
+            } elseif ($norm === strtolower($prefix . 'ordenproduccion_payment_proofs')) {
+                $hasPpTbl = true;
+            } elseif ($norm === strtolower($prefix . 'ordenproduccion_payment_orders')) {
+                $hasPoTbl = true;
+            }
+        }
+
+        if ($hasOrd) {
+            try {
+                $oc             = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+                $ordenColsFlat  = \is_array($oc) ? array_change_key_case($oc, CASE_LOWER) : [];
+            } catch (\Throwable $e) {
+                $ordenColsFlat = [];
+            }
+        }
+
+        if ($hasInvTbl) {
+            try {
+                $ic               = $db->getTableColumns('#__ordenproduccion_invoices', false);
+                $invoiceColsFlat  = \is_array($ic) ? array_change_key_case($ic, CASE_LOWER) : [];
+            } catch (\Throwable $e) {
+                $invoiceColsFlat = [];
+            }
+        }
+
+        if ($hasPpTbl) {
+            try {
+                $ppc           = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+                $ppColsFlat    = \is_array($ppc) ? array_change_key_case($ppc, CASE_LOWER) : [];
+            } catch (\Throwable $e) {
+                $ppColsFlat = [];
+            }
+        }
+
         return [
             'db' => $db,
             'pc_cols' => $pcCols,
@@ -4801,7 +4850,137 @@ class AdministracionModel extends BaseDatabaseModel
             'has_q_sales_agent' => $hasQSalesAgent,
             'expr_grand' => $exprGrand,
             'sub_sql' => $subSql,
+            'orden_cols' => $ordenColsFlat,
+            'invoice_cols' => $invoiceColsFlat,
+            'pp_cols' => $ppColsFlat,
+            'has_payment_orders' => $hasPoTbl,
         ];
+    }
+
+    /**
+     * Extra scalar columns for Financiero PRE list — invoice #: quotation or orden; proof doc + verified date via ordenes × payment_proofs (+ payment_orders when present).
+     *
+     * @return  array<int, array{0: string, 1: string}>
+     *
+     * @since   3.119.05
+     */
+    protected function financieroPrecotFinanceExtraSelects($db, array $ctx, bool $joinQuotations): array
+    {
+        $extras   = [];
+        $q          = $db->quoteName('q');
+        $ppp        = $db->quoteName('ppp');
+        $pc         = $db->quoteName('pc');
+        $ordenCols  = isset($ctx['orden_cols']) && \is_array($ctx['orden_cols']) ? array_change_key_case($ctx['orden_cols'], CASE_LOWER) : [];
+        $invCols    = isset($ctx['invoice_cols']) && \is_array($ctx['invoice_cols']) ? array_change_key_case($ctx['invoice_cols'], CASE_LOWER) : [];
+        $ppCols     = isset($ctx['pp_cols']) && \is_array($ctx['pp_cols']) ? array_change_key_case($ctx['pp_cols'], CASE_LOWER) : [];
+        $hasPo      = !empty($ctx['has_payment_orders']);
+
+        // --- Invoice number ---
+        $byQuotationSql = '';
+
+        if ($joinQuotations && isset($invCols['quotation_id'], $invCols['invoice_number'], $invCols['state'])) {
+            $ivQ       = $db->quoteName('iv_q');
+            $byQuotationSql = '(SELECT ' . $ivQ . '.' . $db->quoteName('invoice_number')
+                . ' FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'iv_q')
+                . ' WHERE ' . $ivQ . '.' . $db->quoteName('quotation_id')
+                . ' = ' . $q . '.' . $db->quoteName('id')
+                . ' AND ' . $ivQ . '.' . $db->quoteName('state') . ' = 1'
+                . ' ORDER BY ' . $ivQ . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+        }
+
+        $byPrecotOrdenSql = '';
+
+        if (isset($ordenCols['pre_cotizacion_id'], $invCols['invoice_number'], $invCols['orden_id'], $invCols['state'])) {
+            $ivO           = $db->quoteName('iv_o');
+            $byPrecotOrdenSql = '(SELECT ' . $ivO . '.' . $db->quoteName('invoice_number')
+                . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'opc_iv')
+                . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_invoices', 'iv_o')
+                . ' ON ' . $ivO . '.' . $db->quoteName('orden_id') . ' = ' . $db->quoteName('opc_iv') . '.' . $db->quoteName('id')
+                . ' WHERE ' . $db->quoteName('opc_iv') . '.' . $db->quoteName('pre_cotizacion_id')
+                . ' = ' . $pc . '.' . $db->quoteName('id')
+                . ' AND ' . $ivO . '.' . $db->quoteName('state') . ' = 1'
+                . ' ORDER BY ' . $ivO . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+        }
+
+        $invCombined = '';
+
+        if ($byQuotationSql !== '' && $byPrecotOrdenSql !== '') {
+            $invCombined = 'COALESCE(' . $byQuotationSql . ', ' . $byPrecotOrdenSql . ')';
+        } elseif ($byQuotationSql !== '') {
+            $invCombined = $byQuotationSql;
+        } elseif ($byPrecotOrdenSql !== '') {
+            $invCombined = $byPrecotOrdenSql;
+        }
+
+        if ($invCombined !== '') {
+            $extras[] = [$invCombined, 'financiero_invoice_number'];
+        } else {
+            $extras[] = ['CAST(NULL AS CHAR)', 'financiero_invoice_number'];
+        }
+
+        // --- Payment proof lines (orden.pre_cotizacion_id) ---
+        if (
+            isset($ordenCols['pre_cotizacion_id'])
+            && isset($ppCols['document_number'], $ppCols['state'])
+        ) {
+            $opcJoin = $db->quoteName('opc');
+            $linkOn  = '(' . $ppp . '.' . $db->quoteName('order_id')
+                . ' = ' . $opcJoin . '.' . $db->quoteName('id') . ')';
+
+            if ($hasPo) {
+                $linkOn = '(' . $ppp . '.' . $db->quoteName('order_id')
+                    . ' = ' . $opcJoin . '.' . $db->quoteName('id')
+                    . ' OR EXISTS (SELECT 1 FROM '
+                    . $db->quoteName('#__ordenproduccion_payment_orders', 'pmo')
+                    . ' WHERE ' . $db->quoteName('pmo') . '.' . $db->quoteName('order_id')
+                    . ' = ' . $opcJoin . '.' . $db->quoteName('id')
+                    . ' AND ' . $db->quoteName('pmo') . '.' . $db->quoteName('payment_proof_id')
+                    . ' = ' . $ppp . '.' . $db->quoteName('id') . '))';
+            }
+
+            $orderPieces = [];
+
+            if (isset($ppCols['verification_status'])) {
+                $orderPieces[] = 'CASE WHEN ' . $ppp . '.' . $db->quoteName('verification_status')
+                    . ' = ' . $db->quote('verificado') . ' THEN 1 ELSE 0 END DESC';
+            }
+
+            if (isset($ppCols['verified_date'])) {
+                $orderPieces[] = $ppp . '.' . $db->quoteName('verified_date') . ' DESC';
+            }
+
+            $orderPieces[] = $ppp . '.' . $db->quoteName('id') . ' DESC';
+
+            $orderClause = implode(', ', $orderPieces);
+
+            $proofFrom = ' FROM '
+                . $db->quoteName('#__ordenproduccion_ordenes', 'opc')
+                . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'ppp')
+                . ' ON ' . $linkOn . ' AND ' . $ppp . '.' . $db->quoteName('state') . ' = 1'
+                . ' WHERE ' . $opcJoin . '.' . $db->quoteName('pre_cotizacion_id')
+                . ' = ' . $pc . '.' . $db->quoteName('id');
+
+            $extras[] = [
+                '(SELECT ' . $ppp . '.' . $db->quoteName('document_number') . $proofFrom
+                . ' ORDER BY ' . $orderClause . ' LIMIT 1)',
+                'financiero_payment_proof_number',
+            ];
+
+            if (isset($ppCols['verified_date'])) {
+                $extras[] = [
+                    '(SELECT ' . $ppp . '.' . $db->quoteName('verified_date') . $proofFrom
+                    . ' ORDER BY ' . $orderClause . ' LIMIT 1)',
+                    'financiero_payment_proof_verified_date',
+                ];
+            } else {
+                $extras[] = ['CAST(NULL AS DATETIME)', 'financiero_payment_proof_verified_date'];
+            }
+        } else {
+            $extras[] = ['CAST(NULL AS CHAR)', 'financiero_payment_proof_number'];
+            $extras[] = ['CAST(NULL AS DATETIME)', 'financiero_payment_proof_verified_date'];
+        }
+
+        return $extras;
     }
 
     /**
@@ -5020,6 +5199,10 @@ class AdministracionModel extends BaseDatabaseModel
                 'CAST(NULL AS UNSIGNED) AS ' . $db->quoteName('cotizacion_confirmada'),
                 $agentSelect,
             ];
+        }
+
+        foreach ($this->financieroPrecotFinanceExtraSelects($db, $ctx, $joinQuotations) as $pair) {
+            $sel[] = $pair[0] . ' AS ' . $db->quoteName($pair[1]);
         }
 
         try {
