@@ -549,6 +549,13 @@ class InvoiceController extends BaseController
         }
 
         try {
+            $doc = $app->getDocument();
+            if ($doc !== null && \method_exists($doc, 'setTitle')) {
+                $doc->setTitle(
+                    InvoiceGrimpsaTemplatePdfHelper::resolvePdfDocumentTitleForInvoice($inv)
+                );
+            }
+
             $binary = InvoiceGrimpsaTemplatePdfHelper::build($inv);
         } catch (\Throwable $e) {
             Log::add('invoice.grimpsa.pdf: ' . $e->getMessage(), Log::ERROR, 'com_ordenproduccion');

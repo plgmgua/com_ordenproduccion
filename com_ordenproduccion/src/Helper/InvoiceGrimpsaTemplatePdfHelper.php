@@ -84,6 +84,53 @@ final class InvoiceGrimpsaTemplatePdfHelper
         return JPATH_ROOT . '/' . self::TEMPLATE_REL_PATH;
     }
 
+    /**
+     * Human-readable PDF / browser document title (never a raw COM_* key when language is missing).
+     *
+     * @since  3.118.98
+     */
+    public static function resolvePdfDocumentTitleForInvoice(object $inv): string
+    {
+        self::ensureComponentLanguageLoadedForPdf();
+        $invoiceNumForTitle = \trim((string) ($inv->invoice_number ?? ''));
+        if ($invoiceNumForTitle === '') {
+            $invoiceNumForTitle = 'FAC-' . (int) ($inv->id ?? 0);
+        }
+
+        $key = 'COM_ORDENPRODUCCION_INVOICE_PDF_DOCUMENT_TITLE';
+        $t   = Text::sprintf($key, $invoiceNumForTitle);
+        if ($t === $key || \strncmp($t, 'COM_', 4) === 0) {
+            $tag = Factory::getApplication()->getLanguage()->getTag();
+
+            return \stripos($tag, 'es') === 0
+                ? ('Factura ' . $invoiceNumForTitle)
+                : ('Invoice ' . $invoiceNumForTitle);
+        }
+
+        return $t;
+    }
+
+    /**
+     * Load site component language so {@see Text} resolves in PDF/RAW tasks.
+     *
+     * @since  3.118.98
+     */
+    private static function ensureComponentLanguageLoadedForPdf(): void
+    {
+        static $done = false;
+
+        if ($done) {
+            return;
+        }
+
+        $done = true;
+        $base = JPATH_SITE . '/components/com_ordenproduccion';
+
+        if (\is_dir($base . '/language')) {
+            Factory::getApplication()->getLanguage()->load('com_ordenproduccion', $base);
+        }
+    }
+
     public static function isTemplateAvailable(): bool
     {
         return FpdfHelper::getFpdfPath() !== null;
@@ -123,11 +170,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
         $pdf = new InvoiceGrimpsaPdfDocument();
         $pdf->AliasNbPages();
-        $invoiceNumForTitle = \trim((string) ($inv->invoice_number ?? ''));
-        if ($invoiceNumForTitle === '') {
-            $invoiceNumForTitle = 'FAC-' . (int) ($inv->id ?? 0);
-        }
-        $pdf->SetTitle(Text::sprintf('COM_ORDENPRODUCCION_INVOICE_PDF_DOCUMENT_TITLE', $invoiceNumForTitle), true);
+        $pdf->SetTitle(self::resolvePdfDocumentTitleForInvoice($inv), true);
         $pdf->SetAutoPageBreak(false);
         $pdf->SetMargins(self::MARGIN_X, self::CMY_BAR_MM + self::BODY_TOP_MM, self::MARGIN_X);
         $pdf->AddPage();

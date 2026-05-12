@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.118.98-STABLE] - 2026-05-11
+
+### Fixed
+- **Factura Grimpsa PDF (inline):** Título del documento PDF y de la pestaña del navegador ya no muestran claves `COM_*` sin traducir. Se carga el idioma del componente en tareas `raw` y hay texto de respaldo «Factura …» / «Invoice …» si la cadena no resuelve.
+
 ## [3.118.75-STABLE] - 2026-05-11
 
 ### Fixed
