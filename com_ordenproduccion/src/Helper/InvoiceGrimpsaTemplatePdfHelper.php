@@ -16,6 +16,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
@@ -122,6 +123,11 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
         $pdf = new InvoiceGrimpsaPdfDocument();
         $pdf->AliasNbPages();
+        $invoiceNumForTitle = \trim((string) ($inv->invoice_number ?? ''));
+        if ($invoiceNumForTitle === '') {
+            $invoiceNumForTitle = 'FAC-' . (int) ($inv->id ?? 0);
+        }
+        $pdf->SetTitle(Text::sprintf('COM_ORDENPRODUCCION_INVOICE_PDF_DOCUMENT_TITLE', $invoiceNumForTitle), true);
         $pdf->SetAutoPageBreak(false);
         $pdf->SetMargins(self::MARGIN_X, self::CMY_BAR_MM + self::BODY_TOP_MM, self::MARGIN_X);
         $pdf->AddPage();
