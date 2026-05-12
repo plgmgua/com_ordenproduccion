@@ -441,6 +441,7 @@ class AdministracionController extends BaseController
             $lang->_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_TOTAL'),
             $lang->_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_TOTAL_BONO'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_COTIZ'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_CONFIRM'),
         ];
@@ -495,6 +496,9 @@ class AdministracionController extends BaseController
             $qnum               = isset($r->linked_quotation_number) ? trim((string) $r->linked_quotation_number) : '';
             $ag                 = isset($r->financiero_agent_label) ? trim((string) $r->financiero_agent_label) : '';
 
+            $comisionVentas = isset($r->comision_amount) ? (float) $r->comision_amount : 0.0;
+            $comisionMaAmt  = isset($r->comision_margen_adicional) ? (float) $r->comision_margen_adicional : 0.0;
+
             $outRows[] = [
                 $rowPrecotLabel($r),
                 $facturarLabel($r),
@@ -504,10 +508,11 @@ class AdministracionController extends BaseController
                 $numFmt($margenTotDisplay),
                 $numFmt((float) ($r->iva_amount ?? 0)),
                 $numFmt((float) ($r->isr_amount ?? 0)),
-                $numFmt((float) ($r->comision_amount ?? 0)),
+                $numFmt($comisionVentas),
                 $numFmt($margenAd),
                 $numFmt($rowGrand($r)),
-                $numFmt((float) ($r->comision_margen_adicional ?? 0)),
+                $numFmt($comisionMaAmt),
+                $numFmt(round($comisionVentas + $comisionMaAmt, 2)),
                 $qnum !== '' ? $qnum : '—',
                 $confirmLabel($r),
             ];

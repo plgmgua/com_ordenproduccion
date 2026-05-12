@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.00-STABLE] - 2026-05-11
+
+### Changed
+- **PRE documento (`document.php` / proveedor externo):** Pie de tabla — fila azul «bono margen adicional» con formato `Bono de margen adicional (7%) = Q.XX.XX — Total Bono: | Q YY.YY`; recálculo cliente actualiza decimales y total bono (`precot-live`).
+
+### Added
+- **Financiero → export Excel listado PRE:** Columna **Total Bono** = bono venta + bono margen adicional.
+
 ## [3.118.99-STABLE] - 2026-05-11
 
 ### Added

@@ -89,6 +89,10 @@ $margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adi
 $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adicional) && $item->comision_margen_adicional !== null && $item->comision_margen_adicional !== '')
     ? (float) $item->comision_margen_adicional : 0;
 $displayTotal = $linesTotalFinal + $margenAdicional;
+$pctMaUi = (float) $paramComisionMargenAdicional;
+$precotComisionMaPctText = (\abs($pctMaUi - \round($pctMaUi)) < 0.000001)
+    ? (string) (int) \round($pctMaUi)
+    : \number_format($pctMaUi, 1, '.', '');
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 $precotFooterShowIva = $canSeePrecotInternalTax && $facturar
     && (($paramIva != 0) || abs((float) $ivaAmount) >= 0.005);
@@ -1079,8 +1083,8 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <?php if ($comisionMargenAdicionalAmount > 0) : ?>
                 <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
                 <tr>
-                    <td class="text-end pe-3">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> Q <?php echo number_format($totalComision, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
-                    <td class="text-end">Q <?php echo number_format($comisionMargenAdicionalAmount, 2); ?></td>
+                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo htmlspecialchars($precotComisionMaPctText, ENT_QUOTES, 'UTF-8'); ?>%) = Q.<?php echo \number_format($comisionMargenAdicionalAmount, 2, '.', ''); ?> &mdash; <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> |</td>
+                    <td class="text-end fw-semibold"><?php echo 'Q ' . \number_format($totalComision, 2, '.', ''); ?></td>
                 </tr>
                 <?php endif; ?>
             </tbody>

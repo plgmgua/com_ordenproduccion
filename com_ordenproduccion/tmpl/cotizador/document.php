@@ -111,6 +111,10 @@ $paramComisionMargenAdicional = isset($this->paramComisionMargenAdicional) ? (fl
 $margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== '') ? (float) $item->margen_adicional : 0;
 $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adicional) && $item->comision_margen_adicional !== null && $item->comision_margen_adicional !== '') ? (float) $item->comision_margen_adicional : 0;
 $displayTotal = $linesTotalFinal + $margenAdicional;
+$pctMaUi = (float) $paramComisionMargenAdicional;
+$precotComisionMaPctText = (\abs($pctMaUi - \round($pctMaUi)) < 0.000001)
+    ? (string) (int) \round($pctMaUi)
+    : \number_format($pctMaUi, 1, '.', '');
 $tarjetaCreditoTableOk = !empty($this->tarjetaCreditoTableExists);
 $tarjetaCreditoRates = is_array($this->tarjetaCreditoRates ?? null) ? $this->tarjetaCreditoRates : [];
 $tcCuotasSel = isset($item->tarjeta_credito_cuotas) && $item->tarjeta_credito_cuotas !== null && $item->tarjeta_credito_cuotas !== ''
@@ -910,8 +914,14 @@ $solicitarDescuentoAction   = Route::_(
                     <?php if ($comisionMargenAdicionalAmount > 0) : ?>
                     <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
                     <tr class="comision-margen-adicional-row">
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> Q <span id="precot-footer-total-comision-sum"><?php echo number_format($totalComision, 2); ?></span>) <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo number_format($paramComisionMargenAdicional, 1); ?>%)</td>
-                        <td class="text-end"><span id="precot-footer-comision-ma-amt">Q <?php echo number_format($comisionMargenAdicionalAmount, 2); ?></span></td>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?>
+                            (<?php echo htmlspecialchars($precotComisionMaPctText, ENT_QUOTES, 'UTF-8'); ?>%) = Q.<span id="precot-footer-comision-ma-dot"><?php echo \number_format($comisionMargenAdicionalAmount, 2, '.', ''); ?></span>
+                            &mdash;
+                            <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?>
+                            |
+                        </td>
+                        <td class="text-end"><span id="precot-footer-total-comision-sum"><?php echo 'Q ' . \number_format($totalComision, 2, '.', ''); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
@@ -1070,9 +1080,12 @@ $solicitarDescuentoAction   = Route::_(
         el = document.getElementById('precot-footer-grand-total');
         if (el) el.textContent = precotFmtQ(displayTotal);
         if (cfg.showComisionMaRow) {
+            var maAmt = Math.round(cfg.comisionMargenAdicionalAmount * 100) / 100;
             var totalComision = Math.round((comisionAmount + cfg.comisionMargenAdicionalAmount) * 100) / 100;
+            el = document.getElementById('precot-footer-comision-ma-dot');
+            if (el) el.textContent = maAmt.toFixed(2);
             el = document.getElementById('precot-footer-total-comision-sum');
-            if (el) el.textContent = totalComision.toFixed(2);
+            if (el) el.textContent = precotFmtQ(totalComision);
         }
         for (var lid2 in lineTotals) {
             if (!Object.prototype.hasOwnProperty.call(lineTotals, lid2)) continue;
