@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.03-STABLE] - 2026-05-11
+
+### Changed
+- **Financiero → export Excel/CSV listado PRE:** Orden de columnas alineado al pie del documento PRE (Subtotal, IVA, ISR, Bono venta, Margen local, Margen adicional, Margen Total, Total, **Total Bono**). Se elimina columna separada de «Bono de margen adicional»; el importe combinado va solo en **Total Bono**. Nuevo encabezado i18n `FINANCIERO_COL_MARGEN_TOTAL_SUM`.
+
 ## [3.119.02-STABLE] - 2026-05-11
 
 ### Changed
