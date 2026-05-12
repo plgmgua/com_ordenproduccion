@@ -861,20 +861,6 @@ $solicitarDescuentoAction   = Route::_(
                         <td></td>
                     </tr>
                     <?php $margenTotal = $margenAmount + $margenAdicional; ?>
-                    <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
-                    <tr class="margen-total-row">
-                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end">
-                            <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?>
-                            (<?php echo htmlspecialchars($precotMargenPctText, ENT_QUOTES, 'UTF-8'); ?>%)
-                            Q.<span id="precot-footer-margen-dot"><?php echo \number_format($margenAmount, 2, '.', ''); ?></span>
-                            &nbsp;|&nbsp;
-                            <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?>:
-                            Q.<span id="precot-footer-margen-adicional-dot"><?php echo \number_format($margenAdicional, 2, '.', ''); ?></span>
-                        </td>
-                        <td class="text-end">&mdash;</td>
-                        <td></td>
-                    </tr>
-                    <?php endif; ?>
                     <?php if ($precotFooterShowIva) : ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IVA'); ?><?php echo $paramIva != 0 ? ' (' . number_format($paramIva, 1) . '%)' : ''; ?></td>
@@ -893,6 +879,18 @@ $solicitarDescuentoAction   = Route::_(
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_BONO_VENTA'); ?> (<?php echo number_format($paramComision, 1); ?>%)</td>
                         <td class="text-end"><span id="precot-footer-bono-amt">Q <?php echo number_format($comisionAmount, 2); ?></span></td>
+                        <td></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
+                    <tr class="margen-total-row">
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo htmlspecialchars($precotMargenPctText, ENT_QUOTES, 'UTF-8'); ?>%)</td>
+                        <td class="text-end"><span id="precot-footer-margen-amt">Q <?php echo number_format($margenAmount, 2, '.', ''); ?></span></td>
+                        <td></td>
+                    </tr>
+                    <tr class="margen-total-row">
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?></td>
+                        <td class="text-end"><span id="precot-footer-margen-adicional-amt">Q <?php echo number_format($margenAdicional, 2, '.', ''); ?></span></td>
                         <td></td>
                     </tr>
                     <?php endif; ?>
@@ -1079,10 +1077,10 @@ $solicitarDescuentoAction   = Route::_(
         var el;
         el = document.getElementById('precot-footer-subtotal');
         if (el) el.textContent = precotFmtQ(linesSubtotal);
-        el = document.getElementById('precot-footer-margen-dot');
-        if (el && cfg.showMargenRow) el.textContent = (Math.round(margenAmount * 100) / 100).toFixed(2);
-        el = document.getElementById('precot-footer-margen-adicional-dot');
-        if (el && cfg.showMargenRow) el.textContent = (Math.round(cfg.margenAdicional * 100) / 100).toFixed(2);
+        el = document.getElementById('precot-footer-margen-amt');
+        if (el && cfg.showMargenRow) el.textContent = precotFmtQ(margenAmount);
+        el = document.getElementById('precot-footer-margen-adicional-amt');
+        if (el && cfg.showMargenRow) el.textContent = precotFmtQ(cfg.margenAdicional);
         el = document.getElementById('precot-footer-margen-combined');
         if (el && cfg.showMargenRow && cfg.showMargenTotalBreakdownRow) el.textContent = precotFmtQ(margenCombined);
         el = document.getElementById('precot-footer-iva-amt');

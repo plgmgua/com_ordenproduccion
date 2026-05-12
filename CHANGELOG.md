@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.02-STABLE] - 2026-05-11
+
+### Changed
+- **PRE documento (`document.php` / proveedor externo):** Margen local y margen adicional en **dos filas** (columna texto + columna importe), mismo criterio de visibilidad que antes (`canSeePrecotInternalTax && paramMargen != 0`), colocadas **encima de la línea Margen Total** (tras bono venta).
+
 ## [3.119.01-STABLE] - 2026-05-11
 
 ### Changed
