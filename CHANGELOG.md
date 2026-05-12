@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.04-STABLE] - 2026-05-11
+
+### Changed
+- **Financiero → export Excel listado PRE:** Fila de encabezados con fondo **gris claro** (antes color sólido púrpura).
+
 ## [3.119.03-STABLE] - 2026-05-11
 
 ### Changed

@@ -578,7 +578,7 @@ class AdministracionController extends BaseController
         $headerStyle    = $sheet->getStyle('A1:' . $lastColLetter . '1');
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-        $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
+        $headerStyle->getFill()->getStartColor()->setARGB('FFD9D9D9');
 
         $rowIndex = 2;
 
