@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.01-STABLE] - 2026-05-11
+
+### Changed
+- **PRE documento (`document.php` / proveedor externo):** Pie — fila verde muestra margen local y margen adicional en una sola línea (`Margen local (13%) Q. … | Margen Adicional: Q. …`). La fila siguiente (si hay margen adicional) pasa a **Margen Total:** con valor **margen local + margen adicional**. Recálculo live actualiza puntos decimales y la fila desglose.
+
 ## [3.119.00-STABLE] - 2026-05-11
 
 ### Changed

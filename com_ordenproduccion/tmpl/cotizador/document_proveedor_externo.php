@@ -93,6 +93,10 @@ $pctMaUi = (float) $paramComisionMargenAdicional;
 $precotComisionMaPctText = (\abs($pctMaUi - \round($pctMaUi)) < 0.000001)
     ? (string) (int) \round($pctMaUi)
     : \number_format($pctMaUi, 1, '.', '');
+$pctMgUi = (float) $paramMargen;
+$precotMargenPctText = (\abs($pctMgUi - \round($pctMgUi)) < 0.000001)
+    ? (string) (int) \round($pctMgUi)
+    : \number_format($pctMgUi, 1, '.', '');
 $canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
 $precotFooterShowIva = $canSeePrecotInternalTax && $facturar
     && (($paramIva != 0) || abs((float) $ivaAmount) >= 0.005);
@@ -1045,11 +1049,18 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                     <td class="text-end fw-bold">Q <?php echo number_format($linesSubtotal, 2); ?></td>
                 </tr>
-                <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
                 <?php $margenTotal = $margenAmount + $margenAdicional; ?>
+                <?php if ($canSeePrecotInternalTax && $paramMargen != 0) : ?>
                 <tr>
-                    <td class="text-end pe-3">(<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?> Q <?php echo number_format($margenTotal, 2); ?>) <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?> (<?php echo number_format($paramMargen, 1); ?>%)</td>
-                    <td class="text-end">Q <?php echo number_format($margenAmount, 2); ?></td>
+                    <td class="text-end pe-3">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_PARAM_MARGEN_GANANCIA'); ?>
+                        (<?php echo htmlspecialchars($precotMargenPctText, ENT_QUOTES, 'UTF-8'); ?>%)
+                        Q.<?php echo \number_format($margenAmount, 2, '.', ''); ?>
+                        &nbsp;|&nbsp;
+                        <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?>:
+                        Q.<?php echo \number_format($margenAdicional, 2, '.', ''); ?>
+                    </td>
+                    <td class="text-end">&mdash;</td>
                 </tr>
                 <?php endif; ?>
                 <?php if ($precotFooterShowIva) : ?>
@@ -1072,8 +1083,8 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <?php endif; ?>
                 <?php if ($margenAdicional > 0) : ?>
                 <tr>
-                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?></td>
-                    <td class="text-end">Q <?php echo number_format($margenAdicional, 2); ?></td>
+                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?></td>
+                    <td class="text-end">Q <?php echo \number_format($margenTotal, 2, '.', ''); ?></td>
                 </tr>
                 <?php endif; ?>
                 <tr class="table-secondary">
