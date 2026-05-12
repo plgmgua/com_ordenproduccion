@@ -85,12 +85,19 @@ if ($rows !== []) {
         }
     }
     $ordenCompraIds = [];
+    $manualFactQuotationIds = [];
     foreach ($rows as $row) {
         $et = ApprovalWorkflowService::normalizeEntityType((string) ($row->entity_type ?? ''));
         if ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
             $eid = (int) ($row->entity_id ?? 0);
             if ($eid > 0) {
                 $ordenCompraIds[$eid] = true;
+            }
+        }
+        if ($et === ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL) {
+            $qm = (int) ($row->entity_id ?? 0);
+            if ($qm > 0) {
+                $manualFactQuotationIds[$qm] = true;
             }
         }
     }
@@ -105,6 +112,47 @@ if ($rows !== []) {
         $ocRows = $db->loadObjectList() ?: [];
         foreach ($ocRows as $ocr) {
             $ordenCompraNumberById[(int) $ocr->id] = trim((string) ($ocr->number ?? ''));
+        }
+    }
+    $quotationNumberByQuotId = [];
+    if ($manualFactQuotationIds !== []) {
+        $qPkList = array_values(array_filter(array_map('intval', array_keys($manualFactQuotationIds)), static function ($v) {
+            return $v > 0;
+        }));
+        if ($qPkList !== []) {
+            try {
+                $qcolsQuot   = $db->getTableColumns('#__ordenproduccion_quotations', false);
+                $hasQnumQuot = false;
+                foreach (array_keys(is_array($qcolsQuot) ? $qcolsQuot : []) as $cn) {
+                    if (strcasecmp((string) $cn, 'quotation_number') === 0) {
+                        $hasQnumQuot = true;
+                        break;
+                    }
+                }
+                $selQ = [$db->quoteName('id')];
+                if ($hasQnumQuot) {
+                    $selQ[] = $db->quoteName('quotation_number');
+                }
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($selQ)
+                        ->from($db->quoteName('#__ordenproduccion_quotations'))
+                        ->where($db->quoteName('id') . ' IN (' . implode(',', $qPkList) . ')')
+                );
+                foreach ($db->loadObjectList() ?: [] as $qt) {
+                    $qpk = (int) ($qt->id ?? 0);
+                    if ($qpk < 1) {
+                        continue;
+                    }
+                    $rawq = '';
+                    if ($hasQnumQuot && isset($qt->quotation_number)) {
+                        $rawq = trim((string) $qt->quotation_number);
+                    }
+                    $quotationNumberByQuotId[$qpk] = $rawq !== '' ? $rawq : ('COT-' . str_pad((string) $qpk, 6, '0', STR_PAD_LEFT));
+                }
+            } catch (\Throwable $e) {
+                $quotationNumberByQuotId = [];
+            }
         }
     }
     $preCotNumberById = [];
@@ -148,6 +196,12 @@ if ($rows !== []) {
             $eid = (int) ($row->entity_id ?? 0);
             $row->orden_compra_number = $eid > 0
                 ? ($ordenCompraNumberById[$eid] ?? '')
+                : '';
+        }
+        if ($et === ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL) {
+            $qm = (int) ($row->entity_id ?? 0);
+            $row->quotation_number = $qm > 0
+                ? ($quotationNumberByQuotId[$qm] ?? ('COT-' . str_pad((string) $qm, 6, '0', STR_PAD_LEFT)))
                 : '';
         }
     }

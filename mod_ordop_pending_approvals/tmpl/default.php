@@ -28,6 +28,7 @@ $entityLabel = static function (string $entityType): string {
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
+        'cotizacion_facturacion_manual' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_FACTURACION_MANUAL',
         'creacion_orden_trabajo'   => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_CREACION_ORDEN_TRABAJO',
     ];
     $key = $map[$entityType] ?? 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_GENERIC';
@@ -83,6 +84,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         $isPaymentProof = $etype === 'payment_proof';
                         $isOrdenCompra  = $etype === 'orden_compra';
                         $isServiciosExternos = $etype === 'servicios_elementos_externos';
+                        $isManualFacturacion = $etype === ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL;
                         if ($wfTypeLabel !== '') {
                             $tipoLabel = $wfTypeLabel;
                         } else {
@@ -109,6 +111,10 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                             $idLabel = isset($row->orden_compra_number) && (string) $row->orden_compra_number !== ''
                                 ? (string) $row->orden_compra_number
                                 : ($eid > 0 ? '#' . $eid : '');
+                        } elseif ($isManualFacturacion) {
+                            $idLabel = isset($row->quotation_number) && (string) $row->quotation_number !== ''
+                                ? (string) $row->quotation_number
+                                : ($eid > 0 ? 'COT-' . str_pad((string) $eid, 6, '0', STR_PAD_LEFT) : '');
                         } else {
                             $idLabel = (string) $eid;
                         }

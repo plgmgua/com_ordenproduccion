@@ -91,6 +91,13 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             if ($refDisplay === '') {
                                 $refDisplay = (string) (int) $eid;
                             }
+                        } elseif ($etype === ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL) {
+                            $refDisplay = trim((string) ($row->quotation_number ?? ''));
+                            if ($refDisplay === '') {
+                                $refDisplay = $eid > 0
+                                    ? ('COT-' . str_pad((string) $eid, 6, '0', STR_PAD_LEFT))
+                                    : '';
+                            }
                         } else {
                             $refDisplay = (string) (int) $eid;
                         }

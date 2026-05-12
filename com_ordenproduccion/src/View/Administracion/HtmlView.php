@@ -1781,6 +1781,7 @@ class HtmlView extends BaseHtmlView
                     $this->approvalPendingRows = $approvalService->getMyPendingApprovalRows((int) $user->id);
                     $preCotIds = [];
                     $ocIds     = [];
+                    $manualFactQuotationIds = [];
                     foreach ($this->approvalPendingRows as $prow) {
                         $et = ApprovalWorkflowService::normalizeEntityType((string) ($prow->entity_type ?? ''));
                         if (
@@ -1791,6 +1792,11 @@ class HtmlView extends BaseHtmlView
                             $eid = (int) ($prow->entity_id ?? 0);
                             if ($eid > 0) {
                                 $preCotIds[$eid] = true;
+                            }
+                        } elseif ($et === ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL) {
+                            $qmf = (int) ($prow->entity_id ?? 0);
+                            if ($qmf > 0) {
+                                $manualFactQuotationIds[$qmf] = true;
                             }
                         } elseif ($et === ApprovalWorkflowService::ENTITY_ORDEN_COMPRA) {
                             $oid = (int) ($prow->entity_id ?? 0);
@@ -1970,6 +1976,55 @@ class HtmlView extends BaseHtmlView
                                             : '';
                                     }
                                 }
+                            }
+                        } catch (\Throwable $e) {
+                        }
+                    }
+                    if ($manualFactQuotationIds !== []) {
+                        try {
+                            $dbQuote   = Factory::getContainer()->get(DatabaseInterface::class);
+                            $qIds      = array_values(array_filter(array_map('intval', array_keys($manualFactQuotationIds)), static function ($v) {
+                                return $v > 0;
+                            }));
+                            $qcols     = $dbQuote->getTableColumns('#__ordenproduccion_quotations', false);
+                            $hasQnum   = false;
+                            foreach (array_keys(is_array($qcols) ? $qcols : []) as $cn) {
+                                if (strcasecmp((string) $cn, 'quotation_number') === 0) {
+                                    $hasQnum = true;
+                                    break;
+                                }
+                            }
+                            $qSel = [$dbQuote->quoteName('id')];
+                            if ($hasQnum) {
+                                $qSel[] = $dbQuote->quoteName('quotation_number');
+                            }
+                            $qList = implode(',', $qIds);
+                            $qb    = $dbQuote->getQuery(true)
+                                ->select($qSel)
+                                ->from($dbQuote->quoteName('#__ordenproduccion_quotations'))
+                                ->where($dbQuote->quoteName('id') . ' IN (' . $qList . ')');
+                            $dbQuote->setQuery($qb);
+                            $qnByPk = [];
+                            foreach ($dbQuote->loadObjectList() ?: [] as $qrow) {
+                                $qk = (int) ($qrow->id ?? 0);
+                                if ($qk < 1) {
+                                    continue;
+                                }
+                                $rawqn = '';
+                                if ($hasQnum && isset($qrow->quotation_number)) {
+                                    $rawqn = trim((string) $qrow->quotation_number);
+                                }
+                                $qnByPk[$qk] = $rawqn !== '' ? $rawqn : ('COT-' . str_pad((string) $qk, 6, '0', STR_PAD_LEFT));
+                            }
+                            foreach ($this->approvalPendingRows as $prow) {
+                                $etQ = ApprovalWorkflowService::normalizeEntityType((string) ($prow->entity_type ?? ''));
+                                if ($etQ !== ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL) {
+                                    continue;
+                                }
+                                $qidPk = (int) ($prow->entity_id ?? 0);
+                                $prow->quotation_number = $qidPk > 0
+                                    ? ($qnByPk[$qidPk] ?? ('COT-' . str_pad((string) $qidPk, 6, '0', STR_PAD_LEFT)))
+                                    : '';
                             }
                         } catch (\Throwable $e) {
                         }

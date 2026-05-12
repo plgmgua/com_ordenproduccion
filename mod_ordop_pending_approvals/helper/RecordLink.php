@@ -79,6 +79,7 @@ final class RecordLink
 
         switch ($typeNorm) {
             case ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION:
+            case ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL:
                 return 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $eid;
 
             case ApprovalWorkflowService::ENTITY_PAYMENT_PROOF:
