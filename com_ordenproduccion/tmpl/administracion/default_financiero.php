@@ -8,15 +8,18 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
-$lang = Joomla\CMS\Factory::getApplication()->getLanguage();
+$lang = Factory::getApplication()->getLanguage();
 $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
 
 $fst = isset($this->financieroSubtab) ? (string) $this->financieroSubtab : 'listado';
+$finItemId       = (int) Factory::getApplication()->input->getInt('Itemid', 0);
+$finItemSuffix   = $finItemId > 0 ? '&Itemid=' . $finItemId : '';
 
 $fmt = static function ($v): string {
     $n = round((float) $v, 2);
@@ -131,11 +134,11 @@ $pagoConfirmadoBadge = static function ($r): string {
 </style>
 
 <div class="financiero-subtabs">
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=listado'); ?>"
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=listado' . $finItemSuffix); ?>"
        class="financiero-subtab <?php echo $fst === 'listado' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-list"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_SUBTAB_LISTADO'); ?>
     </a>
-    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=bonos'); ?>"
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=bonos' . $finItemSuffix); ?>"
        class="financiero-subtab <?php echo $fst === 'bonos' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-gift"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_SUBTAB_BONOS'); ?>
     </a>
@@ -151,14 +154,16 @@ $pagoConfirmadoBadge = static function ($r): string {
     $agentsOp = isset($this->financieroAgentFilterOptions) && is_array($this->financieroAgentFilterOptions) ? $this->financieroAgentFilterOptions : [];
     $fLim     = isset($this->financieroListLimit) ? max(5, min(200, (int) $this->financieroListLimit)) : 15;
     ?>
-    <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero'); ?>"
-          class="d-flex flex-wrap gap-2 align-items-end mb-3 search-filter-bar">
+    <form method="get" action="" class="d-flex flex-wrap gap-2 align-items-end mb-3 search-filter-bar">
         <input type="hidden" name="option" value="com_ordenproduccion" />
         <input type="hidden" name="view" value="administracion" />
         <input type="hidden" name="tab" value="financiero" />
         <input type="hidden" name="financiero_subtab" value="listado" />
         <input type="hidden" name="financiero_limit" value="<?php echo (int) $fLim; ?>" />
         <input type="hidden" name="financiero_limitstart" value="0" />
+        <?php if ($finItemId > 0) : ?>
+            <input type="hidden" name="Itemid" value="<?php echo (int) $finItemId; ?>" />
+        <?php endif; ?>
         <div>
             <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_DATE_FROM'); ?></label>
             <input type="date" class="form-control form-control-sm" name="financiero_filter_date_from" value="<?php echo htmlspecialchars($fdFrom, ENT_QUOTES, 'UTF-8'); ?>" />
@@ -203,6 +208,9 @@ $pagoConfirmadoBadge = static function ($r): string {
         $baseExport = 'index.php?option=com_ordenproduccion&task=administracion.exportFinancieroExcel&format=raw';
         foreach ($exportParams as $pk => $pv) {
             $baseExport .= '&' . $pk . '=' . rawurlencode((string) $pv);
+        }
+        if ($finItemId > 0) {
+            $baseExport .= '&Itemid=' . $finItemId;
         }
         $exportFinUrl = Route::_($baseExport);
     ?>

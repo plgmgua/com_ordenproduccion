@@ -1699,6 +1699,10 @@ class HtmlView extends BaseHtmlView
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_date_to', $this->financieroFilterDateTo);
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_agent', $this->financieroFilterAgent);
                             $this->financieroPagination->setAdditionalUrlParam('financiero_filter_facturar', $this->financieroFilterFacturar);
+                            $itemIdAdmin = max(0, (int) $input->getInt('Itemid', 0));
+                            if ($itemIdAdmin > 0) {
+                                $this->financieroPagination->setAdditionalUrlParam('Itemid', (string) $itemIdAdmin);
+                            }
                         }
                     }
                     if ($fst === 'bonos') {
