@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.13-STABLE] - 2026-05-11
+
+### Added
+- **Facturas → Cola de facturas:** Bloque «Pendientes por envío completo» con cotizaciones que cumplen facturación con envío y PRE a facturar pero aún tienen órdenes sin envío completo registrado (la certificación FEL se dispara al completar todas). Paginación independiente (`enviofel_limitstart`). La tabla de facturas FEL pendientes sigue debajo.
+
 ## [3.119.12-STABLE] - 2026-05-11
 
 ### Changed

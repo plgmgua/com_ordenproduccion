@@ -359,8 +359,83 @@ tr.invoice-row-cancelled { background: #faf5f5; }
     </div>
 
     <?php if ($invoicesSubtab === 'cola'): ?>
-    <?php $felProcessQueueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false); ?>
+    <?php
+    $felProcessQueueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false);
+    $invoiceEnvioFelPendingSectionAvailable = (bool) $this->get('invoiceEnvioFelPendingSectionAvailable');
+    $invoiceEnvioFelPendingRows = $this->get('invoiceEnvioFelPendingRows');
+    if (!is_array($invoiceEnvioFelPendingRows)) {
+        $invoiceEnvioFelPendingRows = [];
+    }
+    $invoiceEnvioFelPendingPagination = $this->get('invoiceEnvioFelPendingPagination');
+    if ($invoiceEnvioFelPendingPagination === null && isset($this->invoiceEnvioFelPendingPagination)) {
+        $invoiceEnvioFelPendingPagination = $this->invoiceEnvioFelPendingPagination;
+    }
+    $invoiceFelQueueAvailable = (bool) $this->get('invoiceFelQueueAvailable');
+    $invoiceFelQueueRows = $this->get('invoiceFelQueueRows');
+    if (!is_array($invoiceFelQueueRows)) {
+        $invoiceFelQueueRows = [];
+    }
+    $invoiceFelQueuePagination = $this->get('invoiceFelQueuePagination');
+    if ($invoiceFelQueuePagination === null && isset($this->invoiceFelQueuePagination)) {
+        $invoiceFelQueuePagination = $this->invoiceFelQueuePagination;
+    }
+    ?>
 
+    <?php if ($invoiceEnvioFelPendingSectionAvailable): ?>
+    <h3 class="h5 fw-semibold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_SECTION_TITLE'); ?></h3>
+    <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_INTRO'); ?></p>
+    <?php if (empty($invoiceEnvioFelPendingRows)) : ?>
+        <div class="empty-state py-4 mb-4">
+            <i class="fas fa-truck-loading"></i>
+            <p class="mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_EMPTY'); ?></p>
+        </div>
+    <?php else : ?>
+        <div class="table-responsive mb-4">
+            <table class="table table-striped table-hover align-middle invoice-fel-queue-table">
+                <thead>
+                    <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_QUOTATION'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_CLIENT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_AMOUNT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_COL_OT'); ?></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($invoiceEnvioFelPendingRows as $er) :
+                        $eqnum = trim((string) ($er->quotation_number ?? ''));
+                        if ($eqnum === '') {
+                            $eqnum = 'COT-' . (int) ($er->quotation_id ?? 0);
+                        }
+                        $otTot = (int) ($er->ordenes_total ?? 0);
+                        $otDone = (int) ($er->ordenes_envio_completo ?? 0);
+                        ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($eqnum); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($er->client_name ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($er->client_nit ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars(number_format((float) ($er->total_amount ?? 0), 2)); ?></td>
+                        <td><?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_OT_PROGRESS_FMT', $otDone, $otTot)); ?></td>
+                        <td class="text-nowrap">
+                            <?php if (!empty($er->quotation_id)) : ?>
+                            <a class="btn btn-sm btn-outline-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $er->quotation_id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></a>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php if ($invoiceEnvioFelPendingPagination && $invoiceEnvioFelPendingPagination->pagesTotal > 1) : ?>
+            <div class="com-content-pagination mb-4"><?php echo $invoiceEnvioFelPendingPagination->getPagesLinks(); ?></div>
+        <?php endif; ?>
+    <?php endif; ?>
+    <hr class="my-4" />
+    <?php endif; ?>
+
+    <?php if ($invoiceFelQueueAvailable): ?>
+    <h3 class="h5 fw-semibold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_SECTION_INVOICES_TITLE'); ?></h3>
     <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_INTRO'); ?></p>
 
     <?php if (empty($invoiceFelQueueRows)) : ?>
@@ -467,6 +542,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
             });
         })();
         </script>
+    <?php endif; ?>
     <?php endif; ?>
 
     <?php elseif ($invoicesSubtab === 'match'): ?>

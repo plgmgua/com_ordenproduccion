@@ -17,6 +17,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OtWizardCreationLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -786,6 +787,26 @@ class HtmlView extends BaseHtmlView
     protected $invoiceFelQueueAvailable = false;
 
     /**
+     * Cotizaciones pendientes de FEL hasta envío completo en todas las OT (facturación con envío).
+     *
+     * @var    array<int, object>
+     * @since  3.119.13
+     */
+    protected $invoiceEnvioFelPendingRows = [];
+
+    /**
+     * @var    \Joomla\CMS\Pagination\Pagination|null
+     * @since  3.119.13
+     */
+    protected $invoiceEnvioFelPendingPagination = null;
+
+    /**
+     * @var    bool
+     * @since  3.119.13
+     */
+    protected $invoiceEnvioFelPendingSectionAvailable = false;
+
+    /**
      * Pending approval rows for current user (tab aprobaciones).
      *
      * @var    array<int, object>
@@ -926,6 +947,9 @@ class HtmlView extends BaseHtmlView
                 'invoiceFelQueueRows' => is_array($this->invoiceFelQueueRows ?? null) ? $this->invoiceFelQueueRows : [],
                 'invoiceFelQueuePagination' => $this->invoiceFelQueuePagination ?? null,
                 'invoiceFelQueueAvailable' => (bool) ($this->invoiceFelQueueAvailable ?? false),
+                'invoiceEnvioFelPendingRows' => is_array($this->invoiceEnvioFelPendingRows ?? null) ? $this->invoiceEnvioFelPendingRows : [],
+                'invoiceEnvioFelPendingPagination' => $this->invoiceEnvioFelPendingPagination ?? null,
+                'invoiceEnvioFelPendingSectionAvailable' => (bool) ($this->invoiceEnvioFelPendingSectionAvailable ?? false),
                 'approvalPendingRows' => is_array($this->approvalPendingRows ?? null) ? $this->approvalPendingRows : [],
                 'approvalWorkflowSchemaAvailable' => (bool) ($this->approvalWorkflowSchemaAvailable ?? false),
                 'approvalWorkflowsAdmin' => is_array($this->approvalWorkflowsAdmin ?? null) ? $this->approvalWorkflowsAdmin : [],
@@ -999,6 +1023,15 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'invoiceFelQueueAvailable') {
             return (bool) ($this->invoiceFelQueueAvailable ?? false);
+        }
+        if ($property === 'invoiceEnvioFelPendingRows') {
+            return is_array($this->invoiceEnvioFelPendingRows ?? null) ? $this->invoiceEnvioFelPendingRows : [];
+        }
+        if ($property === 'invoiceEnvioFelPendingPagination') {
+            return $this->invoiceEnvioFelPendingPagination ?? null;
+        }
+        if ($property === 'invoiceEnvioFelPendingSectionAvailable') {
+            return (bool) ($this->invoiceEnvioFelPendingSectionAvailable ?? false);
         }
         if ($property === 'approvalPendingRows') {
             return is_array($this->approvalPendingRows ?? null) ? $this->approvalPendingRows : [];
@@ -1220,6 +1253,9 @@ class HtmlView extends BaseHtmlView
         $this->invoiceFelQueueRows = [];
         $this->invoiceFelQueuePagination = null;
         $this->invoiceFelQueueAvailable = false;
+        $this->invoiceEnvioFelPendingRows = [];
+        $this->invoiceEnvioFelPendingPagination = null;
+        $this->invoiceEnvioFelPendingSectionAvailable = false;
         $this->approvalPendingRows = [];
         $this->approvalWorkflowSchemaAvailable = false;
         $this->approvalWorkflowsAdmin = [];
@@ -1337,6 +1373,40 @@ class HtmlView extends BaseHtmlView
                 $this->invoices = [];
                 $this->invoicesPagination = null;
                 $this->state = new \Joomla\Registry\Registry();
+
+                $dbCola = Factory::getContainer()->get(DatabaseInterface::class);
+                $this->invoiceEnvioFelPendingRows                = [];
+                $this->invoiceEnvioFelPendingPagination          = null;
+                $this->invoiceEnvioFelPendingSectionAvailable    = QuotationEnvioFelPendingHelper::schemaSupportsPendingList($dbCola);
+
+                if ($this->invoiceEnvioFelPendingSectionAvailable) {
+                    try {
+                        $epLimit = max(5, min(100, (int) $input->getInt('enviofel_limit', 25)));
+                        $epStart = max(0, (int) $input->getInt('enviofel_limitstart', 0));
+                        $ep      = QuotationEnvioFelPendingHelper::getPagedRows($epStart, $epLimit);
+                        $this->invoiceEnvioFelPendingRows = $ep['items'];
+                        $totalEp                          = (int) $ep['total'];
+                        $this->invoiceEnvioFelPendingPagination = new \Joomla\CMS\Pagination\Pagination($totalEp, $epStart, $epLimit, 'enviofel_');
+                        $this->invoiceEnvioFelPendingPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                        $this->invoiceEnvioFelPendingPagination->setAdditionalUrlParam('view', 'administracion');
+                        $this->invoiceEnvioFelPendingPagination->setAdditionalUrlParam('tab', 'invoices');
+                        $this->invoiceEnvioFelPendingPagination->setAdditionalUrlParam('invoices_subtab', 'cola');
+                        $this->invoiceEnvioFelPendingPagination->setAdditionalUrlParam('enviofel_limit', $epLimit);
+                        $invLs = (int) $input->getInt('limitstart', 0);
+                        $invLm = (int) $input->getInt('limit', 0);
+                        if ($invLs > 0) {
+                            $this->invoiceEnvioFelPendingPagination->setAdditionalUrlParam('limitstart', $invLs);
+                        }
+                        if ($invLm > 0) {
+                            $this->invoiceEnvioFelPendingPagination->setAdditionalUrlParam('limit', $invLm);
+                        }
+                    } catch (\Throwable $e) {
+                        $this->invoiceEnvioFelPendingRows = [];
+                        $this->invoiceEnvioFelPendingPagination = null;
+                        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
+                    }
+                }
+
                 $felSvc = new FelInvoiceIssuanceService();
                 if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn() && $felSvc->hasFelScheduledAtColumn()) {
                     $felSvc->processDueScheduledInvoices(30);
@@ -1358,6 +1428,14 @@ class HtmlView extends BaseHtmlView
                                 $this->invoiceFelQueuePagination->setAdditionalUrlParam('tab', 'invoices');
                                 $this->invoiceFelQueuePagination->setAdditionalUrlParam('invoices_subtab', 'cola');
                                 $this->invoiceFelQueuePagination->setAdditionalUrlParam('limit', (int) $st->get('list.limit', 50) ?: 50);
+                                $efLs = (int) $input->getInt('enviofel_limitstart', 0);
+                                $efLm = (int) $input->getInt('enviofel_limit', 0);
+                                if ($efLs > 0) {
+                                    $this->invoiceFelQueuePagination->setAdditionalUrlParam('enviofel_limitstart', $efLs);
+                                }
+                                if ($efLm > 0) {
+                                    $this->invoiceFelQueuePagination->setAdditionalUrlParam('enviofel_limit', $efLm);
+                                }
                             }
                         }
                     } catch (\Throwable $e) {
