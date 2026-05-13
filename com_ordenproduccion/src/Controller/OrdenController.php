@@ -1009,7 +1009,7 @@ class OrdenController extends BaseController
         // Balance between readability (larger cells) and fitting on single page
         $pageHeight = 279.4;
         $topMargin = 2; // Minimal top margin
-        $eachSlipHeight = 133; // Slightly increased from 130 to account for larger cells
+        $eachSlipHeight = 138; // Fits header + table incl. Cantidad Total row (below Trabajo, above Descripcion de Envio)
         // Calculate spacing to center both slips with minimal margins
         // Total needed: 130 * 2 = 260mm
         // Remaining: 279.4 - 260 = 19.4mm
@@ -1018,6 +1018,9 @@ class OrdenController extends BaseController
         $remainingSpace = $pageHeight - $totalSlipsHeight;
         $spacingBetween = $remainingSpace / 3; // Equal spacing sections (top, between, bottom)
         
+        $cantidadTotalEnvioPdf = trim($this->resolveCantidadTotalForWorkOrderPdf($workOrderData));
+        $cantidadTotalEnvioPdf = $cantidadTotalEnvioPdf !== '' ? $fixSpanishChars($cantidadTotalEnvioPdf) : '-';
+
         for ($slip = 0; $slip < 2; $slip++) {
             // Calculate Y position for each slip with equal spacing
             // First slip starts after minimal top margin + first spacing section
@@ -1108,6 +1111,13 @@ class OrdenController extends BaseController
             $pdf->SetFont('Arial', '', 10); // Increased from 9 to 10
             // Use MultiCell to allow text wrapping like work order PDF
             $pdf->MultiCell(153, $cellHeight, $workDescription, 1, 'L');
+            
+            // Cantidad Total (orden de trabajo / PRE cabecera) — above Descripcion de Envio
+            $pdf->SetFont('Arial', 'B', 10);
+            $pdf->Cell(37, $cellHeight, 'Cantidad Total', 1, 0, 'L');
+            $pdf->SetFont('Arial', '', 10);
+            $pdf->Cell(153, $cellHeight, $cantidadTotalEnvioPdf, 1, 0, 'L');
+            $pdf->Ln();
             
             // Row 8: Descripcion de Envio - fixed row, show or hide text
             $pdf->SetFont('Arial', 'B', 10);
