@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.12-STABLE] - 2026-05-11
+
+### Changed
+- **Telegram — creación de factura:** Cuando Certificar Fact (FEL) está en modo **Prueba** (`certificador_fact_modo` ≠ `prod`), no se envían avisos por DM ni broadcast a Administración al crear una factura.
+
 ## [3.119.06-STABLE] - 2026-05-11
 
 ### Added

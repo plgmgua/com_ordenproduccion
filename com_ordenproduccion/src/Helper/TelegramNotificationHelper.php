@@ -38,6 +38,8 @@ class TelegramNotificationHelper
 
     /**
      * After a new invoice row is stored: notify linked order owner(s).
+     * Skips Telegram DMs and Administración broadcasts when Certificar Fact (FEL)
+     * modo is prueba (#__ordenproduccion_config.certificador_fact_modo ≠ prod).
      *
      * @param   int  $invoiceId  Primary key of #__ordenproduccion_invoices
      *
@@ -55,6 +57,9 @@ class TelegramNotificationHelper
             return;
         }
         if ((int) $params->get('telegram_notify_invoice', 0) !== 1) {
+            return;
+        }
+        if (self::isCertificadorFactTestMode()) {
             return;
         }
 
@@ -371,6 +376,33 @@ class TelegramNotificationHelper
                 );
             }
             self::sendToAdministracionBroadcastChannel($params, $channelBody, self::EVENT_PAYMENT_PROOF_VERIFIED);
+        }
+    }
+
+    /**
+     * True when active FEL certifier environment is prueba (not producción).
+     * Same rule as AdministracionModel::getCertificadorFactModo(): only `prod` is production.
+     * On DB errors returns false so notifications are not dropped.
+     *
+     * @return  bool
+     *
+     * @since   3.119.12
+     */
+    private static function isCertificadorFactTestMode(): bool
+    {
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('setting_value'))
+                    ->from($db->quoteName('#__ordenproduccion_config'))
+                    ->where($db->quoteName('setting_key') . ' = ' . $db->quote('certificador_fact_modo'))
+            );
+            $v = trim((string) $db->loadResult());
+
+            return $v !== 'prod';
+        } catch (\Throwable $e) {
+            return false;
         }
     }
 
