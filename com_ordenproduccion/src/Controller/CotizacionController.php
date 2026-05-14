@@ -1762,7 +1762,7 @@ class CotizacionController extends BaseController
         }
 
         // Ensure PRE is on cotización línea (+ confirmed) sin construir orden todavía
-        $probe = $svc->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true);
+        $probe = $svc->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $user, true, true);
         if (empty($probe['success'])) {
             $wm = (string) ($probe['message'] ?? 'Could not validate work order prerequisites');
             echo json_encode([
@@ -1889,7 +1889,7 @@ class CotizacionController extends BaseController
             ];
         }
 
-        $built = $svc->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $orderingUser, true);
+        $built = $svc->buildOrdenInsertData($quotationId, $preCotizacionId, $wizard, $orderingUser, true, false);
         if (empty($built['success'])) {
             $wm = (string) ($built['message'] ?? 'Could not build work order');
             $this->logOtWizardCreateFailure(

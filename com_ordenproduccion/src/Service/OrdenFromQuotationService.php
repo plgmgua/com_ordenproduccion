@@ -98,6 +98,7 @@ class OrdenFromQuotationService
      *                                       ot_instrucciones_generales (paso 3 → orden.instructions)
      * @param   User   $user                 Current user (created_by / modified_by)
      * @param   bool   $requireConfirmed     If true, quotation must have cotizacion_confirmada = 1 when column exists
+     * @param   bool   $dryRun               If true, do not consume next orden number from settings (approval probe only)
      *
      * @return  array{success:bool, message:string, columns?:array<string,mixed>, orden_source_json?:string|null}
      */
@@ -106,7 +107,8 @@ class OrdenFromQuotationService
         int $preCotizacionId,
         array $wizard,
         User $user,
-        bool $requireConfirmed = true
+        bool $requireConfirmed = true,
+        bool $dryRun = false
     ): array {
         $quotationId     = (int) $quotationId;
         $preCotizacionId = (int) $preCotizacionId;
@@ -181,7 +183,7 @@ class OrdenFromQuotationService
             return ['success' => false, 'message' => 'Work orders table is not accessible'];
         }
 
-        $orderNumber = $this->generateNextOrderNumber();
+        $orderNumber = $dryRun ? $this->peekNextOrderNumber() : $this->generateNextOrderNumber();
 
         $workDesc = $this->composeWorkDescription($qRow, $preItem, $itemRow);
 
@@ -861,6 +863,27 @@ class OrdenFromQuotationService
             }
         } catch (\Throwable $e) {
             // Fall through to timestamp-based fallback (matches SettingsModel catch style).
+        }
+
+        return 'ORD-' . date('YmdHis');
+    }
+
+    /**
+     * Next orden label without advancing {#__ordenproduccion_settings.next_order_number} (for dry-run validation).
+     *
+     * @since   3.119.23
+     */
+    protected function peekNextOrderNumber(): string
+    {
+        try {
+            $settingsModel = new SettingsModel();
+            $number        = $settingsModel->getNextOrderNumberPreview();
+
+            if (\is_string($number) && trim($number) !== '') {
+                return trim($number);
+            }
+        } catch (\Throwable $e) {
+            // Fall through
         }
 
         return 'ORD-' . date('YmdHis');

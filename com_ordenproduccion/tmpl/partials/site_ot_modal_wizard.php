@@ -41,6 +41,8 @@ $cotOtSaveInstrUrl = isset($wizardParams['cot_ot_save_instrucciones_json_url'])
     ? (string) $wizardParams['cot_ot_save_instrucciones_json_url'] : '';
 $cotOtCreateOrdenUrl = isset($wizardParams['cot_ot_create_orden_json_url'])
     ? (string) $wizardParams['cot_ot_create_orden_json_url'] : '';
+$cotOtCreateOrdenTask = isset($wizardParams['cot_ot_create_orden_task'])
+    ? (string) $wizardParams['cot_ot_create_orden_task'] : '';
 $cotOtStepTotal    = $cotOtStep3Enabled ? 3 : 2;
 $cotOtReturnUrlJs  = $submitReturnOnly && $returnUrl !== ''
     ? $returnUrl
@@ -433,6 +435,7 @@ var comOpOtWizardStepTotal = <?php echo (int) $cotOtStepTotal; ?>;
 var comOpOtUseThreeSteps = <?php echo $cotOtStep3Enabled ? 'true' : 'false'; ?>;
 var comOpOtSaveInstruccionesJsonUrl = <?php echo json_encode($cotOtSaveInstrUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var comOpOtCreateOrdenJsonUrl = <?php echo json_encode($cotOtCreateOrdenUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var comOpOtCreateOrdenTask = <?php echo json_encode($cotOtCreateOrdenTask, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var comOpOtReturnAfterSubmitUrl = <?php echo json_encode($cotOtReturnUrlJs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 var cotOtSubmitReturnOnly = <?php echo $submitReturnOnly ? 'true' : 'false'; ?>;
 var comOpOtFormTokenName = <?php echo json_encode(Session::getFormToken(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -1511,6 +1514,11 @@ function opOtCreateOrdenFromWizard(instruccionesFormEl, fallbackReturnUrl) {
     }
 
     var fd = new FormData();
+    fd.append('option', 'com_ordenproduccion');
+    fd.append('format', 'json');
+    if (comOpOtCreateOrdenTask && String(comOpOtCreateOrdenTask).length > 0) {
+        fd.append('task', String(comOpOtCreateOrdenTask));
+    }
     fd.append('quotation_id', String(qid));
     fd.append('pre_cotizacion_id', String(preId));
     if (clientId) fd.append('client_id', String(clientId));

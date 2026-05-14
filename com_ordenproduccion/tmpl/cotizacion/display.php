@@ -928,6 +928,7 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
             'cotizacion_ot_step3_instructions'  => $instruccionesModalCanSave && $lineDetallesTableOk,
             'cot_ot_save_instrucciones_json_url'=> $instruccionesSaveJsonUrl,
             'cot_ot_create_orden_json_url'      => $createOrdenJsonUrl,
+            'cot_ot_create_orden_task'          => $otTask,
         ];
         $otWizardPartial = JPATH_SITE . '/components/com_ordenproduccion/tmpl/partials/site_ot_modal_wizard.php';
         if (\is_file($otWizardPartial)) {
