@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.33-STABLE] - 2026-05-14
+
+### Fixed
+- **Deploy / build scripts (`deploy_to_server.sh`, `update_build_simple.sh`):** Clearing `administrator/cache` no longer deletes **`autoload_psr4.php`** (Joomla’s cached PSR‑4 namespace map). Blanket `rm -rf administrator/cache/*` plus explicit deletion of that file could leave autoload incomplete until regeneration and surface errors such as **`TemplatesComponent` not found** after a deploy—even though unrelated PHP templates (e.g. cotización display) changed only cosmetically. Admin cache cleanup now uses **`clear_joomla_admin_cache_safe`** / **`clear_joomla_admin_cache_safe_deploy`** (preserves `autoload_psr4.php`, `index.html`, `.htaccess`, `index.php`). Removed redundant autoload deletes after Paymentproof deploy.
+
 ## [3.119.32-STABLE] - 2026-05-14
 
 ### Removed

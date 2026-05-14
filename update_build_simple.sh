@@ -48,6 +48,19 @@ warning() {
     echo ""
 }
 
+# Clear Joomla administrator/cache without removing autoload_psr4.php. Wiping that file during deploy
+# can leave extension autoload incomplete until regeneration succeeds (errors booting core components).
+clear_joomla_admin_cache_safe() {
+    local dir="$1"
+    [ -d "$dir" ] || return 0
+    find "$dir" -mindepth 1 -maxdepth 1 \
+        ! -name 'autoload_psr4.php' \
+        ! -name 'index.html' \
+        ! -name '.htaccess' \
+        ! -name 'index.php' \
+        -exec sudo rm -rf {} + 2>/dev/null || true
+}
+
 # Function to get version information
 get_version_info() {
     log "Getting version information..."
@@ -682,7 +695,7 @@ EOF
 
     log "Step 9: Clearing Joomla cache..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear Joomla cache"
-    sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear Joomla admin cache"
+    clear_joomla_admin_cache_safe "$JOOMLA_ROOT/administrator/cache"
     success "Joomla cache cleared"
 
     log "Step 10: Fixing Joomla autoloading issues..."
@@ -701,17 +714,9 @@ EOF
     else
         success "Component is registered in database"
     fi
-    
-    # Delete autoload_psr4.php to force regeneration
-    AUTOLOAD_FILE="$JOOMLA_ROOT/administrator/cache/autoload_psr4.php"
-    if [ -f "$AUTOLOAD_FILE" ]; then
-        log "Deleting autoload_psr4.php to force regeneration..."
-        sudo rm -f "$AUTOLOAD_FILE" || warning "Failed to delete autoload file"
-        success "Autoload file deleted - Joomla will regenerate it"
-    else
-        log "Autoload file not found - will be created on next request"
-    fi
-    
+
+    log "PSR-4 autoload cache (autoload_psr4.php) preserved during Step 9 cache clear; avoids transient broken extension autoload after deploy."
+
     # Enable Extension - Namespace Updater plugin if disabled
     log "Checking Extension - Namespace Updater plugin..."
     PLUGIN_ENABLED=$(mysql -u joomla -p"Blob-Repair-Commodore6" grimpsa_prod -s -N -e "SELECT enabled FROM joomla_extensions WHERE element = 'namespaceupdater' AND type = 'plugin';" 2>/dev/null || echo "0")
@@ -882,8 +887,8 @@ EOF
     echo "Clearing site cache..."
     sudo rm -rf "$JOOMLA_ROOT/cache/*" 2>/dev/null || warning "Failed to clear cache directory"
     
-    echo "Clearing admin cache..."
-    sudo rm -rf "$JOOMLA_ROOT/administrator/cache/*" 2>/dev/null || warning "Failed to clear admin cache directory"
+    echo "Clearing admin cache (preserving autoload_psr4.php)..."
+    clear_joomla_admin_cache_safe "$JOOMLA_ROOT/administrator/cache"
     
     echo "Clearing compiled templates cache..."
     sudo rm -rf "$JOOMLA_ROOT/cache/com_templates/*" 2>/dev/null || warning "Failed to clear template cache"
@@ -1042,13 +1047,6 @@ EOF
     sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/Model/PaymentproofModel.php" 2>/dev/null || true
     sudo chown -R www-data:www-data "$SITE_COMPONENT_PATH/src/Controller/PaymentproofController.php" 2>/dev/null || true
     sudo chmod -R 755 "$SITE_COMPONENT_PATH/src/View/Paymentproof" 2>/dev/null || true
-
-    # Force autoload regeneration
-    AUTOLOAD_FILE="$JOOMLA_ROOT/administrator/cache/autoload_psr4.php"
-    if [ -f "$AUTOLOAD_FILE" ]; then
-        log "Deleting autoload_psr4.php to force regeneration (Paymentproof)..."
-        sudo rm -f "$AUTOLOAD_FILE" || warning "Failed to delete autoload_psr4.php"
-    fi
 
     # Verify Paymentproof files
     if [ -f "$SITE_COMPONENT_PATH/src/View/Paymentproof/HtmlView.php" ] && \

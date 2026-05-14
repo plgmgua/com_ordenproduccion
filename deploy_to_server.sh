@@ -52,6 +52,27 @@ warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1" >&2
 }
 
+# Preserve administrator/cache/autoload_psr4.php when clearing deploy caches (avoids broken PSR-4 autoload until regeneration).
+clear_joomla_admin_cache_safe_deploy() {
+    local ADMIN_CACHE_DIR="$1"
+    [ -d "$ADMIN_CACHE_DIR" ] || return 0
+    if [ "${USE_SUDO:-false}" = true ]; then
+        sudo find "$ADMIN_CACHE_DIR" -mindepth 1 -maxdepth 1 \
+            ! -name 'autoload_psr4.php' \
+            ! -name 'index.html' \
+            ! -name '.htaccess' \
+            ! -name 'index.php' \
+            -exec rm -rf {} + 2>/dev/null || true
+    else
+        find "$ADMIN_CACHE_DIR" -mindepth 1 -maxdepth 1 \
+            ! -name 'autoload_psr4.php' \
+            ! -name 'index.html' \
+            ! -name '.htaccess' \
+            ! -name 'index.php' \
+            -exec rm -rf {} + 2>/dev/null || true
+    fi
+}
+
 # Function to check prerequisites
 check_prerequisites() {
     log "Checking prerequisites..."
@@ -547,16 +568,10 @@ clear_cache() {
         fi
     fi
     
-    # Clear admin cache directory (all files, not just .php)
+    # Clear admin cache but keep autoload_psr4.php (PSR-4 namespace map)
     if [ -d "$ADMIN_CACHE_DIR" ]; then
-        log "Clearing admin cache directory..."
-        if [ "$USE_SUDO" = true ]; then
-            sudo rm -rf "$ADMIN_CACHE_DIR"/* 2>/dev/null || true
-            sudo rm -rf "$ADMIN_CACHE_DIR"/.[!.]* 2>/dev/null || true
-        else
-            rm -rf "$ADMIN_CACHE_DIR"/* 2>/dev/null || true
-            rm -rf "$ADMIN_CACHE_DIR"/.[!.]* 2>/dev/null || true
-        fi
+        log "Clearing admin cache directory (preserving autoload_psr4.php)..."
+        clear_joomla_admin_cache_safe_deploy "$ADMIN_CACHE_DIR"
     fi
     
     # Clear component-specific caches
