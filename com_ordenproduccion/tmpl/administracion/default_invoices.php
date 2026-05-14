@@ -315,8 +315,9 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
     vertical-align: middle;
     line-height: 1.25;
 }
-.invoice-fel-queue-table tbody td:nth-child(2) {
-    max-width: 9rem;
+.invoice-fel-queue-table td.invoice-queue-quote-date {
+    font-size: 0.55rem;
+    max-width: 6.5rem;
     word-break: break-word;
 }
 .invoice-fel-queue-table .btn {
@@ -361,6 +362,8 @@ tr.invoice-row-cancelled { background: #faf5f5; }
     <?php if ($invoicesSubtab === 'cola'): ?>
     <?php
     $felProcessQueueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false);
+    /** ISO-style queue stamp for cola tables: YYYY-MM-DDThh:mm (site timezone) */
+    $invoiceQueueDateTimeFormat = 'Y-m-d\TH:i';
     $invoiceEnvioFelPendingSectionAvailable = (bool) $this->get('invoiceEnvioFelPendingSectionAvailable');
     $invoiceEnvioFelPendingRows = $this->get('invoiceEnvioFelPendingRows');
     if (!is_array($invoiceEnvioFelPendingRows)) {
@@ -413,12 +416,12 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         $otTot = (int) ($er->ordenes_total ?? 0);
                         $otDone = (int) ($er->ordenes_envio_completo ?? 0);
                         $eqQuoteDate = !empty($er->quote_date) ? HTMLHelper::_('date', $er->quote_date, Text::_('DATE_FORMAT_LC4')) : '—';
-                        $eqQueuedAt = !empty($er->quotation_created) ? HTMLHelper::_('date', $er->quotation_created, Text::_('DATE_FORMAT_LC2')) : '—';
+                        $eqQueuedAt = !empty($er->quotation_created) ? HTMLHelper::_('date', $er->quotation_created, $invoiceQueueDateTimeFormat) : '—';
                         ?>
                     <tr>
                         <td><?php echo htmlspecialchars($eqnum); ?></td>
-                        <td class="text-nowrap small"><?php echo htmlspecialchars($eqQuoteDate); ?></td>
-                        <td class="text-nowrap small"><?php echo htmlspecialchars($eqQueuedAt); ?></td>
+                        <td class="text-nowrap invoice-queue-quote-date"><?php echo htmlspecialchars($eqQuoteDate); ?></td>
+                        <td class="text-nowrap"><?php echo htmlspecialchars($eqQueuedAt); ?></td>
                         <td><?php echo htmlspecialchars((string) ($er->client_name ?? '')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($er->client_nit ?? '')); ?></td>
                         <td><?php echo htmlspecialchars(number_format((float) ($er->total_amount ?? 0), 2)); ?></td>
@@ -496,12 +499,12 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         }
                         $canProcessNow = ($st === 'scheduled' || $st === 'pending');
                         $qqd = !empty($qr->quotation_quote_date) ? HTMLHelper::_('date', $qr->quotation_quote_date, Text::_('DATE_FORMAT_LC4')) : '—';
-                        $invQueuedAt = !empty($qr->created) ? HTMLHelper::_('date', $qr->created, Text::_('DATE_FORMAT_LC2')) : '—';
+                        $invQueuedAt = !empty($qr->created) ? HTMLHelper::_('date', $qr->created, $invoiceQueueDateTimeFormat) : '—';
                         ?>
                     <tr>
                         <td><?php echo htmlspecialchars($qnum); ?></td>
-                        <td class="text-nowrap small"><?php echo htmlspecialchars($qqd); ?></td>
-                        <td class="text-nowrap small"><?php echo htmlspecialchars($invQueuedAt); ?></td>
+                        <td class="text-nowrap invoice-queue-quote-date"><?php echo htmlspecialchars($qqd); ?></td>
+                        <td class="text-nowrap"><?php echo htmlspecialchars($invQueuedAt); ?></td>
                         <td><?php echo htmlspecialchars((string) ($qr->client_name ?? '')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($qr->client_nit ?? '')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($qr->invoice_number ?? '')); ?></td>
