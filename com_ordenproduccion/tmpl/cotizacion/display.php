@@ -619,7 +619,7 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
                     <div class="modal-body">
                         <p class="small text-muted mb-3"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_MODAL_INTRO', 'Adjust quantity and description for each line. «Timbrar» saves the cotización and certifies with Digifact.', 'Ajuste cantidad y descripción por línea. «Timbrar» guarda la cotización y certifica con Digifact.')); ?></p>
                         <div class="table-responsive" style="max-height:65vh;">
-                            <table class="table table-sm table-bordered align-middle">
+                            <table class="table table-sm table-bordered align-middle w-100" style="table-layout: fixed;">
                                 <thead class="table-light">
                                     <tr>
                                         <th scope="col" style="width:7rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización')); ?></th>
@@ -642,10 +642,10 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
                                                     data-line-id="<?php echo (int) $felLineItem->id; ?>"
                                                     value="<?php echo htmlspecialchars((string) $felQtyVal, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off" />
                                             </td>
-                                            <td>
+                                            <td class="align-top py-2" style="min-width: 0;">
                                                 <label class="visually-hidden" for="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción')); ?></label>
-                                                <textarea class="form-control form-control-sm digifact-fel-line-desc" id="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"
-                                                    rows="3" required data-line-id="<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars((string) ($felLineItem->descripcion ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                                <textarea class="form-control form-control-sm digifact-fel-line-desc w-100" id="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"
+                                                    style="width: 100%; box-sizing: border-box; resize: vertical;" rows="3" required data-line-id="<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars((string) ($felLineItem->descripcion ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.35-STABLE] - 2026-05-14
+
+### Fixed
+- **Cotización Digifact modal:** textarea de **Descripción** ocupa todo el ancho de la columna (`w-100`, `table-layout: fixed`, celda `min-width: 0`).
+
 ## [3.119.34-STABLE] - 2026-05-14
 
 ### Changed
