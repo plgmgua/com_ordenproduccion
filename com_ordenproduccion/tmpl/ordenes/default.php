@@ -14,6 +14,8 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Ordenes\HtmlView $this */
 
@@ -49,7 +51,7 @@ $t = function ($key, $fallback) {
     return ($v !== $key) ? $v : $fallback;
 };
 $labelFilterSearch = $t('COM_ORDENPRODUCCION_FILTER_SEARCH', 'Buscar');
-$labelFilterSearchPlaceholder = $t('COM_ORDENPRODUCCION_FILTER_SEARCH_PLACEHOLDER', 'Buscar por número de orden, cliente o descripción...');
+$labelFilterSearchPlaceholder = $t('COM_ORDENPRODUCCION_FILTER_SEARCH_PLACEHOLDER', 'Buscar por n?mero de orden, cliente o descripci?n...');
 $labelFilterStatus = $t('COM_ORDENPRODUCCION_FILTER_STATUS', 'Estado');
 $labelSelectStatus = $t('COM_ORDENPRODUCCION_SELECT_STATUS', 'Seleccionar Estado');
 $labelFilterDateFrom = $t('COM_ORDENPRODUCCION_FILTER_DATE_FROM', 'Fecha Desde');
@@ -57,9 +59,9 @@ $labelFilterDateTo = $t('COM_ORDENPRODUCCION_FILTER_DATE_TO', 'Fecha Hasta');
 $labelFilterPaymentStatus = $t('COM_ORDENPRODUCCION_FILTER_PAYMENT_STATUS', 'Estado de Pago');
 $labelFilterApply = $t('COM_ORDENPRODUCCION_FILTER_APPLY', 'Aplicar Filtros');
 $labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
-$labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotización');
-$labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotización');
-$labelCotizacionNoPermission = $t('COM_ORDENPRODUCCION_COTIZACION_NO_PERMISSION', 'Sin permiso para ver la cotización');
+$labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotizaci?n');
+$labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotizaci?n');
+$labelCotizacionNoPermission = $t('COM_ORDENPRODUCCION_COTIZACION_NO_PERMISSION', 'Sin permiso para ver la cotizaci?n');
 $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=');
 ?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
@@ -170,6 +172,9 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                     </th>
                                 </tr>
                             </thead>
+                            <?php
+                            $grimpsaListaPdfOk = InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable();
+                            ?>
                             <tbody>
                                 <?php foreach ($this->items as $item) : ?>
                                     <tr>
@@ -198,7 +203,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                         <?php endif; ?>
                                         <td>
                                             <div class="btn-group ordenes-actions" role="group">
-                                                <!-- Create Invoice - groups from Settings or Administración by default -->
+                                                <!-- Create Invoice - groups from Settings or Administraci?n by default -->
                                                 <?php if ($this->canShowCrearFactura()) : ?>
                                                 <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&order_id=' . $item->id); ?>"
                                                    class="btn btn-sm btn-outline-primary"
@@ -260,8 +265,16 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 <?php
                                                 $linkedInvoiceId = (int) ($item->linked_invoice_id ?? 0);
                                                 if ($linkedInvoiceId > 0 && $this->canOpenInvoiceFromOrdenesList()) :
-                                                ?>
-                                                <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $linkedInvoiceId); ?>"
+                                                    $manualInvPdf = trim((string) ($item->linked_invoice_manual_pdf_rel ?? ''));
+                                                    $facturaHref  = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $linkedInvoiceId);
+                                                    if (
+                                                        $manualInvPdf === ''
+                                                        && $grimpsaListaPdfOk
+                                                    ) {
+                                                        $facturaHref = FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl($linkedInvoiceId);
+                                                    }
+                                                    ?>
+                                                <a href="<?php echo htmlspecialchars((string) $facturaHref, ENT_QUOTES, 'UTF-8'); ?>"
                                                    class="btn btn-sm btn-outline-dark"
                                                    target="_blank"
                                                    rel="noopener noreferrer"
@@ -270,7 +283,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                     <i class="fas fa-file-invoice-dollar fa-sm" aria-hidden="true"></i>
                                                 </a>
                                                 <?php endif; ?>
-                                                <!-- Solicitar anulación - groups from Settings or super user / order owner -->
+                                                <!-- Solicitar anulaci?n - groups from Settings or super user / order owner -->
                                                 <?php if ($this->canShowSolicitarAnulacion($item)) :
                                                     $isAnulada    = (strtolower((string) ($item->status ?? '')) === 'anulada');
                                                     $hasShipping  = !empty($item->shipping_count) && (int) $item->shipping_count > 0;
@@ -330,13 +343,13 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         <?php endif; ?>
 
         <?php
-        // Modals need to exist if the anulación button appears for ANY row.
+        // Modals need to exist if the anulaci?n button appears for ANY row.
         $anyCanAnulacion = false;
         foreach ($this->items as $_item) {
             if ($this->canShowSolicitarAnulacion($_item)) { $anyCanAnulacion = true; break; }
         }
         ?>
-        <!-- Anulación Bloqueada Modal -->
+        <!-- Anulaci?n Bloqueada Modal -->
         <?php if ($anyCanAnulacion) : ?>
         <div class="modal fade" id="anulacionBloqueadaModal" tabindex="-1" aria-labelledby="anulacionBloqueadaModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -344,7 +357,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                     <div class="modal-header bg-warning">
                         <h5 class="modal-title" id="anulacionBloqueadaModalLabel">
                             <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
-                            Anulación No Disponible
+                            Anulaci?n No Disponible
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                     </div>
@@ -359,7 +372,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         </div>
         <?php endif; ?>
 
-        <!-- Anulación Ya Anulada Modal -->
+        <!-- Anulaci?n Ya Anulada Modal -->
         <?php if ($anyCanAnulacion) : ?>
         <div class="modal fade" id="anulacionYaAnuladaModal" tabindex="-1" aria-labelledby="anulacionYaAnuladaModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -372,7 +385,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                     </div>
                     <div class="modal-body">
-                        <p>Esta orden de trabajo ya fue anulada anteriormente y no puede procesarse una nueva solicitud de anulación.</p>
+                        <p>Esta orden de trabajo ya fue anulada anteriormente y no puede procesarse una nueva solicitud de anulaci?n.</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCLOSE'); ?></button>
@@ -396,7 +409,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         <?php include __DIR__ . '/../payment_info_modal.php'; ?>
         <?php endif; ?>
 
-        <!-- Cotización file popup modal -->
+        <!-- Cotizaci?n file popup modal -->
         <div class="modal fade" id="cotizacionPopupModal" tabindex="-1" aria-labelledby="cotizacionPopupModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content">

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.27-STABLE] - 2026-05-14
+
+### Changed
+- **Listado órdenes:** El botón «Ver factura» (factura vinculada) abre el PDF formato Grimpsa generado cuando no hay PDF manual adjunto; si hay adjunto, sigue abriendo la vista detalle de la factura.
+
 ## [3.119.26-STABLE] - 2026-05-14
 
 ### Changed

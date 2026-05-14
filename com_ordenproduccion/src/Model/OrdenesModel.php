@@ -167,10 +167,23 @@ class OrdenesModel extends ListModel
         if (!empty($items)) {
             $orderIds = array_map(static function ($i) { return (int) $i->id; }, $items);
             $shippingCounts = $this->getShippingCounts($orderIds);
-            $invoiceIds = $this->getLinkedInvoiceIdsForOrders($orderIds);
+            $linkedInvoices = $this->getLinkedInvoiceIdsForOrders($orderIds);
+            $uniqInvoiceIds = array_values(
+                array_unique(
+                    array_filter(
+                        array_map('intval', $linkedInvoices),
+                        static fn ($id) => (int) $id > 0
+                    )
+                )
+            );
+            $manualPdfByInvoice = $this->getManualPdfRelativePathsByInvoiceIds($uniqInvoiceIds);
             foreach ($items as &$item) {
                 $item->shipping_count = $shippingCounts[(int) $item->id] ?? 0;
-                $item->linked_invoice_id = $invoiceIds[(int) $item->id] ?? 0;
+                $lid = (int) ($linkedInvoices[(int) $item->id] ?? 0);
+                $item->linked_invoice_id = $lid;
+                $item->linked_invoice_manual_pdf_rel = ($lid > 0 && isset($manualPdfByInvoice[$lid]))
+                    ? $manualPdfByInvoice[$lid]
+                    : '';
             }
         }
 
@@ -311,6 +324,59 @@ class OrdenesModel extends ListModel
         }
 
         return $map;
+    }
+
+    /**
+     * Trimmed {@code manual_pdf_path} per invoice id (empty when none / column missing).
+     *
+     * @param   list<int>  $invoiceIds
+     *
+     * @return  array<int, string>
+     *
+     * @since   3.119.27
+     */
+    protected function getManualPdfRelativePathsByInvoiceIds(array $invoiceIds): array
+    {
+        $invoiceIds = array_values(array_unique(array_filter(array_map('intval', $invoiceIds), static fn ($id) => $id > 0)));
+        if ($invoiceIds === []) {
+            return [];
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_invoices', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (!isset($cols['manual_pdf_path'])) {
+                return [];
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('id'),
+                        $db->quoteName('manual_pdf_path'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_invoices'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('id') . ' IN (' . implode(',', $invoiceIds) . ')')
+            );
+            $rows = $db->loadObjectList('id') ?: [];
+            $map  = [];
+            foreach ($rows as $id => $row) {
+                $id = (int) $id;
+                if ($id < 1) {
+                    continue;
+                }
+                $rel = isset($row->manual_pdf_path) ? trim((string) $row->manual_pdf_path) : '';
+                if ($rel !== '') {
+                    $map[$id] = $rel;
+                }
+            }
+
+            return $map;
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /**
