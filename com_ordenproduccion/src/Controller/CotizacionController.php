@@ -1949,6 +1949,8 @@ class CotizacionController extends BaseController
             return $out;
         }
 
+        $this->syncQuotationLineOrdenDeTrabajoAfterOtPersist($db, $quotationId, $preCotizacionId, $newId);
+
         $redirect = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $newId);
 
         return [
@@ -2302,6 +2304,110 @@ class CotizacionController extends BaseController
             $this->logOtWizardCreateFailure('insert_object_exception', $wizardContext, $cols, $detail, $e->getFile() . ':' . (string) $e->getLine());
 
             return ['success' => false, 'detail' => $detail];
+        }
+    }
+
+    /**
+     * After OT insert: denormalize orden label onto the cotización line (one OT number per línea / pre-cotización).
+     *
+     * @since   3.119.22
+     */
+    private function syncQuotationLineOrdenDeTrabajoAfterOtPersist($db, int $quotationId, int $preCotizacionId, int $ordenId): void
+    {
+        $quotationId     = (int) $quotationId;
+        $preCotizacionId = (int) $preCotizacionId;
+        $ordenId         = (int) $ordenId;
+
+        if ($quotationId < 1 || $preCotizacionId < 1 || $ordenId < 1) {
+            return;
+        }
+
+        try {
+            $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+            $qiCols = \is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+
+            if (!isset($qiCols['orden_de_trabajo'])) {
+                return;
+            }
+
+            $label = $this->loadOrdenDisplayNumberFromDb($db, $ordenId);
+
+            if ($label === '') {
+                return;
+            }
+
+            $q = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->set($db->quoteName('orden_de_trabajo') . ' = ' . $db->quote($label))
+                ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId);
+
+            if (isset($qiCols['modified'])) {
+                $q->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()));
+            }
+
+            $db->setQuery($q);
+            $db->execute();
+        } catch (\Throwable $e) {
+            Log::add(
+                'syncQuotationLineOrdenDeTrabajoAfterOtPersist: ' . $e->getMessage(),
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+        }
+    }
+
+    /**
+     * Prefer order_number over orden_de_trabajo for display parity with cotización lista OT column.
+     *
+     * @since   3.119.22
+     */
+    private function loadOrdenDisplayNumberFromDb($db, int $ordenId): string
+    {
+        $ordenId = (int) $ordenId;
+
+        if ($ordenId < 1) {
+            return '';
+        }
+
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+
+            $q = $db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('id') . ' = ' . $ordenId)
+                ->setLimit(1);
+
+            if (isset($cols['order_number'])) {
+                $q->select($db->quoteName('order_number'));
+            }
+
+            if (isset($cols['orden_de_trabajo'])) {
+                $q->select($db->quoteName('orden_de_trabajo'));
+            }
+
+            $db->setQuery($q);
+            $row = $db->loadObject();
+
+            if (!$row) {
+                return '';
+            }
+
+            $label = '';
+
+            if (isset($row->order_number)) {
+                $label = trim((string) $row->order_number);
+            }
+
+            if ($label === '' && isset($row->orden_de_trabajo)) {
+                $label = trim((string) $row->orden_de_trabajo);
+            }
+
+            return $label;
+        } catch (\Throwable $e) {
+            return '';
         }
     }
 

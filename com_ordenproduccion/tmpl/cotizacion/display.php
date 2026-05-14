@@ -456,8 +456,9 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                             }
                             $thumbPaths[] = $norm;
                         }
-                        $otsLine = ($preId > 0 && !empty($ordenesPorPre[$preId])) ? $ordenesPorPre[$preId] : [];
-                        $lineHasExistingOt = $otsLine !== [];
+                        $storedOtNum       = isset($item->orden_de_trabajo) ? trim((string) $item->orden_de_trabajo) : '';
+                        $otsLine           = ($preId > 0 && !empty($ordenesPorPre[$preId])) ? $ordenesPorPre[$preId] : [];
+                        $lineHasExistingOt = $otsLine !== [] || ($storedOtNum !== '');
                     ?>
                         <tr>
                             <td class="col-cotizacion-pre"><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
@@ -534,6 +535,8 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                                         echo htmlspecialchars($ol, ENT_QUOTES, 'UTF-8');
                                     }
                                 }
+                            } elseif ($storedOtNum !== '') {
+                                echo htmlspecialchars($storedOtNum, ENT_QUOTES, 'UTF-8');
                             } else {
                                 echo '<span class="text-muted">—</span>';
                             }
