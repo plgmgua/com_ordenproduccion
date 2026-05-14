@@ -297,9 +297,21 @@ final class InvoiceGrimpsaTemplatePdfHelper
             'Impuestos',
         ];
 
-        $footerReserve = self::CMY_BAR_MM + 14;
+        // Reserve page bottom for FPDF Footer (CMYK bar + "Página n de m") and plantilla pie HTML
+        // (e.g. ISR + certificador), so the totals band does not overlap rendered footer text.
+        $footerReserve = self::CMY_BAR_MM + 25;
         $tableBottom   = self::PAGE_H_MM - $footerReserve;
         $totH          = 5.5;
+        if (\is_array($plantilla)) {
+            $pieY = (float) ($plantilla['pie_y'] ?? 0);
+            if ($pieY > 0.001) {
+                $gapBeforePie = 3.0;
+                $capped       = $pieY - $gapBeforePie;
+                if ($capped > $pdf->GetY() + $totH + 5) {
+                    $tableBottom = min($tableBottom, $capped);
+                }
+            }
+        }
 
         $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
         $lineHBody = 3.5;

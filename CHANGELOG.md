@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.29-STABLE] - 2026-05-14
+
+### Fixed
+- **PDF factura formato Grimpsa:** Más espacio inferior reservado (pie CMYK + numeración + texto legal) para que TOTALES no se superponga con el pie HTML; si `pie_y` fija la posición del pie en plantilla, el límite de la tabla respeta ese tope con margen.
+
 ## [3.119.28-STABLE] - 2026-05-14
 
 ### Changed
