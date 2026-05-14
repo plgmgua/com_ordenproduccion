@@ -195,16 +195,24 @@ final class QuotationEnvioFelPendingHelper
 
     private static function buildDisplayRow(int $quotationId, DatabaseInterface $db): ?object
     {
+        $tcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $tcols = \is_array($tcols) ? array_change_key_case($tcols, CASE_LOWER) : [];
+
+        $select = [
+            $db->quoteName('id'),
+            $db->quoteName('quotation_number'),
+            $db->quoteName('client_name'),
+            $db->quoteName('client_nit'),
+            $db->quoteName('total_amount'),
+            $db->quoteName('created'),
+        ];
+        if (isset($tcols['quote_date'])) {
+            $select[] = $db->quoteName('quote_date');
+        }
+
         $db->setQuery(
             $db->getQuery(true)
-                ->select([
-                    $db->quoteName('id'),
-                    $db->quoteName('quotation_number'),
-                    $db->quoteName('client_name'),
-                    $db->quoteName('client_nit'),
-                    $db->quoteName('total_amount'),
-                    $db->quoteName('modified'),
-                ])
+                ->select($select)
                 ->from($db->quoteName('#__ordenproduccion_quotations'))
                 ->where($db->quoteName('id') . ' = ' . $quotationId)
                 ->where($db->quoteName('state') . ' = 1')
@@ -230,7 +238,8 @@ final class QuotationEnvioFelPendingHelper
             'client_name'             => $q->client_name ?? '',
             'client_nit'              => $q->client_nit ?? '',
             'total_amount'            => $q->total_amount ?? 0,
-            'modified'                => $q->modified ?? null,
+            'quote_date'              => $q->quote_date ?? null,
+            'quotation_created'       => $q->created ?? null,
             'ordenes_total'           => $ordenesTotal,
             'ordenes_envio_completo'  => $ordenesEnvioCompleto,
         ];

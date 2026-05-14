@@ -41,7 +41,10 @@ class InvoiceFelQueueModel extends ListModel
         $db    = $this->getDatabase();
         $query = $db->getQuery(true);
 
-        $query->select([
+        $qcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qcols = \is_array($qcols) ? array_change_key_case($qcols, CASE_LOWER) : [];
+
+        $select = [
             $db->quoteName('i.id'),
             $db->quoteName('i.invoice_number'),
             $db->quoteName('i.client_name'),
@@ -53,7 +56,12 @@ class InvoiceFelQueueModel extends ListModel
             $db->quoteName('i.fel_scheduled_at'),
             $db->quoteName('i.created'),
             $db->quoteName('q.quotation_number', 'quotation_number'),
-        ])
+        ];
+        if (isset($qcols['quote_date'])) {
+            $select[] = $db->quoteName('q.quote_date', 'quotation_quote_date');
+        }
+
+        $query->select($select)
             ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
             ->join('LEFT', $db->quoteName('#__ordenproduccion_quotations', 'q'), $db->quoteName('q.id') . ' = ' . $db->quoteName('i.quotation_id'))
             ->where($db->quoteName('i.state') . ' = 1')

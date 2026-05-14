@@ -395,6 +395,8 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                 <thead>
                     <tr>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_QUOTATION'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_COL_QUOTE_DATE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_COL_QUEUED_AT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_CLIENT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_AMOUNT'); ?></th>
@@ -410,9 +412,13 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         }
                         $otTot = (int) ($er->ordenes_total ?? 0);
                         $otDone = (int) ($er->ordenes_envio_completo ?? 0);
+                        $eqQuoteDate = !empty($er->quote_date) ? HTMLHelper::_('date', $er->quote_date, Text::_('DATE_FORMAT_LC4')) : '—';
+                        $eqQueuedAt = !empty($er->quotation_created) ? HTMLHelper::_('date', $er->quotation_created, Text::_('DATE_FORMAT_LC2')) : '—';
                         ?>
                     <tr>
                         <td><?php echo htmlspecialchars($eqnum); ?></td>
+                        <td class="text-nowrap small"><?php echo htmlspecialchars($eqQuoteDate); ?></td>
+                        <td class="text-nowrap small"><?php echo htmlspecialchars($eqQueuedAt); ?></td>
                         <td><?php echo htmlspecialchars((string) ($er->client_name ?? '')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($er->client_nit ?? '')); ?></td>
                         <td><?php echo htmlspecialchars(number_format((float) ($er->total_amount ?? 0), 2)); ?></td>
@@ -458,6 +464,8 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                 <thead>
                     <tr>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_QUOTATION'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_COL_QUOTE_DATE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_COL_QUEUED_AT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_CLIENT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_INVOICE'); ?></th>
@@ -487,9 +495,13 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                             $sched = HTMLHelper::_('date', $qr->fel_scheduled_at, Text::_('DATE_FORMAT_LC2'));
                         }
                         $canProcessNow = ($st === 'scheduled' || $st === 'pending');
+                        $qqd = !empty($qr->quotation_quote_date) ? HTMLHelper::_('date', $qr->quotation_quote_date, Text::_('DATE_FORMAT_LC4')) : '—';
+                        $invQueuedAt = !empty($qr->created) ? HTMLHelper::_('date', $qr->created, Text::_('DATE_FORMAT_LC2')) : '—';
                         ?>
                     <tr>
                         <td><?php echo htmlspecialchars($qnum); ?></td>
+                        <td class="text-nowrap small"><?php echo htmlspecialchars($qqd); ?></td>
+                        <td class="text-nowrap small"><?php echo htmlspecialchars($invQueuedAt); ?></td>
                         <td><?php echo htmlspecialchars((string) ($qr->client_name ?? '')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($qr->client_nit ?? '')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($qr->invoice_number ?? '')); ?></td>
