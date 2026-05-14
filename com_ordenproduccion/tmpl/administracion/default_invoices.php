@@ -798,7 +798,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
         <select name="filter_tipo" class="form-select form-select-sm" style="max-width: 12rem;" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICES_FILTER_TIPO'), ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICES_FILTER_TIPO'), ENT_QUOTES, 'UTF-8'); ?>">
             <option value=""><?php echo Text::_('JALL'); ?></option>
             <option value="valid"<?php echo $filterTipo === 'valid' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_VALID'); ?></option>
-            <option value="mockup"<?php echo $filterTipo === 'mockup' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_MOCKUP'); ?></option>
+            <option value="mockup"<?php echo $filterTipo === 'mockup' ? ' selected' : ''; ?>><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_FILTER_TIPO_FEL_PRUEBA'); ?></option>
         </select>
         <button type="submit">
             <i class="fas fa-search"></i>
@@ -893,13 +893,14 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         $nit = '—';
                     }
                     $moneda = $invoice->currency ?? 'Q';
-                    $isMockup = InvoiceListHelper::isMockupInvoice($invoice);
+                    $tipoLabelKey = InvoiceListHelper::getInvoiceTipoLabelKey($invoice);
+                    $isFelPrueba  = ($tipoLabelKey === 'COM_ORDENPRODUCCION_INVOICE_TIPO_FEL_PRUEBA');
                     $isCancelled = isset($invoice->status) && strtolower((string) $invoice->status) === 'cancelled';
                     $displayClient = InvoiceListHelper::displayClientName($invoice);
                     if ($displayClient === '') {
                         $displayClient = '—';
                     }
-                    $rowClass = $isCancelled ? 'invoice-row-cancelled' : ($isMockup ? 'invoice-row-mockup' : '');
+                    $rowClass = $isCancelled ? 'invoice-row-cancelled' : ($isFelPrueba ? 'invoice-row-mockup' : '');
                 ?>
                     <tr class="<?php echo $rowClass; ?>" onclick="window.location.href='<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoice->id); ?>'">
                         <td>
@@ -916,10 +917,10 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <td>
                             <?php if ($isCancelled) : ?>
                                 <span class="invoice-tipo-badge invoice-tipo-anulada"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_ANULADA'); ?></span>
-                            <?php elseif ($isMockup) : ?>
-                                <span class="invoice-tipo-badge invoice-tipo-mockup"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_MOCKUP'); ?></span>
+                            <?php elseif ($tipoLabelKey === 'COM_ORDENPRODUCCION_INVOICE_TIPO_FEL_PRUEBA') : ?>
+                                <span class="invoice-tipo-badge invoice-tipo-mockup"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_FEL_PRUEBA'); ?></span>
                             <?php else : ?>
-                                <span class="invoice-tipo-badge invoice-tipo-valid"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_VALID'); ?></span>
+                                <span class="invoice-tipo-badge invoice-tipo-valid"><?php echo Text::_($tipoLabelKey); ?></span>
                             <?php endif; ?>
                         </td>
                         <td><?php echo htmlspecialchars($displayClient, ENT_QUOTES, 'UTF-8'); ?></td>

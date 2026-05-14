@@ -649,6 +649,9 @@ class FelInvoiceIssuanceService
             $update = $this->filterToExistingColumns($update);
             $this->updateInvoiceFields($invoiceId, $update);
 
+            $amb = $this->getActiveCertificadorModo();
+            $this->appendCertificadorAmbienteToInvoiceFelExtra($invoiceId, ($amb === 'prod') ? 'prod' : 'test');
+
             $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
 
             return [
@@ -1233,6 +1236,46 @@ class FelInvoiceIssuanceService
         $json = json_encode($felExtra, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 
         return $json !== false ? $json : null;
+    }
+
+    /**
+     * Sets fel_extra.certificador_ambiente (test|prod) for Facturas list / export.
+     *
+     * @param   string|null  $felExtraJson  Existing JSON or null
+     */
+    protected function injectCertificadorAmbienteIntoFelExtraJson(?string $felExtraJson, string $modo): string
+    {
+        $modo     = ($modo === 'prod') ? 'prod' : 'test';
+        $felExtra = [];
+        if ($felExtraJson !== null && $felExtraJson !== '') {
+            $d = json_decode($felExtraJson, true);
+            if (\is_array($d)) {
+                $felExtra = $d;
+            }
+        }
+        $felExtra['certificador_ambiente'] = $modo;
+        $json = json_encode($felExtra, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+
+        return $json !== false ? $json : '{"certificador_ambiente":"' . $modo . '"}';
+    }
+
+    /**
+     * Merge certificador ambiente into stored fel_extra (mock engine path).
+     */
+    protected function appendCertificadorAmbienteToInvoiceFelExtra(int $invoiceId, string $modo): void
+    {
+        if ($invoiceId < 1 || !$this->hasColumn('fel_extra')) {
+            return;
+        }
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select($this->db->quoteName('fel_extra'))
+                ->from($this->db->quoteName('#__ordenproduccion_invoices'))
+                ->where($this->db->quoteName('id') . ' = ' . $invoiceId)
+        );
+        $prev = $this->db->loadResult();
+        $json = $this->injectCertificadorAmbienteIntoFelExtraJson(\is_string($prev) ? $prev : null, $modo);
+        $this->updateInvoiceFields($invoiceId, ['fel_extra' => $json]);
     }
 
     /**
@@ -2132,7 +2175,8 @@ class FelInvoiceIssuanceService
             $interpret,
             $userId,
             $code,
-            $body
+            $body,
+            $env
         );
     }
 
@@ -2140,6 +2184,7 @@ class FelInvoiceIssuanceService
      * Persist completed invoice fields from Digifact interpret result (extracted for reuse by queue/direct issue).
      *
      * @param   array{xml:string, pdf:string, uuid:string, autorizacion:string, digifact_code:?int, digifact_msg:string, success:bool, certificacion_meta:array<string, mixed>}  $interpret
+     * @param   string  $certificadorModo  test|prod (active Ajustes modo at certification time)
      *
      * @return  array{success:bool, message:string, invoice_id:int, uuid?:string}
      *
@@ -2151,7 +2196,8 @@ class FelInvoiceIssuanceService
         array $interpret,
         int $userId,
         int $httpCode,
-        string $rawBody
+        string $rawBody,
+        string $certificadorModo = 'test'
     ): array {
         $uuid = $interpret['uuid'];
         $auth = $interpret['autorizacion'];
@@ -2224,6 +2270,8 @@ class FelInvoiceIssuanceService
             $invoiceId,
             \is_array($interpret['certificacion_meta'] ?? null) ? $interpret['certificacion_meta'] : []
         );
+        $modoNorm = ($certificadorModo === 'prod') ? 'prod' : 'test';
+        $felExtraOut = $this->injectCertificadorAmbienteIntoFelExtraJson($felExtraMerged, $modoNorm);
         $update = [
             'fel_issue_status'       => 'completed',
             'fel_issue_error'        => null,
@@ -2241,10 +2289,8 @@ class FelInvoiceIssuanceService
             'status'                 => 'created',
             'modified'               => $now,
             'modified_by'            => $userId,
+            'fel_extra'              => $felExtraOut,
         ];
-        if ($felExtraMerged !== null) {
-            $update['fel_extra'] = $felExtraMerged;
-        }
         $update = $this->filterToExistingColumns($update);
         $this->updateInvoiceFields($invoiceId, $update);
 

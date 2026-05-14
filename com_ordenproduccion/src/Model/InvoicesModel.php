@@ -59,15 +59,32 @@ class InvoicesModel extends ListModel
             $query->where($db->quoteName('i.client_name') . ' LIKE ' . $db->quote('%' . $db->escape($cliente, true) . '%'));
         }
 
-        // Filter by Tipo (valid vs mock-up cotización FEL)
+        // Filter by Tipo: valid = import/XML/other OR cotización FEL in producción (fel_extra.certificador_ambiente = prod)
         $tipo = (string) $this->getState('filter.tipo', '');
-        if ($tipo === 'mockup') {
-            $query->where($db->quoteName('i.invoice_source') . ' = ' . $db->quote(InvoiceListHelper::SOURCE_MOCKUP));
-        } elseif ($tipo === 'valid') {
-            $query->where(
-                '(' . $db->quoteName('i.invoice_source') . ' IS NULL OR '
-                . $db->quoteName('i.invoice_source') . ' != ' . $db->quote(InvoiceListHelper::SOURCE_MOCKUP) . ')'
-            );
+        if ($tipo === 'mockup' || $tipo === 'valid') {
+            $felCol   = $db->quoteName('i.fel_extra');
+            $jsonBlob = 'CASE WHEN ' . $felCol . ' IS NULL OR TRIM(' . $felCol . ') = ' . $db->quote('')
+                . ' THEN ' . $db->quote('{}') . ' ELSE ' . $felCol . ' END';
+            $ambExpr  = 'JSON_UNQUOTE(JSON_EXTRACT(' . $jsonBlob . ', ' . $db->quote('$.certificador_ambiente') . '))';
+
+            if ($tipo === 'mockup') {
+                $query->where($db->quoteName('i.invoice_source') . ' = ' . $db->quote(InvoiceListHelper::SOURCE_MOCKUP));
+                $query->where(
+                    '(' . $ambExpr . ' IS NULL OR ' . $ambExpr . ' = ' . $db->quote('')
+                    . ' OR ' . $ambExpr . ' = ' . $db->quote('test') . ')'
+                );
+            } else {
+                $query->where(
+                    '('
+                    . '(' . $db->quoteName('i.invoice_source') . ' IS NULL OR '
+                    . $db->quoteName('i.invoice_source') . ' != ' . $db->quote(InvoiceListHelper::SOURCE_MOCKUP) . ')'
+                    . ' OR ('
+                    . $db->quoteName('i.invoice_source') . ' = ' . $db->quote(InvoiceListHelper::SOURCE_MOCKUP)
+                    . ' AND ' . $ambExpr . ' = ' . $db->quote('prod')
+                    . ')'
+                    . ')'
+                );
+            }
         }
 
         // Filter by Fecha (date range: use fel_fecha_emision or invoice_date)

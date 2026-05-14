@@ -11,7 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 /**
- * Client name and invoice "tipo" (valid vs mock-up) for lista/export.
+ * Client name and invoice "tipo" (FEL ambiente / import) for lista/export.
  */
 class InvoiceListHelper
 {
@@ -82,10 +82,67 @@ class InvoiceListHelper
     }
 
     /**
-     * Mock-up / simulacro FEL issued from cotización queue (not SAT XML import).
+     * FEL from cotización flow (Digifact or mock engine) — distinct from XML import.
+     */
+    public static function isCotizacionFelInvoice(object $invoice): bool
+    {
+        return (string) ($invoice->invoice_source ?? 'order') === self::SOURCE_MOCKUP;
+    }
+
+    /**
+     * certificador_ambiente stored in fel_extra at issue time: prod|test (empty = legacy / treat as prueba).
+     */
+    public static function getFelCertificadorAmbiente(object $invoice): string
+    {
+        if (empty($invoice->fel_extra) || !\is_string($invoice->fel_extra)) {
+            return '';
+        }
+        $decoded = json_decode($invoice->fel_extra, true);
+        if (!\is_array($decoded)) {
+            return '';
+        }
+        $v = trim((string) ($decoded['certificador_ambiente'] ?? ''));
+
+        return $v === 'prod' ? 'prod' : ($v === 'test' ? 'test' : '');
+    }
+
+    /**
+     * Cotización FEL in test ambiente (or legacy row with no stored ambiente).
+     */
+    public static function isCotizacionFelPrueba(object $invoice): bool
+    {
+        if (!self::isCotizacionFelInvoice($invoice)) {
+            return false;
+        }
+
+        return self::getFelCertificadorAmbiente($invoice) !== 'prod';
+    }
+
+    /**
+     * Same as {@see isCotizacionFelPrueba()}: test FEL from cotización — not prod XML-like flow.
      */
     public static function isMockupInvoice(object $invoice): bool
     {
-        return (string) ($invoice->invoice_source ?? 'order') === self::SOURCE_MOCKUP;
+        return self::isCotizacionFelPrueba($invoice);
+    }
+
+    /**
+     * Language key for Facturas lista / export: valid | fel_prueba (cotización prod counts as valid).
+     *
+     * @return  string  Joomla .ini key
+     */
+    public static function getInvoiceTipoLabelKey(object $invoice): string
+    {
+        if (isset($invoice->status) && strtolower((string) $invoice->status) === 'cancelled') {
+            return 'COM_ORDENPRODUCCION_INVOICE_TIPO_ANULADA';
+        }
+
+        if (self::isCotizacionFelInvoice($invoice)) {
+            return self::getFelCertificadorAmbiente($invoice) === 'prod'
+                ? 'COM_ORDENPRODUCCION_INVOICE_TIPO_VALID'
+                : 'COM_ORDENPRODUCCION_INVOICE_TIPO_FEL_PRUEBA';
+        }
+
+        return 'COM_ORDENPRODUCCION_INVOICE_TIPO_VALID';
     }
 }

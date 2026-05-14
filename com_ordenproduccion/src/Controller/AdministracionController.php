@@ -256,9 +256,7 @@ class AdministracionController extends BaseController
             $fecha = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
             $fechaStr = $fecha ? Factory::getDate($fecha)->format('d-m-Y H:i:s') : '—';
             $nit = trim($invoice->client_nit ?? $invoice->fel_receptor_id ?? '') ?: '—';
-            $tipoLabel = InvoiceListHelper::isMockupInvoice($invoice)
-                ? Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_MOCKUP')
-                : Text::_('COM_ORDENPRODUCCION_INVOICE_TIPO_VALID');
+            $tipoLabel = Text::_(InvoiceListHelper::getInvoiceTipoLabelKey($invoice));
             $cliente = InvoiceListHelper::displayClientName($invoice);
             if ($cliente === '') {
                 $cliente = '—';
