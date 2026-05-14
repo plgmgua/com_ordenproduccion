@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.26-STABLE] - 2026-05-14
+
+### Changed
+- **FEL NUC (cotización):** `AdditionalDocumentInfo` ya no incluye `Orden_trabajo`; solo se envía el número de **Cotizacion**. Los datos de OT en la factura del componente (`orden_de_trabajo`, vínculos) no cambian.
+
 ## [3.119.25-STABLE] - 2026-05-14
 
 ### Fixed

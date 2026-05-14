@@ -1427,7 +1427,7 @@ class FelInvoiceIssuanceService
     /**
      * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller name/email from site;
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
-     * AdditionalDocumentInfo: compact AdditionalInfo entry with @Name Cotizacion and #text = trimmed quotation_number, or COT-{id} if blank (Xml-to-JSON style keys for Digifact NUC).
+     * AdditionalDocumentInfo: compact AdditionalInfo entry with @Name Cotizacion and #text = trimmed quotation_number, or COT-{id} if blank (Xml-to-JSON style keys for Digifact NUC). Work order numbers are not sent in NUC metadata.
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
@@ -1575,13 +1575,6 @@ class FelInvoiceIssuanceService
                 '#text' => $cotRef,
             ],
         ];
-        $otLabels = $this->collectOrdenDisplayLabelsForQuotation((int) ($quotation->id ?? 0));
-        if ($otLabels !== []) {
-            $additionalInfos[] = [
-                '@Name' => 'Orden_trabajo',
-                '#text' => implode(', ', $otLabels),
-            ];
-        }
 
         return [
             'Version'     => '1.00',
