@@ -44,6 +44,17 @@ class OrdenTrabajoPdfPrecotSectionsHelper
     /** Barra instrucciones acabados (mm). */
     private const PDF_PRE_MM_H_ACABADOS_BAND = 6.6;
 
+    /** Meta row suppressed on orden de trabajo PDF (amount still on pantalla PRE / cotizador). */
+    private const PDF_HIDE_META_LABEL_TOTAL = 'COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_TOTAL';
+
+    /**
+     * @param   array<string, mixed>  $mr  meta_rows item
+     */
+    private static function skipMetaRowOnWorkOrderPdf(array $mr): bool
+    {
+        return trim((string) ($mr['label_key'] ?? '')) === self::PDF_HIDE_META_LABEL_TOTAL;
+    }
+
     /**
      * Same grouping as tmpl/orden/default.php (consecutive elementos → one tabla).
      *
@@ -208,6 +219,9 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         [$wLblCol, $wValCol] = self::pliegoTwoColumnWidths($pdf);
 
         foreach (($sec['meta_rows'] ?? []) as $mr) {
+            if (self::skipMetaRowOnWorkOrderPdf($mr)) {
+                continue;
+            }
             $lk = trim((string) ($mr['label_key'] ?? ''));
             $val = trim((string) ($mr['value'] ?? ''));
             if ($lk === '') {
@@ -331,6 +345,9 @@ class OrdenTrabajoPdfPrecotSectionsHelper
         [$wLblCol, $wValCol] = self::pliegoTwoColumnWidths($pdf);
 
         foreach ($metaRest as $mr) {
+            if (self::skipMetaRowOnWorkOrderPdf($mr)) {
+                continue;
+            }
             $lk = trim((string) ($mr['label_key'] ?? ''));
             $val = trim((string) ($mr['value'] ?? ''));
             if ($lk === '') {

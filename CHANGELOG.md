@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.14-STABLE] - 2026-05-14
+
+### Changed
+- **PDF orden de trabajo (layout PRE por secciones):** No se imprime la fila «Total» (importe Q) en bloques de servicio tercerizado ni en meta adicional de pliego; Cant., producto e instrucciones de acabados se mantienen.
+
 ## [3.119.13-STABLE] - 2026-05-11
 
 ### Added
