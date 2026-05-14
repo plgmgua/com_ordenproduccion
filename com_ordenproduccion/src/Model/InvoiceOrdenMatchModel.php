@@ -10,6 +10,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 
@@ -1220,12 +1221,191 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
+     * Resolve a published orden id by display label ({@code orden_de_trabajo} / {@code order_number}).
+     *
+     * @since   3.119.25
+     */
+    protected function resolveOrdenIdFromOtDisplayLabel(string $label): int
+    {
+        $label = trim($label);
+        if ($label === '') {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        try {
+            if (preg_match('/^#(\d+)$/', $label, $m)) {
+                $id = (int) $m[1];
+                if ($id < 1) {
+                    return 0;
+                }
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('id')
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('id') . ' = ' . $id)
+                        ->where($db->quoteName('state') . ' = 1')
+                );
+
+                return (int) ($db->loadResult() ?: 0);
+            }
+
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+
+            $ors = [];
+
+            foreach (['orden_de_trabajo', 'order_number'] as $col) {
+                if (isset($cols[$col])) {
+                    $ors[] = $db->quoteName($col) . ' = ' . $db->quote($label);
+                }
+            }
+
+            if ($ors === []) {
+                return 0;
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('id')
+                    ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where('(' . implode(' OR ', $ors) . ')')
+                    ->order($db->quoteName('id') . ' ASC'),
+                0,
+                2
+            );
+            $ids = $db->loadColumn() ?: [];
+            if (\count($ids) !== 1) {
+                return 0;
+            }
+
+            return (int) $ids[0];
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * OT display strings from invoice row and stored NUC request (AdditionalDocumentInfo Orden_trabajo).
+     *
+     * @return  list<string>
+     *
+     * @since   3.119.25
+     */
+    protected function collectWorkOrderLabelsFromInvoiceRow(object $inv): array
+    {
+        $labels = [];
+        $seen   = [];
+        $push   = static function (string $s) use (&$labels, &$seen): void {
+            $s = trim($s);
+            if ($s === '' || isset($seen[strtolower($s)])) {
+                return;
+            }
+            $seen[strtolower($s)] = true;
+            $labels[]             = $s;
+        };
+
+        $rawOt = trim((string) ($inv->orden_de_trabajo ?? ''));
+        if ($rawOt !== '') {
+            foreach (preg_split('/\s*,\s*/', $rawOt) ?: [] as $part) {
+                $push((string) $part);
+            }
+        }
+
+        $rows = FelInvoiceHelper::parseNucAdditionalDocumentRowsFromFelRequest(
+            isset($inv->fel_request_json) ? (string) $inv->fel_request_json : null
+        );
+        foreach ($rows as $row) {
+            $name = trim((string) ($row['label'] ?? ''));
+            if (strcasecmp($name, 'Orden_trabajo') !== 0) {
+                continue;
+            }
+            $push(trim((string) ($row['value'] ?? '')));
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Create approved junction rows for OT labels on the invoice / NUC when missing (same rules as manual associate).
+     * Idempotent; intended for invoice detail display.
+     *
+     * @return  int  Number of new associations created
+     *
+     * @since   3.119.25
+     */
+    public function ensureInvoiceOrdenAssociationsFromFelMetadata(int $invoiceId): int
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1 || !$this->isTableAvailable()) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv) {
+            return 0;
+        }
+
+        $src = (string) ($inv->invoice_source ?? '');
+        if ($src !== 'fel_import' && $src !== 'cotizacion_fel') {
+            return 0;
+        }
+
+        $existing = $this->getAssociatedOrdenLinksForInvoice($invoiceId);
+        $have     = [];
+        foreach ($existing as $row) {
+            $oid = (int) ($row['orden_id'] ?? 0);
+            if ($oid > 0) {
+                $have[$oid] = true;
+            }
+        }
+
+        $labels = $this->collectWorkOrderLabelsFromInvoiceRow($inv);
+        if ($labels === []) {
+            return 0;
+        }
+
+        $created = 0;
+        foreach ($labels as $lb) {
+            $oid = $this->resolveOrdenIdFromOtDisplayLabel($lb);
+            if ($oid < 1 || isset($have[$oid])) {
+                continue;
+            }
+            if ($this->addManualInvoiceOrdenAssociation(
+                $invoiceId,
+                $oid,
+                false,
+                ['auto', 'invoice_ot_metadata']
+            )) {
+                $have[$oid] = true;
+                $created++;
+            }
+        }
+
+        return $created;
+    }
+
+    /**
      * Manually link an orden to an invoice (approved, score 100). NIT must match invoice receptor unless $allowCrossClientNit.
      *
-     * @param   bool  $allowCrossClientNit  When true, skip NIT and date-window checks (Administración + NIT filter on detail).
+     * @param   bool         $allowCrossClientNit  When true, skip NIT and date-window checks (Administración + NIT filter on detail).
+     * @param   array|null   $reasonOverride       When non-null, stored as suggestion {@code reasons} JSON (instead of manual / cross_client_nit only).
      */
-    public function addManualInvoiceOrdenAssociation(int $invoiceId, int $ordenId, bool $allowCrossClientNit = false): bool
-    {
+    public function addManualInvoiceOrdenAssociation(
+        int $invoiceId,
+        int $ordenId,
+        bool $allowCrossClientNit = false,
+        ?array $reasonOverride = null
+    ): bool {
         if ($invoiceId <= 0 || $ordenId <= 0 || !$this->isTableAvailable()) {
             return false;
         }
@@ -1239,7 +1419,8 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                 ->where($db->quoteName('state') . ' = 1')
         );
         $inv = $db->loadObject();
-        if (!$inv || ($inv->invoice_source ?? '') !== 'fel_import') {
+        $src = (string) ($inv->invoice_source ?? '');
+        if (!$inv || ($src !== 'fel_import' && $src !== 'cotizacion_fel')) {
             return false;
         }
 
@@ -1279,10 +1460,14 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
         $user = Factory::getUser();
         $now = Factory::getDate()->toSql();
-        $reasonsJson = json_encode(
-            $allowCrossClientNit ? ['manual', 'cross_client_nit'] : ['manual'],
-            JSON_UNESCAPED_UNICODE
-        );
+        if ($reasonOverride !== null && $reasonOverride !== []) {
+            $payload = array_values(
+                array_map(static fn ($tag) => (string) $tag, $reasonOverride)
+            );
+        } else {
+            $payload = $allowCrossClientNit ? ['manual', 'cross_client_nit'] : ['manual'];
+        }
+        $reasonsJson = json_encode($payload, JSON_UNESCAPED_UNICODE);
 
         $db->setQuery(
             $db->getQuery(true)

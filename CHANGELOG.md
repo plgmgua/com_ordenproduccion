@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.25-STABLE] - 2026-05-14
+
+### Fixed
+- **Factura FEL (cotización):** La vinculación manual «Asociar» en `#__ordenproduccion_invoice_orden_suggestions` no aplicaba a facturas `cotizacion_fel` porque solo se permitía `fel_import`; ahora ambas fuentes usan las mismas reglas (NIT y ventana de fechas salvo modo cruce NIT administración).
+
+### Changed
+- **Detalle factura — Órdenes de trabajo:** Si la OT ya aparece en `orden_de_trabajo` o en el NUC almacenado (`Orden_trabajo`), al abrir la factura se crea automáticamente el vínculo aprobado (equivalente a **Asociar**) cuando faltaba en la tabla de enlaces.
+
 ## [3.119.14-STABLE] - 2026-05-14
 
 ### Changed

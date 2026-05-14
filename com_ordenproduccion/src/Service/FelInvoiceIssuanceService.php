@@ -2652,7 +2652,12 @@ class FelInvoiceIssuanceService
                     }
                     $seen[$oid] = true;
                     try {
-                        $match->addManualInvoiceOrdenAssociation($invoiceId, $oid, false);
+                        $match->addManualInvoiceOrdenAssociation(
+                            $invoiceId,
+                            $oid,
+                            false,
+                            ['auto', 'cotizacion_fel_pre_lines']
+                        );
                     } catch (\Throwable $e) {
                     }
                 }

@@ -166,6 +166,14 @@ class HtmlView extends BaseHtmlView
                 $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
                 $this->associatedOrdenLinks = $matchModel->getAssociatedOrdenLinksForInvoice($id);
                 if ($this->invoiceOrdenMatchTableAvailable) {
+                    $src = (string) ($this->item->invoice_source ?? '');
+                    if (($src === 'fel_import' || $src === 'cotizacion_fel')
+                        && method_exists($matchModel, 'ensureInvoiceOrdenAssociationsFromFelMetadata')) {
+                        if ($matchModel->ensureInvoiceOrdenAssociationsFromFelMetadata($id) > 0) {
+                            $this->associatedOrdenLinks = $matchModel->getAssociatedOrdenLinksForInvoice($id);
+                        }
+                    }
+
                     $nitForDropdown = $assocNitRaw !== '' ? $assocNitRaw : null;
                     $this->invoiceDetailOrdenDropdown = $matchModel->getOrdnesForInvoiceDetailDropdown($id, $nitForDropdown);
                     if ($assocNitRaw !== '' && InvoiceOrdenMatchModel::normalizeNitDigits($assocNitRaw) !== '') {
