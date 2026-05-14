@@ -21,11 +21,14 @@ use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
-use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
+use Joomla\Database\DatabaseInterface;
 
 /**
  * Administracion controller (reportes export).
@@ -279,6 +282,124 @@ class AdministracionController extends BaseController
             }
         }
         $this->exportInvoicesCsv($cols, $rows, $app);
+    }
+
+    /**
+     * Quit a cotización from "Pendientes por envío completo" by switching facturación to fecha específica.
+     *
+     * @return  void
+     *
+     * @since   3.119.16
+     */
+    public function cancelQuotationEnvioFelQueue()
+    {
+        $app        = Factory::getApplication();
+        $user       = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=cola', false);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $quotationId = (int) $app->input->post->getInt('quotation_id', 0);
+        if ($quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_INVALID'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if (!QuotationEnvioFelPendingHelper::quotationIsEnvioFelPending($quotationId)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_CANCEL_NOT_LISTED'), 'warning');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $qcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+            $qcols = \is_array($qcols) ? array_change_key_case($qcols, CASE_LOWER) : [];
+            if (!isset($qcols['facturacion_modo'])) {
+                throw new \RuntimeException('Schema');
+            }
+            $now = Factory::getDate()->toSql();
+            $q = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_quotations'))
+                ->set($db->quoteName('facturacion_modo') . ' = ' . $db->quote('fecha_especifica'))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1');
+            if (isset($qcols['modified_by'])) {
+                $q->set($db->quoteName('modified_by') . ' = ' . (int) $user->id);
+            }
+            $db->setQuery($q);
+            $db->execute();
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_CANCEL_SUCCESS'), 'success');
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_ERROR'), 'error');
+        }
+
+        $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Remove an invoice from the FEL queue (scheduled / pending / processing).
+     *
+     * @return  void
+     *
+     * @since   3.119.16
+     */
+    public function cancelInvoiceFelQueue()
+    {
+        $app        = Factory::getApplication();
+        $user       = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=cola', false);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $invoiceId = (int) $app->input->post->getInt('invoice_id', 0);
+        if ($invoiceId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_INVALID'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        try {
+            $fel = new FelInvoiceIssuanceService();
+            if ($fel->cancelQueuedFelIssue($invoiceId)) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_CANCEL_SUCCESS'), 'success');
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_CANCEL_NOT_QUEUED'), 'warning');
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_ERROR'), 'error');
+        }
+
+        $app->redirect($redirectUrl);
     }
 
     /**

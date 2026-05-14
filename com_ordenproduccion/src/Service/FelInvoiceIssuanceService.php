@@ -1166,6 +1166,47 @@ class FelInvoiceIssuanceService
         ]);
     }
 
+    /**
+     * Remove invoice from FEL processing queue (scheduled / pending / processing).
+     *
+     * @since  3.119.16
+     */
+    public function cancelQueuedFelIssue(int $invoiceId): bool
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1) {
+            return false;
+        }
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select([
+                    $this->db->quoteName('fel_issue_status'),
+                    $this->db->quoteName('state'),
+                ])
+                ->from($this->db->quoteName('#__ordenproduccion_invoices'))
+                ->where($this->db->quoteName('id') . ' = ' . $invoiceId)
+        );
+        $row = $this->db->loadObject();
+        if (!$row || (int) ($row->state ?? 0) !== 1) {
+            return false;
+        }
+        $st = (string) ($row->fel_issue_status ?? 'none');
+        if (!\in_array($st, ['scheduled', 'pending', 'processing'], true)) {
+            return false;
+        }
+        $fields = [
+            'fel_issue_status' => 'none',
+            'fel_issue_error'  => null,
+            'modified'         => Factory::getDate()->toSql(),
+        ];
+        if ($this->hasColumn('fel_scheduled_at')) {
+            $fields['fel_scheduled_at'] = null;
+        }
+        $this->updateInvoiceFields($invoiceId, $this->filterToExistingColumns($fields));
+
+        return true;
+    }
+
     protected function markFailed(int $invoiceId, string $msg): void
     {
         $this->updateInvoiceFields($invoiceId, [

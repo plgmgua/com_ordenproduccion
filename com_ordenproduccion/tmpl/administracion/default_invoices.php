@@ -418,9 +418,17 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <td><?php echo htmlspecialchars(number_format((float) ($er->total_amount ?? 0), 2)); ?></td>
                         <td><?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_OT_PROGRESS_FMT', $otDone, $otTot)); ?></td>
                         <td class="text-nowrap">
+                            <div class="d-inline-flex flex-wrap align-items-center gap-1">
                             <?php if (!empty($er->quotation_id)) : ?>
                             <a class="btn btn-sm btn-outline-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $er->quotation_id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></a>
+                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.cancelQuotationEnvioFelQueue'); ?>" class="d-inline"
+                                  onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_CANCEL_CONFIRM')); ?>); ?>">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="quotation_id" value="<?php echo (int) $er->quotation_id; ?>" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'); ?></button>
+                            </form>
                             <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -489,6 +497,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <td><?php echo htmlspecialchars($stLabel); ?></td>
                         <td><?php echo htmlspecialchars($sched !== '' ? $sched : '—'); ?></td>
                         <td class="text-nowrap">
+                            <div class="d-inline-flex flex-wrap align-items-center gap-1">
                             <?php if (!empty($qr->quotation_id)) : ?>
                             <a class="btn btn-sm btn-outline-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $qr->quotation_id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></a>
                             <?php endif; ?>
@@ -500,6 +509,15 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                 <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_PROCESS_NOW'); ?>
                             </button>
                             <?php endif; ?>
+                            <?php if (!empty($qr->id) && \in_array($st, ['scheduled', 'pending', 'processing'], true)) : ?>
+                            <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.cancelInvoiceFelQueue'); ?>" class="d-inline"
+                                  onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_CANCEL_CONFIRM')); ?>); ?>">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="invoice_id" value="<?php echo (int) $qr->id; ?>" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'); ?></button>
+                            </form>
+                            <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endforeach; ?>

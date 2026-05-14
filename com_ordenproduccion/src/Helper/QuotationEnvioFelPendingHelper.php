@@ -81,9 +81,29 @@ final class QuotationEnvioFelPendingHelper
     }
 
     /**
+     * Whether this cotización is currently listed under Pendientes por envío completo (Control ventas → cola).
+     *
+     * @since  3.119.16
+     */
+    public static function quotationIsEnvioFelPending(int $quotationId): bool
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return false;
+        }
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
+        if (!self::schemaSupportsPendingList($db)) {
+            return false;
+        }
+        $fel = new FelInvoiceIssuanceService();
+
+        return self::isPendingFelUntilEnviosCompleto($quotationId, $db, $fel);
+    }
+
+    /**
      * Cotización qualifies for lista and still waits on at least one OT sin envío completo; no FEL completed invoice.
      */
-    private static function isPendingFelUntilEnviosCompleto(int $quotationId, DatabaseInterface $db, FelInvoiceIssuanceService $fel): bool
+    public static function isPendingFelUntilEnviosCompleto(int $quotationId, DatabaseInterface $db, FelInvoiceIssuanceService $fel): bool
     {
         $ordenIds = QuotationEnvioFelHelper::getOrdenIdsForQuotation($quotationId, $db);
         if ($ordenIds === []) {
