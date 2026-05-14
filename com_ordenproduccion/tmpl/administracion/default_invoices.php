@@ -370,6 +370,8 @@ tr.invoice-row-cancelled { background: #faf5f5; }
     $felProcessQueueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false);
     /** ISO-style queue stamp for cola tables: YYYY-MM-DDThh:mm (site timezone) */
     $invoiceQueueDateTimeFormat = 'Y-m-d\TH:i';
+    /** Fecha cotización column: YYYY-MM-DD */
+    $invoiceQueueQuoteDateFormat = 'Y-m-d';
     $invoiceEnvioFelPendingSectionAvailable = (bool) $this->get('invoiceEnvioFelPendingSectionAvailable');
     $invoiceEnvioFelPendingRows = $this->get('invoiceEnvioFelPendingRows');
     if (!is_array($invoiceEnvioFelPendingRows)) {
@@ -421,7 +423,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         }
                         $otTot = (int) ($er->ordenes_total ?? 0);
                         $otDone = (int) ($er->ordenes_envio_completo ?? 0);
-                        $eqQuoteDate = !empty($er->quote_date) ? HTMLHelper::_('date', $er->quote_date, Text::_('DATE_FORMAT_LC4')) : '—';
+                        $eqQuoteDate = !empty($er->quote_date) ? HTMLHelper::_('date', $er->quote_date, $invoiceQueueQuoteDateFormat) : '—';
                         $eqQueuedAt = !empty($er->quotation_created) ? HTMLHelper::_('date', $er->quotation_created, $invoiceQueueDateTimeFormat) : '—';
                         ?>
                     <tr>
@@ -513,7 +515,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                             $sched = HTMLHelper::_('date', $qr->fel_scheduled_at, Text::_('DATE_FORMAT_LC2'));
                         }
                         $canProcessNow = ($st === 'scheduled' || $st === 'pending');
-                        $qqd = !empty($qr->quotation_quote_date) ? HTMLHelper::_('date', $qr->quotation_quote_date, Text::_('DATE_FORMAT_LC4')) : '—';
+                        $qqd = !empty($qr->quotation_quote_date) ? HTMLHelper::_('date', $qr->quotation_quote_date, $invoiceQueueQuoteDateFormat) : '—';
                         $invQueuedAt = !empty($qr->created) ? HTMLHelper::_('date', $qr->created, $invoiceQueueDateTimeFormat) : '—';
                         ?>
                     <tr>
