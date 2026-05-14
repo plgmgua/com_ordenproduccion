@@ -81,7 +81,7 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
 ?>
 <div class="com-ordenproduccion-invoice-detail invoice-pdf-style container py-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h1 class="h5 mb-0"><?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?> <?php echo htmlspecialchars($item->invoice_number ?? ''); ?></h1>
+        <h1 class="h5 mb-0"><?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?> <?php echo htmlspecialchars(InvoiceListHelper::resolveInvoiceHeadingNumber($item), ENT_QUOTES, 'UTF-8'); ?></h1>
         <div class="d-flex flex-wrap align-items-center gap-2">
         <?php if ($canSuperInvoice && !$invoiceCancelled) : ?>
         <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion'); ?>" class="d-inline"

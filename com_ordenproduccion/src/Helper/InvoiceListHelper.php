@@ -64,6 +64,27 @@ class InvoiceListHelper
     }
 
     /**
+     * Page heading / browser title: FEL Serie | Número when available, else internal invoice_number.
+     *
+     * @since  3.119.21
+     */
+    public static function resolveInvoiceHeadingNumber(object $invoice): string
+    {
+        [$serie, $numero] = self::resolveAutorizacionSerieNumero($invoice);
+        if ($serie !== '' && $numero !== '') {
+            return $serie . ' | ' . $numero;
+        }
+        if ($serie !== '') {
+            return $serie;
+        }
+        if ($numero !== '') {
+            return $numero;
+        }
+
+        return trim((string) ($invoice->invoice_number ?? ''));
+    }
+
+    /**
      * Best-effort client display: stored client_name, then FEL receptor name from import.
      */
     public static function displayClientName(object $invoice): string

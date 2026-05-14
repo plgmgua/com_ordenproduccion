@@ -15,6 +15,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 class HtmlView extends BaseHtmlView
@@ -183,7 +184,8 @@ class HtmlView extends BaseHtmlView
 
     protected function _prepareDocument()
     {
-        $title = Text::_('COM_ORDENPRODUCCION_INVOICE') . ' - ' . ($this->item->invoice_number ?? '');
+        $num = InvoiceListHelper::resolveInvoiceHeadingNumber($this->item);
+        $title = Text::_('COM_ORDENPRODUCCION_INVOICE') . ' - ' . $num;
         $this->document->setTitle($title);
     }
 }
