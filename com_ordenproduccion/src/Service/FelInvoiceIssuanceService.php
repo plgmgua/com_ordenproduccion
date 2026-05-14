@@ -230,11 +230,12 @@ class FelInvoiceIssuanceService
         $now = Factory::getDate()->toSql();
         $total = (float) ($quotation->total_amount ?? 0);
         $lineItemsJson = json_encode($this->buildLineItemsForStorage($lines));
+        $otLabels       = $this->collectOrdenDisplayLabelsForQuotation($quotationId);
 
         $row = [
             'invoice_number'     => $invoiceNumber,
             'orden_id'           => null,
-            'orden_de_trabajo'   => '',
+            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', $otLabels) : '',
             'client_name'        => $quotation->client_name ?? '',
             'client_nit'         => $quotation->client_nit ?? null,
             'sales_agent'        => $quotation->sales_agent ?? null,
@@ -626,6 +627,8 @@ class FelInvoiceIssuanceService
             $auth = isset($sat['authorization']) ? (string) $sat['authorization'] : '';
             $uuid = isset($response['uuid']) ? (string) $response['uuid'] : '';
 
+            $otLabelsJoined = implode(', ', $this->collectOrdenDisplayLabelsForQuotation($quotationId));
+
             $update = [
                 'fel_response_json'      => $responseJson,
                 'felplex_uuid'           => $uuid,
@@ -644,6 +647,7 @@ class FelInvoiceIssuanceService
                 'status'                 => 'created',
                 'modified'               => Factory::getDate()->toSql(),
                 'modified_by'            => Factory::getUser()->id,
+                'orden_de_trabajo'       => $otLabelsJoined,
             ];
 
             $update = $this->filterToExistingColumns($update);
@@ -1565,6 +1569,20 @@ class FelInvoiceIssuanceService
             $cotRef = 'COT-' . (int) ($quotation->id ?? 0);
         }
 
+        $additionalInfos = [
+            [
+                '@Name' => 'Cotizacion',
+                '#text' => $cotRef,
+            ],
+        ];
+        $otLabels = $this->collectOrdenDisplayLabelsForQuotation((int) ($quotation->id ?? 0));
+        if ($otLabels !== []) {
+            $additionalInfos[] = [
+                '@Name' => 'Orden_trabajo',
+                '#text' => implode(', ', $otLabels),
+            ];
+        }
+
         return [
             'Version'     => '1.00',
             'CountryCode' => 'GT',
@@ -1625,12 +1643,7 @@ class FelInvoiceIssuanceService
                 ],
             ],
             'AdditionalDocumentInfo' => [
-                'AdditionalInfo' => [
-                    [
-                        '@Name' => 'Cotizacion',
-                        '#text' => $cotRef,
-                    ],
-                ],
+                'AdditionalInfo' => $additionalInfos,
             ],
         ];
     }
@@ -2313,6 +2326,7 @@ class FelInvoiceIssuanceService
         );
         $modoNorm = ($certificadorModo === 'prod') ? 'prod' : 'test';
         $felExtraOut = $this->injectCertificadorAmbienteIntoFelExtraJson($felExtraMerged, $modoNorm);
+        $otLabelsJoined = implode(', ', $this->collectOrdenDisplayLabelsForQuotation($quotationId));
         $update = [
             'fel_issue_status'       => 'completed',
             'fel_issue_error'        => null,
@@ -2331,6 +2345,7 @@ class FelInvoiceIssuanceService
             'modified'               => $now,
             'modified_by'            => $userId,
             'fel_extra'              => $felExtraOut,
+            'orden_de_trabajo'       => $otLabelsJoined,
         ];
         $update = $this->filterToExistingColumns($update);
         $this->updateInvoiceFields($invoiceId, $update);
@@ -2460,7 +2475,138 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * After FEL completes, link this invoice to all órdenes tied to facturar pre-cotizaciones on the quotation
+     * Distinct pre-cotización IDs linked to quotation lines (drivers for OT linkage).
+     *
+     * @return  list<int>
+     *
+     * @since   3.119.24
+     */
+    protected function loadDistinctPreCotizacionIdsForQuotation(int $quotationId): array
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return [];
+        }
+
+        $db     = $this->db;
+        $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $qiCols = \is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+        if (!isset($qiCols['pre_cotizacion_id'])) {
+            return [];
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('DISTINCT ' . $db->quoteName('pre_cotizacion_id'))
+                ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+                ->where($db->quoteName('pre_cotizacion_id') . ' IS NOT NULL')
+                ->where($db->quoteName('pre_cotizacion_id') . ' > 0')
+                ->order($db->quoteName('pre_cotizacion_id') . ' ASC')
+        );
+        $ids = array_map('intval', $db->loadColumn() ?: []);
+
+        return array_values(array_filter($ids, static fn ($id) => $id > 0));
+    }
+
+    /**
+     * Display labels for órdenes de trabajo tied to this cotización (active orden rows + optional línea orden_de_trabajo snapshot).
+     *
+     * @return  list<string>
+     *
+     * @since   3.119.24
+     */
+    protected function collectOrdenDisplayLabelsForQuotation(int $quotationId): array
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return [];
+        }
+
+        $db     = $this->db;
+        $labels = [];
+        $seen   = [];
+
+        $push = static function (string $label) use (&$labels, &$seen): void {
+            $label = trim($label);
+            if ($label === '') {
+                return;
+            }
+            $k = strtolower($label);
+            if (isset($seen[$k])) {
+                return;
+            }
+            $seen[$k] = true;
+            $labels[] = $label;
+        };
+
+        $preIds = $this->loadDistinctPreCotizacionIdsForQuotation($quotationId);
+
+        $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $oCols = \is_array($oCols) ? array_change_key_case($oCols, CASE_LOWER) : [];
+
+        if ($preIds !== [] && isset($oCols['pre_cotizacion_id'])) {
+            $qq = $db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' IN (' . implode(',', $preIds) . ')')
+                ->where($db->quoteName('state') . ' = 1')
+                ->order($db->quoteName('id') . ' ASC');
+            if (isset($oCols['order_number'])) {
+                $qq->select($db->quoteName('order_number'));
+            }
+
+            if (isset($oCols['orden_de_trabajo'])) {
+                $qq->select($db->quoteName('orden_de_trabajo'));
+            }
+
+            $db->setQuery($qq);
+            $rows = $db->loadObjectList() ?: [];
+
+            foreach ($rows as $row) {
+                $lb = '';
+                if (isset($row->order_number)) {
+                    $lb = trim((string) $row->order_number);
+                }
+
+                if ($lb === '' && isset($row->orden_de_trabajo)) {
+                    $lb = trim((string) $row->orden_de_trabajo);
+                }
+
+                if ($lb === '') {
+                    $lb = '#' . (int) ($row->id ?? 0);
+                }
+
+                $push($lb);
+            }
+        }
+
+        $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $qiCols = \is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+
+        if (isset($qiCols['orden_de_trabajo'])) {
+            try {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select($db->quoteName('orden_de_trabajo'))
+                        ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                        ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+                        ->where($db->quoteName('orden_de_trabajo') . ' IS NOT NULL')
+                        ->where($db->quoteName('orden_de_trabajo') . ' <> ' . $db->quote(''))
+                );
+                foreach ($db->loadColumn() ?: [] as $cell) {
+                    $push((string) $cell);
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
+        return $labels;
+    }
+
+    /**
+     * After FEL completes, link this invoice to órdenes for every pre-cotización line on the quotation
      * (same as manual Administración associate, using {@see \Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel::addManualInvoiceOrdenAssociation()}).
      *
      * @since   3.118.79
@@ -2479,20 +2625,14 @@ class FelInvoiceIssuanceService
             if (!$match || !\is_callable([$match, 'addManualInvoiceOrdenAssociation']) || !$match->isTableAvailable()) {
                 return;
             }
-            $precot = Factory::getApplication()->bootComponent('com_ordenproduccion')
-                ->getMVCFactory()
-                ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
-            if (!$precot || !\is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])) {
-                return;
-            }
-            $facturar = $precot->getFacturarPreCotizacionesForQuotation($quotationId);
-            if ($facturar === []) {
+            $preIds = $this->loadDistinctPreCotizacionIdsForQuotation($quotationId);
+            if ($preIds === []) {
                 return;
             }
             $db   = $this->db;
             $seen = [];
-            foreach ($facturar as $pc) {
-                $pid = (int) ($pc['id'] ?? 0);
+            foreach ($preIds as $pid) {
+                $pid = (int) $pid;
                 if ($pid < 1) {
                     continue;
                 }
