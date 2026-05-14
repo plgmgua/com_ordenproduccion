@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.31-STABLE] - 2026-05-14
+
+### Changed
+- **Pre-cotización / pliego:** El desplegable **Tipo de papel** lista los tipos **en orden alfabético por nombre** (antes seguía el campo de orden manual en catálogo).
+
 ## [3.119.30-STABLE] - 2026-05-14
 
 ### Changed

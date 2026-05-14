@@ -127,6 +127,8 @@ class ProductosModel extends BaseDatabaseModel
     /**
      * Get paper types that have at least one non-zero print price (excludes 0-only combinations)
      *
+     * Ordered alphabetically by name (stable tie-break by id) for dropdowns (pre-cotización pliego, etc.).
+     *
      * @return  array
      * @since   3.67.0
      */
@@ -146,7 +148,7 @@ class ProductosModel extends BaseDatabaseModel
             )
             ->where($db->quoteName('pt.state') . ' = 1')
             ->group($db->quoteName('pt.id'))
-            ->order($db->quoteName('pt.ordering') . ' ASC, pt.id ASC');
+            ->order($db->quoteName('pt.name') . ' ASC, pt.id ASC');
         $db->setQuery($query);
         return $db->loadObjectList() ?: [];
     }
