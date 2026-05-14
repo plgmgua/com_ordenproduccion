@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\Controller\FormController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
@@ -410,7 +411,10 @@ class ClienteController extends FormController
                         'payment_term_id'              => $fin['payment_term_id'],
                         'payment_term_name'            => $fin['payment_term_name'],
                         'invoice_sending_method'       => $fin['invoice_sending_method'],
-                        'invoice_sending_method_label' => $fin['invoice_sending_method_label'],
+                        'invoice_sending_method_label' => OdooHelper::invoiceSendingDisplayLabel(
+                            (string) ($fin['invoice_sending_method'] ?? ''),
+                            (string) ($fin['invoice_sending_method_label'] ?? '')
+                        ),
                     ],
                 ]);
             } else {
@@ -457,7 +461,10 @@ class ClienteController extends FormController
                 'payment_term_id'               => $info['payment_term_id'],
                 'payment_term_name'             => $info['payment_term_name'],
                 'invoice_sending_method'        => $info['invoice_sending_method'],
-                'invoice_sending_method_label'  => $info['invoice_sending_method_label'],
+                'invoice_sending_method_label' => OdooHelper::invoiceSendingDisplayLabel(
+                    (string) ($info['invoice_sending_method'] ?? ''),
+                    (string) ($info['invoice_sending_method_label'] ?? '')
+                ),
             ]);
         } catch (\Exception $e) {
             echo json_encode([

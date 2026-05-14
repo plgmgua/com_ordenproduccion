@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.30-STABLE] - 2026-05-14
+
+### Changed
+- **Cliente (ERP):** Título de la tarjeta “Odoo: …” → **“ERP: contabilidad y ventas”** y textos relacionados (nota de ID de términos, aprobaciones) con redacción ERP; intro aclara Odoo como backend.
+- **OdooHelper:** Modo de envío de facturas: más valores técnicos compatibles, soporte Peppol, recuperación si quedó guardada una clave literal `COM_*` sin traducir; nueva `invoiceSendingDisplayLabel()` usada en vista edición cliente y respuestas AJAX de finanzas.
+
 ## [3.119.29-STABLE] - 2026-05-14
 
 ### Fixed

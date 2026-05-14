@@ -18,6 +18,7 @@ HTMLHelper::_('bootstrap.framework');
 HTMLHelper::_('behavior.formvalidator');
 
 use Joomla\CMS\Session\Session;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
 
 // Get the application input object
 $app = Factory::getApplication();
@@ -282,10 +283,10 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
                     }
                 }
 
-                $invSendLbl = '';
-                if (isset($this->item->invoice_sending_method_label)) {
-                    $invSendLbl = trim((string) $this->item->invoice_sending_method_label);
-                }
+                $invSendLbl = OdooHelper::invoiceSendingDisplayLabel(
+                    (string) ($this->item->invoice_sending_method ?? ''),
+                    (string) ($this->item->invoice_sending_method_label ?? '')
+                );
                 ?>
                 <div class="row mt-4">
                     <div class="col-12">

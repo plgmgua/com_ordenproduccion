@@ -909,28 +909,120 @@ class OdooHelper
     }
 
     /**
-     * Localized label for Odoo {@see res.partner} field invoice_sending_method (selection).
+     * Human-readable invoice sending mode for UI (prefer technical code → always resolves with active language).
+     * Also fixes stale values stored when {@see Text::_('…')} fell back to a COM_* key during API sync without site language loaded.
+     *
+     * @since  3.119.30
+     */
+    public static function invoiceSendingDisplayLabel(string $storedCode, string $storedLabel): string
+    {
+        $cRaw = strtolower(str_replace(['-', ' '], '_', trim($storedCode)));
+        $cRaw = $cRaw !== '' ? preg_replace('/_+/', '_', $cRaw) : '';
+        if ($cRaw !== '' && !in_array($cRaw, ['0', 'false'], true)) {
+            $byCode = self::mapInvoiceSendingMethodToLabel($cRaw);
+            if ($byCode !== '') {
+                return $byCode;
+            }
+        }
+
+        $lb = trim($storedLabel);
+        if ($lb === '') {
+            return '';
+        }
+        if (strncmp($lb, 'COM_', 4) === 0) {
+            $tr = (string) Text::_($lb);
+
+            return ($tr !== '' && $tr !== $lb) ? $tr : self::recoverInvoiceSendingLabelThroughCode($lb);
+        }
+
+        return $lb;
+    }
+
+    /**
+     * Humanize unknown technical selection codes from ERP (Odoo-style) for display when no Joomla string exists.
+     */
+    private static function friendlyInvoiceSendingUnknownTechnical(string $rawCode): string
+    {
+        $s = trim($rawCode);
+        if ($s === '') {
+            return '';
+        }
+        if (strncmp($s, 'COM_', 4) === 0) {
+            return $s;
+        }
+        $s = strtolower(str_replace('_', ' ', $s));
+        /** @lang text */
+        return (string) ucwords(trim(preg_replace('/\s+/u', ' ', $s)));
+    }
+
+    /**
+     * Recover user-facing invoice sending mode when Joomla returned the literal COM_* key (e.g. language not loaded during sync).
+     */
+    private static function recoverInvoiceSendingLabelThroughCode(string $comKey): string
+    {
+        if (!preg_match('/INVOICE_SENDING_(EMAIL|MANUAL|POST|PEPPOL)$/i', $comKey, $m)) {
+            return $comKey;
+        }
+
+        switch (strtoupper((string) $m[1])) {
+            case 'EMAIL':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_EMAIL');
+            case 'MANUAL':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_MANUAL');
+            case 'POST':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_POST');
+            case 'PEPPOL':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_PEPPOL');
+            default:
+                return $comKey;
+        }
+    }
+
+    /**
+     * Localized label for ERP (Odoo) {@see res.partner} field invoice_sending_method (selection).
      *
      * @since  3.118.99
      */
     private static function mapInvoiceSendingMethodToLabel(string $code): string
     {
-        $c = strtolower(trim($code));
-        if ($c === '' || $c === '0' || $c === 'false') {
+        $trim = trim($code);
+        if ($trim === '' || strtolower($trim) === 'false' || $trim === '0') {
             return '';
         }
+
+        if (strncmp($trim, 'COM_', 4) === 0) {
+            $t = (string) Text::_($trim);
+
+            return ($t !== '' && $t !== $trim) ? $t : self::recoverInvoiceSendingLabelThroughCode($trim);
+        }
+
+        $c = strtolower(str_replace([' ', '-'], '_', $trim));
+        $c = preg_replace('/_+/', '_', $c);
 
         switch ($c) {
             case 'email':
             case 'mail':
+            case 'by_email':
+            case 'byemail':
+            case 'einvoicing_and_email':
+            case 'einvoicing_email':
+            case 'e_invoicing_and_email':
+            case 'e_invoicing_email':
                 return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_EMAIL');
             case 'manual':
+            case 'download':
+            case 'account_manual':
                 return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_MANUAL');
             case 'post':
             case 'snailmail':
+            case 'by_post':
+            case 'bypost':
                 return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_POST');
+            case 'peppol':
+            case 'by_peppol':
+                return (string) Text::_('COM_ORDENPRODUCCION_ODOO_INVOICE_SENDING_PEPPOL');
             default:
-                return $code;
+                return self::friendlyInvoiceSendingUnknownTechnical($trim);
         }
     }
 
