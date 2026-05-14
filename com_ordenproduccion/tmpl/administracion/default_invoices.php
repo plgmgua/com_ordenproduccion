@@ -298,13 +298,13 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
 .match-invoice-block:last-child { border-bottom: none; }
 .invoice-lines-desc { font-size: 0.8125rem; color: #444; max-width: 42rem; word-break: break-word; }
 
-/* Cola de facturas: compact type + buttons to reduce horizontal scroll */
+/* Cola de facturas: single compact size (matches Fecha cotización) + icon actions */
 .invoice-fel-queue-table {
-    font-size: 0.6875rem;
+    font-size: 0.55rem;
     table-layout: auto;
 }
 .invoice-fel-queue-table thead th {
-    font-size: 0.6875rem;
+    font-size: 0.55rem;
     font-weight: 600;
     padding: 0.3rem 0.4rem;
     white-space: nowrap;
@@ -314,17 +314,23 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
     padding: 0.3rem 0.4rem;
     vertical-align: middle;
     line-height: 1.25;
+    font-size: 0.55rem;
 }
 .invoice-fel-queue-table td.invoice-queue-quote-date {
-    font-size: 0.55rem;
     max-width: 6.5rem;
     word-break: break-word;
 }
 .invoice-fel-queue-table .btn {
-    font-size: 0.625rem;
-    padding: 0.15rem 0.4rem;
+    font-size: 0.55rem;
+    padding: 0.12rem 0.35rem;
     line-height: 1.2;
     border-radius: 0.2rem;
+}
+.invoice-fel-queue-table .btn i.fas,
+.invoice-fel-queue-table .btn i.far {
+    font-size: inherit;
+    line-height: 1;
+    vertical-align: -0.05em;
 }
 .invoice-fel-queue-table .btn + .btn {
     margin-left: 0.15rem;
@@ -429,12 +435,21 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <td class="text-nowrap">
                             <div class="d-inline-flex flex-wrap align-items-center gap-1">
                             <?php if (!empty($er->quotation_id)) : ?>
-                            <a class="btn btn-sm btn-outline-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $er->quotation_id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></a>
+                            <a class="btn btn-sm btn-outline-primary"
+                               href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $er->quotation_id); ?>"
+                               title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'), ENT_QUOTES, 'UTF-8'); ?>">
+                                <i class="fas fa-file-alt" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></span>
+                            </a>
                             <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.cancelQuotationEnvioFelQueue'); ?>" class="d-inline"
                                   onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_CANCEL_CONFIRM')); ?>); ?>">
                                 <?php echo HTMLHelper::_('form.token'); ?>
                                 <input type="hidden" name="quotation_id" value="<?php echo (int) $er->quotation_id; ?>" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'); ?></button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                    <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'); ?></span>
+                                </button>
                             </form>
                             <?php endif; ?>
                             </div>
@@ -514,7 +529,12 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <td class="text-nowrap">
                             <div class="d-inline-flex flex-wrap align-items-center gap-1">
                             <?php if (!empty($qr->quotation_id)) : ?>
-                            <a class="btn btn-sm btn-outline-primary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $qr->quotation_id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></a>
+                            <a class="btn btn-sm btn-outline-primary"
+                               href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $qr->quotation_id); ?>"
+                               title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'), ENT_QUOTES, 'UTF-8'); ?>">
+                                <i class="fas fa-file-alt" aria-hidden="true"></i>
+                                <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></span>
+                            </a>
                             <?php endif; ?>
                             <?php if (!empty($qr->id)) : ?>
                             <a class="btn btn-sm btn-outline-secondary" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $qr->id); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_INVOICE'); ?></a>
@@ -529,7 +549,11 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                   onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_CANCEL_CONFIRM')); ?>); ?>">
                                 <?php echo HTMLHelper::_('form.token'); ?>
                                 <input type="hidden" name="invoice_id" value="<?php echo (int) $qr->id; ?>" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'); ?></button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                    <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_QUEUE_CANCEL_BUTTON'); ?></span>
+                                </button>
                             </form>
                             <?php endif; ?>
                             </div>
