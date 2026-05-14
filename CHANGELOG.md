@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.32-STABLE] - 2026-05-14
+
+### Removed
+- **Cotización (vista):** Eliminado el panel «Factura electrónica (motor de pruebas)» / «Encolar factura de prueba» para superusuarios; el flujo FEL real sigue en **Factura relacionada** (Digifact) y tareas backend existentes.
+
 ## [3.119.31-STABLE] - 2026-05-14
 
 ### Changed
