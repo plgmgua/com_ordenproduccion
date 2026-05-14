@@ -299,6 +299,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
         $footerReserve = self::CMY_BAR_MM + 14;
         $tableBottom   = self::PAGE_H_MM - $footerReserve;
+        $totH          = 5.5;
 
         $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
         $lineHBody = 3.5;
@@ -307,18 +308,16 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $totalIva = 0.0;
         $i        = 0;
         $nLines   = \count($lineItems);
+        $yBodySegmentTop = $yTable;
 
         while ($i < $nLines) {
             $row     = $lineItems[$i];
-            $descChk = trim((string) ($row['descripcion'] ?? ''));
-            $descEnc = CotizacionPdfHelper::encodeTextForFpdf($descChk);
-            $pdf->SetFont('Helvetica', '', 7.5);
-            $padX    = 0.9;
-            $descInnerW = max(12.0, $colWidths[3] - 2 * $padX);
-            $nDesc   = max(1, $pdf->countMultiCellLines($descInnerW, $descEnc));
-            $nextH   = max(4.6, $nDesc * $lineHBody + 1.0);
+            $nextH   = self::estimateDataRowHeight($pdf, $row, $colWidths, $lineHBody);
+            $hasMoreAfterThis = ($i < $nLines - 1);
+            $bottomLimit      = $hasMoreAfterThis ? $tableBottom : ($tableBottom - $totH);
 
-            if ($yTable + $nextH > $tableBottom) {
+            if ($yTable + $nextH > $bottomLimit && $yTable > $yBodySegmentTop + 0.5) {
+                self::drawTableVerticalGuides($pdf, self::MARGIN_X, $yTable, $tableBottom, $colWidths);
                 $pdf->AddPage();
                 $pdf->SetXY(self::MARGIN_X, self::CMY_BAR_MM + 4);
                 $pdf->SetFont('Helvetica', 'B', 8);
@@ -326,8 +325,10 @@ final class InvoiceGrimpsaTemplatePdfHelper
                     'Continuación — ' . (string) ($inv->invoice_number ?? '')
                 ), 0, 1, 'L');
                 $pdf->Ln(1);
-                $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
                 $pdf->SetFont('Helvetica', '', 7.5);
+                $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
+                $yBodySegmentTop = $yTable;
+                continue;
             }
 
             $totalIva += self::rowIva($row);
@@ -342,17 +343,22 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $i++;
         }
 
+        $preferredTotalsTop = $tableBottom - $totH;
+        $totalsTop          = max($preferredTotalsTop, $yTable);
+        if ($totalsTop > $yTable + 0.02) {
+            self::drawTableVerticalGuides($pdf, self::MARGIN_X, $yTable, $totalsTop, $colWidths);
+        }
+
         $pdf->SetFont('Helvetica', 'B', 7.6);
         $pdf->SetFillColor(self::TABLE_ACCENT_FILL_R, self::TABLE_ACCENT_FILL_G, self::TABLE_ACCENT_FILL_B);
         $xTot = self::MARGIN_X;
         $wSum = $colWidths[0] + $colWidths[1] + $colWidths[2] + $colWidths[3] + $colWidths[4];
-        $totH = 5.5;
-        $pdf->SetXY($xTot, $yTable);
+        $pdf->SetXY($xTot, $totalsTop);
         $pdf->Cell($wSum, $totH, CotizacionPdfHelper::encodeTextForFpdf('TOTALES:'), 1, 0, 'R', true);
         $pdf->Cell($colWidths[5], $totH, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
         $xImp = $xTot + $wSum + $colWidths[5];
-        self::drawImpuestosSubCells($pdf, $xImp, $yTable, $totH, $colWidths[6], number_format($totalIva, 2, '.', ''), true);
-        $pdf->SetXY(self::MARGIN_X, $yTable + $totH);
+        self::drawImpuestosSubCells($pdf, $xImp, $totalsTop, $totH, $colWidths[6], number_format($totalIva, 2, '.', ''), true);
+        $pdf->SetXY(self::MARGIN_X, $totalsTop + $totH);
         $pdf->SetFillColor(255, 255, 255);
 
         if (\is_array($plantilla) && $footerHtmlProcessed !== '') {
@@ -422,6 +428,53 @@ final class InvoiceGrimpsaTemplatePdfHelper
     }
 
     /**
+     * Row height for a detail line (must match {@see drawTableDataRow()}).
+     *
+     * @param  list<float>  $cw
+     */
+    private static function estimateDataRowHeight(
+        InvoiceGrimpsaPdfDocument $pdf,
+        array $row,
+        array $cw,
+        float $lineH
+    ): float {
+        $desc       = trim((string) ($row['descripcion'] ?? ''));
+        $descEnc    = CotizacionPdfHelper::encodeTextForFpdf($desc);
+        $padXDesc   = 0.9;
+        $descInnerW = max(12.0, $cw[3] - 2 * $padXDesc);
+        $nDesc      = max(1, $pdf->countMultiCellLines($descInnerW, $descEnc));
+
+        return max(4.6, $nDesc * $lineH + 1.0);
+    }
+
+    /**
+     * Outer left/right and interior column rules between yTop and yBottom (typically a blank band only).
+     *
+     * @param  list<float>  $colWidths
+     *
+     * @since  3.119.28
+     */
+    private static function drawTableVerticalGuides(
+        InvoiceGrimpsaPdfDocument $pdf,
+        float $xLeft,
+        float $yTop,
+        float $yBottom,
+        array $colWidths
+    ): void {
+        if ($yBottom <= $yTop + 0.01) {
+            return;
+        }
+
+        $pdf->SetDrawColor(0, 0, 0);
+        $x = $xLeft;
+        $pdf->Line($x, $yTop, $x, $yBottom);
+        foreach ($colWidths as $w) {
+            $x += $w;
+            $pdf->Line($x, $yTop, $x, $yBottom);
+        }
+    }
+
+    /**
      * @param  list<string>  $hdr
      * @param  list<float>   $colWidths
      */
@@ -458,7 +511,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $x += $wEnc;
         }
 
-        return $y + $headerH + 0.2;
+        return $y + $headerH;
     }
 
     /**
@@ -487,9 +540,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
         $descEnc = CotizacionPdfHelper::encodeTextForFpdf($desc);
         $pdf->SetFont('Helvetica', '', 7.5);
-        $descInnerW = max(12.0, $cw[3] - 2 * $padXDesc);
-        $nDesc       = max(1, $pdf->countMultiCellLines($descInnerW, $descEnc));
-        $rowH        = max(4.6, $nDesc * $lineH + 1.0);
+        $rowH = self::estimateDataRowHeight($pdf, $row, $cw, $lineH);
 
         $leftCells = [
             (string) $lineNo,
@@ -508,7 +559,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
                 $cw[$ci],
                 $rowH,
                 CotizacionPdfHelper::encodeTextForFpdf($leftCells[$ci]),
-                1,
+                'LR',
                 0,
                 $align
             );
@@ -516,7 +567,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
 
         $pdf->SetXY($x, $y);
-        $pdf->Cell($cw[3], $rowH, '', 1, 0);
+        $pdf->Cell($cw[3], $rowH, '', 'LR', 0);
         $padY = 0.55;
         $pdf->SetXY($x + $padXDesc, $y + $padY);
         $innerW = $cw[3] - 2 * $padXDesc;
@@ -529,7 +580,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
                 $cw[4 + $j],
                 $rowH,
                 CotizacionPdfHelper::encodeTextForFpdf($leftCells[3 + $j]),
-                1,
+                'LR',
                 0,
                 'R'
             );
@@ -573,14 +624,16 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->SetXY($x, $y);
         if ($accentFill) {
             $pdf->SetFillColor(self::TABLE_ACCENT_FILL_R, self::TABLE_ACCENT_FILL_G, self::TABLE_ACCENT_FILL_B);
+            $border = '1';
         } else {
             $pdf->SetFillColor(255, 255, 255);
+            $border = 'LR';
         }
 
         $pdf->SetFont('Helvetica', 'B', 7.0);
-        $pdf->Cell($wLabel, $rowH, 'IVA', 'LBT', 0, 'C', $accentFill);
+        $pdf->Cell($wLabel, $rowH, 'IVA', $border, 0, 'C', $accentFill);
         $pdf->SetFont('Helvetica', '', 7.2);
-        $pdf->Cell($wVal, $rowH, $ivaText, 'LRTB', 0, 'R', $accentFill);
+        $pdf->Cell($wVal, $rowH, $ivaText, $border, 0, 'R', $accentFill);
     }
 
     /**

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.28-STABLE] - 2026-05-14
+
+### Changed
+- **PDF factura formato Grimpsa:** La rejilla de líneas de detalle llega hasta la franja de TOTALES (encima del pie), con guías verticales en el hueco vacío; las filas de ítems usan solo laterales (sin divisiones horizontales internas salvo el borde inferior del encabezado y el borde superior del bloque TOTALES vía fila con marco completo). Paginación: en la última hoja se reserva hueco fijo para TOTALES al pie.
+
 ## [3.119.27-STABLE] - 2026-05-14
 
 ### Changed
