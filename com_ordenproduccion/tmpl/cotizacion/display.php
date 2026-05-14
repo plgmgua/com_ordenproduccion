@@ -128,7 +128,7 @@ $digifactCfgOk = (trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== 
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
 $canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $digifactCfgOk;
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
-$digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactPreviewNucPayloadFromQuotation&format=json', false);
+$digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveQuotationLinesForFelDigifact&format=json', false);
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -603,28 +603,60 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
             <?php endif; ?>
         </div>
         <?php endif; ?>
-        <?php if ($canDigifactDirectIssue && $felStatus !== 'completed') : ?>
+        <?php if ($canDigifactDirectIssue && $felStatus !== 'completed' && !empty($items)) : ?>
         <form id="digifact-direct-token-form" class="d-none"><?php echo HTMLHelper::_('form.token'); ?></form>
         <button type="button" class="btn btn-primary" id="digifact-direct-issue-btn">
             <i class="fas fa-bolt"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BTN', 'Issue FEL via Digifact (direct)', 'Emitir FEL por Digifact (directo)')); ?>
         </button>
         <div id="digifact-direct-alert" class="small mt-2 d-none" role="status"></div>
-        <div class="modal fade" id="digifact-direct-preview-modal" tabindex="-1" aria-labelledby="digifactDirectPreviewModalLabel" aria-hidden="true">
+        <div class="modal fade" id="digifact-fel-lines-modal" tabindex="-1" aria-labelledby="digifactFelLinesModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="digifactDirectPreviewModalLabel"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_TITLE', 'Review invoice (preview)', 'Revisar factura (vista previa)')); ?></h5>
+                        <h5 class="modal-title" id="digifactFelLinesModalLabel"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_MODAL_TITLE', 'Edit lines before FEL (Digifact)', 'Editar líneas antes del FEL (Digifact)')); ?></h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
                     </div>
                     <div class="modal-body">
-                        <p class="small text-muted" id="digifact-direct-preview-intro"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_INTRO', 'This is how the invoice will look with the data sent to Digifact. Nothing is saved until you confirm.', 'Así se verá la factura con los datos que se enviarán a Digifact. No se guarda nada hasta confirmar.')); ?></p>
-                        <div id="digifact-direct-preview-loading" class="small text-muted d-none" role="status"></div>
-                        <div id="digifact-direct-preview-invoice" class="digifact-invoice-preview-host" style="max-height:65vh;overflow:auto;"></div>
+                        <p class="small text-muted mb-3"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_MODAL_INTRO', 'Adjust quantity and description for each line. «Timbrar» saves the cotización and certifies with Digifact.', 'Ajuste cantidad y descripción por línea. «Timbrar» guarda la cotización y certifica con Digifact.')); ?></p>
+                        <div class="table-responsive" style="max-height:65vh;">
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col" style="width:7rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización')); ?></th>
+                                        <th scope="col" style="width:6rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.')); ?></th>
+                                        <th scope="col"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción')); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($items as $felLineItem) :
+                                        $felPreId = isset($felLineItem->pre_cotizacion_id) ? (int) $felLineItem->pre_cotizacion_id : 0;
+                                        $felPreNum = $felPreId > 0 ? (trim((string) ($felLineItem->pre_cotizacion_number ?? '')) ?: 'PRE-' . $felPreId) : '—';
+                                        $felQtyVal = isset($felLineItem->cantidad) ? (float) $felLineItem->cantidad : 1.0;
+                                        ?>
+                                        <tr>
+                                            <td><span class="small text-muted"><?php echo htmlspecialchars($felPreNum, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                            <td>
+                                                <label class="visually-hidden" for="digifact-line-qty-<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.')); ?></label>
+                                                <input type="number" class="form-control form-control-sm digifact-fel-line-qty" id="digifact-line-qty-<?php echo (int) $felLineItem->id; ?>"
+                                                    step="0.001" min="0.001" required
+                                                    data-line-id="<?php echo (int) $felLineItem->id; ?>"
+                                                    value="<?php echo htmlspecialchars((string) $felQtyVal, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off" />
+                                            </td>
+                                            <td>
+                                                <label class="visually-hidden" for="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción')); ?></label>
+                                                <textarea class="form-control form-control-sm digifact-fel-line-desc" id="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"
+                                                    rows="3" required data-line-id="<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars((string) ($felLineItem->descripcion ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('JCANCEL')); ?></button>
-                        <button type="button" class="btn btn-primary" id="digifact-direct-preview-confirm-btn" disabled>
-                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CONFIRM_SEND', 'Confirm and send', 'Confirmar y enviar')); ?>
+                        <button type="button" class="btn btn-primary" id="digifact-fel-timbrar-btn">
+                            <i class="fas fa-stamp" aria-hidden="true"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_TIMBRAR_BTN', 'Timbrar', 'Timbrar')); ?>
                         </button>
                     </div>
                 </div>
@@ -632,20 +664,16 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
         </div>
         <script>
         (function() {
-            var btn = document.getElementById('digifact-direct-issue-btn');
+            var openBtn = document.getElementById('digifact-direct-issue-btn');
             var form = document.getElementById('digifact-direct-token-form');
             var alertEl = document.getElementById('digifact-direct-alert');
-            var previewUrl = <?php echo json_encode($digifactPreviewUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var saveLinesUrl = <?php echo json_encode($digifactLinesSaveUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var issueUrl = <?php echo json_encode($digifactDirectUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var qid = <?php echo (int) $quotationId; ?>;
-            var modalEl = document.getElementById('digifact-direct-preview-modal');
-            var previewHost = document.getElementById('digifact-direct-preview-invoice');
-            var loadingEl = document.getElementById('digifact-direct-preview-loading');
-            var introEl = document.getElementById('digifact-direct-preview-intro');
-            var confirmBtn = document.getElementById('digifact-direct-preview-confirm-btn');
-            var msgLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_PREVIEW_LOADING', 'Loading preview…', 'Cargando vista previa…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var modalEl = document.getElementById('digifact-fel-lines-modal');
+            var timbrarBtn = document.getElementById('digifact-fel-timbrar-btn');
             var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-            if (!btn || !form || !modalEl || !previewHost || !confirmBtn) return;
+            if (!openBtn || !form || !modalEl || !timbrarBtn) return;
 
             function showModal() {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -658,88 +686,92 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                 }
             }
 
-            btn.addEventListener('click', function() {
+            openBtn.addEventListener('click', function() {
                 if (alertEl) {
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
                 }
-                previewHost.innerHTML = '';
-                confirmBtn.disabled = true;
-                if (loadingEl) {
-                    loadingEl.textContent = msgLoading;
-                    loadingEl.classList.remove('d-none');
-                }
-                if (introEl) {
-                    introEl.classList.add('d-none');
-                }
+                timbrarBtn.disabled = false;
                 showModal();
-
-                var fd = new FormData(form);
-                fd.append('quotation_id', String(qid));
-                btn.disabled = true;
-
-                fetch(previewUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (loadingEl) {
-                            loadingEl.classList.add('d-none');
-                            loadingEl.textContent = '';
-                        }
-                        if (introEl) {
-                            introEl.classList.remove('d-none');
-                        }
-                        if (data && data.success && data.html) {
-                            previewHost.innerHTML = data.html;
-                            confirmBtn.disabled = false;
-                            return;
-                        }
-                        hideModal();
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = (data && data.message) ? data.message : 'Error';
-                            alertEl.classList.remove('d-none');
-                        }
-                    })
-                    .catch(function() {
-                        if (loadingEl) {
-                            loadingEl.classList.add('d-none');
-                            loadingEl.textContent = '';
-                        }
-                        if (introEl) {
-                            introEl.classList.remove('d-none');
-                        }
-                        hideModal();
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = msgNet;
-                            alertEl.classList.remove('d-none');
-                        }
-                    })
-                    .finally(function() { btn.disabled = false; });
             });
 
-            confirmBtn.addEventListener('click', function() {
-                confirmBtn.disabled = true;
-                var fd2 = new FormData(form);
-                fd2.append('quotation_id', String(qid));
+            function collectLinesPayload() {
+                var rows = [];
+                var qtyInputs = modalEl.querySelectorAll('input.digifact-fel-line-qty[data-line-id]');
+                qtyInputs.forEach(function(inp) {
+                    var id = parseInt(inp.getAttribute('data-line-id') || '0', 10);
+                    if (id < 1) return;
+                    var ta = modalEl.querySelector('textarea.digifact-fel-line-desc[data-line-id="' + id + '"]');
+                    if (!ta) return;
+                    var q = parseFloat(String(inp.value).replace(',', '.'));
+                    if (!isFinite(q) || q < 0.001) return;
+                    rows.push({ id: id, cantidad: q, descripcion: String(ta.value || '').trim() });
+                });
+                return rows;
+            }
+
+            timbrarBtn.addEventListener('click', function() {
                 if (alertEl) {
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
                 }
-                fetch(issueUrl, { method: 'POST', body: fd2, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (data && data.success) {
-                            hideModal();
-                            window.location.reload();
-                            return;
-                        }
+                var lines = collectLinesPayload();
+                lines.sort(function(a, b) { return a.id - b.id; });
+                var qtyInputCount = modalEl.querySelectorAll('input.digifact-fel-line-qty[data-line-id]').length;
+                if (lines.length !== qtyInputCount) {
+                    if (alertEl) {
+                        alertEl.className = 'small mt-2 text-danger';
+                        alertEl.textContent = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_PAYLOAD', 'Each line must have a valid quantity (≥ 0.001).', 'Cada línea debe tener una cantidad válida (≥ 0,001).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+                        alertEl.classList.remove('d-none');
+                    }
+                    return;
+                }
+                for (var i = 0; i < lines.length; i++) {
+                    if (!lines[i].descripcion) {
                         if (alertEl) {
                             alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = (data && data.message) ? data.message : 'Error';
+                            alertEl.textContent = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_DESC_REQUIRED', 'Description is required for every line.', 'La descripción es obligatoria en cada línea.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
                             alertEl.classList.remove('d-none');
                         }
-                        confirmBtn.disabled = false;
+                        return;
+                    }
+                }
+                var fdSave = new FormData(form);
+                fdSave.append('quotation_id', String(qid));
+                fdSave.append('fel_lines_json', JSON.stringify(lines));
+                timbrarBtn.disabled = true;
+                openBtn.disabled = true;
+                fetch(saveLinesUrl, { method: 'POST', body: fdSave, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (!data || !data.success) {
+                            if (alertEl) {
+                                alertEl.className = 'small mt-2 text-danger';
+                                alertEl.textContent = (data && data.message) ? data.message : 'Error';
+                                alertEl.classList.remove('d-none');
+                            }
+                            timbrarBtn.disabled = false;
+                            openBtn.disabled = false;
+                            return;
+                        }
+                        var fdIssue = new FormData(form);
+                        fdIssue.append('quotation_id', String(qid));
+                        return fetch(issueUrl, { method: 'POST', body: fdIssue, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                            .then(function(r2) { return r2.json(); })
+                            .then(function(data2) {
+                                if (data2 && data2.success) {
+                                    hideModal();
+                                    window.location.reload();
+                                    return;
+                                }
+                                if (alertEl) {
+                                    alertEl.className = 'small mt-2 text-danger';
+                                    alertEl.textContent = (data2 && data2.message) ? data2.message : 'Error';
+                                    alertEl.classList.remove('d-none');
+                                }
+                                timbrarBtn.disabled = false;
+                                openBtn.disabled = false;
+                            });
                     })
                     .catch(function() {
                         if (alertEl) {
@@ -747,20 +779,9 @@ $digifactPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
                             alertEl.textContent = msgNet;
                             alertEl.classList.remove('d-none');
                         }
-                        confirmBtn.disabled = false;
+                        timbrarBtn.disabled = false;
+                        openBtn.disabled = false;
                     });
-            });
-
-            modalEl.addEventListener('hidden.bs.modal', function() {
-                previewHost.innerHTML = '';
-                confirmBtn.disabled = true;
-                if (loadingEl) {
-                    loadingEl.classList.add('d-none');
-                    loadingEl.textContent = '';
-                }
-                if (introEl) {
-                    introEl.classList.remove('d-none');
-                }
             });
         })();
         </script>

@@ -1128,6 +1128,60 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Sum line totals using the same rules as invoice/FEL payloads ({@see resolveQuotationLineTotals}).
+     *
+     * @param   list<object|\stdClass>  $lineRows  Rows from #__ordenproduccion_quotation_items
+     *
+     * @return float Rounded to 2 decimals
+     *
+     * @since   3.119.34
+     */
+    public function sumQuotationLinesTotals(array $lineRows): float
+    {
+        $s = 0.0;
+        foreach ($lineRows as $row) {
+            if (!\is_object($row)) {
+                continue;
+            }
+            $s += $this->resolveQuotationLineTotals($row)['line_total'];
+        }
+
+        return \round($s, 2);
+    }
+
+    /**
+     * Columns to persist when editing cantidad/descripcion before Digifact timbrado.
+     * Preserves valor_unitario when set; recomputes subtotal (and caller may mirror into valor_final).
+     *
+     * @param   object|\stdClass  $lineRow  Loaded quotation item row (before applying edits)
+     *
+     * @return  array<string, float|string>
+     *
+     * @since   3.119.34
+     */
+    public function computeUpdatedLineColumnsForFelEdit(object $lineRow, float $newQty, string $newDescTrimmed): array
+    {
+        $qty = \round($newQty, 4);
+        $vu  = isset($lineRow->valor_unitario) ? (float) $lineRow->valor_unitario : 0.0;
+        if ($vu <= 0.00001) {
+            $meta = $this->resolveQuotationLineTotals($lineRow);
+            $vu   = (float) $meta['unit_price'];
+        }
+        if ($vu <= 0.00001) {
+            $vu = 0.0001;
+        }
+
+        $subtotal = \round($vu * $qty, 2);
+
+        return [
+            'cantidad'       => $qty,
+            'descripcion'    => $newDescTrimmed,
+            'valor_unitario' => \round($vu, 4),
+            'subtotal'       => $subtotal,
+        ];
+    }
+
+    /**
      * JSON stored on invoices.line_items: includes precio_unitario for invoice PDF/detail (template key).
      */
     protected function buildLineItemsForStorage(array $lines): array

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.34-STABLE] - 2026-05-14
+
+### Changed
+- **Cotización (vista display) — Digifact directo:** El botón ya no abre la vista previa HTML. Abre un **modal** para editar **cantidad** y **descripción** de **todas** las líneas. **Timbrar** guarda líneas (`#__ordenproduccion_quotation_items`) y total de cotización (`total_amount`), recalcula subtotales con el precio unitario existente, y llama seguidamente a **`digifactIssueDirectFromQuotation`**.
+- Nueva tarea **`cotizacion.saveQuotationLinesForFelDigifact`** (JSON, CSRF, grupo Administración, cotización confirmada); payload `fel_lines_json`: `[{id, cantidad, descripcion}, …]` con el mismo conjunto de ids que en base de datos.
+
+### Added
+- **`FelInvoiceIssuanceService`:** `sumQuotationLinesTotals()`, `computeUpdatedLineColumnsForFelEdit()` para alinear totales con la lógica FEL existente.
+
 ## [3.119.33-STABLE] - 2026-05-14
 
 ### Fixed

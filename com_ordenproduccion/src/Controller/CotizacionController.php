@@ -1107,6 +1107,242 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * JSON: Save edited quotation line cantidad/descripcion (Administración), recompute line subtotals and quotation total_amount.
+     * Intended before Digifact direct timbrado.
+     *
+     * POST: quotation_id (or id), fel_lines_json = JSON array of { id, cantidad, descripcion }
+     *
+     * @return  void
+     *
+     * @since   3.119.34
+     */
+    public function saveQuotationLinesForFelDigifact(): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        if (!AccessHelper::isInStrictAdministracionGroup()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId < 1) {
+            $quotationId = $app->input->getInt('id', 0);
+        }
+        if ($quotationId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $quotationRow = $db->loadObject();
+        if (!$quotationRow) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        if (!AccessHelper::userCanAccessQuotationRow($quotationRow)) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        if (!isset($quotationRow->cotizacion_confirmada) || (int) $quotationRow->cotizacion_confirmada !== 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_QUOTATION_NOT_CONFIRMED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $rawLines = $app->input->getString('fel_lines_json', '');
+        $decoded    = \json_decode($rawLines, true);
+        if (!\is_array($decoded) || $decoded === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_PAYLOAD')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('id'))
+                ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+                ->order($db->quoteName('id') . ' ASC')
+        );
+        $expectedIdsRaw = $db->loadColumn() ?: [];
+        $expectedIds    = [];
+        foreach ($expectedIdsRaw as $eid) {
+            $expectedIds[] = (int) $eid;
+        }
+
+        $postedIds = [];
+        foreach ($decoded as $entry) {
+            if (!\is_array($entry)) {
+                continue;
+            }
+            $pid = isset($entry['id']) ? (int) $entry['id'] : 0;
+            if ($pid < 1) {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_PAYLOAD')], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+            $postedIds[] = $pid;
+        }
+        sort($expectedIds);
+        sort($postedIds);
+
+        if ($expectedIds !== $postedIds || $expectedIds === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_MISMATCH')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $qiCols = \is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+        $hasValorFinal = isset($qiCols['valor_final']);
+        $hasModifiedQi = isset($qiCols['modified']);
+        $qtCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qtCols = \is_array($qtCols) ? array_change_key_case($qtCols, CASE_LOWER) : [];
+        $hasModifiedQt = isset($qtCols['modified']);
+        $hasModifiedByQt = isset($qtCols['modified_by']);
+
+        try {
+            /** @var FelInvoiceIssuanceService $fel */
+            $fel = new FelInvoiceIssuanceService();
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            $app->close();
+
+            return;
+        }
+
+        $newTotal = 0.0;
+
+        try {
+            $db->transactionStart();
+
+            foreach ($decoded as $idx => $entry) {
+                if (!\is_array($entry)) {
+                    throw new \RuntimeException(Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_PAYLOAD'));
+                }
+
+                $itemId = isset($entry['id']) ? (int) $entry['id'] : 0;
+                if ($itemId < 1) {
+                    throw new \RuntimeException(Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_PAYLOAD'));
+                }
+
+                $cantidad = isset($entry['cantidad']) ? (float) $entry['cantidad'] : 0.0;
+                if ($cantidad < 0.001) {
+                    throw new \RuntimeException(Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_QTY_TOO_SMALL'));
+                }
+
+                $descripcion = isset($entry['descripcion']) ? trim((string) $entry['descripcion']) : '';
+                if ($descripcion === '') {
+                    throw new \RuntimeException(Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_DESC_REQUIRED'));
+                }
+
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('*')
+                        ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                        ->where($db->quoteName('id') . ' = ' . $itemId)
+                        ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+                        ->setLimit(1)
+                );
+                $lineObj = $db->loadObject();
+                if (!$lineObj) {
+                    throw new \RuntimeException(Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_LINE'));
+                }
+
+                $cols = $fel->computeUpdatedLineColumnsForFelEdit($lineObj, $cantidad, $descripcion);
+
+                $updateObj = (object) [
+                    'id'               => $itemId,
+                    'cantidad'         => $cols['cantidad'],
+                    'descripcion'      => $cols['descripcion'],
+                    'valor_unitario'   => $cols['valor_unitario'],
+                    'subtotal'         => $cols['subtotal'],
+                ];
+
+                if ($hasValorFinal) {
+                    $updateObj->valor_final = $cols['subtotal'];
+                }
+
+                if ($hasModifiedQi) {
+                    $updateObj->modified = Factory::getDate()->toSql();
+                }
+
+                if (!$db->updateObject('#__ordenproduccion_quotation_items', $updateObj, ['id'])) {
+                    throw new \RuntimeException('update quotation_items failed');
+                }
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                    ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+                    ->order($db->quoteName('id') . ' ASC')
+            );
+            $allLines = $db->loadObjectList() ?: [];
+            $newTotal = $fel->sumQuotationLinesTotals($allLines);
+
+            $qUp = (object) [
+                'id'            => $quotationId,
+                'total_amount'  => $newTotal,
+            ];
+            if ($hasModifiedQt) {
+                $qUp->modified = Factory::getDate()->toSql();
+            }
+            if ($hasModifiedByQt) {
+                $qUp->modified_by = (int) $user->id;
+            }
+
+            if (!$db->updateObject('#__ordenproduccion_quotations', $qUp, ['id'])) {
+                throw new \RuntimeException('update quotations failed');
+            }
+
+            $db->transactionCommit();
+        } catch (\Throwable $e) {
+            try {
+                $db->transactionRollback();
+            } catch (\Throwable $ignored) {
+            }
+
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            $app->close();
+
+            return;
+        }
+
+        echo json_encode([
+            'success'       => true,
+            'message'       => Text::_('COM_ORDENPRODUCCION_DIGIFACT_LINES_SAVED'),
+            'total_amount'  => $newTotal,
+        ], JSON_UNESCAPED_UNICODE);
+
+        $app->close();
+    }
+
+    /**
      * JSON: preview Digifact NUC as invoice HTML (no POST to Digifact, no invoice row). Response includes `html` fragment.
      *
      * @return  void
