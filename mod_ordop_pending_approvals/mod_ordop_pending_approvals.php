@@ -207,8 +207,17 @@ if ($rows !== []) {
     }
 }
 
-$pendingTotal  = count($rows);
-$showFullLink  = (int) $params->get('show_full_link', 1) === 1;
+$pendingTotal = count($rows);
+// Full "Control de Ventas" link: only when the user has at least one item as current-step approver (not submitter-only rows).
+$hasApproverRow = false;
+foreach ($rows as $pendingRow) {
+    $uiMode = isset($pendingRow->approval_pending_ui_mode) ? (string) $pendingRow->approval_pending_ui_mode : 'approver';
+    if ($uiMode !== 'submitter') {
+        $hasApproverRow = true;
+        break;
+    }
+}
+$showFullLink  = (int) $params->get('show_full_link', 1) === 1 && $hasApproverRow;
 $hideWhenEmpty = (int) $params->get('hide_when_empty', 1) === 1;
 
 if ($hideWhenEmpty && $schemaOk && $rows === []) {

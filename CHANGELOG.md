@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.55-STABLE] - 2026-05-15
+
+### Changed
+- **Módulo Aprobaciones pendientes:** el enlace «Abrir aprobaciones completas (Control de Ventas)» solo se muestra si el usuario tiene al menos un ítem pendiente **como aprobador** del paso actual; los usuarios que solo ven sus propias solicitudes en calidad de solicitante ya no ven ese enlace (módulo `mod_ordop_pending_approvals` 1.2.16-STABLE).
+
 ## [3.119.54-STABLE] - 2026-05-15
 
 ### Fixed
