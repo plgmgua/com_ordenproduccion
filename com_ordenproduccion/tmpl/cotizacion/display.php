@@ -20,6 +20,7 @@ use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
@@ -129,6 +130,8 @@ $digifactCfgOk = (trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== 
 $canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $digifactCfgOk;
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
 $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveQuotationLinesForFelDigifact&format=json', false);
+$digifactQuotBillingIsCf = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal(trim((string) ($quotation->client_nit ?? '')));
+$digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactCui&format=json', false);
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -618,6 +621,19 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
                     </div>
                     <div class="modal-body">
                         <p class="small text-muted mb-3"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_MODAL_INTRO', 'Adjust quantity and description for each line. «Timbrar» saves the cotización and certifies with Digifact.', 'Ajuste cantidad y descripción por línea. «Timbrar» guarda la cotización y certifica con Digifact.')); ?></p>
+                        <?php if (!empty($digifactQuotBillingIsCf)) : ?>
+                        <div id="digifact-fel-cf-cui-wrap" class="border rounded p-3 mb-3 bg-light">
+                            <p class="small mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_BLOCK_INTRO', 'Billing ID is consumidor final (CF). Enter the buyer\'s CUI and validate with Digifact before «Timbrar».', 'El NIT de facturación es consumidor final (CF). Ingrese el CUI del comprador y valídelo con Digifact antes de «Timbrar».')); ?></p>
+                            <label class="form-label small mb-1" for="digifact-fel-cui-input"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_LABEL', 'CUI', 'CUI')); ?></label>
+                            <div class="d-flex flex-wrap gap-2 align-items-start">
+                                <input type="text" class="form-control" id="digifact-fel-cui-input" name="digifact_fel_cui" inputmode="numeric" maxlength="32" autocomplete="off" placeholder="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_PLACEHOLDER', 'Personal ID (CUI)', 'CUI del comprador'), ENT_QUOTES, 'UTF-8'); ?>" style="max-width: 16rem;" />
+                                <button type="button" class="btn btn-outline-primary" id="digifact-fel-cui-validate-btn">
+                                    <i class="fas fa-check-circle" aria-hidden="true"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_VALIDATE_BTN', 'Validate', 'Validar')); ?>
+                                </button>
+                            </div>
+                            <div id="digifact-fel-cui-msg" class="small mt-2" role="status"></div>
+                        </div>
+                        <?php endif; ?>
                         <div class="table-responsive" style="max-height:65vh;">
                             <table class="table table-sm table-bordered align-middle w-100" style="table-layout: fixed;">
                                 <thead class="table-light">
@@ -673,6 +689,15 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
             var modalEl = document.getElementById('digifact-fel-lines-modal');
             var timbrarBtn = document.getElementById('digifact-fel-timbrar-btn');
             var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var verifyCuiUrl = <?php echo json_encode($digifactVerifyCuiUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var needsCfCui = <?php echo !empty($digifactQuotBillingIsCf) ? 'true' : 'false'; ?>;
+            var cuiInput = document.getElementById('digifact-fel-cui-input');
+            var cuiValidateBtn = document.getElementById('digifact-fel-cui-validate-btn');
+            var cuiMsg = document.getElementById('digifact-fel-cui-msg');
+            var cuiValidated = false;
+            var msgCuiRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_REQUIRED', 'Enter and validate the buyer CUI before issuing (consumidor final).', 'Ingrese y valide el CUI del comprador antes de timbrar (consumidor final).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var msgCuiNotValidated = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_NOT_VALIDATED', 'Click «Validate» and wait for Digifact to confirm the CUI before «Timbrar».', 'Pulse «Validar» y espere la confirmación de Digifact antes de «Timbrar».'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var msgValidateBusy = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_VALIDATING', 'Validating…', 'Validando…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             if (!openBtn || !form || !modalEl || !timbrarBtn) return;
 
             function showModal() {
@@ -686,14 +711,101 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
                 }
             }
 
+            function resetCuiGate() {
+                cuiValidated = false;
+                if (cuiMsg) {
+                    cuiMsg.textContent = '';
+                    cuiMsg.className = 'small mt-2';
+                }
+                if (needsCfCui) {
+                    timbrarBtn.disabled = true;
+                }
+            }
+
             openBtn.addEventListener('click', function() {
                 if (alertEl) {
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
                 }
-                timbrarBtn.disabled = false;
+                if (needsCfCui && cuiInput) {
+                    cuiInput.value = '';
+                }
+                resetCuiGate();
+                if (!needsCfCui) {
+                    timbrarBtn.disabled = false;
+                }
                 showModal();
             });
+
+            if (cuiInput) {
+                cuiInput.addEventListener('input', function() {
+                    if (needsCfCui && cuiValidated) {
+                        resetCuiGate();
+                    }
+                });
+            }
+
+            if (cuiValidateBtn && form) {
+                cuiValidateBtn.addEventListener('click', function() {
+                    if (!cuiInput) return;
+                    var raw = String(cuiInput.value || '').replace(/\D/g, '');
+                    if (raw === '') {
+                        if (cuiMsg) {
+                            cuiMsg.textContent = msgCuiRequired;
+                            cuiMsg.className = 'small mt-2 text-danger';
+                        }
+                        cuiValidated = false;
+                        timbrarBtn.disabled = true;
+                        return;
+                    }
+                    if (cuiMsg) {
+                        cuiMsg.textContent = '';
+                        cuiMsg.className = 'small mt-2';
+                    }
+                    var prev = cuiValidateBtn.innerHTML;
+                    cuiValidateBtn.disabled = true;
+                    cuiValidateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + msgValidateBusy;
+                    var fd = new FormData(form);
+                    fd.append('cui', raw);
+                    fetch(verifyCuiUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .then(function(r) { return r.json(); })
+                        .then(function(j) {
+                            cuiValidateBtn.disabled = false;
+                            cuiValidateBtn.innerHTML = prev;
+                            if (j && j.success) {
+                                cuiValidated = true;
+                                timbrarBtn.disabled = false;
+                                if (cuiMsg) {
+                                    var m = (j.message) ? j.message : '';
+                                    var n = (j.data && j.data.name) ? j.data.name : '';
+                                    cuiMsg.textContent = (m && n) ? (m + ' — ' + n) : (m || n || 'OK');
+                                    cuiMsg.className = 'small mt-2 text-success';
+                                }
+                            } else {
+                                cuiValidated = false;
+                                timbrarBtn.disabled = true;
+                                if (cuiMsg) {
+                                    cuiMsg.textContent = (j && j.message) ? j.message : 'Error';
+                                    cuiMsg.className = 'small mt-2 text-danger';
+                                }
+                            }
+                        })
+                        .catch(function() {
+                            cuiValidateBtn.disabled = false;
+                            cuiValidateBtn.innerHTML = prev;
+                            cuiValidated = false;
+                            timbrarBtn.disabled = true;
+                            if (cuiMsg) {
+                                cuiMsg.textContent = msgNet;
+                                cuiMsg.className = 'small mt-2 text-danger';
+                            }
+                        });
+                });
+            }
+
+            if (needsCfCui) {
+                timbrarBtn.disabled = true;
+            }
 
             function collectLinesPayload() {
                 var rows = [];
@@ -736,6 +848,25 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
                         return;
                     }
                 }
+                if (needsCfCui) {
+                    if (!cuiValidated) {
+                        if (alertEl) {
+                            alertEl.className = 'small mt-2 text-danger';
+                            alertEl.textContent = msgCuiNotValidated;
+                            alertEl.classList.remove('d-none');
+                        }
+                        return;
+                    }
+                    var cuiDig = cuiInput ? String(cuiInput.value || '').replace(/\D/g, '') : '';
+                    if (!cuiDig) {
+                        if (alertEl) {
+                            alertEl.className = 'small mt-2 text-danger';
+                            alertEl.textContent = msgCuiRequired;
+                            alertEl.classList.remove('d-none');
+                        }
+                        return;
+                    }
+                }
                 var fdSave = new FormData(form);
                 fdSave.append('quotation_id', String(qid));
                 fdSave.append('fel_lines_json', JSON.stringify(lines));
@@ -756,6 +887,9 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
                         }
                         var fdIssue = new FormData(form);
                         fdIssue.append('quotation_id', String(qid));
+                        if (needsCfCui && cuiInput) {
+                            fdIssue.append('digifact_buyer_cui', String(cuiInput.value || '').replace(/\D/g, ''));
+                        }
                         return fetch(issueUrl, { method: 'POST', body: fdIssue, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                             .then(function(r2) { return r2.json(); })
                             .then(function(data2) {

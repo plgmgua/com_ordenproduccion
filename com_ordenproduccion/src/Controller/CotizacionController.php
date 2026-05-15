@@ -1582,7 +1582,28 @@ class CotizacionController extends BaseController
                 $app->close();
             }
 
-            $result = $fel->issueDigifactNucDirectFromQuotation($quotationId, (int) $user->id);
+            $nitRaw = trim((string) ($row->client_nit ?? ''));
+            $isCf   = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($nitRaw);
+            $cuiPost = trim((string) $app->input->post->getString('digifact_buyer_cui', ''));
+            $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
+
+            if ($isCf) {
+                if ($cuiDigits === '') {
+                    echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_REQUIRED')], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+                $verify = $fel->verifyDigifactCui($cuiPost);
+                if (empty($verify['success'])) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => (string) ($verify['message'] ?? Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_CUI_NOT_FOUND')),
+                    ], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+                $result = $fel->issueDigifactNucDirectFromQuotation($quotationId, (int) $user->id, $cuiDigits);
+            } else {
+                $result = $fel->issueDigifactNucDirectFromQuotation($quotationId, (int) $user->id, null);
+            }
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {
             echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);

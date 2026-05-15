@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.46-STABLE] - 2026-05-11
+
+### Added
+- **FEL directo (cotización CF/C/F):** en el modal «Editar líneas antes del FEL», campo **CUI**, botón **Validar** (endpoint SHARED Digifact existente `cliente.verifyDigifactCui`), mensaje en el mismo modal. **Timbrar** permanece deshabilitado hasta validar; al timbrar se revalida el CUI en servidor y el NUC usa el CUI como `Buyer.TaxID` en lugar de «CF»; `fel_receptor_id` refleja el CUI cuando aplica.
+
 ## [3.119.45-STABLE] - 2026-05-11
 
 ### Changed
