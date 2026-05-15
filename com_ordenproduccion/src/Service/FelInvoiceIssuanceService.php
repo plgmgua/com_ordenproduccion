@@ -1484,10 +1484,10 @@ class FelInvoiceIssuanceService
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
      * AdditionalDocumentInfo: compact AdditionalInfo entry with @Name Cotizacion and #text = trimmed quotation_number, or COT-{id} if blank (Xml-to-JSON style keys for Digifact NUC). Work order numbers are not sent in NUC metadata.
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
-     * **Consumidor final (CF / C/F):** `Buyer.TaxID` is **CF** unless `$nucBuyerTaxIdOverride` provides validated CUI digits, then TaxID is that value.
+     * **Consumidor final (CF / C/F):** `Buyer.TaxID` is **CF** unless `$nucBuyerTaxIdOverride` provides validated CUI digits; then `TaxID` is those digits and **`Buyer.TaxIDType` must be `CUI`** (Digifact FACT CUI / NUC; see Digifact docs). Omitting `TaxIDType` makes SAT validate the id as NIT → FEL_RCP309.
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
-     * @param   string|null   $nucBuyerTaxIdOverride  When billing is CF/C/F: optional digits-only CUI to send as Buyer.TaxID (after Digifact validation).
+     * @param   string|null   $nucBuyerTaxIdOverride  When billing is CF/C/F: optional digits-only CUI for `Buyer.TaxID`; adds `Buyer.TaxIDType` = `CUI` (FACT CUI).
      * @param   string|null   $buyerNameOverride        Optional Buyer.Name (invoice receptor nombre).
      *
      * @return  array<string, mixed>
@@ -1656,6 +1656,22 @@ class FelInvoiceIssuanceService
             ],
         ];
 
+        $buyerPayload = [
+            'TaxID'       => $buyerNit !== '' ? $buyerNit : 'CF',
+            'Name'        => $buyerName,
+            'AddressInfo' => [
+                'Address'  => $buyerStreet,
+                'City'     => '01010',
+                'District' => 'GUATEMALA',
+                'State'    => 'GUATEMALA',
+                'Country'  => 'GT',
+            ],
+        ];
+        // FACT CUI (Digifact NUC): CUI in TaxID must be paired with TaxIDType or SAT treats it as NIT (FEL_RCP309).
+        if ($isCfBuyer && $overrideDigits !== '') {
+            $buyerPayload['TaxIDType'] = 'CUI';
+        }
+
         return [
             'Version'     => '1.00',
             'CountryCode' => 'GT',
@@ -1689,17 +1705,7 @@ class FelInvoiceIssuanceService
                     ],
                 ],
             ],
-            'Buyer' => [
-                'TaxID'       => $buyerNit !== '' ? $buyerNit : 'CF',
-                'Name'        => $buyerName,
-                'AddressInfo' => [
-                    'Address'  => $buyerStreet,
-                    'City'     => '01010',
-                    'District' => 'GUATEMALA',
-                    'State'    => 'GUATEMALA',
-                    'Country'  => 'GT',
-                ],
-            ],
+            'Buyer'        => $buyerPayload,
             'ThirdParties' => null,
             'Items'        => $items,
             'Totals'       => [

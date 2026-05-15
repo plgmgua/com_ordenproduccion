@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.49-STABLE] - 2026-05-11
+
+### Fixed
+- **Digifact NUC FACT CUI:** cuando el comprador es CF y se envía CUI en `Buyer.TaxID`, el JSON debe incluir **`Buyer.TaxIDType` = `CUI`** (igual que el SDK oficial de referencia). Sin este campo, SAT valida el id como NIT y devuelve **FEL_RCP309 NIT inválido** durante la transformación XSLT.
+
 ## [3.119.48-STABLE] - 2026-05-11
 
 ### Fixed
