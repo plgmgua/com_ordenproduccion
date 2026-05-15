@@ -643,7 +643,7 @@ class CotizacionController extends BaseController
     }
 
     /**
-     * Finalize quotation confirmation: optional "Cotización aprobada" and "Orden de compra" files, optional instrucciones_facturacion, + flag cotizacion_confirmada.
+     * Finalize quotation confirmation: optional signed quotation file; mandatory yes/no for requiring a purchase order to invoice (stored in DB, no PO file upload in this step); optional instrucciones and cotizacion_confirmada.
      *
      * @return  void
      * @since   3.101.21
@@ -722,15 +722,21 @@ class CotizacionController extends BaseController
 
         $skipModalFacturacion = (int) $app->input->post->get('confirmar_sin_modal_facturacion', 0) === 1;
 
+        $requiereOcParaFacturar = null;
+
         if (!$skipModalFacturacion) {
             $choiceCot = strtolower((string) $app->input->post->getCmd('confirmar_adjunta_cotizacion_firmada', ''));
-            $choiceOc  = strtolower((string) $app->input->post->getCmd('confirmar_adjunta_orden_compra', ''));
             if (!\in_array($choiceCot, ['si', 'no'], true)) {
                 $choiceCot = 'no';
             }
-            if (!\in_array($choiceOc, ['si', 'no'], true)) {
-                $choiceOc = 'no';
+            $rawOc = strtolower(trim((string) $app->input->post->getString('confirmar_adjunta_orden_compra', '')));
+            if ($rawOc !== 'si' && $rawOc !== 'no') {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_REQUIERE_OC_FACTURAR_CHOICE_REQUIRED'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+                return;
             }
+            $choiceOc = $rawOc;
         } else {
             $choiceCot = null;
             $choiceOc  = null;
@@ -770,33 +776,15 @@ class CotizacionController extends BaseController
             ) ?? $pathAprobada;
         }
 
-        if ($choiceOc === 'no') {
+        if ($choiceOc === null) {
+            // Quick finalize: keep existing orden_compra_path; do not set requiere_orden_compra_para_facturar here.
+        } elseif ($choiceOc === 'no') {
             $pathOrden = '';
-        } elseif ($choiceOc === 'si') {
-            $pathOrden = $this->processOptionalQuotationConfirmUpload(
-                $app->input->files->get('orden_compra', [], 'array'),
-                $quotationId,
-                'orden_compra',
-                $uploadDir,
-                $allowed,
-                $maxSize
-            ) ?? $pathOrden;
-
-            if (trim($pathOrden) === '') {
-                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_ORDEN_COMPRA_FILE_REQUIRED'), 'error');
-                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
-
-                return;
-            }
+            $requiereOcParaFacturar = 0;
         } else {
-            $pathOrden = $this->processOptionalQuotationConfirmUpload(
-                $app->input->files->get('orden_compra', [], 'array'),
-                $quotationId,
-                'orden_compra',
-                $uploadDir,
-                $allowed,
-                $maxSize
-            ) ?? $pathOrden;
+            // 'si' — requires PO to invoice; attachment removed from UX (3.119.56).
+            $pathOrden = '';
+            $requiereOcParaFacturar = 1;
         }
 
         $instruccionesFacturacion = $this->collectInstruccionesFacturacionFromPost($quotationId);
@@ -909,6 +897,9 @@ class CotizacionController extends BaseController
         if (isset($cols['orden_compra_path'])) {
             $sets[] = $db->quoteName('orden_compra_path') . ' = ' . $db->quote($pathOrden);
         }
+        if ($requiereOcParaFacturar !== null && isset($cols['requiere_orden_compra_para_facturar'])) {
+            $sets[] = $db->quoteName('requiere_orden_compra_para_facturar') . ' = ' . (int) $requiereOcParaFacturar;
+        }
         if ($instruccionesFacturacion !== null && isset($cols['instrucciones_facturacion'])) {
             $sets[] = $db->quoteName('instrucciones_facturacion') . ' = ' . $db->quote($instruccionesFacturacion);
         }
@@ -934,7 +925,7 @@ class CotizacionController extends BaseController
         $db->execute();
 
         if ($wfSvc->hasSchema()) {
-            $metaJson = json_encode([
+            $metaArr = [
                 'quotation_id'                 => $quotationId,
                 'facturacion_modo'             => $facturacionModo,
                 'facturacion_fecha_sql'        => $facturacionFechaSql,
@@ -943,7 +934,11 @@ class CotizacionController extends BaseController
                 'manual_fact_queue_force'      => ($nqNitFailed || $nqCfOverLimit),
                 'nit_verify_failed'            => $nqNitFailed,
                 'cf_gtq2499_manual_required'    => $nqCfOverLimit,
-            ], JSON_UNESCAPED_UNICODE);
+            ];
+            if ($requiereOcParaFacturar !== null) {
+                $metaArr['requiere_orden_compra_para_facturar'] = (int) $requiereOcParaFacturar;
+            }
+            $metaJson = json_encode($metaArr, JSON_UNESCAPED_UNICODE);
 
             $rid = $wfSvc->createRequest(
                 ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION,

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.56-STABLE] - 2026-05-15
+
+### Changed
+- **Confirmar Cotización (modal):** la pregunta sobre orden de compra pasa a **«¿Requiere orden de compra para facturar?»** — solo Sí/No (obligatorio), **sin** subida de archivo. El valor se guarda en `requiere_orden_compra_para_facturar`; la ruta `orden_compra_path` ya no se usa desde este paso. Migración SQL `3.119.56_requiere_orden_compra_para_facturar.sql`.
+
 ## [3.119.55-STABLE] - 2026-05-15
 
 ### Changed

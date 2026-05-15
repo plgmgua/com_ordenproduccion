@@ -51,7 +51,6 @@ $wizClientNumericForOt = $wizClientIdTrimForOt !== '' && ctype_digit($wizClientI
 $editLockedHint = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT', 'Cannot edit: quotation is confirmed.', 'No se puede editar: la cotización está confirmada.');
 $editLockedHintOt = $l('COM_ORDENPRODUCCION_QUOTATION_LOCKED_EDIT_HINT_OT', 'Cannot edit: this quotation has an active work order.', 'No se puede editar: la cotización tiene una orden de trabajo activa.');
 $pathCotAprobada = isset($quotation->cotizacion_aprobada_path) ? trim((string) $quotation->cotizacion_aprobada_path) : '';
-$pathOrdenCompra  = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
 $instruccionesFacturacionValue = isset($quotation->instrucciones_facturacion) ? (string) $quotation->instrucciones_facturacion : '';
 $facturacionModoValue = isset($quotation->facturacion_modo) ? trim((string) $quotation->facturacion_modo) : '';
 if ($facturacionModoValue !== 'fecha_especifica' && $facturacionModoValue !== 'con_envio') {
@@ -1157,17 +1156,6 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                                     }
                                 }
                             }
-                            var rOc = modal.querySelector('input[name="confirmar_adjunta_orden_compra"]:checked');
-                            var wOc = document.getElementById('confirmar-wrap-orden-compra');
-                            var fOc = document.getElementById('orden_compra_file');
-                            if (wOc) {
-                                wOc.style.display = (rOc && rOc.value === 'si') ? '' : 'none';
-                                if (!rOc || rOc.value === 'no') {
-                                    if (fOc) {
-                                        fOc.value = '';
-                                    }
-                                }
-                            }
                             applyFinalizarState();
                         }
                         function applyFinalizarState() {
@@ -1180,10 +1168,10 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                         }
                         function resetDocumentChoices() {
                             var noCot = document.getElementById('confirmar_cot_firmada_no');
-                            var noOc = document.getElementById('confirmar_orden_compra_no');
                             if (noCot) {
                                 noCot.checked = true;
                             }
+                            var noOc = document.getElementById('confirmar_orden_compra_no');
                             if (noOc) {
                                 noOc.checked = true;
                             }
@@ -1194,7 +1182,7 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                             if (!t) {
                                 return;
                             }
-                            if (t.name === 'confirmar_adjunta_cotizacion_firmada' || t.name === 'confirmar_adjunta_orden_compra') {
+                            if (t.name === 'confirmar_adjunta_cotizacion_firmada') {
                                 syncDocPanels();
                                 return;
                             }
@@ -1235,7 +1223,7 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                         });
                     })();
                     </script>
-                    <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Optional: say if you will attach a signed quotation or purchase order. It defaults to No for both. If you choose Yes, attach the file before finishing (the server requires it for that option).', 'Opcional: indique si adjuntará cotización firmada u orden de compra. Por defecto es No en ambas. Si elige Sí, adjunte el archivo antes de finalizar (el servidor lo exige para esa opción).'); ?></p>
+                    <p class="text-muted small"><?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_FILES_HELP', 'Optional: indicate if you will attach a signed confirmation quotation. Default is No. If you choose Yes, attach the file before finishing (the server requires it for that option).', 'Opcional: indique si adjuntará cotización firmada de confirmación. Por defecto es No. Si elige Sí, adjunte el archivo antes de finalizar (el servidor lo exige para esa opción).'); ?></p>
                     <fieldset class="mb-3 border-0 p-0">
                         <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_COTIZACION_FIRMADA', 'Do you have a signed confirmation quotation?', '¿Tiene una cotización firmada de confirmación?')); ?></legend>
                         <div class="form-check form-check-inline">
@@ -1260,9 +1248,9 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                         <?php endif; ?>
                     </div>
                     <fieldset class="mb-3 border-0 p-0">
-                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_TIENE_ORDEN_COMPRA', 'Do you have a purchase order?', '¿Tiene una orden de compra?')); ?></legend>
+                        <legend class="col-form-label small fw-semibold pt-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_REQUIERE_OC_PARA_FACTURAR', 'Requires a purchase order to invoice?', '¿Requiere orden de compra para facturar?')); ?> <span class="text-danger">*</span></legend>
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="confirmar_adjunta_orden_compra" id="confirmar_orden_compra_no" value="no" checked>
+                            <input class="form-check-input" type="radio" name="confirmar_adjunta_orden_compra" id="confirmar_orden_compra_no" value="no" checked required>
                             <label class="form-check-label" for="confirmar_orden_compra_no"><?php echo htmlspecialchars($l('JNO', 'No', 'No')); ?></label>
                         </div>
                         <div class="form-check form-check-inline">
@@ -1270,18 +1258,6 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                             <label class="form-check-label" for="confirmar_orden_compra_si"><?php echo htmlspecialchars($l('JYES', 'Yes', 'Sí')); ?></label>
                         </div>
                     </fieldset>
-                    <div id="confirmar-wrap-orden-compra" class="mb-3" style="display:none;">
-                        <label for="orden_compra_file" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_ORDEN_COMPRA_FILE', 'Purchase order', 'Orden de compra'); ?></label>
-                        <input type="file" name="orden_compra" id="orden_compra_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
-                        <?php if ($pathOrdenCompra !== '') :
-                            $uO = (strpos($pathOrdenCompra, 'http') === 0) ? $pathOrdenCompra : Uri::root() . ltrim($pathOrdenCompra, '/');
-                            ?>
-                            <div class="small mt-1">
-                                <i class="fas fa-paperclip text-success"></i> <?php echo htmlspecialchars(basename($pathOrdenCompra)); ?>
-                                <button type="button" class="btn btn-link btn-sm py-0 cotizacion-confirm-file-view" data-file-url="<?php echo htmlspecialchars($uO); ?>"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></button>
-                            </div>
-                        <?php endif; ?>
-                    </div>
                     <?php
                     $instruccionesBlocks = $this->confirmarInstruccionesFacturacionBlocks ?? [];
                     $facturacionUiAvailable = !empty($this->facturacionUiAvailable);
