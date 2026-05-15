@@ -290,10 +290,18 @@ class ApprovalWorkflowEntityHelper
     /**
      * Start manual factura approval when líneas con Facturación activa requieren factura sin monto exacto.
      *
+     * @param  bool  $forceDespiteNoFacturarLines  When true (e.g. cliente NIT no verificado contra Digifact), queue even sin líneas marcadas para facturar.
+     * @param  bool  $nitVerifyFailed              When true, metadata records that manual facturación was driven by NIT/Digifact fallo.
+     *
      * @since  3.118.26
      */
-    public static function queueCotizacionFacturacionManualApproval(DatabaseInterface $db, int $quotationId, int $submitterUserId): void
-    {
+    public static function queueCotizacionFacturacionManualApproval(
+        DatabaseInterface $db,
+        int $quotationId,
+        int $submitterUserId,
+        bool $forceDespiteNoFacturarLines = false,
+        bool $nitVerifyFailed = false
+    ): void {
         $quotationId     = (int) $quotationId;
         $submitterUserId = (int) $submitterUserId;
         if ($quotationId < 1 || $submitterUserId < 1) {
@@ -306,7 +314,7 @@ class ApprovalWorkflowEntityHelper
         if (!$precot || !\is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])) {
             return;
         }
-        if ($precot->getFacturarPreCotizacionesForQuotation($quotationId) === []) {
+        if (!$forceDespiteNoFacturarLines && $precot->getFacturarPreCotizacionesForQuotation($quotationId) === []) {
             return;
         }
 
@@ -337,6 +345,7 @@ class ApprovalWorkflowEntityHelper
             'instrucciones_facturacion'  => isset($row->instrucciones_facturacion) ? (string) $row->instrucciones_facturacion : '',
             'facturar_cotizacion_exacta' => (int) ($row->facturar_cotizacion_exacta ?? 0),
             'submitter_user_id'          => $submitterUserId,
+            'nit_verify_failed'          => $nitVerifyFailed,
         ];
         $wfSvc->createRequest(
             ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL,

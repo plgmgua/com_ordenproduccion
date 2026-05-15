@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.36-STABLE] - 2026-05-11
+
+### Added
+- **Certificador de facturación:** URL opcional de certificación NUC cuando el NIT del cliente es **CF** / **C/F** (`url_cert_fact_buyer_cf`).
+- **Confirmar cotización:** normalización del NIT (solo dígitos) antes de verificar con Digifact; si no verifica o falta token, **facturación manual** y cola de aprobación (incl. sin líneas «facturar»).
+
+### Changed
+- **NUC JSON / FEL:** TaxID del comprador se normaliza a dígitos o **CF** según el campo; la URL de certificación elige el endpoint de consumidor final cuando aplica.
+
 ## [3.119.35-STABLE] - 2026-05-14
 
 ### Fixed

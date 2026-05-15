@@ -836,6 +836,39 @@ class CotizacionController extends BaseController
             return;
         }
 
+        $nqNitFailed  = false;
+        $nqNitForDb   = null;
+        if (isset($cols['client_nit'])) {
+            try {
+                $felNit    = new FelInvoiceIssuanceService();
+                $bearerNit = $felNit->getActiveCertificadorBearerToken();
+                $cfgNit    = new AdministracionModel();
+                $credsNit  = $cfgNit->getCertificadorFactSettingsForActiveModo();
+                $nitEval   = CertificadorFactNitLookupHelper::evaluateClientBillingDigifact(
+                    (string) ($row->client_nit ?? ''),
+                    $bearerNit,
+                    trim((string) ($credsNit['url_cert_nit'] ?? '')),
+                    trim((string) ($credsNit['url_cert_cui'] ?? '')),
+                    trim((string) ($credsNit['nit'] ?? '')),
+                    trim((string) ($credsNit['usuario'] ?? '')),
+                    45,
+                    [
+                        'environment'  => ($cfgNit->getCertificadorFactModo() === 'prod' ? 'prod' : 'test'),
+                        'quotation_id' => $quotationId,
+                    ]
+                );
+                if (!empty($nitEval['force_manual_facturacion'])) {
+                    $facturarCotizacionExactaDb = 0;
+                    $nqNitFailed               = true;
+                }
+                if (empty($nitEval['empty_identifier'])) {
+                    $nqNitForDb = (string) $nitEval['nit_for_storage'];
+                }
+            } catch (\Throwable $e) {
+                // Confirmation proceeds; omit NIT normalization if evaluation fails unexpectedly.
+            }
+        }
+
         $wfSvc = new ApprovalWorkflowService($db);
         $includeConfirmInFirstUpdate = !$wfSvc->hasSchema();
 
@@ -864,6 +897,9 @@ class CotizacionController extends BaseController
         }
         if (($hasFacturacionConfig || $instruccionesFacturacion !== null) && isset($cols['facturar_cotizacion_exacta'])) {
             $sets[] = $db->quoteName('facturar_cotizacion_exacta') . ' = ' . $facturarCotizacionExactaDb;
+        }
+        if ($nqNitForDb !== null && isset($cols['client_nit'])) {
+            $sets[] = $db->quoteName('client_nit') . ' = ' . $db->quote($nqNitForDb);
         }
 
         $update = $db->getQuery(true)
@@ -920,7 +956,13 @@ class CotizacionController extends BaseController
             }
 
             if ($facturarCotizacionExactaDb === 0) {
-                ApprovalWorkflowEntityHelper::queueCotizacionFacturacionManualApproval($db, $quotationId, (int) $user->id);
+                ApprovalWorkflowEntityHelper::queueCotizacionFacturacionManualApproval(
+                    $db,
+                    $quotationId,
+                    (int) $user->id,
+                    $nqNitFailed,
+                    $nqNitFailed
+                );
             }
 
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
@@ -937,7 +979,13 @@ class CotizacionController extends BaseController
             }
         }
         if ($facturarCotizacionExactaDb === 0) {
-            ApprovalWorkflowEntityHelper::queueCotizacionFacturacionManualApproval($db, $quotationId, (int) $user->id);
+            ApprovalWorkflowEntityHelper::queueCotizacionFacturacionManualApproval(
+                $db,
+                $quotationId,
+                (int) $user->id,
+                $nqNitFailed,
+                $nqNitFailed
+            );
         }
 
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
@@ -1019,16 +1067,6 @@ class CotizacionController extends BaseController
         try {
             $fel    = new FelInvoiceIssuanceService();
             $bearer = $fel->getActiveCertificadorBearerToken();
-            if ($bearer === '') {
-                $emit([
-                    'success'  => true,
-                    'verified' => false,
-                    'kind'     => '',
-                    'vat'      => $vatRaw,
-                    'name'     => $nameOdoo,
-                    'message'  => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NO_TOKEN'),
-                ]);
-            }
 
             $cfgModel = new AdministracionModel();
             $creds    = $cfgModel->getCertificadorFactSettingsForActiveModo();
@@ -1037,60 +1075,64 @@ class CotizacionController extends BaseController
             $taxId    = trim((string) ($creds['nit'] ?? ''));
             $usr      = trim((string) ($creds['usuario'] ?? ''));
 
-            $digifactEnv = $cfgModel->getCertificadorFactModo();
-            $digifactEnv = ($digifactEnv === 'prod') ? 'prod' : 'test';
+            $digifactEnv  = ($cfgModel->getCertificadorFactModo() === 'prod') ? 'prod' : 'test';
             $logQuotation = ['environment' => $digifactEnv, 'quotation_id' => $quotationId];
 
-            $rNit = CertificadorFactNitLookupHelper::fetchNitInfo(
+            $eval = CertificadorFactNitLookupHelper::evaluateClientBillingDigifact(
                 $vatRaw,
+                $bearer,
                 $urlNit,
+                $urlCui,
                 $taxId,
                 $usr,
-                $bearer,
                 45,
-                false,
-                array_merge($logQuotation, ['operation' => 'shared_nit'])
+                $logQuotation
             );
-            if (!empty($rNit['ok'])) {
+
+            if (!empty($eval['consumidor_final'])) {
                 $emit([
                     'success'  => true,
                     'verified' => true,
-                    'kind'     => 'nit',
-                    'vat'      => (string) ($rNit['nit'] ?? $vatRaw),
-                    'name'     => (string) ($rNit['name'] ?? ''),
+                    'kind'     => 'cf',
+                    'vat'      => 'CF',
+                    'name'     => $nameOdoo,
                 ]);
             }
 
-            $sharedCui = $urlCui !== '' ? $urlCui : $urlNit;
-            $cuiDigits = preg_replace('/\D/', '', $vatRaw) ?? '';
-            $rCui      = $cuiDigits !== ''
-                ? CertificadorFactNitLookupHelper::fetchCuiInfo(
-                    $cuiDigits,
-                    $sharedCui,
-                    $taxId,
-                    $usr,
-                    $bearer,
-                    45,
-                    false,
-                    array_merge($logQuotation, ['operation' => 'shared_cui'])
-                )
-                : ['ok' => false];
+            if (trim($bearer) === '') {
+                $stored = (string) $eval['nit_for_storage'];
+                $vatOut = $stored !== '' ? $stored : $vatRaw;
+                $emit([
+                    'success'  => true,
+                    'verified' => false,
+                    'kind'     => '',
+                    'vat'      => $vatOut,
+                    'name'     => $nameOdoo,
+                    'message'  => Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_NO_TOKEN'),
+                ]);
+            }
 
-            if (!empty($rCui['ok'])) {
+            if (!empty($eval['verified'])) {
+                $nm = (string) $eval['verified_name'];
+                if ($nm === '') {
+                    $nm = $nameOdoo;
+                }
                 $emit([
                     'success'  => true,
                     'verified' => true,
-                    'kind'     => 'cui',
-                    'vat'      => (string) ($rCui['nit'] ?? $cuiDigits),
-                    'name'     => (string) ($rCui['name'] ?? ''),
+                    'kind'     => (string) $eval['nit_kind_out'],
+                    'vat'      => (string) $eval['nit_for_storage'],
+                    'name'     => $nm,
                 ]);
             }
 
+            $stored = (string) $eval['nit_for_storage'];
+            $vatOut = $stored !== '' ? $stored : $vatRaw;
             $emit([
                 'success'  => true,
                 'verified' => false,
                 'kind'     => '',
-                'vat'      => $vatRaw,
+                'vat'      => $vatOut,
                 'name'     => $nameOdoo,
                 'message'  => Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DIGIFACT_NO_VERIFICADO'),
             ]);

@@ -5,6 +5,7 @@
  * Layout can use flattened active-modo variables from the view, e.g. $this->certificadorFactActiveNit,
  * $this->certificadorFactActiveUsuario, $this->certificadorFactActiveUrlAutenticacion, or the map
  * $this->certificadorFactActive (clave is never on the view; use certificadorFactActiveClaveConfigured).
+ * URL keys include url_cert_fact_buyer_cf (consumidor final en NIT cliente).
  * For API code needing the stored clave, use AdministracionModel::getCertificadorFactSettingsForActiveModo()
  * or FelInvoiceIssuanceService::getActiveCertificadorCredentials() server-side only.
  *
@@ -64,6 +65,10 @@ $renderSection = static function (string $env, string $headingKey, string $icon)
                 <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF'), 'url_cert_cf', 'cf_' . $env . '_url_cf', $s['url_cert_cf'] ?? ''); ?>
                 <div class="col-12">
                     <div class="form-text small text-muted mt-n1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CF_DESC'); ?></div>
+                </div>
+                <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_FACT_BUYER_CF'), 'url_cert_fact_buyer_cf', 'cf_' . $env . '_url_fact_buyer_cf', $s['url_cert_fact_buyer_cf'] ?? ''); ?>
+                <div class="col-12">
+                    <div class="form-text small text-muted mt-n1"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_FACT_BUYER_CF_DESC'); ?></div>
                 </div>
                 <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_NIT'), 'url_cert_nit', 'cf_' . $env . '_url_nit', $s['url_cert_nit'] ?? ''); ?>
                 <?php $urlTa(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_URL_CERT_CUI'), 'url_cert_cui', 'cf_' . $env . '_url_cui', $s['url_cert_cui'] ?? ''); ?>

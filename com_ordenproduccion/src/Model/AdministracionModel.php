@@ -3608,6 +3608,7 @@ class AdministracionModel extends BaseDatabaseModel
             'url_autenticacion',
             'url_info',
             'url_cert_cf',
+            'url_cert_fact_buyer_cf',
             'url_cert_nit',
             'url_cert_cui',
             'branch_code',
@@ -3989,6 +3990,7 @@ class AdministracionModel extends BaseDatabaseModel
             $keys[] = $p . 'url_autenticacion';
             $keys[] = $p . 'url_info';
             $keys[] = $p . 'url_cert_cf';
+            $keys[] = $p . 'url_cert_fact_buyer_cf';
             $keys[] = $p . 'url_cert_nit';
             $keys[] = $p . 'url_cert_cui';
             $keys[] = $p . 'branch_code';
@@ -4013,6 +4015,7 @@ class AdministracionModel extends BaseDatabaseModel
                 'url_autenticacion' => '',
                 'url_info' => '',
                 'url_cert_cf' => '',
+                'url_cert_fact_buyer_cf' => '',
                 'url_cert_nit' => '',
                 'url_cert_cui' => '',
                 'branch_code' => '',
@@ -4030,6 +4033,7 @@ class AdministracionModel extends BaseDatabaseModel
                 'url_autenticacion' => '',
                 'url_info' => '',
                 'url_cert_cf' => '',
+                'url_cert_fact_buyer_cf' => '',
                 'url_cert_nit' => '',
                 'url_cert_cui' => '',
                 'branch_code' => '',
@@ -4048,6 +4052,7 @@ class AdministracionModel extends BaseDatabaseModel
             'url_autenticacion',
             'url_info',
             'url_cert_cf',
+            'url_cert_fact_buyer_cf',
             'url_cert_nit',
             'url_cert_cui',
             'branch_code',
@@ -4134,6 +4139,7 @@ class AdministracionModel extends BaseDatabaseModel
             'url_autenticacion',
             'url_info',
             'url_cert_cf',
+            'url_cert_fact_buyer_cf',
             'url_cert_nit',
             'url_cert_cui',
             'branch_code',

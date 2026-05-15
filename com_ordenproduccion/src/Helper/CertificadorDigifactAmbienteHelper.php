@@ -17,25 +17,41 @@ defined('_JEXEC') or die;
 final class CertificadorDigifactAmbienteHelper
 {
     /**
-     * Host picked for NUC certification (same precedence as FelInvoiceIssuanceService::buildDigifactCertificarRequestUrl).
+     * Every configured NUC certification base URL (FACT genérica, FACT consumidor final en NIT cliente, NIT transform).
      *
-     * @param   array<string, string>  $creds  url_cert_cf, url_cert_nit (trimmed by caller OK)
+     * @param   array<string, string>  $creds  Stored certificador keys including url_cert_fact_buyer_cf (optional)
+     *
+     * @return  list<string>
+     */
+    public static function collectConfiguredCertificarBaseUrls(array $creds): array
+    {
+        $out = [];
+        foreach (['url_cert_fact_buyer_cf', 'url_cert_cf', 'url_cert_nit'] as $k) {
+            $u = trim((string) ($creds[$k] ?? ''));
+            if ($u !== '' && filter_var($u, FILTER_VALIDATE_URL)) {
+                $out[] = $u;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * First valid certification host (same family as {@see FelInvoiceIssuanceService::buildDigifactCertificarRequestUrl}
+     * precedence when buyer is unknown).
+     *
+     * @param   array<string, string>  $creds  url_cert_* (trimmed by caller OK)
      */
     public static function resolveCertificarBaseHost(array $creds): string
     {
-        $base = trim((string) ($creds['url_cert_cf'] ?? ''));
-        if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
-            $base = trim((string) ($creds['url_cert_nit'] ?? ''));
-        }
-        if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
-            return '';
-        }
-        $parts = parse_url($base);
-        if ($parts === false || empty($parts['host'])) {
-            return '';
+        foreach (self::collectConfiguredCertificarBaseUrls($creds) as $base) {
+            $parts = parse_url($base);
+            if ($parts !== false && !empty($parts['host'])) {
+                return strtolower((string) $parts['host']);
+            }
         }
 
-        return strtolower((string) $parts['host']);
+        return '';
     }
 
     /**
@@ -88,14 +104,25 @@ final class CertificadorDigifactAmbienteHelper
     }
 
     /**
-     * Message key from stored/pending cert CF / NIT URLs for the given modo, or null if OK / URL missing.
+     * Message key from stored/pending cert URLs for the given modo, or null if OK / no URL.
      *
      * @param   array<string, string>  $creds  Same shape as getCertificadorFactSettings* row
      */
     public static function nucCertifyCredsViolateModo(array $creds, string $modo): ?string
     {
-        $host = self::resolveCertificarBaseHost($creds);
+        $modo = $modo === 'prod' ? 'prod' : 'test';
+        foreach (self::collectConfiguredCertificarBaseUrls($creds) as $url) {
+            $parts = parse_url($url);
+            if ($parts === false || empty($parts['host'])) {
+                continue;
+            }
+            $host = strtolower((string) $parts['host']);
+            $v    = self::nucCertifyHostViolatesModo($host, $modo);
+            if ($v !== null) {
+                return $v;
+            }
+        }
 
-        return self::nucCertifyHostViolatesModo($host, $modo);
+        return null;
     }
 }

@@ -14,6 +14,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Service;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
@@ -85,6 +86,7 @@ class FelInvoiceIssuanceService
                 'url_autenticacion' => '',
                 'url_info'          => '',
                 'url_cert_cf'       => '',
+                'url_cert_fact_buyer_cf' => '',
                 'url_cert_nit'      => '',
                 'url_cert_cui'      => '',
                 'branch_code'       => '',
@@ -1496,6 +1498,14 @@ class FelInvoiceIssuanceService
         $buyerStreet = trim((string) ($quotation->client_address ?? '')) !== ''
             ? trim((string) $quotation->client_address) : $addrParts['street'];
         $buyerNit = trim((string) ($quotation->client_nit ?? ''));
+        if (CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerNit)) {
+            $buyerNit = 'CF';
+        } elseif ($buyerNit !== '') {
+            $dig = CertificadorFactNitLookupHelper::digitsOnlyBillingId($buyerNit);
+            if ($dig !== '') {
+                $buyerNit = $dig;
+            }
+        }
         $buyerName = trim((string) ($quotation->client_name ?? ''));
         if ($buyerName === '') {
             $buyerName = 'Cliente';
@@ -1697,12 +1707,20 @@ class FelInvoiceIssuanceService
 
     /**
      * Merge TAXID (padded), USERNAME, FORMAT into certificación URL from config.
-     * Uses **URL certificación / FACT** (`url_cert_cf`) when set; if empty or invalid, falls back to **URL certificación NIT**
-     * (Digifact `nuc_json` is typically stored there — no duplicate field required).
+     * When the quotation buyer NIT field is consumidor final (CF / C/F), uses `url_cert_fact_buyer_cf` when set and valid.
+     * Otherwise uses **URL certificación / FACT** (`url_cert_cf`); if empty or invalid, falls back to **URL certificación NIT**.
+     *
+     * @param  string  $buyerTaxIdRaw  Quotation `client_nit` (raw); used only to pick buyer-CF certify URL.
      */
-    public function buildDigifactCertificarRequestUrl(array $creds): string
+    public function buildDigifactCertificarRequestUrl(array $creds, string $buyerTaxIdRaw = ''): string
     {
-        $base = trim((string) ($creds['url_cert_cf'] ?? ''));
+        $base = '';
+        if (CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerTaxIdRaw)) {
+            $base = trim((string) ($creds['url_cert_fact_buyer_cf'] ?? ''));
+        }
+        if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
+            $base = trim((string) ($creds['url_cert_cf'] ?? ''));
+        }
         if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
             $base = trim((string) ($creds['url_cert_nit'] ?? ''));
         }
@@ -1896,19 +1914,19 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Engine unavailable'];
         }
 
+        $quotation = $this->loadQuotation($quotationId);
+        if (!$quotation) {
+            return ['success' => false, 'message' => 'Quotation not found'];
+        }
+
         $creds = $this->getActiveCertificadorCredentials();
-        if ($this->buildDigifactCertificarRequestUrl($creds) === '') {
+        if ($this->buildDigifactCertificarRequestUrl($creds, (string) ($quotation->client_nit ?? '')) === '') {
             return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
         }
 
         $ambErr = CertificadorDigifactAmbienteHelper::nucCertifyCredsViolateModo($creds, $this->getActiveCertificadorModo());
         if ($ambErr !== null) {
             return ['success' => false, 'message' => Text::_($ambErr)];
-        }
-
-        $quotation = $this->loadQuotation($quotationId);
-        if (!$quotation) {
-            return ['success' => false, 'message' => 'Quotation not found'];
         }
 
         $existing = $this->getInvoiceByQuotationId($quotationId);
@@ -2219,8 +2237,10 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Invalid ids'];
         }
 
-        $creds = $this->getActiveCertificadorCredentials();
-        $url   = $this->buildDigifactCertificarRequestUrl($creds);
+        $quotation = $this->loadQuotation($quotationId);
+        $buyerRaw  = $quotation ? (string) ($quotation->client_nit ?? '') : '';
+        $creds     = $this->getActiveCertificadorCredentials();
+        $url       = $this->buildDigifactCertificarRequestUrl($creds, $buyerRaw);
         if ($url === '') {
             $msg = 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).';
             $this->markFailed($invoiceId, $msg);
@@ -2428,8 +2448,13 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Engine unavailable'];
         }
 
+        $quotation = $this->loadQuotation($quotationId);
+        if (!$quotation) {
+            return ['success' => false, 'message' => 'Quotation not found'];
+        }
+
         $creds = $this->getActiveCertificadorCredentials();
-        $url   = $this->buildDigifactCertificarRequestUrl($creds);
+        $url   = $this->buildDigifactCertificarRequestUrl($creds, (string) ($quotation->client_nit ?? ''));
         if ($url === '') {
             return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
         }
@@ -2448,11 +2473,6 @@ class FelInvoiceIssuanceService
 
         /** @var array<string, mixed> $payload */
         $payload = $built['payload'];
-
-        $quotation = $this->loadQuotation($quotationId);
-        if (!$quotation) {
-            return ['success' => false, 'message' => 'Quotation not found'];
-        }
 
         $existing = $this->getInvoiceByQuotationId($quotationId);
         $invoiceId = $existing ? (int) $existing->id : $this->createPendingInvoiceFromQuotation($quotationId, $userId);

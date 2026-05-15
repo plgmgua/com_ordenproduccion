@@ -21,6 +21,141 @@ defined('_JEXEC') or die;
 class CertificadorFactNitLookupHelper
 {
     /**
+     * Digits only: strip punctuation, spaces, etc. Used before Digifact NIT/CUI lookups (e.g. 99999-9 → 999999).
+     */
+    public static function digitsOnlyBillingId(string $raw): string
+    {
+        return preg_replace('/\D/', '', (string) $raw) ?? '';
+    }
+
+    /**
+     * True when the client billing field explicitly indicates consumidor final (CF or C/F), case-insensitive.
+     *
+     * @since  3.119.36
+     */
+    public static function billingIdIndicatesConsumidorFinal(string $raw): bool
+    {
+        $t = strtoupper(trim((string) $raw));
+        if ($t === '') {
+            return false;
+        }
+        if ($t === 'CF') {
+            return true;
+        }
+
+        return strpos($t, 'C/F') !== false;
+    }
+
+    /**
+     * Preview + confirmación: classify client_nit / drive Digifact NIT+CUI SHARED lookup using digits-only id.
+     *
+     * @return  array{
+     *     empty_identifier: bool,
+     *     consumidor_final: bool,
+     *     nit_digits: string,
+     *     nit_for_storage: string,
+     *     verified: bool,
+     *     force_manual_facturacion: bool,
+     *     nit_kind_out: string,
+     *     verified_name: string
+     * }
+     *
+     * @since  3.119.36
+     */
+    public static function evaluateClientBillingDigifact(
+        string $clientNitRaw,
+        string $bearerJwt,
+        string $urlNit,
+        string $urlCui,
+        string $emissorTaxId,
+        string $apiUsername,
+        int $timeoutSec = 45,
+        array $logQuotation = []
+    ): array {
+        $vatRaw = trim($clientNitRaw);
+        $out = [
+            'empty_identifier'         => false,
+            'consumidor_final'         => false,
+            'nit_digits'               => '',
+            'nit_for_storage'          => '',
+            'verified'                 => false,
+            'force_manual_facturacion' => false,
+            'nit_kind_out'             => '',
+            'verified_name'            => '',
+        ];
+        if ($vatRaw === '') {
+            $out['empty_identifier'] = true;
+
+            return $out;
+        }
+        if (self::billingIdIndicatesConsumidorFinal($vatRaw)) {
+            $out['consumidor_final'] = true;
+            $out['verified']         = true;
+            $out['nit_for_storage']  = 'CF';
+            $out['nit_kind_out']     = 'cf';
+
+            return $out;
+        }
+        $digits = self::digitsOnlyBillingId($vatRaw);
+        $out['nit_digits'] = $digits;
+        if ($digits === '') {
+            $out['force_manual_facturacion'] = true;
+
+            return $out;
+        }
+        $bearerJwt = trim($bearerJwt);
+        $out['nit_for_storage'] = $digits;
+        if ($bearerJwt === '') {
+            $out['force_manual_facturacion'] = true;
+
+            return $out;
+        }
+
+        $rNit = self::fetchNitInfo(
+            $digits,
+            $urlNit,
+            $emissorTaxId,
+            $apiUsername,
+            $bearerJwt,
+            $timeoutSec,
+            false,
+            array_merge($logQuotation, ['operation' => 'shared_nit'])
+        );
+        if (!empty($rNit['ok'])) {
+            $out['verified']        = true;
+            $out['nit_kind_out']    = 'nit';
+            $out['verified_name']   = (string) ($rNit['name'] ?? '');
+            $out['nit_for_storage'] = (string) ($rNit['nit'] ?? $digits);
+
+            return $out;
+        }
+
+        $sharedCui = trim($urlCui) !== '' ? trim($urlCui) : trim($urlNit);
+        $rCui      = self::fetchCuiInfo(
+            $digits,
+            $sharedCui,
+            $emissorTaxId,
+            $apiUsername,
+            $bearerJwt,
+            $timeoutSec,
+            false,
+            array_merge($logQuotation, ['operation' => 'shared_cui'])
+        );
+        if (!empty($rCui['ok'])) {
+            $out['verified']        = true;
+            $out['nit_kind_out']    = 'cui';
+            $out['verified_name']   = (string) ($rCui['name'] ?? '');
+            $out['nit_for_storage'] = (string) ($rCui['nit'] ?? $digits);
+
+            return $out;
+        }
+
+        $out['force_manual_facturacion'] = true;
+
+        return $out;
+    }
+
+    /**
      * Strip optional "Bearer " and whitespace (Digifact samples use raw JWT only).
      */
     protected static function normalizeAuthorizationToken(string $token): string
