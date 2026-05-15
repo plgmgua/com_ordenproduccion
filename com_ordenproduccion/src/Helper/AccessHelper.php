@@ -901,13 +901,22 @@ class AccessHelper
     }
 
     /**
-     * Whether the Administración frontend may show the Aprobaciones tab (pending items or admin).
+     * Whether the Administración frontend may show the Aprobaciones tab and the pending-approvals module may run.
+     *
+     * Super users and Administración/Admon always see the tab. Users with order access (Ventas, Producción,
+     * Administración) can open it to act as approvers or to track own submissions—even when the pending count
+     * query returns zero (e.g. edge DB states). Other registered users only see it when they have at least one
+     * merged pending row (approver or submitter).
      *
      * @return  bool
      */
     public static function canViewApprovalWorkflowTab()
     {
         if (self::isSuperUser() || self::isInAdministracionOrAdmonGroup()) {
+            return true;
+        }
+
+        if (self::hasOrderAccess()) {
             return true;
         }
 

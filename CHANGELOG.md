@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.53-STABLE] - 2026-05-15
+
+### Fixed
+- **Aprobaciones (pestaña y módulo):** usuarios con acceso a pedidos (Ventas / Producción / Administración) ya no dependen de que el conteo de pendientes sea &gt; 0 para poder abrir la pestaña o ejecutar el módulo. Antes, si el conteo fallaba o no incluía filas de solicitante, el módulo salía antes de cargar datos y **no se mostraba** (p. ej. solicitantes sin rol de aprobador). El módulo sigue ocultándose cuando no hay filas si «Hide when empty» está activo.
+
 ## [3.119.52-STABLE] - 2026-05-15
 
 ### Changed
