@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.50-STABLE] - 2026-05-11
+
+### Changed
+- **FEL directo (modal CF):** al **Validar** CUI con éxito, el campo **Nombre del cliente en la factura** se rellena siempre con el **nombre** devuelto por Digifact (no solo si el campo estaba vacío).
+
 ## [3.119.49-STABLE] - 2026-05-11
 
 ### Fixed

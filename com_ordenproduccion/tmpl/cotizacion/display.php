@@ -835,8 +835,8 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                             if (j && j.success) {
                                 cuiValidated = true;
                                 timbrarBtn.disabled = false;
-                                if (buyerNameInput && !String(buyerNameInput.value || '').trim() && j.data && j.data.name) {
-                                    buyerNameInput.value = j.data.name;
+                                if (buyerNameInput && j.data && j.data.name) {
+                                    buyerNameInput.value = String(j.data.name).trim();
                                 }
                                 if (cuiMsg) {
                                     var m = (j.message) ? j.message : '';
