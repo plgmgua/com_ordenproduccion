@@ -279,10 +279,16 @@ class ApprovalWorkflowEntityHelper
         }
 
         if ($exactaMeta === 0) {
+            $forceManual       = !empty($meta['manual_fact_queue_force']);
+            $nitVerifyFromMeta = !empty($meta['nit_verify_failed']);
+            $cfGtqFromMeta     = !empty($meta['cf_gtq2499_manual_required']);
             self::queueCotizacionFacturacionManualApproval(
                 $db,
                 $quotationId,
-                $submitterUserId > 0 ? $submitterUserId : $approvedByUserId
+                $submitterUserId > 0 ? $submitterUserId : $approvedByUserId,
+                $forceManual,
+                $nitVerifyFromMeta,
+                $cfGtqFromMeta
             );
         }
     }
@@ -290,8 +296,9 @@ class ApprovalWorkflowEntityHelper
     /**
      * Start manual factura approval when líneas con Facturación activa requieren factura sin monto exacto.
      *
-     * @param  bool  $forceDespiteNoFacturarLines  When true (e.g. cliente NIT no verificado contra Digifact), queue even sin líneas marcadas para facturar.
-     * @param  bool  $nitVerifyFailed              When true, metadata records that manual facturación was driven by NIT/Digifact fallo.
+     * @param  bool  $forceDespiteNoFacturarLines  When true (e.g. cliente NIT no verificado contra Digifact, CF + monto sobre límite GTQ), queue even sin líneas marcadas para facturar.
+     * @param  bool  $nitVerifyFailed               When true, metadata records that manual facturación was driven by NIT/Digifact fallo.
+     * @param  bool  $cfGtqExclusiveLimitManual    When true, metadata records CF/C/F + total sobre límite (debe capturarse CUI en aprobación manual).
      *
      * @since  3.118.26
      */
@@ -300,7 +307,8 @@ class ApprovalWorkflowEntityHelper
         int $quotationId,
         int $submitterUserId,
         bool $forceDespiteNoFacturarLines = false,
-        bool $nitVerifyFailed = false
+        bool $nitVerifyFailed = false,
+        bool $cfGtqExclusiveLimitManual = false
     ): void {
         $quotationId     = (int) $quotationId;
         $submitterUserId = (int) $submitterUserId;
@@ -346,6 +354,7 @@ class ApprovalWorkflowEntityHelper
             'facturar_cotizacion_exacta' => (int) ($row->facturar_cotizacion_exacta ?? 0),
             'submitter_user_id'          => $submitterUserId,
             'nit_verify_failed'          => $nitVerifyFailed,
+            'cf_gtq2499_manual_required' => $cfGtqExclusiveLimitManual,
         ];
         $wfSvc->createRequest(
             ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL,

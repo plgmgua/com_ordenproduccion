@@ -47,6 +47,25 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
+     * GTQ: Totals strictly above this cannot use Consumidor Final (CF/C/F) for FACT; require CUI and manual billing path.
+     *
+     * Business rule aligns with Guatemala FEL limits for unidentified consumer over this amount.
+     *
+     * @since  3.119.43
+     */
+    public const CONSUMIDOR_FINAL_INVOICE_MAX_GTQ_EXCLUSIVE = 2499.0;
+
+    /**
+     * CF/C/F quotations with total GTQ strictly above {@see CONSUMIDOR_FINAL_INVOICE_MAX_GTQ_EXCLUSIVE} need manual facturación (CUI capture).
+     *
+     * @since  3.119.43
+     */
+    public static function consumidorFinalQuotationNeedsManualBillingForAmount(float $totalGtg): bool
+    {
+        return $totalGtg > self::CONSUMIDOR_FINAL_INVOICE_MAX_GTQ_EXCLUSIVE + 1e-9;
+    }
+
+    /**
      * Preview + confirmación: classify client_nit / drive Digifact NIT+CUI SHARED lookup using digits-only id.
      *
      * @return  array{

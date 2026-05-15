@@ -137,6 +137,19 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * After confirmar cotización: warn when CF/C/F + total GTQ above limit sent facturación to manual approval for CUI capture.
+     *
+     * @since  3.119.43
+     */
+    private function enqueueCotizacionConfirmCfOverLimitManualNotice(bool $nqCfOverLimit): void
+    {
+        if (!$nqCfOverLimit) {
+            return;
+        }
+        Factory::getApplication()->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_CF_MONTO_LIMITE_MANUAL'), 'warning');
+    }
+
+    /**
      * Calculate pliego price (AJAX). Returns JSON: success, price_per_sheet, total, message.
      *
      * @return  void
@@ -837,6 +850,7 @@ class CotizacionController extends BaseController
         }
 
         $nqNitFailed  = false;
+        $nqCfOverLimit = false;
         $nqNitForDb   = null;
         if (isset($cols['client_nit'])) {
             try {
@@ -867,6 +881,16 @@ class CotizacionController extends BaseController
             } catch (\Throwable $e) {
                 // Confirmation proceeds; omit NIT normalization if evaluation fails unexpectedly.
             }
+        }
+
+        if (
+            isset($cols['facturar_cotizacion_exacta'])
+            && isset($cols['client_nit'])
+            && CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal((string) ($row->client_nit ?? ''))
+            && CertificadorFactNitLookupHelper::consumidorFinalQuotationNeedsManualBillingForAmount((float) ($row->total_amount ?? 0.0))
+        ) {
+            $facturarCotizacionExactaDb = 0;
+            $nqCfOverLimit              = true;
         }
 
         $wfSvc = new ApprovalWorkflowService($db);
@@ -916,6 +940,9 @@ class CotizacionController extends BaseController
                 'facturacion_fecha_sql'        => $facturacionFechaSql,
                 'facturar_cotizacion_exacta'   => $facturarCotizacionExactaDb,
                 'submitter_user_id'            => (int) $user->id,
+                'manual_fact_queue_force'      => ($nqNitFailed || $nqCfOverLimit),
+                'nit_verify_failed'            => $nqNitFailed,
+                'cf_gtq2499_manual_required'    => $nqCfOverLimit,
             ], JSON_UNESCAPED_UNICODE);
 
             $rid = $wfSvc->createRequest(
@@ -926,6 +953,7 @@ class CotizacionController extends BaseController
             );
 
             if ($rid > 0) {
+                $this->enqueueCotizacionConfirmCfOverLimitManualNotice($nqCfOverLimit);
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_COTIZACION_SUBMITTED'), 'success');
                 $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
 
@@ -960,11 +988,13 @@ class CotizacionController extends BaseController
                     $db,
                     $quotationId,
                     (int) $user->id,
+                    ($nqNitFailed || $nqCfOverLimit),
                     $nqNitFailed,
-                    $nqNitFailed
+                    $nqCfOverLimit
                 );
             }
 
+            $this->enqueueCotizacionConfirmCfOverLimitManualNotice($nqCfOverLimit);
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
 
@@ -983,11 +1013,13 @@ class CotizacionController extends BaseController
                 $db,
                 $quotationId,
                 (int) $user->id,
+                ($nqNitFailed || $nqCfOverLimit),
                 $nqNitFailed,
-                $nqNitFailed
+                $nqCfOverLimit
             );
         }
 
+        $this->enqueueCotizacionConfirmCfOverLimitManualNotice($nqCfOverLimit);
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_FINALIZADA_OK'), 'success');
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
     }

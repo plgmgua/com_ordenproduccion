@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.43-STABLE] - 2026-05-12
+
+### Added
+- **Confirmar cotización:** si `client_nit` es CF o C/F y el **total (`total_amount`) es mayor que Q2,499.00**, se fuerza `facturar_cotizacion_exacta = 0`, cola de **facturación manual** (incluso sin líneas “facturar” si aplica) y aviso al usuario: debe usarse **CUI** por encima de ese monto.
+
+### Changed
+- **Workflow confirmación cotización:** el metadata del request incluye `manual_fact_queue_force`, `nit_verify_failed`, `cf_gtq2499_manual_required` para que al aprobar se encole manual factura con los mismos criterios (`applyCotizacionConfirmationApproved`).
+
 ## [3.119.42-STABLE] - 2026-05-11
 
 ### Fixed
