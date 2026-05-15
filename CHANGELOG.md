@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.47-STABLE] - 2026-05-11
+
+### Added
+- **FEL directo (modal cotización):** campo **nombre del cliente en la factura** (valor inicial = `client_name` de la cotización); se envía como `digifact_buyer_name` y se usa en el NUC como `Buyer.Name`. Tras **Validar** CUI, si el nombre quedó vacío se rellena con el nombre devuelto por Digifact.
+
+### Fixed
+- **Timbrar (Digifact directo):** errores de guardado, certificación y respuestas no JSON se muestran **dentro del modal** (`digifact-fel-modal-alert`); la petición de emisión parsea el cuerpo con `JSON.parse` y maneja HTTP no OK, evitando el fallo silencioso cuando el usuario no veía `#digifact-direct-alert` detrás del modal.
+
 ## [3.119.46-STABLE] - 2026-05-11
 
 ### Added

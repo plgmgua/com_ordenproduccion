@@ -21,6 +21,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
+use Joomla\CMS\String\StringHelper;
 use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
@@ -1586,6 +1587,8 @@ class CotizacionController extends BaseController
             $isCf   = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($nitRaw);
             $cuiPost = trim((string) $app->input->post->getString('digifact_buyer_cui', ''));
             $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
+            $buyerNamePost = trim((string) $app->input->post->getString('digifact_buyer_name', ''));
+            $buyerNameForIssue = $buyerNamePost === '' ? null : StringHelper::substr($buyerNamePost, 0, 500);
 
             if ($isCf) {
                 if ($cuiDigits === '') {
@@ -1600,9 +1603,9 @@ class CotizacionController extends BaseController
                     ], JSON_UNESCAPED_UNICODE);
                     $app->close();
                 }
-                $result = $fel->issueDigifactNucDirectFromQuotation($quotationId, (int) $user->id, $cuiDigits);
+                $result = $fel->issueDigifactNucDirectFromQuotation($quotationId, (int) $user->id, $cuiDigits, $buyerNameForIssue);
             } else {
-                $result = $fel->issueDigifactNucDirectFromQuotation($quotationId, (int) $user->id, null);
+                $result = $fel->issueDigifactNucDirectFromQuotation($quotationId, (int) $user->id, null, $buyerNameForIssue);
             }
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {

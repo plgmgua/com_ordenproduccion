@@ -132,6 +132,7 @@ $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizac
 $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveQuotationLinesForFelDigifact&format=json', false);
 $digifactQuotBillingIsCf = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal(trim((string) ($quotation->client_nit ?? '')));
 $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactCui&format=json', false);
+$digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -620,7 +621,15 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
                     </div>
                     <div class="modal-body">
+                        <div id="digifact-fel-modal-alert" class="alert alert-danger py-2 small mb-3 d-none" role="alert"></div>
                         <p class="small text-muted mb-3"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_MODAL_INTRO', 'Adjust quantity and description for each line. «Timbrar» saves the cotización and certifies with Digifact.', 'Ajuste cantidad y descripción por línea. «Timbrar» guarda la cotización y certifica con Digifact.')); ?></p>
+                        <div class="mb-3">
+                            <label class="form-label small mb-1" for="digifact-fel-buyer-name-input"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_BUYER_NAME_LABEL', 'Client name on invoice (receptor)', 'Nombre del cliente en la factura (receptor)')); ?></label>
+                            <input type="text" class="form-control" id="digifact-fel-buyer-name-input" name="digifact_fel_buyer_name" maxlength="500" autocomplete="organization"
+                                value="<?php echo htmlspecialchars($digifactBuyerNameInitial, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-initial="<?php echo htmlspecialchars($digifactBuyerNameInitial, ENT_QUOTES, 'UTF-8'); ?>" />
+                            <p class="form-text small text-muted mb-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_BUYER_NAME_DESC', 'Shown as Buyer.Name in the NUC sent to Digifact. Edit if it must differ from the cotización client name.', 'Se envía como nombre del receptor (Buyer.Name) a Digifact. Edítelo si debe diferir del cliente de la cotización.')); ?></p>
+                        </div>
                         <?php if (!empty($digifactQuotBillingIsCf)) : ?>
                         <div id="digifact-fel-cf-cui-wrap" class="border rounded p-3 mb-3 bg-light">
                             <p class="small mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_BLOCK_INTRO', 'Billing ID is consumidor final (CF). Enter the buyer\'s CUI and validate with Digifact before «Timbrar».', 'El NIT de facturación es consumidor final (CF). Ingrese el CUI del comprador y valídelo con Digifact antes de «Timbrar».')); ?></p>
@@ -640,7 +649,7 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
                                     <tr>
                                         <th scope="col" style="width:7rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_PRE_COTIZACION', 'Pre-Quotation', 'Pre-Cotización')); ?></th>
                                         <th scope="col" style="width:6rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.')); ?></th>
-                                        <th scope="col"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción')); ?></th>
+                                        <th scope="col"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINE_COL_NOTES', 'General instructions and notes', 'Instrucciones generales y Notas')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -659,7 +668,7 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
                                                     value="<?php echo htmlspecialchars((string) $felQtyVal, ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off" />
                                             </td>
                                             <td class="align-top py-2" style="min-width: 0;">
-                                                <label class="visually-hidden" for="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DESCRIPCION', 'Description', 'Descripción')); ?></label>
+                                                <label class="visually-hidden" for="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINE_COL_NOTES', 'General instructions and notes', 'Instrucciones generales y Notas')); ?></label>
                                                 <textarea class="form-control form-control-sm digifact-fel-line-desc w-100" id="digifact-line-desc-<?php echo (int) $felLineItem->id; ?>"
                                                     style="width: 100%; box-sizing: border-box; resize: vertical;" rows="3" required data-line-id="<?php echo (int) $felLineItem->id; ?>"><?php echo htmlspecialchars((string) ($felLineItem->descripcion ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
                                             </td>
@@ -688,7 +697,10 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
             var qid = <?php echo (int) $quotationId; ?>;
             var modalEl = document.getElementById('digifact-fel-lines-modal');
             var timbrarBtn = document.getElementById('digifact-fel-timbrar-btn');
+            var modalAlert = document.getElementById('digifact-fel-modal-alert');
+            var buyerNameInput = document.getElementById('digifact-fel-buyer-name-input');
             var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+            var msgBuyerNameRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_BUYER_NAME_REQUIRED', 'Enter the client name for the invoice.', 'Ingrese el nombre del cliente para la factura.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var verifyCuiUrl = <?php echo json_encode($digifactVerifyCuiUrl, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var needsCfCui = <?php echo !empty($digifactQuotBillingIsCf) ? 'true' : 'false'; ?>;
             var cuiInput = document.getElementById('digifact-fel-cui-input');
@@ -699,6 +711,40 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
             var msgCuiNotValidated = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_NOT_VALIDATED', 'Click «Validate» and wait for Digifact to confirm the CUI before «Timbrar».', 'Pulse «Validar» y espere la confirmación de Digifact antes de «Timbrar».'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             var msgValidateBusy = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_VALIDATING', 'Validating…', 'Validando…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
             if (!openBtn || !form || !modalEl || !timbrarBtn) return;
+
+            function hideModalAlert() {
+                if (modalAlert) {
+                    modalAlert.classList.add('d-none');
+                    modalAlert.textContent = '';
+                }
+            }
+            function showModalAlert(msg) {
+                var t = (msg !== undefined && msg !== null) ? String(msg) : '';
+                if (modalAlert) {
+                    modalAlert.classList.remove('d-none');
+                    modalAlert.classList.add('alert-danger');
+                    modalAlert.textContent = t;
+                    return;
+                }
+                if (alertEl) {
+                    alertEl.className = 'small mt-2 text-danger';
+                    alertEl.textContent = t;
+                    alertEl.classList.remove('d-none');
+                }
+            }
+
+            function readJsonResponse(resp) {
+                return resp.text().then(function(text) {
+                    var data = null;
+                    var parseErr = false;
+                    try {
+                        data = text ? JSON.parse(text) : null;
+                    } catch (e) {
+                        parseErr = true;
+                    }
+                    return { ok: resp.ok, status: resp.status, data: data, text: text, parseErr: parseErr };
+                });
+            }
 
             function showModal() {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -726,6 +772,10 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
                 if (alertEl) {
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
+                }
+                hideModalAlert();
+                if (buyerNameInput && buyerNameInput.getAttribute('data-initial') !== null) {
+                    buyerNameInput.value = buyerNameInput.getAttribute('data-initial') || '';
                 }
                 if (needsCfCui && cuiInput) {
                     cuiInput.value = '';
@@ -768,13 +818,26 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
                     var fd = new FormData(form);
                     fd.append('cui', raw);
                     fetch(verifyCuiUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                        .then(function(r) { return r.json(); })
-                        .then(function(j) {
+                        .then(readJsonResponse)
+                        .then(function(res) {
                             cuiValidateBtn.disabled = false;
                             cuiValidateBtn.innerHTML = prev;
+                            if (res.parseErr) {
+                                cuiValidated = false;
+                                timbrarBtn.disabled = true;
+                                if (cuiMsg) {
+                                    cuiMsg.textContent = msgNet + (res.text ? ' ' + res.text.substring(0, 160) : '');
+                                    cuiMsg.className = 'small mt-2 text-danger';
+                                }
+                                return;
+                            }
+                            var j = res.data;
                             if (j && j.success) {
                                 cuiValidated = true;
                                 timbrarBtn.disabled = false;
+                                if (buyerNameInput && !String(buyerNameInput.value || '').trim() && j.data && j.data.name) {
+                                    buyerNameInput.value = j.data.name;
+                                }
                                 if (cuiMsg) {
                                     var m = (j.message) ? j.message : '';
                                     var n = (j.data && j.data.name) ? j.data.name : '';
@@ -827,43 +890,33 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
                 }
+                hideModalAlert();
+                var buyerTrim = buyerNameInput ? String(buyerNameInput.value || '').trim() : '';
+                if (!buyerTrim) {
+                    showModalAlert(msgBuyerNameRequired);
+                    return;
+                }
                 var lines = collectLinesPayload();
                 lines.sort(function(a, b) { return a.id - b.id; });
                 var qtyInputCount = modalEl.querySelectorAll('input.digifact-fel-line-qty[data-line-id]').length;
                 if (lines.length !== qtyInputCount) {
-                    if (alertEl) {
-                        alertEl.className = 'small mt-2 text-danger';
-                        alertEl.textContent = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_PAYLOAD', 'Each line must have a valid quantity (≥ 0.001).', 'Cada línea debe tener una cantidad válida (≥ 0,001).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-                        alertEl.classList.remove('d-none');
-                    }
+                    showModalAlert(<?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_INVALID_PAYLOAD', 'Each line must have a valid quantity (≥ 0.001).', 'Cada línea debe tener una cantidad válida (≥ 0,001).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>);
                     return;
                 }
                 for (var i = 0; i < lines.length; i++) {
                     if (!lines[i].descripcion) {
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_DESC_REQUIRED', 'Description is required for every line.', 'La descripción es obligatoria en cada línea.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-                            alertEl.classList.remove('d-none');
-                        }
+                        showModalAlert(<?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_DESC_REQUIRED', 'Description is required for every line.', 'La descripción es obligatoria en cada línea.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>);
                         return;
                     }
                 }
                 if (needsCfCui) {
                     if (!cuiValidated) {
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = msgCuiNotValidated;
-                            alertEl.classList.remove('d-none');
-                        }
+                        showModalAlert(msgCuiNotValidated);
                         return;
                     }
                     var cuiDig = cuiInput ? String(cuiInput.value || '').replace(/\D/g, '') : '';
                     if (!cuiDig) {
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = msgCuiRequired;
-                            alertEl.classList.remove('d-none');
-                        }
+                        showModalAlert(msgCuiRequired);
                         return;
                     }
                 }
@@ -873,46 +926,69 @@ $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=clie
                 timbrarBtn.disabled = true;
                 openBtn.disabled = true;
                 fetch(saveLinesUrl, { method: 'POST', body: fdSave, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (!data || !data.success) {
-                            if (alertEl) {
-                                alertEl.className = 'small mt-2 text-danger';
-                                alertEl.textContent = (data && data.message) ? data.message : 'Error';
-                                alertEl.classList.remove('d-none');
-                            }
+                    .then(readJsonResponse)
+                    .then(function(res) {
+                        if (res.parseErr) {
+                            showModalAlert(msgNet + (res.text ? ' ' + res.text.substring(0, 220) : ''));
+                            timbrarBtn.disabled = false;
+                            openBtn.disabled = false;
+                            return Promise.resolve(null);
+                        }
+                        var data = res.data;
+                        if (!res.ok || !data) {
+                            showModalAlert((data && data.message) ? data.message : ('HTTP ' + res.status));
+                            timbrarBtn.disabled = false;
+                            openBtn.disabled = false;
+                            return Promise.resolve(null);
+                        }
+                        if (!data.success) {
+                            showModalAlert((data && data.message) ? data.message : 'Error');
+                            timbrarBtn.disabled = false;
+                            openBtn.disabled = false;
+                            return Promise.resolve(null);
+                        }
+                        var fdIssue = new FormData(form);
+                        fdIssue.append('quotation_id', String(qid));
+                        fdIssue.append('digifact_buyer_name', buyerTrim);
+                        if (needsCfCui && cuiInput) {
+                            fdIssue.append('digifact_buyer_cui', String(cuiInput.value || '').replace(/\D/g, ''));
+                        }
+                        return fetch(issueUrl, { method: 'POST', body: fdIssue, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    })
+                    .then(function(respIssue) {
+                        if (!respIssue) {
+                            return Promise.resolve(null);
+                        }
+                        return readJsonResponse(respIssue);
+                    })
+                    .then(function(res2) {
+                        if (!res2) {
+                            return;
+                        }
+                        if (res2.parseErr) {
+                            showModalAlert(msgNet + (res2.text ? ' ' + res2.text.substring(0, 220) : ''));
                             timbrarBtn.disabled = false;
                             openBtn.disabled = false;
                             return;
                         }
-                        var fdIssue = new FormData(form);
-                        fdIssue.append('quotation_id', String(qid));
-                        if (needsCfCui && cuiInput) {
-                            fdIssue.append('digifact_buyer_cui', String(cuiInput.value || '').replace(/\D/g, ''));
+                        var data2 = res2.data;
+                        if (!res2.ok || !data2) {
+                            showModalAlert((data2 && data2.message) ? data2.message : ('HTTP ' + res2.status));
+                            timbrarBtn.disabled = false;
+                            openBtn.disabled = false;
+                            return;
                         }
-                        return fetch(issueUrl, { method: 'POST', body: fdIssue, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                            .then(function(r2) { return r2.json(); })
-                            .then(function(data2) {
-                                if (data2 && data2.success) {
-                                    hideModal();
-                                    window.location.reload();
-                                    return;
-                                }
-                                if (alertEl) {
-                                    alertEl.className = 'small mt-2 text-danger';
-                                    alertEl.textContent = (data2 && data2.message) ? data2.message : 'Error';
-                                    alertEl.classList.remove('d-none');
-                                }
-                                timbrarBtn.disabled = false;
-                                openBtn.disabled = false;
-                            });
+                        if (data2.success) {
+                            hideModal();
+                            window.location.reload();
+                            return;
+                        }
+                        showModalAlert((data2 && data2.message) ? data2.message : 'Error');
+                        timbrarBtn.disabled = false;
+                        openBtn.disabled = false;
                     })
                     .catch(function() {
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = msgNet;
-                            alertEl.classList.remove('d-none');
-                        }
+                        showModalAlert(msgNet);
                         timbrarBtn.disabled = false;
                         openBtn.disabled = false;
                     });

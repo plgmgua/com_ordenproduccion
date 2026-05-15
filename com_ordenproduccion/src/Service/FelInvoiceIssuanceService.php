@@ -1488,13 +1488,19 @@ class FelInvoiceIssuanceService
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
      * @param   string|null   $nucBuyerTaxIdOverride  When billing is CF/C/F: optional digits-only CUI to send as Buyer.TaxID (after Digifact validation).
+     * @param   string|null   $buyerNameOverride        Optional Buyer.Name (invoice receptor nombre).
      *
      * @return  array<string, mixed>
      *
      * @since   3.118.27
      */
-    public function buildDigifactNucJsonPayload(object $quotation, array $lines, array $creds, ?string $nucBuyerTaxIdOverride = null): array
-    {
+    public function buildDigifactNucJsonPayload(
+        object $quotation,
+        array $lines,
+        array $creds,
+        ?string $nucBuyerTaxIdOverride = null,
+        ?string $buyerNameOverride = null
+    ): array {
         $buyerTaxIdRaw = trim((string) ($quotation->client_nit ?? ''));
         $isCfBuyer     = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerTaxIdRaw);
         $overrideDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId(trim((string) ($nucBuyerTaxIdOverride ?? '')));
@@ -1513,7 +1519,10 @@ class FelInvoiceIssuanceService
                 $buyerNit = $dig;
             }
         }
-        $buyerName = trim((string) ($quotation->client_name ?? ''));
+        $buyerName = trim((string) ($buyerNameOverride ?? ''));
+        if ($buyerName === '') {
+            $buyerName = trim((string) ($quotation->client_name ?? ''));
+        }
         if ($buyerName === '') {
             $buyerName = 'Cliente';
         }
@@ -1965,14 +1974,18 @@ class FelInvoiceIssuanceService
     /**
      * Build Digifact NUC JSON payload for preview/issue (no HTTP POST, no invoice row). Validates cert URL + quotation lines.
      *
-     * @param   string|null  $nucBuyerTaxIdOverride  For CF/C/F quotations: validated CUI digits to send as Buyer.TaxID (optional).
+     * @param   string|null  $nucBuyerTaxIdOverride  CF/C/F: CUI digits for Buyer.TaxID.
+     * @param   string|null  $buyerNameOverride      Optional Buyer.Name / receptor nombre.
      *
      * @return  array{success:bool, message?:string, payload?:array<string, mixed>, payload_json?:string}
      *
      * @since   3.118.34
      */
-    public function buildDigifactNucDirectPayloadForQuotation(int $quotationId, ?string $nucBuyerTaxIdOverride = null): array
-    {
+    public function buildDigifactNucDirectPayloadForQuotation(
+        int $quotationId,
+        ?string $nucBuyerTaxIdOverride = null,
+        ?string $buyerNameOverride = null
+    ): array {
         $quotationId = (int) $quotationId;
         if ($quotationId < 1 || !$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
             return ['success' => false, 'message' => 'Engine unavailable'];
@@ -1999,7 +2012,7 @@ class FelInvoiceIssuanceService
         }
 
         $lines   = $this->loadQuotationLines($quotationId);
-        $payload = $this->buildDigifactNucJsonPayload($quotation, $lines, $creds, $nucBuyerTaxIdOverride);
+        $payload = $this->buildDigifactNucJsonPayload($quotation, $lines, $creds, $nucBuyerTaxIdOverride, $buyerNameOverride);
         if (($payload['Items'] ?? []) === []) {
             return ['success' => false, 'message' => 'No billable lines'];
         }
@@ -2467,6 +2480,14 @@ class FelInvoiceIssuanceService
         if ($buyerTaxFromPayload !== '' && strtoupper($buyerTaxFromPayload) !== 'CF') {
             $receptorDigits = $this->digitsOnly($buyerTaxFromPayload);
         }
+        $receptorNombre = (string) ($quotation->client_name ?? '');
+        $buyerNameFromPayload = '';
+        if (isset($nucPayload['Buyer']) && \is_array($nucPayload['Buyer'])) {
+            $buyerNameFromPayload = trim((string) ($nucPayload['Buyer']['Name'] ?? ''));
+        }
+        if ($buyerNameFromPayload !== '') {
+            $receptorNombre = $buyerNameFromPayload;
+        }
         $update = [
             'fel_issue_status'       => 'completed',
             'fel_issue_error'        => null,
@@ -2475,7 +2496,7 @@ class FelInvoiceIssuanceService
             'fel_tipo_dte'           => 'FACT',
             'fel_fecha_emision'      => $now,
             'fel_receptor_id'        => $receptorDigits,
-            'fel_receptor_nombre'    => $quotation->client_name ?? '',
+            'fel_receptor_nombre'    => $receptorNombre,
             'fel_receptor_direccion' => $quotation->client_address ?? null,
             'fel_moneda'             => 'GTQ',
             'fel_scheduled_at'       => null,
@@ -2513,8 +2534,12 @@ class FelInvoiceIssuanceService
      *
      * @since   3.118.27
      */
-    public function issueDigifactNucDirectFromQuotation(int $quotationId, int $userId, ?string $nucBuyerTaxIdOverride = null): array
-    {
+    public function issueDigifactNucDirectFromQuotation(
+        int $quotationId,
+        int $userId,
+        ?string $nucBuyerTaxIdOverride = null,
+        ?string $buyerNameOverride = null
+    ): array {
         $quotationId = (int) $quotationId;
         $userId      = (int) $userId;
         if ($quotationId < 1 || $userId < 1 || !$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
@@ -2536,7 +2561,7 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).'];
         }
 
-        $built = $this->buildDigifactNucDirectPayloadForQuotation($quotationId, $nucBuyerTaxIdOverride);
+        $built = $this->buildDigifactNucDirectPayloadForQuotation($quotationId, $nucBuyerTaxIdOverride, $buyerNameOverride);
         if (!$built['success']) {
             return ['success' => false, 'message' => (string) ($built['message'] ?? 'Invalid payload')];
         }
