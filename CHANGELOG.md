@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.48-STABLE] - 2026-05-11
+
+### Fixed
+- **Digifact Timbrar:** eliminar dependencia de `Joomla\CMS\String\StringHelper` (no existe en este entorno Joomla 5); el nombre del receptor se trunca con `mb_substr` / `substr` para evitar el error fatal al emitir.
+
 ## [3.119.47-STABLE] - 2026-05-11
 
 ### Added

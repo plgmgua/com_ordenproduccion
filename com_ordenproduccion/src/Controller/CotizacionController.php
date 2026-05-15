@@ -21,7 +21,6 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
-use Joomla\CMS\String\StringHelper;
 use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
@@ -1588,7 +1587,12 @@ class CotizacionController extends BaseController
             $cuiPost = trim((string) $app->input->post->getString('digifact_buyer_cui', ''));
             $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
             $buyerNamePost = trim((string) $app->input->post->getString('digifact_buyer_name', ''));
-            $buyerNameForIssue = $buyerNamePost === '' ? null : StringHelper::substr($buyerNamePost, 0, 500);
+            $buyerNameForIssue = null;
+            if ($buyerNamePost !== '') {
+                $buyerNameForIssue = function_exists('mb_substr')
+                    ? mb_substr($buyerNamePost, 0, 500, 'UTF-8')
+                    : substr($buyerNamePost, 0, 500);
+            }
 
             if ($isCf) {
                 if ($cuiDigits === '') {
