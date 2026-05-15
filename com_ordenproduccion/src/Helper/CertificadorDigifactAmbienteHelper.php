@@ -17,16 +17,16 @@ defined('_JEXEC') or die;
 final class CertificadorDigifactAmbienteHelper
 {
     /**
-     * Every configured NUC certification base URL (FACT genérica, FACT consumidor final en NIT cliente, NIT transform).
+     * Every configured NUC certification base URL (FACT, NIT transform).
      *
-     * @param   array<string, string>  $creds  Stored certificador keys including url_cert_fact_buyer_cf (optional)
+     * @param   array<string, string>  $creds  Stored certificador url_cert_cf / url_cert_nit (optional)
      *
      * @return  list<string>
      */
     public static function collectConfiguredCertificarBaseUrls(array $creds): array
     {
         $out = [];
-        foreach (['url_cert_fact_buyer_cf', 'url_cert_cf', 'url_cert_nit'] as $k) {
+        foreach (['url_cert_cf', 'url_cert_nit'] as $k) {
             $u = trim((string) ($creds[$k] ?? ''));
             if ($u !== '' && filter_var($u, FILTER_VALIDATE_URL)) {
                 $out[] = $u;
@@ -37,8 +37,7 @@ final class CertificadorDigifactAmbienteHelper
     }
 
     /**
-     * First valid certification host (same family as {@see FelInvoiceIssuanceService::buildDigifactCertificarRequestUrl}
-     * precedence when buyer is unknown).
+     * First valid certification host (same family as {@see FelInvoiceIssuanceService::buildDigifactCertificarRequestUrl}).
      *
      * @param   array<string, string>  $creds  url_cert_* (trimmed by caller OK)
      */

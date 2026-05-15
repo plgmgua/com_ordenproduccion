@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.44-STABLE] - 2026-05-11
+
+### Removed
+- **Certificador de facturación (Ajustes):** campo y clave `url_cert_fact_buyer_cf` (URL específica NUC para NIT cliente CF / C/F). La certificación NUC usa solo **URL FACT** y **fallback URL NIT**, igual que para el resto de clientes.
+
 ## [3.119.43-STABLE] - 2026-05-12
 
 ### Added

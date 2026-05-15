@@ -400,7 +400,7 @@ class HtmlView extends BaseHtmlView
     /**
      * Active modo settings as one map for layouts (same keys as stored fields; clave never included, use clave_configured).
      *
-     * @var    array{env: string, url_autenticacion: string, url_info: string, url_cert_cf: string, url_cert_fact_buyer_cf: string, url_cert_nit: string, url_cert_cui: string, branch_code: string, branch_name: string, branch_address: string, branch_city: string, branch_district: string, branch_state: string, branch_country: string, nit: string, usuario: string, clave_configured: bool}
+     * @var    array{env: string, url_autenticacion: string, url_info: string, url_cert_cf: string, url_cert_nit: string, url_cert_cui: string, branch_code: string, branch_name: string, branch_address: string, branch_city: string, branch_district: string, branch_state: string, branch_country: string, nit: string, usuario: string, clave_configured: bool}
      * @since  3.118.6
      */
     protected $certificadorFactActive = [];
@@ -421,9 +421,6 @@ class HtmlView extends BaseHtmlView
 
     /** @var string @since 3.118.6 */
     protected $certificadorFactActiveUrlCertCf = '';
-
-    /** @var string @since 3.119.36 */
-    protected $certificadorFactActiveUrlCertFactBuyerCf = '';
 
     /** @var string @since 3.118.6 */
     protected $certificadorFactActiveUrlCertNit = '';
@@ -2544,7 +2541,6 @@ class HtmlView extends BaseHtmlView
         $this->certificadorFactActiveUrlAutenticacion = '';
         $this->certificadorFactActiveUrlInfo         = '';
         $this->certificadorFactActiveUrlCertCf          = '';
-        $this->certificadorFactActiveUrlCertFactBuyerCf = '';
         $this->certificadorFactActiveUrlCertNit         = '';
         $this->certificadorFactActiveUrlCertCui      = '';
         $this->certificadorFactActiveNit             = '';
@@ -2574,7 +2570,6 @@ class HtmlView extends BaseHtmlView
         $this->certificadorFactActiveUrlAutenticacion = (string) ($b['url_autenticacion'] ?? '');
         $this->certificadorFactActiveUrlInfo         = (string) ($b['url_info'] ?? '');
         $this->certificadorFactActiveUrlCertCf          = (string) ($b['url_cert_cf'] ?? '');
-        $this->certificadorFactActiveUrlCertFactBuyerCf = (string) ($b['url_cert_fact_buyer_cf'] ?? '');
         $this->certificadorFactActiveUrlCertNit         = (string) ($b['url_cert_nit'] ?? '');
         $this->certificadorFactActiveUrlCertCui      = (string) ($b['url_cert_cui'] ?? '');
         $this->certificadorFactActiveNit             = (string) ($b['nit'] ?? '');
@@ -2586,7 +2581,6 @@ class HtmlView extends BaseHtmlView
             'url_autenticacion' => $this->certificadorFactActiveUrlAutenticacion,
             'url_info'          => $this->certificadorFactActiveUrlInfo,
             'url_cert_cf'             => $this->certificadorFactActiveUrlCertCf,
-            'url_cert_fact_buyer_cf'   => $this->certificadorFactActiveUrlCertFactBuyerCf,
             'url_cert_nit'             => $this->certificadorFactActiveUrlCertNit,
             'url_cert_cui'      => $this->certificadorFactActiveUrlCertCui,
             'branch_code'       => (string) ($b['branch_code'] ?? ''),

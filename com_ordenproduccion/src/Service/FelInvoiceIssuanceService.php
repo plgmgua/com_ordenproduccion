@@ -86,7 +86,6 @@ class FelInvoiceIssuanceService
                 'url_autenticacion' => '',
                 'url_info'          => '',
                 'url_cert_cf'       => '',
-                'url_cert_fact_buyer_cf' => '',
                 'url_cert_nit'      => '',
                 'url_cert_cui'      => '',
                 'branch_code'       => '',
@@ -1711,20 +1710,11 @@ class FelInvoiceIssuanceService
 
     /**
      * Merge TAXID (padded), USERNAME, FORMAT into certificación URL from config.
-     * When the quotation buyer NIT field is consumidor final (CF / C/F), uses `url_cert_fact_buyer_cf` when set and valid.
-     * Otherwise uses **URL certificación / FACT** (`url_cert_cf`); if empty or invalid, falls back to **URL certificación NIT**.
-     *
-     * @param  string  $buyerTaxIdRaw  Quotation `client_nit` (raw); used only to pick buyer-CF certify URL.
+     * Uses **URL certificación / FACT** (`url_cert_cf`); if empty or invalid, falls back to **URL certificación NIT**.
      */
-    public function buildDigifactCertificarRequestUrl(array $creds, string $buyerTaxIdRaw = ''): string
+    public function buildDigifactCertificarRequestUrl(array $creds): string
     {
-        $base = '';
-        if (CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerTaxIdRaw)) {
-            $base = trim((string) ($creds['url_cert_fact_buyer_cf'] ?? ''));
-        }
-        if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
-            $base = trim((string) ($creds['url_cert_cf'] ?? ''));
-        }
+        $base = trim((string) ($creds['url_cert_cf'] ?? ''));
         if ($base === '' || !filter_var($base, FILTER_VALIDATE_URL)) {
             $base = trim((string) ($creds['url_cert_nit'] ?? ''));
         }
@@ -1924,7 +1914,7 @@ class FelInvoiceIssuanceService
         }
 
         $creds = $this->getActiveCertificadorCredentials();
-        if ($this->buildDigifactCertificarRequestUrl($creds, (string) ($quotation->client_nit ?? '')) === '') {
+        if ($this->buildDigifactCertificarRequestUrl($creds) === '') {
             return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
         }
 
@@ -2241,10 +2231,8 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Invalid ids'];
         }
 
-        $quotation = $this->loadQuotation($quotationId);
-        $buyerRaw  = $quotation ? (string) ($quotation->client_nit ?? '') : '';
-        $creds     = $this->getActiveCertificadorCredentials();
-        $url       = $this->buildDigifactCertificarRequestUrl($creds, $buyerRaw);
+        $creds = $this->getActiveCertificadorCredentials();
+        $url   = $this->buildDigifactCertificarRequestUrl($creds);
         if ($url === '') {
             $msg = 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).';
             $this->markFailed($invoiceId, $msg);
@@ -2458,7 +2446,7 @@ class FelInvoiceIssuanceService
         }
 
         $creds = $this->getActiveCertificadorCredentials();
-        $url   = $this->buildDigifactCertificarRequestUrl($creds, (string) ($quotation->client_nit ?? ''));
+        $url   = $this->buildDigifactCertificarRequestUrl($creds);
         if ($url === '') {
             return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
         }
