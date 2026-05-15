@@ -1485,8 +1485,7 @@ class FelInvoiceIssuanceService
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
      * AdditionalDocumentInfo: compact AdditionalInfo entry with @Name Cotizacion and #text = trimmed quotation_number, or COT-{id} if blank (Xml-to-JSON style keys for Digifact NUC). Work order numbers are not sent in NUC metadata.
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
-     * **Consumidor final (CF / C/F):** Buyer.TaxID CF, Name **CONSUMIDOR FINAL**, Address **CIUDAD** if none in cotización,
-     * Seller Escenario NUC Value **1**, matching Digifact sample FACT with CF buyer; identified NIT buyers keep Escenario Value **2**.
+     * **Consumidor final (CF / C/F):** only `Buyer.TaxID` is set to **CF**; name and address stay from the cotización (same defaults as other buyers).
      *
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
      *
@@ -1512,15 +1511,8 @@ class FelInvoiceIssuanceService
             }
         }
         $buyerName = trim((string) ($quotation->client_name ?? ''));
-        if ($isCfBuyer) {
-            // Digifact GT NUC FACT sample for TaxID CF uses this exact buyer name (consumidor final).
-            $buyerName = 'CONSUMIDOR FINAL';
-        } elseif ($buyerName === '') {
+        if ($buyerName === '') {
             $buyerName = 'Cliente';
-        }
-
-        if ($isCfBuyer && trim((string) $buyerStreet) === '') {
-            $buyerStreet = 'CIUDAD';
         }
 
         $issued = Factory::getDate('now')->format('c');
@@ -1611,9 +1603,6 @@ class FelInvoiceIssuanceService
         $nitSellerDigits = $this->digitsOnly($creds['nit'] ?? '');
         $nitSellerJson   = $nitSellerDigits !== '' ? ltrim($nitSellerDigits, '0') ?: $nitSellerDigits : '000000000';
 
-        // Digifact FACT sample with Buyer TaxID CF uses Escenario Value "1"; phased NIT factura uses "2" (legacy default).
-        $escenarioNucValue = $isCfBuyer ? '1' : '2';
-
         $branchCode = trim((string) ($creds['branch_code'] ?? ''));
         if ($branchCode === '') {
             $branchCode = '1';
@@ -1674,7 +1663,7 @@ class FelInvoiceIssuanceService
                 ],
                 'AdditionlInfo' => [
                     ['Name' => 'TipoFrase', 'Data' => '1', 'Value' => '1'],
-                    ['Name' => 'Escenario', 'Data' => '1', 'Value' => $escenarioNucValue],
+                    ['Name' => 'Escenario', 'Data' => '1', 'Value' => '2'],
                 ],
                 'BranchInfo' => [
                     'Code' => $branchCode,

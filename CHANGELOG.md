@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.42-STABLE] - 2026-05-11
+
+### Fixed
+- **FEL / Digifact NUC consumidor final:** solo se fuerza `Buyer.TaxID` = CF; el nombre del cliente sigue siendo el de la cotización (no se reemplaza por «CONSUMIDOR FINAL»). Se revierten el relleno de dirección CIUDAD y el `Escenario` NUC alterno introducidos en 3.119.41.
+
+## [3.119.41-STABLE] - 2026-05-11
+
+### Changed
+- **FEL / Digifact NUC (consumidor final):** se intentó alinear nombre tipo ejemplo Digifact, CIUDAD y `Escenario` 1 (**revertido en 3.119.42**): el flujo debe alterar **solo** `Buyer.TaxID` = CF, manteniendo nombre y dirección de la cotización.
+
 ## [3.119.40-STABLE] - 2026-05-11
 
 ### Fixed
