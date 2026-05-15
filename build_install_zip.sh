@@ -13,8 +13,14 @@ cp "$COMP/com_ordenproduccion.xml" "$BUILD/"
 test -f "$COMP/script.php" && cp "$COMP/script.php" "$BUILD/"
 cp "$COMP/ordenproduccion.php" "$BUILD/site/"
 cp -R "$COMP/src" "$COMP/tmpl" "$COMP/language" "$COMP/forms" "$BUILD/site/"
+if [[ -d "$COMP/libraries" ]]; then
+  cp -R "$COMP/libraries" "$BUILD/site/"
+fi
 cp -R "$COMP/admin"/* "$BUILD/admin/"
 cp -R "$COMP/media/css" "$COMP/media/js" "$BUILD/media/"
+if [[ -d "$COMP/media/images" ]]; then
+  cp -R "$COMP/media/images" "$BUILD/media/"
+fi
 
 cd "$BUILD"
 zip -r "$ZIP" . -x "*.git*" -x "*__MACOSX*" -x "*.DS_Store"
