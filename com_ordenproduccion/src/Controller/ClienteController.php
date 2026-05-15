@@ -274,7 +274,7 @@ class ClienteController extends FormController
     public function getChildContacts()
     {
         $user = Factory::getUser();
-        
+
         if ($user->guest) {
             echo json_encode(['success' => false, 'message' => 'Unauthorized']);
             $this->app->close();
@@ -303,6 +303,58 @@ class ClienteController extends FormController
             ]);
         }
         
+        $this->app->close();
+    }
+
+    /**
+     * AJAX: confirm ERP (Odoo) has the contact, then the client reloads the profile to show fresh data.
+     *
+     * @return  void
+     *
+     * @since   3.119.39
+     */
+    public function syncContactFromErp(): void
+    {
+        $this->app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $this->app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTES_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        $contactId = $this->input->post->getInt('id', 0);
+
+        if ($contactId <= 0) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTES_ERROR_INVALID_CONTACT')], JSON_UNESCAPED_UNICODE);
+            $this->app->close();
+        }
+
+        try {
+            $helper = new OdooHelper();
+            $row    = $helper->getContact($contactId);
+
+            if ($row === null) {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_SYNC_ERP_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+                $this->app->close();
+            }
+
+            echo json_encode(['success' => true, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENTE_SYNC_ERP_OK')], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+
         $this->app->close();
     }
 

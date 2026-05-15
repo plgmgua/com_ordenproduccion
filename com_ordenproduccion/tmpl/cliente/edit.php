@@ -106,6 +106,15 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
                 <button type="button" id="viewModeBtn" class="btn btn-secondary" onclick="toggleEditMode('toggle')" style="display: none;">
                     <i class="fas fa-eye"></i> Ver
                 </button>
+                <button
+                    type="button"
+                    id="clienteSyncFromErpBtn"
+                    class="btn btn-outline-primary ms-2"
+                    title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_SYNC_ERP_TITLE'), ENT_QUOTES, 'UTF-8'); ?>"
+                    onclick="syncClienteProfileFromErp(<?php echo (int) ($this->item->id ?? 0); ?>)">
+                    <i class="fas fa-sync-alt"></i>
+                    <?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_CLIENTE_SYNC_ERP_BUTTON'), ENT_QUOTES, 'UTF-8'); ?>
+                </button>
                 <button type="button" class="btn btn-danger ms-2" onclick="deleteContact(<?php echo (int)($this->item->id ?? 0); ?>, '<?php echo addslashes(safeGetProperty($this->item, 'name', 'Cliente')); ?>')">
                     <i class="fas fa-trash"></i> Eliminar
                 </button>
@@ -685,6 +694,10 @@ if (!$isNew && !$isChildContact && isset($this->item->id) && (int)$this->item->i
 </div>
 
 <script>
+var clienteSyncFromErpUrl = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&task=cliente.syncContactFromErp&format=json', false)); ?>;
+var clienteSyncToken = <?php echo json_encode(Session::getFormToken()); ?>;
+var clienteSyncMsgNetwork = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CLIENTE_SYNC_ERP_NETWORK')); ?>;
+
 let editMode = false; // Always start in view mode
 
 // Initialize form state when page loads
@@ -831,6 +844,52 @@ function deleteContact(contactId, contactName) {
         document.body.appendChild(deleteForm);
         deleteForm.submit();
     }
+}
+
+function syncClienteProfileFromErp(contactId) {
+    if (!contactId || contactId <= 0) {
+        return;
+    }
+    var btn = document.getElementById('clienteSyncFromErpBtn');
+    var icon = btn ? btn.querySelector('.fa-sync-alt') : null;
+    if (btn) {
+        btn.disabled = true;
+    }
+    if (icon) {
+        icon.classList.add('fa-spin');
+    }
+
+    var body = new URLSearchParams();
+    body.append(clienteSyncToken, '1');
+    body.append('id', String(contactId));
+
+    fetch(clienteSyncFromErpUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest'},
+        body: body.toString(),
+        credentials: 'same-origin'
+    })
+        .then(function (r) {
+            return r.json();
+        })
+        .then(function (data) {
+            if (data && data.success) {
+                window.location.reload();
+                return;
+            }
+            alert((data && data.message) ? data.message : clienteSyncMsgNetwork);
+        })
+        .catch(function () {
+            alert(clienteSyncMsgNetwork);
+        })
+        .finally(function () {
+            if (btn) {
+                btn.disabled = false;
+            }
+            if (icon) {
+                icon.classList.remove('fa-spin');
+            }
+        });
 }
 
 Joomla.submitbutton = function(task) {

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.39-STABLE] - 2026-05-11
+
+### Added
+- **Cliente (perfil / edición):** botón **Sincronizar con ERP**: comprueba que el partner exista en Odoo y **recarga** la página para mostrar datos al día (incluye bloque financiero ERP y contactos relacionados cuando aplica).
+
 ## [3.119.38-STABLE] - 2026-05-11
 
 ### Added
