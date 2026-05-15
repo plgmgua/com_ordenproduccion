@@ -22,6 +22,7 @@ $digifactNitDebugEnabled = $this->certificadorFactFrontendDebug === true;
 $clienteVerifyNitUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactNit&format=json', false);
 $clienteVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactCui&format=json', false);
 $clienteEditNewUrl = Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=0', false);
+$showClienteListOte = !empty($this->showClienteListOte);
 
 // Fallback CSS loading to ensure styles are applied
 $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
@@ -227,13 +228,14 @@ function safeGet($array, $key, $default = '') {
                                             title="Orden de Trabajo">
                                         <i class="fas fa-print" aria-hidden="true"></i>
                                     </button>
-                                    
+                                    <?php if ($showClienteListOte) : ?>
                                     <button type="button" 
                                             class="btn btn-outline-info" 
                                             onclick="openOTEModal(<?php echo (int)safeGet($item, 'id', 0); ?>, '<?php echo addslashes(safeGet($item, 'name', 'Sin nombre')); ?>', '<?php echo addslashes(safeGet($item, 'vat', '')); ?>')" 
                                             title="Orden de Trabajo Externa">
                                         <i class="fas fa-external-link" aria-hidden="true"></i>
                                     </button>
+                                    <?php endif; ?>
                                     
                                     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cliente&layout=edit&id=' . (int)safeGet($item, 'id', 0)); ?>" 
                                        class="btn btn-outline-primary" 
@@ -931,6 +933,7 @@ function safeGet($array, $key, $default = '') {
     </div>
 </div>
 
+<?php if ($showClienteListOte) : ?>
 <!-- OTE (Orden de Trabajo Externa) Modal - Three Step Wizard with Supplier Selection -->
 <div class="modal fade" id="oteModal" tabindex="-1" aria-labelledby="oteModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -1031,13 +1034,13 @@ function safeGet($array, $key, $default = '') {
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <script>
 // OT Modal Variables
 var otChildContacts = [];
 var otDestinationUrl = <?php echo json_encode((string) $this->params->get('ot_destination_url', '')); ?>;
 var cotizacionDestinationUrl = <?php echo json_encode((string) $this->params->get('cotizacion_destination_url', '')); ?>;
-var oteDestinationUrl = <?php echo json_encode((string) $this->params->get('ote_destination_url', '')); ?>;
 var otDebugMode = <?php echo $this->params->get('enable_debug', 0) ? 'true' : 'false'; ?>;
 
 // Open Cotización in new tab
@@ -1054,6 +1057,9 @@ function openCotizacionWindow(clientId, clientName, clientVat) {
     // Open in new tab
     window.open(url, '_blank');
 }
+
+<?php if ($showClienteListOte) : ?>
+var oteDestinationUrl = <?php echo json_encode((string) $this->params->get('ote_destination_url', '')); ?>;
 
 // OTE Modal Variables
 var oteSuppliers = [];
@@ -1979,6 +1985,8 @@ function submitOTE() {
     var oteModal = bootstrap.Modal.getInstance(document.getElementById('oteModal'));
     oteModal.hide();
 }
+
+<?php endif; ?>
 
 // Open OT Modal
 function openOTModal(clientId, clientName, clientVat) {

@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.37-STABLE</version>
+    <version>3.119.38-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -227,6 +227,17 @@
                     size="80"
                     filter="url"
                 />
+                <field
+                    name="clientes_list_show_ote"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_CLIENTES_LIST_SHOW_OTE_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_CLIENTES_LIST_SHOW_OTE_DESC"
+                    default="0"
+                    class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
                 <field
                     name="ot_destination_url"
                     type="url"

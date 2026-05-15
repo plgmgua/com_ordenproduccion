@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.38-STABLE] - 2026-05-11
+
+### Added
+- **Mis Clientes / lista de clientes:** opción de componente **`clientes_list_show_ote`** (predeterminado **No**). Cuando está desactivada, no se muestra el botón naranja **Orden de Trabajo Externa** ni el modal asociado en la lista.
+
 ## [3.119.37-STABLE] - 2026-05-11
 
 ### Added

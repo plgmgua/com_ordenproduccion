@@ -74,6 +74,14 @@ class HtmlView extends BaseHtmlView
     protected $certificadorFactFrontendDebug = false;
 
     /**
+     * Component option clientes_list_show_ote: show «Orden de Trabajo Externa» on the clientes list.
+     *
+     * @var    bool
+     * @since  3.119.38
+     */
+    public $showClienteListOte = false;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -120,6 +128,8 @@ class HtmlView extends BaseHtmlView
         } catch (\Throwable $e) {
             $this->certificadorFactFrontendDebug = false;
         }
+
+        $this->showClienteListOte = (int) $this->params->get('clientes_list_show_ote', 0) === 1;
 
         $this->addToolbar();
         $this->_prepareDocument();

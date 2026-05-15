@@ -375,6 +375,17 @@
             filter="url"
         />
         <field
+            name="clientes_list_show_ote"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_CLIENTES_LIST_SHOW_OTE_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_CLIENTES_LIST_SHOW_OTE_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
             name="ot_destination_url"
             type="url"
             label="COM_ORDENPRODUCCION_CONFIG_OT_DESTINATION_URL_LABEL"
