@@ -17,6 +17,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\User\User;
 use Joomla\CMS\User\UserFactoryInterface;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 /**
  * Access Helper Class
@@ -871,7 +872,8 @@ class AccessHelper
     }
 
     /**
-     * Count of pending approval step rows for the current user (internal workflow engine).
+     * Count of pending approval items for the current user: rows where they must approve **or**
+     * requests they submitted that are still pending on another approver’s step.
      *
      * @param   int|null  $userId  User id or null for current user
      *
@@ -886,23 +888,13 @@ class AccessHelper
             return 0;
         }
 
-        $db = Factory::getDbo();
-        $q  = $db->getQuery(true)
-            ->select('COUNT(*)')
-            ->from($db->quoteName('#__ordenproduccion_approval_request_steps', 's'))
-            ->innerJoin(
-                $db->quoteName('#__ordenproduccion_approval_requests', 'r') . ' ON '
-                . $db->quoteName('r.id') . ' = ' . $db->quoteName('s.request_id')
-            )
-            ->where($db->quoteName('s.approver_user_id') . ' = ' . $uid)
-            ->where($db->quoteName('s.status') . ' = ' . $db->quote('pending'))
-            ->where($db->quoteName('r.status') . ' = ' . $db->quote('pending'))
-            ->where($db->quoteName('s.step_number') . ' = ' . $db->quoteName('r.current_step_number'));
-
         try {
-            $db->setQuery($q);
+            $svc = new ApprovalWorkflowService();
+            if (!$svc->hasSchema()) {
+                return 0;
+            }
 
-            return (int) $db->loadResult();
+            return \count($svc->getMergedPendingApprovalRowsForUser($uid));
         } catch (\Throwable $e) {
             return 0;
         }

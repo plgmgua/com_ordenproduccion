@@ -49,7 +49,7 @@ if (!AccessHelper::canViewApprovalWorkflowTab()) {
 
 $approvalService = new ApprovalWorkflowService();
 $schemaOk        = $approvalService->hasSchema();
-$rows            = $schemaOk ? $approvalService->getMyPendingApprovalRows((int) $user->id) : [];
+$rows            = $schemaOk ? $approvalService->getMergedPendingApprovalRowsForUser((int) $user->id) : [];
 
 if ($rows !== []) {
     $approvalService->enrichPendingRowsWithSubmitterDisplay($rows);

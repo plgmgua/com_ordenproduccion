@@ -454,6 +454,138 @@ class ApprovalWorkflowService
 
         $this->hydrateWorkflowPendingTypeLabels($out);
 
+        foreach ($out as $row) {
+            $row->approval_pending_ui_mode = 'approver';
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pending rows for requests **submitted by** this user (awaiting someone else’s approval step).
+     * Same row shape as {@see getMyPendingApprovalRows()} for UI reuse; sets `approval_pending_ui_mode` = submitter.
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.119.52
+     */
+    public function getMySubmittedPendingApprovalRows(int $userId): array
+    {
+        if ($userId < 1 || !$this->hasSchema()) {
+            return [];
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select(
+                'r.*, s.`id` AS step_row_id, s.`step_number` AS step_row_step, awf.`pending_module_type_label` AS workflow_pending_type_label'
+            )
+            ->from($this->db->quoteName('#__ordenproduccion_approval_request_steps', 's'))
+            ->innerJoin(
+                $this->db->quoteName('#__ordenproduccion_approval_requests', 'r') . ' ON '
+                . $this->db->quoteName('r.id') . ' = ' . $this->db->quoteName('s.request_id')
+            )
+            ->leftJoin(
+                $this->db->quoteName('#__ordenproduccion_approval_workflows', 'awf')
+                . ' ON ' . $this->db->quoteName('awf.id') . ' = ' . $this->db->quoteName('r.workflow_id')
+            )
+            ->where($this->db->quoteName('r.submitter_id') . ' = ' . (int) $userId)
+            ->where($this->db->quoteName('s.status') . ' = ' . $this->db->quote('pending'))
+            ->where($this->db->quoteName('r.status') . ' = ' . $this->db->quote('pending'))
+            ->where($this->db->quoteName('s.step_number') . ' = ' . $this->db->quoteName('r.current_step_number'))
+            ->order($this->db->quoteName('r.created') . ' ASC')
+            ->order($this->db->quoteName('r.id') . ' ASC');
+
+        $this->db->setQuery($q);
+
+        $rows = $this->db->loadObjectList() ?: [];
+        if ($rows === []) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $et = self::normalizeEntityType((string) ($row->entity_type ?? ''));
+            if (
+                $et === self::ENTITY_SOLICITUD_DESCUENTO
+                || $et === self::ENTITY_SOLICITUD_COTIZACION
+                || $et === self::ENTITY_CREACION_ORDEN_TRABAJO
+            ) {
+                $eid = (int) ($row->entity_id ?? 0);
+                if ($eid > 0 && !$this->preCotizacionExistsPublished($eid)) {
+                    $rid = (int) ($row->id ?? 0);
+                    if ($rid > 0) {
+                        try {
+                            $this->cancelRequest($rid, $userId, 'pre_cotizacion_missing');
+                        } catch (\Throwable $e) {
+                        }
+                    }
+
+                    continue;
+                }
+            }
+            if ($et === self::ENTITY_SERVICIOS_ELEMENTOS_EXTERNOS) {
+                $lid = (int) ($row->entity_id ?? 0);
+                if ($lid < 1 || !$this->serviciosExternosPendingLineStillValid($lid)) {
+                    $rid = (int) ($row->id ?? 0);
+                    if ($rid > 0) {
+                        try {
+                            $this->cancelRequest($rid, $userId, $lid < 1 ? 'entity_missing' : 'pre_cotizacion_missing');
+                        } catch (\Throwable $e) {
+                        }
+                    }
+
+                    continue;
+                }
+            }
+            $row->approval_pending_ui_mode = 'submitter';
+            $out[] = $row;
+        }
+
+        $this->hydrateWorkflowPendingTypeLabels($out);
+
+        return $out;
+    }
+
+    /**
+     * Merges “actionable as approver” rows with “my requests still pending” rows (dedupe by request id; approver row wins).
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.119.52
+     */
+    public function getMergedPendingApprovalRowsForUser(int $userId): array
+    {
+        $asApprover = $this->getMyPendingApprovalRows($userId);
+        $byReq = [];
+        foreach ($asApprover as $r) {
+            $rid = (int) ($r->id ?? 0);
+            if ($rid > 0) {
+                $byReq[$rid] = $r;
+            }
+        }
+
+        foreach ($this->getMySubmittedPendingApprovalRows($userId) as $r) {
+            $rid = (int) ($r->id ?? 0);
+            if ($rid < 1 || isset($byReq[$rid])) {
+                continue;
+            }
+            $byReq[$rid] = $r;
+        }
+
+        $out = array_values($byReq);
+        usort(
+            $out,
+            static function ($a, $b): int {
+                $ca = strtotime((string) ($a->created ?? '')) ?: 0;
+                $cb = strtotime((string) ($b->created ?? '')) ?: 0;
+                if ($ca !== $cb) {
+                    return $ca <=> $cb;
+                }
+
+                return ((int) ($a->id ?? 0)) <=> ((int) ($b->id ?? 0));
+            }
+        );
+
         return $out;
     }
 

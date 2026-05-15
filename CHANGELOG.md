@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.52-STABLE] - 2026-05-15
+
+### Changed
+- **Aprobaciones (módulo y Control de Ventas):** la lista y el conteo de pendientes combinan aprobaciones asignadas al usuario y solicitudes **propias** aún en curso ante otro aprobador; en modo solicitante la columna de acciones es solo lectura con enlace al documento. Cadenas de idioma actualizadas.
+
 ## [3.119.51-STABLE] - 2026-05-15
 
 ### Fixed

@@ -121,6 +121,8 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                 || $etype === 'servicios_elementos_externos'
                             )
                         );
+                        $uiMode = isset($row->approval_pending_ui_mode) ? (string) $row->approval_pending_ui_mode : 'approver';
+                        $isSubmitterOnly = ($uiMode === 'submitter');
                         ?>
                         <tr<?php echo $docUrl !== '' ? ' class="com-ordenproduccion-approval-row-link" data-approval-doc-url="' . htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8') . '" style="cursor:pointer;"' : ''; ?>>
                             <td class="text-nowrap small"><?php echo htmlspecialchars($created, ENT_QUOTES, 'UTF-8'); ?></td>
@@ -128,6 +130,12 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                             <td><?php echo htmlspecialchars($submitterDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td class="approval-col-doc text-nowrap"><?php if ($docUrl !== '') : ?><a href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?></a><?php else : ?><?php echo htmlspecialchars($refDisplay, ENT_QUOTES, 'UTF-8'); ?><?php endif; ?></td>
                             <td style="min-width:260px;">
+                                <?php if (!empty($isSubmitterOnly)) : ?>
+                                <div class="small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_SUBMITTER_AWAITING'); ?></div>
+                                <?php if ($docUrl !== '') : ?>
+                                <a class="btn btn-outline-primary btn-sm" href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_DOCUMENT'); ?></a>
+                                <?php endif; ?>
+                                <?php else : ?>
                                 <?php if ($showOdooFinanceApproval) : ?>
                                 <div class="op-appr-odoo-finance small border rounded p-2 mb-2 bg-light"
                                      role="note"
@@ -210,6 +218,7 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                     <textarea class="form-control form-control-sm mb-1" id="approval-reject-c-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'); ?>"></textarea>
                                     <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
                                 </form>
+                                <?php endif; ?>
                                 <?php endif; ?>
                             </td>
                         </tr>
