@@ -947,7 +947,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                     } else {
                         $fechaEmision = '—';
                     }
-                    $nit = trim($invoice->client_nit ?? $invoice->fel_receptor_id ?? '');
+                    $nit = InvoiceListHelper::displayReceptorTaxId($invoice);
                     if ($nit === '') {
                         $nit = '—';
                     }

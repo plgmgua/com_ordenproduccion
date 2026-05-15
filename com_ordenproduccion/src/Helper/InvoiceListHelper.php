@@ -85,21 +85,54 @@ class InvoiceListHelper
     }
 
     /**
-     * Best-effort client display: stored client_name, then FEL receptor name from import.
+     * Receptor tax id for display: prefer certified FEL columns, then quotation snapshot.
+     *
+     * @since  3.119.51
      */
-    public static function displayClientName(object $invoice): string
+    public static function displayReceptorTaxId(object $invoice): string
     {
-        $n = trim((string) ($invoice->client_name ?? ''));
-        if ($n !== '') {
-            return $n;
+        $t = trim((string) ($invoice->fel_receptor_id ?? ''));
+        if ($t !== '') {
+            return $t;
         }
 
+        return trim((string) ($invoice->client_nit ?? ''));
+    }
+
+    /**
+     * Receptor name: prefer certified FEL (`fel_receptor_nombre`), then stored quotation/client name.
+     */
+    public static function displayReceptorName(object $invoice): string
+    {
         $n = trim((string) ($invoice->fel_receptor_nombre ?? ''));
         if ($n !== '') {
             return $n;
         }
 
-        return '';
+        return trim((string) ($invoice->client_name ?? ''));
+    }
+
+    /**
+     * Receptor address line: prefer FEL-stored address, then quotation.
+     *
+     * @since  3.119.51
+     */
+    public static function displayReceptorAddress(object $invoice): string
+    {
+        $a = trim((string) ($invoice->fel_receptor_direccion ?? ''));
+        if ($a !== '') {
+            return $a;
+        }
+
+        return trim((string) ($invoice->client_address ?? ''));
+    }
+
+    /**
+     * Best-effort client display for lists: certified receptor name when present (Digifact/CUI), else quotation name.
+     */
+    public static function displayClientName(object $invoice): string
+    {
+        return self::displayReceptorName($invoice);
     }
 
     /**

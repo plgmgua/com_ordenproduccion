@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.51-STABLE] - 2026-05-15
+
+### Fixed
+- **Vista factura y lista Facturas:** el bloque receptor y la columna NIT/cliente usaban primero `client_nit` / `client_name` (snapshot de cotización, p. ej. CF + nombre comercial) en lugar de **`fel_receptor_id` / `fel_receptor_nombre`** tras certificar con CUI. **InvoiceListHelper** prioriza ahora los datos FEL certificados; la cabecera izquierda ya no muestra el nombre del comprador como «emisor» cuando falta `fel_emisor_nombre` en flujos FEL.
+
 ## [3.119.50-STABLE] - 2026-05-11
 
 ### Changed

@@ -101,9 +101,9 @@ final class InvoiceFacturaTemplateHelper
             $numAuth = trim((string) ($felExtra['numero_autorizacion_text'] ?? ''));
         }
 
-        $nit     = trim((string) ($item->client_nit ?? $item->fel_receptor_id ?? ''));
-        $nombre  = trim((string) ($item->client_name ?? ''));
-        $dir     = trim((string) ($item->client_address ?? $item->fel_receptor_direccion ?? ''));
+        $nit     = InvoiceListHelper::displayReceptorTaxId($item);
+        $nombre  = InvoiceListHelper::displayReceptorName($item);
+        $dir     = InvoiceListHelper::displayReceptorAddress($item);
 
         $fechaEmisionRaw = '';
         if (!empty($item->fel_fecha_emision)) {

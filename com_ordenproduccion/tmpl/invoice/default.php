@@ -130,7 +130,7 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
                 ?>
                 <div class="small text-break"><?php echo htmlspecialchars(implode(' ', $addrParts), ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; endif; ?>
-                <?php elseif (!empty($item->client_name)) : ?>
+                <?php elseif (!$isFel && !empty($item->client_name)) : ?>
                 <div class="fw-bold"><?php echo htmlspecialchars($item->client_name, ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
             </div>
@@ -171,12 +171,17 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
         <!-- Receptor (header: NIT, Cliente, Direccion) -->
         <div class="row mb-3 small">
             <div class="col-12">
-                <?php if ($item->client_nit ?? $item->fel_receptor_id ?? '') : ?>
-                <div><strong>NIT:</strong> <?php echo htmlspecialchars($item->client_nit ?? $item->fel_receptor_id ?? ''); ?></div>
+                <?php
+                $receptorNit  = InvoiceListHelper::displayReceptorTaxId($item);
+                $receptorNom  = InvoiceListHelper::displayReceptorName($item);
+                $receptorAddr = InvoiceListHelper::displayReceptorAddress($item);
+                ?>
+                <?php if ($receptorNit !== '') : ?>
+                <div><strong>NIT:</strong> <?php echo htmlspecialchars($receptorNit, ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
-                <div><strong>Cliente:</strong> <?php echo htmlspecialchars($item->client_name ?? '-', ENT_QUOTES, 'UTF-8'); ?></div>
-                <?php if (!empty($item->client_address) || !empty($item->fel_receptor_direccion)) : ?>
-                <div><strong>Direccion:</strong> <?php echo htmlspecialchars($item->client_address ?? $item->fel_receptor_direccion ?? '', ENT_QUOTES, 'UTF-8'); ?></div>
+                <div><strong>Cliente:</strong> <?php echo htmlspecialchars($receptorNom !== '' ? $receptorNom : '-', ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php if ($receptorAddr !== '') : ?>
+                <div><strong>Direccion:</strong> <?php echo htmlspecialchars($receptorAddr, ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
             </div>
         </div>
