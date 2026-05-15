@@ -75,6 +75,7 @@ class OrdenesModel extends ListModel
         $id .= ':' . $this->getState('filter.client_name');
         $id .= ':' . $this->getState('filter.date_from');
         $id .= ':' . $this->getState('filter.date_to');
+        $id .= ':' . $this->getState('filter.sales_agent');
 
         return parent::getStoreId($id);
     }
@@ -135,6 +136,13 @@ class OrdenesModel extends ListModel
 
         $dateTo = $app->getUserStateFromRequest($this->context . '.filter.date_to', 'filter_date_to', '', 'string');
         $this->setState('filter.date_to', $dateTo);
+
+        if (AccessHelper::isInStrictAdministracionGroup()) {
+            $salesAgent = $app->getUserStateFromRequest($this->context . '.filter.sales_agent', 'filter_sales_agent', '', 'string');
+            $this->setState('filter.sales_agent', trim((string) $salesAgent));
+        } else {
+            $this->setState('filter.sales_agent', '');
+        }
     }
 
     /**
@@ -453,6 +461,15 @@ class OrdenesModel extends ListModel
             $query->where($db->quoteName('a.request_date') . ' <= ' . $db->quote($dateTo));
         }
 
+        if (AccessHelper::isInStrictAdministracionGroup()) {
+            $agentVal = trim((string) $this->getState('filter.sales_agent', ''));
+            if ($agentVal !== '') {
+                $c          = $this->getOrdenesTableColumns();
+                $salesExpr  = isset($c['sales_agent']) ? 'a.sales_agent' : 'a.agente_de_ventas';
+                $query->where($salesExpr . ' = ' . $db->quote($agentVal));
+            }
+        }
+
         // Add the list ordering clause.
         $orderCol = $this->state->get('list.ordering', 'orden_de_trabajo');
         $orderDirn = $this->state->get('list.direction', 'desc');
@@ -619,6 +636,49 @@ class OrdenesModel extends ListModel
             'pagado' => $t('COM_ORDENPRODUCCION_PAYMENT_STATUS_PAID', 'Pagado'),
             'pendiente' => $t('COM_ORDENPRODUCCION_PAYMENT_STATUS_PENDING', 'Pago pendiente')
         ];
+    }
+
+    /**
+     * Distinct sales agents on published órdenes (for Administración-only list filter).
+     *
+     * @return  array<string, string>  value => label
+     *
+     * @since   3.119.37
+     */
+    public function getSalesAgentFilterOptions(): array
+    {
+        $db = $this->getDatabase();
+        $c  = $this->getOrdenesTableColumns();
+        $col = isset($c['sales_agent']) ? 'sales_agent' : (isset($c['agente_de_ventas']) ? 'agente_de_ventas' : '');
+        if ($col === '') {
+            return ['' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS')];
+        }
+
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $db->quoteName('a.' . $col))
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'a'))
+            ->where($db->quoteName('a.state') . ' = 1')
+            ->where($db->quoteName('a.' . $col) . ' IS NOT NULL')
+            ->where($db->quoteName('a.' . $col) . ' != ' . $db->quote(''))
+            ->order($db->quoteName('a.' . $col) . ' ASC');
+
+        $salesAgentFilter = AccessHelper::getSalesAgentFilter();
+        if ($salesAgentFilter !== null) {
+            $query->where($db->quoteName('a.' . $col) . ' = ' . $db->quote($salesAgentFilter));
+        }
+
+        $db->setQuery($query);
+        $agents = $db->loadColumn() ?: [];
+
+        $options = ['' => \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS')];
+        foreach ($agents as $agent) {
+            $agent = trim((string) $agent);
+            if ($agent !== '') {
+                $options[$agent] = $agent;
+            }
+        }
+
+        return $options;
     }
 
     /**

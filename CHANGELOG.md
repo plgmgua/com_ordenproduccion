@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.37-STABLE] - 2026-05-11
+
+### Added
+- **Órdenes de trabajo (lista):** filtro por **Agente de ventas** (solo usuarios del grupo **Administracion** / Administración o superusuarios, según `AccessHelper::isInStrictAdministracionGroup`). Limpieza de filtros incluye `filter_sales_agent`.
+
 ## [3.119.36-STABLE] - 2026-05-11
 
 ### Added

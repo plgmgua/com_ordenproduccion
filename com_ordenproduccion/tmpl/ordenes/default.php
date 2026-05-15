@@ -24,6 +24,7 @@ $isVentas = AccessHelper::isInVentasGroup();
 $isProduccion = AccessHelper::isInProduccionGroup();
 $anulacionUrl = $this->anulacionUrl;
 $currentUser = $this->user;
+$isAdministracionOtAgentFilter = AccessHelper::isInStrictAdministracionGroup();
 ?>
 
 <div class="com-ordenproduccion-ordenes">
@@ -62,7 +63,7 @@ $labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
 $labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotizaci?n');
 $labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotizaci?n');
 $labelCotizacionNoPermission = $t('COM_ORDENPRODUCCION_COTIZACION_NO_PERMISSION', 'Sin permiso para ver la cotizaci?n');
-$clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=');
+$clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=&filter_sales_agent=');
 ?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
                             <input type="hidden" name="option" value="com_ordenproduccion">
@@ -118,6 +119,19 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
+                                <?php if (!empty($isAdministracionOtAgentFilter)) : ?>
+                                <div class="ordenes-filter-item">
+                                    <label for="filter_sales_agent" class="form-label"><?php echo htmlspecialchars($t('COM_ORDENPRODUCCION_ORDEN_AGENTE_VENTAS', 'Agente de Ventas')); ?></label>
+                                    <select name="filter_sales_agent" id="filter_sales_agent" class="form-control form-control-sm">
+                                        <?php foreach ($this->getModel()->getSalesAgentFilterOptions() as $value => $text) : ?>
+                                            <option value="<?php echo htmlspecialchars((string) $value); ?>"
+                                                    <?php echo ($this->state->get('filter.sales_agent', '') === (string) $value) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($text); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <?php endif; ?>
                                 <div class="ordenes-filter-buttons d-flex gap-1">
                                     <button type="submit" class="btn btn-primary btn-sm">
                                         <i class="fas fa-search"></i>
