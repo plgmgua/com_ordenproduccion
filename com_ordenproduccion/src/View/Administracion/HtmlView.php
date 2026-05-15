@@ -1897,7 +1897,7 @@ class HtmlView extends BaseHtmlView
                 $this->approvalWorkflowSchemaAvailable = $approvalService->hasSchema();
                 if ($this->approvalWorkflowSchemaAvailable) {
                     $user = Factory::getUser();
-                    $this->approvalPendingRows = $approvalService->getMergedPendingApprovalRowsForUser((int) $user->id);
+                    $this->approvalPendingRows = AccessHelper::getPendingApprovalRowsMerged($approvalService, (int) $user->id);
                     $preCotIds = [];
                     $ocIds     = [];
                     $manualFactQuotationIds = [];

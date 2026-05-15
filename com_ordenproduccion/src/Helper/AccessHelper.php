@@ -894,10 +894,31 @@ class AccessHelper
                 return 0;
             }
 
-            return \count($svc->getMergedPendingApprovalRowsForUser($uid));
+            return \count(self::getPendingApprovalRowsMerged($svc, $uid));
         } catch (\Throwable $e) {
             return 0;
         }
+    }
+
+    /**
+     * Pending approval rows for UI: merged approver + submitter when {@see ApprovalWorkflowService::getMergedPendingApprovalRowsForUser()}
+     * exists; otherwise only approver-assigned rows (older component files on disk).
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.119.54
+     */
+    public static function getPendingApprovalRowsMerged(ApprovalWorkflowService $svc, int $userId): array
+    {
+        if ($userId < 1) {
+            return [];
+        }
+
+        if (\method_exists($svc, 'getMergedPendingApprovalRowsForUser')) {
+            return $svc->getMergedPendingApprovalRowsForUser($userId);
+        }
+
+        return $svc->getMyPendingApprovalRows($userId);
     }
 
     /**

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.54-STABLE] - 2026-05-15
+
+### Fixed
+- **Aprobaciones:** si en el servidor quedó un `ApprovalWorkflowService.php` antiguo sin `getMergedPendingApprovalRowsForUser()`, la web fallaba con error fatal. `AccessHelper::getPendingApprovalRowsMerged()` comprueba el método y usa solo filas de aprobador (`getMyPendingApprovalRows`) como respaldo hasta que el componente completo esté instalado.
+
 ## [3.119.53-STABLE] - 2026-05-15
 
 ### Fixed
