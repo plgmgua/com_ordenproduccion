@@ -69,8 +69,8 @@ $otStep3FechaLabel   = op_ot_wizard_label(
 );
 $otStep3DescLabel   = op_ot_wizard_label(
     'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_DESCRIPCION',
-    'Descripción',
-    'Description'
+    'Instrucciones generales y Notas',
+    'General instructions and notes'
 );
 $otStep3ErrFecha    = op_ot_wizard_label(
     'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_FECHA',
@@ -79,8 +79,8 @@ $otStep3ErrFecha    = op_ot_wizard_label(
 );
 $otStep3ErrDesc     = op_ot_wizard_label(
     'COM_ORDENPRODUCCION_OT_WIZARD_STEP3_ERR_DESCRIPCION',
-    'Ingrese la descripción (instrucciones generales).',
-    'Please enter the description (general instructions).'
+    'Ingrese las instrucciones generales y notas.',
+    'Please enter general instructions and notes.'
 );
 $otFldRequiredTitle = op_ot_wizard_label(
     'COM_ORDENPRODUCCION_FIELD_REQUIRED',

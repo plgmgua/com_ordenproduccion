@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.45-STABLE] - 2026-05-11
+
+### Changed
+- **Asistente orden de trabajo (paso 3):** la etiqueta del campo de instrucciones generales pasa a **«Instrucciones generales y Notas»** (mensajes y validación alineados en EN/ES).
+
 ## [3.119.44-STABLE] - 2026-05-11
 
 ### Removed
