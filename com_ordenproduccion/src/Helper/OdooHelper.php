@@ -474,6 +474,7 @@ class OdooHelper
                            <value><string>child_ids</string></value>
                            <value><string>credit_limit</string></value>
                            <value><string>property_payment_term_id</string></value>
+                           <value><string>property_supplier_payment_term_id</string></value>
                            <value><string>invoice_sending_method</string></value>
                         </data>
                      </array>
@@ -833,6 +834,18 @@ class OdooHelper
                     continue;
                 }
 
+                if (
+                    $fieldName === 'property_supplier_payment_term_id'
+                    && isset($member['value']['boolean'])
+                    && !$member['value']['boolean']
+                ) {
+                    $contact['supplier_payment_term_id'] = '';
+                    $contact[$fieldName] = '';
+                    $contact['supplier_payment_terms'] = '';
+
+                    continue;
+                }
+
                 if (isset($member['value']['string'])) {
                     $fieldValue = $member['value']['string'];
                 } elseif (isset($member['value']['int'])) {
@@ -845,6 +858,20 @@ class OdooHelper
                     $fieldValue = $member['value']['boolean'] ? '1' : '';
                 } elseif (isset($member['value']['boolean'])) {
                     $fieldValue = $member['value']['boolean'] ? '1' : '0';
+                } elseif (
+                    isset($member['value']['array']['data']['value'])
+                    && $fieldName === 'property_supplier_payment_term_id'
+                ) {
+                    [$termId, $termName] = self::many2oneIdAndLabelFromOdooRpcMember($member);
+                    $contact['supplier_payment_term_id'] = $termId !== null ? (string) $termId : '';
+                    $fieldValue                            = $termName;
+                    if ($termName !== '') {
+                        $contact['supplier_payment_terms'] = $termName;
+                    }
+
+                    $contact[$fieldName] = $termName;
+
+                    continue;
                 } elseif (
                     isset($member['value']['array']['data']['value'])
                     && $fieldName === 'property_payment_term_id'
@@ -880,13 +907,32 @@ class OdooHelper
      */
     private static function finalizePartnerFinanceDisplayFields(array &$partner): void
     {
-        // Payment terms label (Ventas → Términos de pago) from Many2one or legacy string slot
+        // Payment terms: prefer Ventas/customer ({@see property_payment_term_id}); if empty, Odoo COMPRAS/vendor ({@see property_supplier_payment_term_id}).
         if (!isset($partner['payment_terms']) || $partner['payment_terms'] === '') {
             $raw = isset($partner['property_payment_term_id'])
                 ? trim((string) $partner['property_payment_term_id'])
                 : '';
             if ($raw !== '' && !ctype_digit($raw)) {
                 $partner['payment_terms'] = $raw;
+            }
+        }
+
+        if (!isset($partner['payment_terms']) || $partner['payment_terms'] === '') {
+            $supLabel = isset($partner['supplier_payment_terms']) ? trim((string) $partner['supplier_payment_terms']) : '';
+            if ($supLabel === '' && isset($partner['property_supplier_payment_term_id'])) {
+                $spr = trim((string) $partner['property_supplier_payment_term_id']);
+                if ($spr !== '' && !ctype_digit($spr)) {
+                    $supLabel = $spr;
+                }
+            }
+
+            if ($supLabel !== '') {
+                $partner['payment_terms'] = $supLabel;
+                $spi        = isset($partner['supplier_payment_term_id']) ? trim((string) $partner['supplier_payment_term_id']) : '';
+                $existingId = isset($partner['payment_term_id']) ? trim((string) $partner['payment_term_id']) : '';
+                if ($spi !== '' && $existingId === '') {
+                    $partner['payment_term_id'] = $spi;
+                }
             }
         }
 
@@ -1402,9 +1448,13 @@ class OdooHelper
     }
 
     /**
-     * Credit limit + customer payment term + invoice sending from Odoo (res.partner).
+     * Credit limit + payment terms + invoice sending from Odoo (res.partner).
      *
-     * Field names: credit_limit, property_payment_term_id (Ventas), invoice_sending_method (Accounting).
+     * Customer payment terms use property_payment_term_id (Odoo Ventas). If that is empty,
+     * property_supplier_payment_term_id (Odoo COMPRAS — proveedor) is used for the same UI field.
+     *
+     * Field names: credit_limit, property_payment_term_id, property_supplier_payment_term_id,
+     * invoice_sending_method (Accounting).
      *
      * @param   integer  $clientId  res.partner id
      *
@@ -1476,6 +1526,7 @@ class OdooHelper
                         <data>
                            <value><string>credit_limit</string></value>
                            <value><string>property_payment_term_id</string></value>
+                           <value><string>property_supplier_payment_term_id</string></value>
                            <value><string>invoice_sending_method</string></value>
                         </data>
                      </array>

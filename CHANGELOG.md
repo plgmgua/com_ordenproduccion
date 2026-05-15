@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.40-STABLE] - 2026-05-11
+
+### Fixed
+- **Cliente / ERP:** «Términos de pago» leía solo `property_payment_term_id` (Ventas/cliente). Odoo también guarda términos bajo **COMPRAS** (`property_supplier_payment_term_id`). Si el término de ventas está vacío, el componente ahora rellena desde el término proveedor (p. ej. «Pago Contado» en la pestaña Ventas y compras).
+
 ## [3.119.39-STABLE] - 2026-05-11
 
 ### Added
