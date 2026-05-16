@@ -65,6 +65,17 @@
             <option value="0">JNO</option>
         </field>
         <field
+            name="telegram_notify_orden_compra_cotizacion"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ORDEN_COMPRA_COTIZACION_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ORDEN_COMPRA_COTIZACION_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
             name="telegram_message_invoice"
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_LABEL"
@@ -102,6 +113,17 @@
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
             description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
+            rows="3"
+            cols="80"
+            class="form-control"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_message_orden_compra_cotizacion"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ORDEN_COMPRA_COTIZACION_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ORDEN_COMPRA_COTIZACION_DESC"
             rows="3"
             cols="80"
             class="form-control"
@@ -165,6 +187,17 @@
             <option value="0">JNO</option>
         </field>
         <field
+            name="telegram_broadcast_orden_compra_cotizacion"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ORDEN_COMPRA_COTIZACION_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ORDEN_COMPRA_COTIZACION_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
             name="telegram_broadcast_message_invoice"
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_LABEL"
@@ -202,6 +235,17 @@
             type="textarea"
             label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
             description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
+            rows="3"
+            cols="80"
+            class="form-control"
+            filter="raw"
+            default=""
+        />
+        <field
+            name="telegram_broadcast_message_orden_compra_cotizacion"
+            type="textarea"
+            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ORDEN_COMPRA_COTIZACION_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ORDEN_COMPRA_COTIZACION_DESC"
             rows="3"
             cols="80"
             class="form-control"

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Order-owner Telegram notifications (invoice, envío, payment proofs).
+ * Order-owner Telegram notifications (invoice, envío, payment proofs, cotización OC upload).
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @since       3.105.0
@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
+use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 use Joomla\CMS\User\UserFactoryInterface;
@@ -35,6 +36,9 @@ class TelegramNotificationHelper
 
     /** Internal approval workflow / creación OT (same message text as DMs, optional channel broadcast). */
     public const EVENT_APPROVAL_WORKFLOW = 'approval_workflow';
+
+    /** Purchase order file attached on cotización (facturación), uploaded by quotation owner. */
+    public const EVENT_ORDEN_COMPRA_COTIZACION = 'orden_compra_cotizacion';
 
     /**
      * After a new invoice row is stored: notify linked order owner(s).
@@ -380,6 +384,83 @@ class TelegramNotificationHelper
     }
 
     /**
+     * After the cotización owner uploads the orden de compra for invoicing: DM the owner (if linked) and optionally the Administración channel.
+     *
+     * @param   int  $quotationId       #__ordenproduccion_quotations.id
+     * @param   int  $uploadedByUserId  Current user who performed the upload
+     *
+     * @return  void
+     *
+     * @since   3.119.62
+     */
+    public static function notifyOrdenCompraCotizacionUploaded(int $quotationId, int $uploadedByUserId): void
+    {
+        $quotationId       = (int) $quotationId;
+        $uploadedByUserId = (int) $uploadedByUserId;
+        if ($quotationId < 1 || $uploadedByUserId < 1) {
+            return;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($db->quoteName('id') . ' = ' . $quotationId)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $qRow = $db->loadObject();
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        if (!$qRow) {
+            return;
+        }
+
+        $ownerId = (int) ($qRow->created_by ?? 0);
+        if ($ownerId < 1 || $uploadedByUserId !== $ownerId) {
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        if ((int) $params->get('telegram_enabled', 0) !== 1) {
+            return;
+        }
+        if ((int) $params->get('telegram_notify_orden_compra_cotizacion', 1) !== 1) {
+            return;
+        }
+
+        $token = trim((string) $params->get('telegram_bot_token', ''));
+        if ($token === '') {
+            return;
+        }
+
+        $users = Factory::getContainer()->get(UserFactoryInterface::class);
+        try {
+            $owner = $users->loadUserById($ownerId);
+        } catch (\Throwable $e) {
+            return;
+        }
+        if ($owner->guest || (int) $owner->id !== $ownerId) {
+            return;
+        }
+
+        $dmTemplate      = self::getOrdenCompraCotizacionMessageTemplate($params);
+        $channelTemplate = self::getOrdenCompraCotizacionChannelMessageTemplate($params);
+        $vars            = self::buildOrdenCompraCotizacionTemplateVars($qRow, $owner, $quotationId);
+        $text            = self::replaceTemplatePlaceholders($dmTemplate, $vars);
+
+        if (self::getChatIdForUser($ownerId) !== null) {
+            self::sendToUserId($token, $ownerId, $text);
+        }
+
+        $channelText = self::replaceTemplatePlaceholders($channelTemplate, $vars);
+        self::sendToAdministracionBroadcastChannel($params, $channelText, self::EVENT_ORDEN_COMPRA_COTIZACION);
+    }
+
+    /**
      * True when active FEL certifier environment is prueba (not producción).
      * Same rule as AdministracionModel::getCertificadorFactModo(): only `prod` is production.
      * On DB errors returns false so notifications are not dropped.
@@ -459,6 +540,11 @@ class TelegramNotificationHelper
                 && (int) ($arr['telegram_broadcast_approval_workflow'] ?? 0) === 1;
         }
 
+        if ($event === self::EVENT_ORDEN_COMPRA_COTIZACION) {
+            return \array_key_exists('telegram_broadcast_orden_compra_cotizacion', $arr)
+                && (int) ($arr['telegram_broadcast_orden_compra_cotizacion'] ?? 0) === 1;
+        }
+
         return false;
     }
 
@@ -495,6 +581,7 @@ class TelegramNotificationHelper
             self::EVENT_PAYMENT_PROOF_ENTERED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_ENTERED',
             self::EVENT_PAYMENT_PROOF_VERIFIED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_VERIFIED',
             self::EVENT_APPROVAL_WORKFLOW => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_APPROVAL_WORKFLOW',
+            self::EVENT_ORDEN_COMPRA_COTIZACION => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_ORDEN_COMPRA_COTIZACION',
             default => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_INVOICE',
         };
         $full = Text::_($pfxKey) . $body;
@@ -704,6 +791,106 @@ class TelegramNotificationHelper
         }
 
         return self::getPaymentProofVerifiedMessageTemplate($params);
+    }
+
+    /**
+     * Orden de compra (cotización) — DM body from params or language default.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getOrdenCompraCotizacionMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_message_orden_compra_cotizacion', ''));
+        }
+
+        return $t !== '' ? $t : Text::_('COM_ORDENPRODUCCION_TELEGRAM_TPL_ORDEN_COMPRA_COTIZACION_DEFAULT');
+    }
+
+    /**
+     * Orden de compra (cotización) — channel body; falls back to DM template.
+     *
+     * @param   \Joomla\Registry\Registry  $params  Component params
+     *
+     * @return  string
+     */
+    public static function getOrdenCompraCotizacionChannelMessageTemplate($params): string
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        $t = '';
+        if ($params instanceof Registry) {
+            $t = trim((string) $params->get('telegram_broadcast_message_orden_compra_cotizacion', ''));
+        }
+        if ($t !== '') {
+            return $t;
+        }
+
+        return self::getOrdenCompraCotizacionMessageTemplate($params);
+    }
+
+    /**
+     * Variables for «orden de compra en cotización» notification.
+     *
+     * @param   object  $quotation    Row from #__ordenproduccion_quotations
+     * @param   User    $owner        Quotation owner (`created_by`)
+     * @param   int     $quotationId  Quotation PK
+     *
+     * @return  array<string,string>
+     */
+    public static function buildOrdenCompraCotizacionTemplateVars(object $quotation, User $owner, int $quotationId): array
+    {
+        $quotationId = (int) $quotationId;
+        $path        = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
+        $fileName    = $path !== '' ? basename(str_replace('\\', '/', $path)) : '—';
+
+        $site = '';
+        try {
+            $site = (string) Factory::getApplication()->get('sitename', '');
+        } catch (\Throwable $e) {
+        }
+
+        $rel    = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false);
+        $cotUrl = rtrim(Uri::root(), '/') . '/' . ltrim((string) $rel, '/');
+
+        return [
+            'username'         => trim((string) $owner->name),
+            'user_login'       => trim((string) $owner->username),
+            'quotation_id'     => (string) $quotationId,
+            'quotation_number' => trim((string) ($quotation->quotation_number ?? '')),
+            'client_name'      => trim((string) ($quotation->client_name ?? '')),
+            'file_name'        => $fileName,
+            'cotizacion_url'   => $cotUrl,
+            'site_name'        => $site,
+        ];
+    }
+
+    /**
+     * Demo values for «test orden de compra cotización» from Grimpsa bot.
+     *
+     * @param   User  $user  Current user
+     *
+     * @return  array<string,string>
+     */
+    public static function getSampleOrdenCompraCotizacionTemplateVars(User $user): array
+    {
+        self::ensureTelegramLanguageLoaded();
+
+        return [
+            'username'         => trim((string) $user->name),
+            'user_login'       => trim((string) $user->username),
+            'quotation_id'     => '999223',
+            'quotation_number' => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_QUOTATION_NUMBER'),
+            'client_name'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
+            'file_name'        => 'orden-compra-demo.pdf',
+            'cotizacion_url'   => rtrim(Uri::root(), '/') . '/index.php?option=com_ordenproduccion&view=cotizacion&id=999223',
+            'site_name'        => (string) Factory::getApplication()->get('sitename', 'Joomla'),
+        ];
     }
 
     /**

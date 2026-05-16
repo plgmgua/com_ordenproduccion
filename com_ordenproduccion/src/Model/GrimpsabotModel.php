@@ -91,6 +91,7 @@ class GrimpsabotModel extends FormModel
                 'telegram_notify_envio',
                 'telegram_notify_payment_proof_entered',
                 'telegram_notify_payment_proof_verified',
+                'telegram_notify_orden_compra_cotizacion',
             ] as $k
         ) {
             if (isset($data[$k])) {
@@ -109,6 +110,9 @@ class GrimpsabotModel extends FormModel
         }
         if (isset($data['telegram_broadcast_payment_proof_verified'])) {
             $registry->set('telegram_broadcast_payment_proof_verified', (int) $data['telegram_broadcast_payment_proof_verified'] ? 1 : 0);
+        }
+        if (isset($data['telegram_broadcast_orden_compra_cotizacion'])) {
+            $registry->set('telegram_broadcast_orden_compra_cotizacion', (int) $data['telegram_broadcast_orden_compra_cotizacion'] ? 1 : 0);
         }
 
         if (!empty($data['telegram_bot_token'])) {
@@ -143,10 +147,12 @@ class GrimpsabotModel extends FormModel
                 'telegram_message_envio',
                 'telegram_message_payment_proof_entered',
                 'telegram_message_payment_proof_verified',
+                'telegram_message_orden_compra_cotizacion',
                 'telegram_broadcast_message_invoice',
                 'telegram_broadcast_message_envio',
                 'telegram_broadcast_message_payment_proof_entered',
                 'telegram_broadcast_message_payment_proof_verified',
+                'telegram_broadcast_message_orden_compra_cotizacion',
             ] as $msgKey
         ) {
             if (\array_key_exists($msgKey, $data)) {

@@ -116,6 +116,7 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                             <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_ENVIO'))); ?></p>
                             <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_PAYMENT_PROOF_ENTERED'))); ?></p>
                             <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_PAYMENT_PROOF_VERIFIED'))); ?></p>
+                            <p class="small text-muted"><?php echo nl2br($this->escape(Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_MSG_HELP_ORDEN_COMPRA_COTIZACION'))); ?></p>
                         </div>
                         <div class="tab-pane fade" id="grimpsabot-pane-broadcast" role="tabpanel" aria-labelledby="grimpsabot-tab-broadcast" tabindex="0">
                             <?php foreach ($form->getFieldset('broadcast') as $field) : ?>
@@ -525,6 +526,13 @@ $webhookEndpointUrl = TelegramNotificationHelper::getTelegramWebhookPublicRoot()
                         <input type="hidden" name="telegram_test_event" value="proof_verified" />
                         <?php echo HTMLHelper::_('form.token'); ?>
                         <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST_PAYMENT_PROOF_VERIFIED'); ?></button>
+                    </form>
+                    <form action="<?php echo Route::_('index.php'); ?>" method="post" class="d-inline">
+                        <input type="hidden" name="option" value="com_ordenproduccion" />
+                        <input type="hidden" name="task" value="grimpsabot.sendtestevent" />
+                        <input type="hidden" name="telegram_test_event" value="orden_compra_cotizacion" />
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_GRIMPSABOT_SEND_TEST_ORDEN_COMPRA_COTIZACION'); ?></button>
                     </form>
                 </div>
                 <form action="<?php echo Route::_('index.php'); ?>" method="post" class="mt-1">

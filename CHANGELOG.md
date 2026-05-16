@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.62-STABLE] - 2026-05-11
+
+### Added
+- Tras subir la **orden de compra** para facturación (`uploadOrdenCompraFacturacion`), si quien sube es el **propietario de la cotización** (`created_by`): **Telegram** al dueño (DM, cola existente) y opción de **retransmitir al canal Administración**; plantillas y toggles en Grimpsa bot / opciones del componente (`telegram_notify_orden_compra_cotizacion`, `telegram_broadcast_orden_compra_cotizacion`).
+
 ## [3.119.61-STABLE] - 2026-05-11
 
 ### Added

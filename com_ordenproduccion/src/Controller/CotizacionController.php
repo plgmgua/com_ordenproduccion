@@ -33,6 +33,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\OrdenFromQuotationService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
 /**
  * Cotizacion controller (pliego quote calculation).
@@ -1127,6 +1128,8 @@ class CotizacionController extends BaseController
             ->where($db->quoteName('id') . ' = ' . $quotationId);
         $db->setQuery($q);
         $db->execute();
+
+        TelegramNotificationHelper::notifyOrdenCompraCotizacionUploaded($quotationId, (int) $user->id);
 
         $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_SAVED'), 'success');
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));

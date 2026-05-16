@@ -186,6 +186,7 @@ class GrimpsabotController extends BaseController
                 TelegramNotificationHelper::EVENT_ENVIO,
                 TelegramNotificationHelper::EVENT_PAYMENT_PROOF_ENTERED,
                 TelegramNotificationHelper::EVENT_PAYMENT_PROOF_VERIFIED,
+                TelegramNotificationHelper::EVENT_ORDEN_COMPRA_COTIZACION,
             ],
             true
         )) {
@@ -221,6 +222,10 @@ class GrimpsabotController extends BaseController
             $template   = TelegramNotificationHelper::getPaymentProofEnteredMessageTemplate($params);
             $vars       = TelegramNotificationHelper::getSamplePaymentProofEnteredTemplateVars($user);
             $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_PAYMENT_PROOF_ENTERED');
+        } elseif ($event === TelegramNotificationHelper::EVENT_ORDEN_COMPRA_COTIZACION) {
+            $template   = TelegramNotificationHelper::getOrdenCompraCotizacionMessageTemplate($params);
+            $vars       = TelegramNotificationHelper::getSampleOrdenCompraCotizacionTemplateVars($user);
+            $eventLabel = Text::_('COM_ORDENPRODUCCION_TELEGRAM_EVENT_ORDEN_COMPRA_COTIZACION');
         } else {
             $template   = TelegramNotificationHelper::getPaymentProofVerifiedMessageTemplate($params);
             $vars       = TelegramNotificationHelper::getSamplePaymentProofVerifiedTemplateVars($user);
