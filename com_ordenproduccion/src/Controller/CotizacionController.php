@@ -1020,6 +1020,126 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Upload or replace purchase order file when this quotation requires a PO to invoice (after confirmation).
+     *
+     * @return  void
+     *
+     * @since   3.119.57
+     */
+    public function uploadOrdenCompraFacturacion(): void
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+
+        $quotationId = (int) $app->input->post->getInt('id', 0);
+        if ($quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+
+        $row = $this->loadPublishedQuotationForCurrentUserOrClose($quotationId);
+        if (!$row) {
+            return;
+        }
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+
+        if (!isset($cols['orden_compra_path']) || !isset($cols['requiere_orden_compra_para_facturar'])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DB_UPDATE_REQUIRED'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        if ((int) ($row->cotizacion_confirmada ?? 0) !== 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_NOT_CONFIRMED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        if ((int) ($row->requiere_orden_compra_para_facturar ?? 0) !== 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_NOT_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/cotizacion_confirmacion';
+        if (!\is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0755, true);
+        }
+        if (!\is_writable($uploadDir)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_UPLOAD_DIR_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $file = $app->input->files->get('orden_compra', [], 'array');
+        if (empty($file) || !\is_array($file) || empty($file['name'])
+            || (int) ($file['error'] ?? \UPLOAD_ERR_NO_FILE) === \UPLOAD_ERR_NO_FILE) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_NO_FILE'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+        if ((int) ($file['error'] ?? 0) !== \UPLOAD_ERR_OK) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
+        $maxSize = 5 * 1024 * 1024;
+        $pathOrden = $this->processOptionalQuotationConfirmUpload(
+            $file,
+            $quotationId,
+            'orden',
+            $uploadDir,
+            $allowed,
+            $maxSize
+        );
+        if ($pathOrden === null || trim((string) $pathOrden) === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_INVALID'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $q = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_quotations'))
+            ->set([
+                $db->quoteName('orden_compra_path') . ' = ' . $db->quote($pathOrden),
+                $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
+                $db->quoteName('modified_by') . ' = ' . (int) $user->id,
+            ])
+            ->where($db->quoteName('id') . ' = ' . $quotationId);
+        $db->setQuery($q);
+        $db->execute();
+
+        $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_SAVED'), 'success');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+    }
+
+    /**
      * JSON: Digifact-style NIT/CUI lookup for the quotation's billing ID (confirm modal banner).
      *
      * @return  void

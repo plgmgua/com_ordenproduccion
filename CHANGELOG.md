@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.57-STABLE] - 2026-05-11
+
+### Added
+- **Vista Cotización (display):** si la cotización está confirmada y **requiere orden de compra para facturar** (`requiere_orden_compra_para_facturar` = 1), se muestra un bloque con las **instrucciones de facturación** y un formulario para **subir o reemplazar** el archivo (`orden_compra_path`), misma carpeta y reglas que la confirmación (PDF/JPG/PNG, 5 MB). Tarea del controlador `cotizacion.uploadOrdenCompraFacturacion`.
+
 ## [3.119.56-STABLE] - 2026-05-15
 
 ### Changed
-- **Confirmar Cotización (modal):** la pregunta sobre orden de compra pasa a **«¿Requiere orden de compra para facturar?»** — solo Sí/No (obligatorio), **sin** subida de archivo. El valor se guarda en `requiere_orden_compra_para_facturar`; la ruta `orden_compra_path` ya no se usa desde este paso. Migración SQL `3.119.56_requiere_orden_compra_para_facturar.sql`.
+- **Confirmar Cotización (modal):** la pregunta sobre orden de compra pasa a **«¿Requiere orden de compra para facturar?»** — solo Sí/No (obligatorio), **sin** subida de archivo en el modal. El valor se guarda en `requiere_orden_compra_para_facturar`. La ruta `orden_compra_path` se gestiona desde la vista cotización cuando aplica. Migración SQL `3.119.56_requiere_orden_compra_para_facturar.sql`.
 
 ## [3.119.55-STABLE] - 2026-05-15
 
