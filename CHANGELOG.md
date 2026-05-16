@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.59-STABLE] - 2026-05-11
+
+### Added
+- **Vista Cotización — orden de compra:** icono **ojo** junto al archivo actual; abre el visor modal existente (PDF en iframe; JPG/PNG en imagen).
+
 ## [3.119.58-STABLE] - 2026-05-11
 
 ### Added

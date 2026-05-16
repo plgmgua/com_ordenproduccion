@@ -76,6 +76,15 @@ if ($facturarCotizacionExacta !== 0) {
 $requiereOcParaFacturarView = isset($quotation->requiere_orden_compra_para_facturar)
     && (int) $quotation->requiere_orden_compra_para_facturar === 1;
 $pathOrdenCompraView = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
+$ocFilePublicUrl     = '';
+$ocFileViewKind      = 'pdf';
+if ($pathOrdenCompraView !== '') {
+    $ocFilePublicUrl = rtrim(Uri::root(), '/') . '/' . ltrim(str_replace('\\', '/', $pathOrdenCompraView), '/');
+    $ocExt           = strtolower(pathinfo($pathOrdenCompraView, PATHINFO_EXTENSION));
+    if (in_array($ocExt, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+        $ocFileViewKind = 'image';
+    }
+}
 
 $itemsWithLineDetalles = $this->itemsWithLineDetalles ?? [];
 $ordenesPorPre = isset($this->ordenesPorPreCotizacionId) && is_array($this->ordenesPorPreCotizacionId) ? $this->ordenesPorPreCotizacionId : [];
@@ -212,13 +221,20 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                         'Archivo de orden de compra'
                     )); ?></div>
                     <?php if ($pathOrdenCompraView !== '') : ?>
-                    <div class="mb-2 small">
+                    <div class="mb-2 small d-flex flex-wrap align-items-center gap-2">
                         <span class="text-muted"><?php echo htmlspecialchars($l(
                             'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_CURRENT_FILE',
                             'Current file',
                             'Archivo actual'
                         )); ?>:</span>
-                        <a href="<?php echo htmlspecialchars(rtrim(Uri::root(), '/') . '/' . ltrim(str_replace('\\', '/', $pathOrdenCompraView), '/')); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars(basename($pathOrdenCompraView)); ?></a>
+                        <a href="<?php echo htmlspecialchars($ocFilePublicUrl); ?>" target="_blank" rel="noopener noreferrer" class="text-break"><?php echo htmlspecialchars(basename($pathOrdenCompraView)); ?></a>
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 cotizacion-confirm-file-view"
+                            data-file-url="<?php echo htmlspecialchars($ocFilePublicUrl); ?>"
+                            data-file-kind="<?php echo htmlspecialchars($ocFileViewKind); ?>"
+                            title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_OC_VIEWER_OPEN', 'View in window', 'Ver en ventana')); ?>">
+                            <i class="fas fa-eye" aria-hidden="true"></i>
+                            <span class="visually-hidden"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_OC_VIEWER_OPEN', 'View in window', 'Ver en ventana')); ?></span>
+                        </button>
                     </div>
                     <?php endif; ?>
                     <?php if ($currentUserCot->guest) : ?>
@@ -633,13 +649,20 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
             'Archivo de orden de compra'
         )); ?></label>
         <?php if ($pathOrdenCompraView !== '') : ?>
-        <div class="mb-2">
+        <div class="mb-2 d-flex flex-wrap align-items-center gap-2">
             <span class="text-muted small"><?php echo htmlspecialchars($l(
                 'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_CURRENT_FILE',
                 'Current file',
                 'Archivo actual'
             )); ?>:</span>
-            <a href="<?php echo htmlspecialchars(rtrim(Uri::root(), '/') . '/' . ltrim(str_replace('\\', '/', $pathOrdenCompraView), '/')); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars(basename($pathOrdenCompraView)); ?></a>
+            <a href="<?php echo htmlspecialchars($ocFilePublicUrl); ?>" target="_blank" rel="noopener noreferrer" class="small text-break"><?php echo htmlspecialchars(basename($pathOrdenCompraView)); ?></a>
+            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 cotizacion-confirm-file-view"
+                data-file-url="<?php echo htmlspecialchars($ocFilePublicUrl); ?>"
+                data-file-kind="<?php echo htmlspecialchars($ocFileViewKind); ?>"
+                title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_OC_VIEWER_OPEN', 'View in window', 'Ver en ventana')); ?>">
+                <i class="fas fa-eye" aria-hidden="true"></i>
+                <span class="visually-hidden"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_OC_VIEWER_OPEN', 'View in window', 'Ver en ventana')); ?></span>
+            </button>
         </div>
         <?php endif; ?>
         <?php if ($currentUserCot->guest) : ?>
@@ -1684,8 +1707,9 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                 <h5 class="modal-title" id="cotizacionConfirmFileModalLabel"><?php echo $l('COM_ORDENPRODUCCION_VIEW', 'View', 'Ver'); ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo $l('JCLOSE', 'Close', 'Cerrar'); ?>"></button>
             </div>
-            <div class="modal-body p-0" style="min-height: 70vh;">
-                <iframe id="cotizacionConfirmFileIframe" style="width:100%; height:70vh; border:0;" title=""></iframe>
+            <div class="modal-body p-0 bg-light position-relative" style="min-height: 70vh;">
+                <iframe id="cotizacionConfirmFileIframe" class="w-100 border-0" style="min-height: 70vh;" title=""></iframe>
+                <img id="cotizacionConfirmFileImg" class="d-none w-100" alt="" style="max-height: 70vh; object-fit: contain;">
             </div>
         </div>
     </div>
@@ -1823,22 +1847,54 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
 (function() {
     var modalFile = document.getElementById('cotizacionConfirmFileModal');
     var iframeFile = document.getElementById('cotizacionConfirmFileIframe');
-    if (modalFile && iframeFile) {
-        document.querySelectorAll('.cotizacion-confirm-file-view').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var url = this.getAttribute('data-file-url');
-                if (url) {
-                    iframeFile.src = url;
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                        bootstrap.Modal.getOrCreateInstance(modalFile).show();
-                    }
-                }
-            });
-        });
-        modalFile.addEventListener('hidden.bs.modal', function() {
-            iframeFile.src = 'about:blank';
-        });
+    var imgFile = document.getElementById('cotizacionConfirmFileImg');
+    if (!modalFile || !iframeFile) {
+        return;
     }
+    function urlLooksLikeImage(url) {
+        if (!url) {
+            return false;
+        }
+        var path = String(url).split('?')[0].toLowerCase();
+        return /\.(jpe?g|png|gif|webp)$/.test(path);
+    }
+    function showFileInModal(url, kindAttr) {
+        var kind = kindAttr || '';
+        var asImage = (kind === 'image') || (kind !== 'pdf' && urlLooksLikeImage(url));
+        if (imgFile) {
+            if (asImage) {
+                iframeFile.classList.add('d-none');
+                imgFile.classList.remove('d-none');
+                imgFile.src = url;
+            } else {
+                imgFile.classList.add('d-none');
+                imgFile.removeAttribute('src');
+                iframeFile.classList.remove('d-none');
+                iframeFile.src = url;
+            }
+        } else {
+            iframeFile.src = url;
+        }
+    }
+    document.querySelectorAll('.cotizacion-confirm-file-view').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var url = this.getAttribute('data-file-url');
+            if (url) {
+                showFileInModal(url, this.getAttribute('data-file-kind') || '');
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalFile).show();
+                }
+            }
+        });
+    });
+    modalFile.addEventListener('hidden.bs.modal', function() {
+        iframeFile.src = 'about:blank';
+        iframeFile.classList.remove('d-none');
+        if (imgFile) {
+            imgFile.removeAttribute('src');
+            imgFile.classList.add('d-none');
+        }
+    });
 })();
 </script>
 
