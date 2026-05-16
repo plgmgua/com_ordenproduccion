@@ -43,6 +43,7 @@ if (!$quotation) {
 
 $currentUserCot = Factory::getUser();
 $withdrawApprovalPostUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.withdrawCotizacionPendingApproval', false);
+$uploadOrdenCompraPostUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.uploadOrdenCompraFacturacion', false);
 
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 $currency = $quotation->currency ?? 'Q';
@@ -201,6 +202,57 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                 <div class="mt-2 mb-0">
                     <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></div>
                     <div class="border rounded bg-white p-2 small text-break"><?php echo nl2br(htmlspecialchars($pmInstr, ENT_QUOTES, 'UTF-8')); ?></div>
+                </div>
+                <?php endif; ?>
+                <?php if ($requiereOcParaFacturarView) : ?>
+                <div class="mt-3 pt-2 border-top">
+                    <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l(
+                        'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_LABEL',
+                        'Purchase order file',
+                        'Archivo de orden de compra'
+                    )); ?></div>
+                    <?php if ($pathOrdenCompraView !== '') : ?>
+                    <div class="mb-2 small">
+                        <span class="text-muted"><?php echo htmlspecialchars($l(
+                            'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_CURRENT_FILE',
+                            'Current file',
+                            'Archivo actual'
+                        )); ?>:</span>
+                        <a href="<?php echo htmlspecialchars(rtrim(Uri::root(), '/') . '/' . ltrim(str_replace('\\', '/', $pathOrdenCompraView), '/')); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars(basename($pathOrdenCompraView)); ?></a>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($currentUserCot->guest) : ?>
+                    <p class="small text-muted mb-0"><?php echo htmlspecialchars($l(
+                        'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_LOGIN_TO_UPLOAD',
+                        'Log in to upload or replace the purchase order file.',
+                        'Inicie sesión para subir o reemplazar el archivo de orden de compra.'
+                    )); ?></p>
+                    <?php else : ?>
+                    <form method="post" action="<?php echo htmlspecialchars($uploadOrdenCompraPostUrl); ?>" enctype="multipart/form-data" class="mt-1">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                        <div class="d-flex flex-wrap align-items-end gap-2">
+                            <div class="flex-grow-1" style="min-width: 12rem;">
+                                <label for="orden_compra_facturacion_file_banner" class="visually-hidden"><?php echo htmlspecialchars($l(
+                                    'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_LABEL',
+                                    'Purchase order file',
+                                    'Archivo de orden de compra'
+                                )); ?></label>
+                                <input type="file" name="orden_compra" id="orden_compra_facturacion_file_banner" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"><?php echo htmlspecialchars($l(
+                                'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_SAVE',
+                                'Upload',
+                                'Subir'
+                            )); ?></button>
+                        </div>
+                        <div class="form-text"><?php echo htmlspecialchars($l(
+                            'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_HELP',
+                            'PDF, JPG or PNG — max 5 MB. Upload again to replace the file.',
+                            'PDF, JPG o PNG — máx. 5 MB. Suba otro archivo para reemplazar.'
+                        )); ?></div>
+                    </form>
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
             </div>
@@ -549,7 +601,7 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
         </div>
     </div>
 
-    <?php if ($requiereOcParaFacturarView) : ?>
+    <?php if ($requiereOcParaFacturarView && empty($pendingFactManual)) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-oc-facturacion">
         <h3 class="h6 text-uppercase text-muted mb-2"><?php echo htmlspecialchars($l(
             'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_SECTION_TITLE',
@@ -561,69 +613,67 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
             'This quotation requires a purchase order to invoice. Review billing instructions and attach the document below.',
             'Esta cotización requiere orden de compra para facturar. Revise las instrucciones y adjunte el documento abajo.'
         )); ?></p>
-        <div class="row g-3 align-items-start">
-            <div class="col-md-6">
-                <label class="form-label fw-semibold"><?php echo htmlspecialchars($l(
-                    'COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE',
-                    'Billing instructions',
-                    'Instrucciones de facturación'
-                )); ?></label>
-                <?php if (trim($instruccionesFacturacionValue) !== '') : ?>
-                    <textarea class="form-control" rows="5" readonly><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
-                <?php else : ?>
-                    <p class="text-muted small mb-0"><?php echo htmlspecialchars($l(
-                        'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_NO_INSTRUCCIONES',
-                        'No billing instructions were entered.',
-                        'No se indicaron instrucciones de facturación.'
-                    )); ?></p>
-                <?php endif; ?>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label fw-semibold"><?php echo htmlspecialchars($l(
-                    'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_LABEL',
-                    'Purchase order file',
-                    'Archivo de orden de compra'
-                )); ?></label>
-                <?php if ($pathOrdenCompraView !== '') : ?>
-                <div class="mb-2">
-                    <span class="text-muted small"><?php echo htmlspecialchars($l(
-                        'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_CURRENT_FILE',
-                        'Current file',
-                        'Archivo actual'
-                    )); ?>:</span>
-                    <a href="<?php echo htmlspecialchars(rtrim(Uri::root(), '/') . '/' . ltrim(str_replace('\\', '/', $pathOrdenCompraView), '/')); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars(basename($pathOrdenCompraView)); ?></a>
-                </div>
-                <?php endif; ?>
-                <?php $userOrdenCompra = Factory::getUser(); ?>
-                <?php if ($userOrdenCompra->guest) : ?>
-                    <p class="small text-muted mb-0"><?php echo htmlspecialchars($l(
-                        'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_LOGIN_TO_UPLOAD',
-                        'Log in to upload or replace the purchase order file.',
-                        'Inicie sesión para subir o reemplazar el archivo de orden de compra.'
-                    )); ?></p>
-                <?php else : ?>
-                <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.uploadOrdenCompraFacturacion'); ?>" enctype="multipart/form-data" class="d-flex flex-column gap-2">
-                    <?php echo HTMLHelper::_('form.token'); ?>
-                    <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
-                    <input type="file" name="orden_compra" id="orden_compra_facturacion_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
-                    <div class="form-text"><?php echo htmlspecialchars($l(
-                        'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_HELP',
-                        'PDF, JPG or PNG — max 5 MB. Upload again to replace the file.',
-                        'PDF, JPG o PNG — máx. 5 MB. Suba otro archivo para reemplazar.'
-                    )); ?></div>
-                    <div>
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            <?php echo htmlspecialchars($l(
-                                'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_SAVE',
-                                'Upload',
-                                'Subir'
-                            )); ?>
-                        </button>
-                    </div>
-                </form>
-                <?php endif; ?>
-            </div>
+        <label class="form-label fw-semibold"><?php echo htmlspecialchars($l(
+            'COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE',
+            'Billing instructions',
+            'Instrucciones de facturación'
+        )); ?></label>
+        <?php if (trim($instruccionesFacturacionValue) !== '') : ?>
+            <textarea class="form-control mb-3" rows="5" readonly><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
+        <?php else : ?>
+            <p class="text-muted small mb-3"><?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_NO_INSTRUCCIONES',
+                'No billing instructions were entered.',
+                'No se indicaron instrucciones de facturación.'
+            )); ?></p>
+        <?php endif; ?>
+        <label class="form-label fw-semibold"><?php echo htmlspecialchars($l(
+            'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_LABEL',
+            'Purchase order file',
+            'Archivo de orden de compra'
+        )); ?></label>
+        <?php if ($pathOrdenCompraView !== '') : ?>
+        <div class="mb-2">
+            <span class="text-muted small"><?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_CURRENT_FILE',
+                'Current file',
+                'Archivo actual'
+            )); ?>:</span>
+            <a href="<?php echo htmlspecialchars(rtrim(Uri::root(), '/') . '/' . ltrim(str_replace('\\', '/', $pathOrdenCompraView), '/')); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars(basename($pathOrdenCompraView)); ?></a>
         </div>
+        <?php endif; ?>
+        <?php if ($currentUserCot->guest) : ?>
+            <p class="small text-muted mb-0"><?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_LOGIN_TO_UPLOAD',
+                'Log in to upload or replace the purchase order file.',
+                'Inicie sesión para subir o reemplazar el archivo de orden de compra.'
+            )); ?></p>
+        <?php else : ?>
+        <form method="post" action="<?php echo htmlspecialchars($uploadOrdenCompraPostUrl); ?>" enctype="multipart/form-data">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+            <div class="d-flex flex-wrap align-items-end gap-2">
+                <div class="flex-grow-1" style="min-width: 12rem;">
+                    <label for="orden_compra_facturacion_file" class="visually-hidden"><?php echo htmlspecialchars($l(
+                        'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_LABEL',
+                        'Purchase order file',
+                        'Archivo de orden de compra'
+                    )); ?></label>
+                    <input type="file" name="orden_compra" id="orden_compra_facturacion_file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"><?php echo htmlspecialchars($l(
+                    'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_SAVE',
+                    'Upload',
+                    'Subir'
+                )); ?></button>
+            </div>
+            <div class="form-text"><?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_HELP',
+                'PDF, JPG or PNG — max 5 MB. Upload again to replace the file.',
+                'PDF, JPG o PNG — máx. 5 MB. Suba otro archivo para reemplazar.'
+            )); ?></div>
+        </form>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
 
