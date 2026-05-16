@@ -490,7 +490,7 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
         </div>
     </div>
 
-    <?php if ($quotationConfirmed && $requiereOcParaFacturarView) : ?>
+    <?php if ($requiereOcParaFacturarView) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-oc-facturacion">
         <h3 class="h6 text-uppercase text-muted mb-2"><?php echo htmlspecialchars($l(
             'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_SECTION_TITLE',

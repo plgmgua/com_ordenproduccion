@@ -1020,7 +1020,7 @@ class CotizacionController extends BaseController
     }
 
     /**
-     * Upload or replace purchase order file when this quotation requires a PO to invoice (after confirmation).
+     * Upload or replace purchase order file when this quotation is flagged as requiring a PO to invoice.
      *
      * @return  void
      *
@@ -1062,13 +1062,6 @@ class CotizacionController extends BaseController
 
         if (!isset($cols['orden_compra_path']) || !isset($cols['requiere_orden_compra_para_facturar'])) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_DB_UPDATE_REQUIRED'), 'warning');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
-
-            return;
-        }
-
-        if ((int) ($row->cotizacion_confirmada ?? 0) !== 1) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_NOT_CONFIRMED'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
 
             return;

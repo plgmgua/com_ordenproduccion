@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.119.57-STABLE] - 2026-05-11
 
 ### Added
-- **Vista Cotización (display):** si la cotización está confirmada y **requiere orden de compra para facturar** (`requiere_orden_compra_para_facturar` = 1), se muestra un bloque con las **instrucciones de facturación** y un formulario para **subir o reemplazar** el archivo (`orden_compra_path`), misma carpeta y reglas que la confirmación (PDF/JPG/PNG, 5 MB). Tarea del controlador `cotizacion.uploadOrdenCompraFacturacion`.
+- **Vista Cotización (display):** si **requiere orden de compra para facturar** (`requiere_orden_compra_para_facturar` = 1), se muestra un bloque con las **instrucciones de facturación** y un formulario para **subir o reemplazar** el archivo (`orden_compra_path`), misma carpeta y reglas que la confirmación (PDF/JPG/PNG, 5 MB). Tarea del controlador `cotizacion.uploadOrdenCompraFacturacion`. Visible también cuando la confirmación está pendiente de aprobación y la cotización aún no tiene `cotizacion_confirmada` = 1.
 
 ## [3.119.56-STABLE] - 2026-05-15
 
