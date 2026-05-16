@@ -217,7 +217,7 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                 </div>
                 <?php endif; ?>
                 <?php if ($digifactDirectBlockedByOcPdf) : ?>
-                <p class="mb-0 mt-2 text-danger" style="font-size: 16px;"><?php echo htmlspecialchars($l(
+                <p class="mb-0 mt-2 text-danger" style="font-size: calc(16px + 2pt);"><?php echo htmlspecialchars($l(
                     'COM_ORDENPRODUCCION_OC_PDF_PENDING_LABEL',
                     'Purchase order PDF pending attachment',
                     'Orden de compra pendiente de adjuntar'
@@ -654,7 +654,7 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
             )); ?></p>
         <?php endif; ?>
         <?php if ($digifactDirectBlockedByOcPdf) : ?>
-        <p class="mb-3 text-danger" style="font-size: 16px;"><?php echo htmlspecialchars($l(
+        <p class="mb-3 text-danger" style="font-size: calc(16px + 2pt);"><?php echo htmlspecialchars($l(
             'COM_ORDENPRODUCCION_OC_PDF_PENDING_LABEL',
             'Purchase order PDF pending attachment',
             'Orden de compra pendiente de adjuntar'
