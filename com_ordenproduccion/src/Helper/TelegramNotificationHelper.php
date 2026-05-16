@@ -812,7 +812,7 @@ class TelegramNotificationHelper
     }
 
     /**
-     * Orden de compra (cotización) — channel body; falls back to DM template.
+     * Orden de compra (cotización) — channel body; default omits cotización URL (not sent to channel).
      *
      * @param   \Joomla\Registry\Registry  $params  Component params
      *
@@ -830,7 +830,7 @@ class TelegramNotificationHelper
             return $t;
         }
 
-        return self::getOrdenCompraCotizacionMessageTemplate($params);
+        return Text::_('COM_ORDENPRODUCCION_TELEGRAM_TPL_ORDEN_COMPRA_COTIZACION_CHANNEL_DEFAULT');
     }
 
     /**

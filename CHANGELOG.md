@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.63-STABLE] - 2026-05-16
+
+### Changed
+- **Telegram canal Administración — orden de compra (cotización):** la plantilla por defecto del canal **no incluye** el enlace a la cotización; el DM al propietario sigue usando la plantilla con `{cotizacion_url}`. Para mostrar URL en el canal, definir plantilla personalizada en opciones.
+
 ## [3.119.62-STABLE] - 2026-05-11
 
 ### Added
