@@ -541,8 +541,7 @@ class TelegramNotificationHelper
         }
 
         if ($event === self::EVENT_ORDEN_COMPRA_COTIZACION) {
-            return \array_key_exists('telegram_broadcast_orden_compra_cotizacion', $arr)
-                && (int) ($arr['telegram_broadcast_orden_compra_cotizacion'] ?? 0) === 1;
+            return (int) ($arr['telegram_broadcast_orden_compra_cotizacion'] ?? 1) === 1;
         }
 
         return false;
