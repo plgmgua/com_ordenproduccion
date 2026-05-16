@@ -1000,4 +1000,30 @@ class AccessHelper
 
         return self::isInAprobacionesVentasGroup();
     }
+
+    /**
+     * Whether the current user may withdraw (cancel) their own pending approval request for a quotation
+     * (submitter or quotation owner).
+     *
+     * @param   object|null  $quotation           Row from #__ordenproduccion_quotations
+     * @param   int          $requestSubmitterId  #__ordenproduccion_approval_requests.submitter_id
+     *
+     * @return  bool
+     *
+     * @since   3.119.58
+     */
+    public static function userCanWithdrawCotizacionApprovalRequest($quotation, int $requestSubmitterId): bool
+    {
+        $user = Factory::getUser();
+        if ($user->guest || !$quotation) {
+            return false;
+        }
+
+        $uid = (int) $user->id;
+        if ($requestSubmitterId > 0 && $requestSubmitterId === $uid) {
+            return true;
+        }
+
+        return (int) ($quotation->created_by ?? 0) === $uid;
+    }
 }

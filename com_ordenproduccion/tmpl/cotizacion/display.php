@@ -41,6 +41,9 @@ if (!$quotation) {
     return;
 }
 
+$currentUserCot = Factory::getUser();
+$withdrawApprovalPostUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.withdrawCotizacionPendingApproval', false);
+
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 $currency = $quotation->currency ?? 'Q';
 $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
@@ -179,16 +182,72 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
         if ($pmInstr === '') {
             $pmInstr = trim($instruccionesFacturacionValue);
         }
+        $canWithdrawFactManual = !$currentUserCot->guest && AccessHelper::userCanWithdrawCotizacionApprovalRequest(
+            $quotation,
+            (int) ($pendingFactManual->submitter_id ?? 0)
+        );
+        $withdrawManualConfirmJs = json_encode($l(
+            'COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_MANUAL_JS_CONFIRM',
+            'Withdraw this request? You can edit the quotation and submit confirmation again.',
+            '¿Retirar esta solicitud? Podrá editar la cotización y volver a confirmar.'
+        ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         ?>
     <div class="alert alert-warning border mb-3" role="status">
-        <strong><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_TITLE', 'Manual invoicing pending approval', 'Facturación manual — aprobación pendiente')); ?></strong>
-        <div class="small mt-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_DESC', 'Review the billing instructions stored on this quotation. Approve or reject from Administration → Approvals.', 'Revise las instrucciones de facturación de esta cotización. Apruebe o rechace desde Administración → Aprobaciones.')); ?></div>
-        <?php if ($pmInstr !== '') : ?>
-        <div class="mt-2 mb-0">
-            <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></div>
-            <div class="border rounded bg-white p-2 small text-break"><?php echo nl2br(htmlspecialchars($pmInstr, ENT_QUOTES, 'UTF-8')); ?></div>
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div class="flex-grow-1 min-w-0">
+                <strong><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_TITLE', 'Manual invoicing pending approval', 'Facturación manual — aprobación pendiente')); ?></strong>
+                <div class="small mt-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_DESC', 'Review the billing instructions stored on this quotation. Approve or reject from Administration → Approvals.', 'Revise las instrucciones de facturación de esta cotización. Apruebe o rechace desde Administración → Aprobaciones.')); ?></div>
+                <?php if ($pmInstr !== '') : ?>
+                <div class="mt-2 mb-0">
+                    <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></div>
+                    <div class="border rounded bg-white p-2 small text-break"><?php echo nl2br(htmlspecialchars($pmInstr, ENT_QUOTES, 'UTF-8')); ?></div>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php if ($canWithdrawFactManual) : ?>
+            <form method="post" action="<?php echo htmlspecialchars($withdrawApprovalPostUrl); ?>" class="flex-shrink-0" onsubmit="return confirm(<?php echo $withdrawManualConfirmJs; ?>);">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                <input type="hidden" name="approval_kind" value="facturacion_manual">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_BTN_RECHAZAR_SOLICITUD', 'Reject', 'Rechazar')); ?>
+                </button>
+            </form>
+            <?php endif; ?>
         </div>
-        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <?php
+    $pendingConfirmAppr = $this->pendingCotizacionConfirmation ?? null;
+    if ($pendingConfirmAppr) :
+        $canWithdrawConfirmAppr = !$currentUserCot->guest && AccessHelper::userCanWithdrawCotizacionApprovalRequest(
+            $quotation,
+            (int) ($pendingConfirmAppr->submitter_id ?? 0)
+        );
+        $withdrawConfirmJs = json_encode($l(
+            'COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_CONFIRMATION_JS_CONFIRM',
+            'Withdraw this confirmation request? You can edit the quotation and confirm again.',
+            '¿Retirar la solicitud de confirmación? Podrá editar la cotización y volver a confirmar.'
+        ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+    ?>
+    <div class="alert alert-info border mb-3" role="status">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div class="flex-grow-1 min-w-0">
+                <strong><i class="fas fa-hourglass-half me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_CONFIRMATION_PENDING_BANNER_TITLE', 'Quotation confirmation pending approval', 'Confirmación de cotización — aprobación pendiente')); ?></strong>
+                <div class="small mt-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_CONFIRMATION_PENDING_BANNER_DESC', 'Waiting for an approver. You can withdraw to change the quotation and submit again.', 'En espera de un aprobador. Puede rechazar la solicitud para modificar la cotización y volver a enviar.')); ?></div>
+            </div>
+            <?php if ($canWithdrawConfirmAppr) : ?>
+            <form method="post" action="<?php echo htmlspecialchars($withdrawApprovalPostUrl); ?>" class="flex-shrink-0" onsubmit="return confirm(<?php echo $withdrawConfirmJs; ?>);">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                <input type="hidden" name="approval_kind" value="cotizacion_confirmation">
+                <button type="submit" class="btn btn-outline-danger btn-sm">
+                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_BTN_RECHAZAR_SOLICITUD', 'Reject', 'Rechazar')); ?>
+                </button>
+            </form>
+            <?php endif; ?>
+        </div>
     </div>
     <?php endif; ?>
 

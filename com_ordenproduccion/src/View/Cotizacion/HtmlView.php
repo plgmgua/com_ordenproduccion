@@ -211,6 +211,15 @@ class HtmlView extends BaseHtmlView
     protected $pendingCotizacionFacturacionManual = null;
 
     /**
+     * Open approval request for quotation confirmation (entity_id = quotation id), if any.
+     *
+     * @var    object|null
+     *
+     * @since  3.119.58
+     */
+    protected $pendingCotizacionConfirmation = null;
+
+    /**
      * Display the view
      *
      * @param   string  $tpl  The name of the template file to parse
@@ -394,11 +403,16 @@ class HtmlView extends BaseHtmlView
             }
 
             $this->pendingCotizacionFacturacionManual = null;
+            $this->pendingCotizacionConfirmation      = null;
             if ($quotationId > 0) {
                 $wfPending = new ApprovalWorkflowService();
                 if ($wfPending->hasSchema()) {
                     $this->pendingCotizacionFacturacionManual = $wfPending->getOpenPendingRequest(
                         ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL,
+                        $quotationId
+                    );
+                    $this->pendingCotizacionConfirmation = $wfPending->getOpenPendingRequest(
+                        ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION,
                         $quotationId
                     );
                 }

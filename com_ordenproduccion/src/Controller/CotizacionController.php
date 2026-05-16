@@ -1133,6 +1133,114 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Withdraw (cancel) a pending approval request so the owner can edit and submit confirmation again.
+     *
+     * POST: id, approval_kind = facturacion_manual | cotizacion_confirmation, token
+     *
+     * @return  void
+     *
+     * @since   3.119.58
+     */
+    public function withdrawCotizacionPendingApproval(): void
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+
+        $quotationId = (int) $app->input->post->getInt('id', 0);
+        $kind        = $app->input->post->getCmd('approval_kind', '');
+        if ($quotationId < 1 || !\in_array($kind, ['facturacion_manual', 'cotizacion_confirmation'], true)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+
+        $row = $this->loadPublishedQuotationForCurrentUserOrClose($quotationId);
+        if (!$row) {
+            return;
+        }
+
+        $wfSvc = new ApprovalWorkflowService();
+        if (!$wfSvc->hasSchema()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $entityType = $kind === 'facturacion_manual'
+            ? ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL
+            : ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION;
+
+        $req = $wfSvc->getOpenPendingRequest($entityType, $quotationId);
+        if ($req === null) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_NONE'), 'notice');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $submitterId = (int) ($req->submitter_id ?? 0);
+        if (!AccessHelper::userCanWithdrawCotizacionApprovalRequest($row, $submitterId)) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $requestId = (int) ($req->id ?? 0);
+        if ($requestId < 1 || !$wfSvc->cancelRequest($requestId, (int) $user->id, 'submitter_withdrew')) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_ERROR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        if ($kind === 'facturacion_manual') {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (isset($cols['cotizacion_confirmada'])) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_quotations'))
+                        ->set($db->quoteName('cotizacion_confirmada') . ' = 0')
+                        ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+                        ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                        ->where($db->quoteName('id') . ' = ' . $quotationId)
+                );
+                $db->execute();
+            }
+
+            $felSvc = new FelInvoiceIssuanceService();
+            if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn()) {
+                $inv = $felSvc->getInvoiceByQuotationId($quotationId);
+                if ($inv && (int) ($inv->id ?? 0) > 0) {
+                    $felSvc->cancelQueuedFelIssue((int) $inv->id);
+                }
+            }
+
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_SUCCESS_MANUAL'), 'success');
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_COTIZACION_WITHDRAW_SUCCESS_CONFIRMATION'), 'success');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+    }
+
+    /**
      * JSON: Digifact-style NIT/CUI lookup for the quotation's billing ID (confirm modal banner).
      *
      * @return  void

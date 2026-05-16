@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.58-STABLE] - 2026-05-11
+
+### Added
+- **Vista Cotización:** botón **Rechazar** en los avisos de aprobación pendiente (facturación manual o confirmación de cotización). El propietario o quien envió la solicitud puede cancelarla (`withdrawCotizacionPendingApproval`): en facturación manual se marca `cotizacion_confirmada` = 0 y se limpia la cola FEL programada si aplica, para poder editar y volver a **Confirmar**.
+
 ## [3.119.57-STABLE] - 2026-05-11
 
 ### Added
