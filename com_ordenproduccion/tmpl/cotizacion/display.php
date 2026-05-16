@@ -85,6 +85,9 @@ if ($pathOrdenCompraView !== '') {
         $ocFileViewKind = 'image';
     }
 }
+$ocPdfUploadedForFel           = $pathOrdenCompraView !== ''
+    && strtolower(pathinfo($pathOrdenCompraView, PATHINFO_EXTENSION)) === 'pdf';
+$digifactDirectBlockedByOcPdf = $requiereOcParaFacturarView && !$ocPdfUploadedForFel;
 
 $itemsWithLineDetalles = $this->itemsWithLineDetalles ?? [];
 $ordenesPorPre = isset($this->ordenesPorPreCotizacionId) && is_array($this->ordenesPorPreCotizacionId) ? $this->ordenesPorPreCotizacionId : [];
@@ -212,6 +215,13 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                     <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></div>
                     <div class="border rounded bg-white p-2 small text-break"><?php echo nl2br(htmlspecialchars($pmInstr, ENT_QUOTES, 'UTF-8')); ?></div>
                 </div>
+                <?php endif; ?>
+                <?php if ($digifactDirectBlockedByOcPdf) : ?>
+                <p class="mb-0 mt-2 text-danger" style="font-size: 16px;"><?php echo htmlspecialchars($l(
+                    'COM_ORDENPRODUCCION_OC_PDF_PENDING_LABEL',
+                    'Purchase order PDF pending attachment',
+                    'Orden de compra pendiente de adjuntar'
+                )); ?></p>
                 <?php endif; ?>
                 <?php if ($requiereOcParaFacturarView) : ?>
                 <div class="mt-3 pt-2 border-top">
@@ -643,6 +653,13 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                 'No se indicaron instrucciones de facturación.'
             )); ?></p>
         <?php endif; ?>
+        <?php if ($digifactDirectBlockedByOcPdf) : ?>
+        <p class="mb-3 text-danger" style="font-size: 16px;"><?php echo htmlspecialchars($l(
+            'COM_ORDENPRODUCCION_OC_PDF_PENDING_LABEL',
+            'Purchase order PDF pending attachment',
+            'Orden de compra pendiente de adjuntar'
+        )); ?></p>
+        <?php endif; ?>
         <label class="form-label fw-semibold"><?php echo htmlspecialchars($l(
             'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_LABEL',
             'Purchase order file',
@@ -822,7 +839,12 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
         <?php endif; ?>
         <?php if ($canDigifactDirectIssue && $felStatus !== 'completed' && !empty($items)) : ?>
         <form id="digifact-direct-token-form" class="d-none"><?php echo HTMLHelper::_('form.token'); ?></form>
-        <button type="button" class="btn btn-primary" id="digifact-direct-issue-btn">
+        <button type="button" class="btn btn-primary" id="digifact-direct-issue-btn"<?php echo $digifactDirectBlockedByOcPdf ? ' disabled' : ''; ?>
+            <?php if ($digifactDirectBlockedByOcPdf) : ?> title="<?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BLOCKED_OC_PDF_REQUIRED',
+                'Attach a purchase order PDF on this quotation before issuing FEL.',
+                'Adjunte un PDF de orden de compra en esta cotización antes de emitir el FEL.'
+            )); ?>"<?php endif; ?>>
             <i class="fas fa-bolt"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BTN', 'Issue FEL via Digifact (direct)', 'Emitir FEL por Digifact (directo)')); ?>
         </button>
         <div id="digifact-direct-alert" class="small mt-2 d-none" role="status"></div>

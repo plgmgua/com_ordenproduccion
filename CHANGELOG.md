@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.60-STABLE] - 2026-05-11
+
+### Added
+- Si **requiere orden de compra para facturar** y no hay **PDF** en `orden_compra_path`: aviso rojo 16px «Orden de compra pendiente de adjuntar» bajo instrucciones de facturación (banner facturación manual o bloque OC); botón **Emitir FEL por Digifact (directo)** deshabilitado; validación en `digifactIssueDirectFromQuotation`.
+
 ## [3.119.59-STABLE] - 2026-05-11
 
 ### Added

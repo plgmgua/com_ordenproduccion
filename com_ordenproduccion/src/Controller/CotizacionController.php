@@ -1791,6 +1791,22 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
+        $qcolsDigifactOc = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qcolsDigifactOc = \is_array($qcolsDigifactOc) ? array_change_key_case($qcolsDigifactOc, CASE_LOWER) : [];
+        if (isset($qcolsDigifactOc['requiere_orden_compra_para_facturar'])
+            && (int) ($row->requiere_orden_compra_para_facturar ?? 0) === 1
+            && isset($qcolsDigifactOc['orden_compra_path'])) {
+            $ocPathDigifact = trim((string) ($row->orden_compra_path ?? ''));
+            $ocExtDigifact  = strtolower(pathinfo($ocPathDigifact, PATHINFO_EXTENSION));
+            if ($ocPathDigifact === '' || $ocExtDigifact !== 'pdf') {
+                echo json_encode([
+                    'success' => false,
+                    'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BLOCKED_OC_PDF_REQUIRED'),
+                ], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+        }
+
         try {
             $fel = new FelInvoiceIssuanceService();
             if (!$fel->isEngineAvailable() || !$fel->hasQuotationIdColumn()) {
