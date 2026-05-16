@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.61-STABLE] - 2026-05-11
+
+### Added
+- **Modal «Editar líneas antes del FEL (Digifact)»:** cuando hay **PDF** de orden de compra adjunto y la política lo exige, se muestra un **visor PDF** debajo de Cancelar/Timbrar en un panel de altura fija; el desplazamiento vertical ocurre **dentro del iframe** (visor), no del modal completo. Cadena `COM_ORDENPRODUCCION_DIGIFACT_MODAL_OC_PDF_TITLE` en en-GB y es-ES.
+
 ## [3.119.60-STABLE] - 2026-05-11
 
 ### Added

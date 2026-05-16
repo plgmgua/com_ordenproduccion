@@ -919,6 +919,30 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                             <i class="fas fa-stamp" aria-hidden="true"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_LINES_TIMBRAR_BTN', 'Timbrar', 'Timbrar')); ?>
                         </button>
                     </div>
+                    <?php if ($requiereOcParaFacturarView && $ocPdfUploadedForFel && $ocFilePublicUrl !== '') : ?>
+                    <div class="digifact-fel-oc-pdf-panel border-top bg-light" id="digifact-fel-oc-pdf-panel">
+                        <div class="px-3 py-2 border-bottom small fw-semibold text-uppercase text-muted mb-0">
+                            <i class="fas fa-file-pdf text-danger me-1"></i><?php echo htmlspecialchars($l(
+                                'COM_ORDENPRODUCCION_DIGIFACT_MODAL_OC_PDF_TITLE',
+                                'Purchase order (PDF)',
+                                'Orden de compra (PDF)'
+                            )); ?>
+                        </div>
+                        <div class="digifact-fel-oc-pdf-viewport position-relative mx-3 mb-3 mt-2 rounded border overflow-hidden bg-white" style="height: 38vh; min-height: 280px; max-height: 520px;">
+                            <?php $ocDigifactModalIframeSrc = $ocFilePublicUrl . '#view=FitH'; ?>
+                            <iframe
+                                id="digifact-fel-oc-pdf-iframe"
+                                class="position-absolute top-0 start-0 w-100 h-100 border-0"
+                                style="min-height: 0;"
+                                title="<?php echo htmlspecialchars($l(
+                                    'COM_ORDENPRODUCCION_DIGIFACT_MODAL_OC_PDF_TITLE',
+                                    'Purchase order (PDF)',
+                                    'Orden de compra (PDF)'
+                                )); ?>"
+                                src="<?php echo htmlspecialchars($ocDigifactModalIframeSrc, ENT_QUOTES, 'UTF-8'); ?>"></iframe>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
