@@ -124,7 +124,6 @@ $felEngineAvailable = !empty($this->felEngineAvailable);
 $felInv = isset($this->felInvoiceForQuotation) ? $this->felInvoiceForQuotation : null;
 $felStatus = $felInv ? (string) ($felInv->fel_issue_status ?? '') : '';
 $felInvoicesForQuotation = isset($this->felInvoicesForQuotation) && is_array($this->felInvoicesForQuotation) ? $this->felInvoicesForQuotation : [];
-$canManualFelIssue = $canDigifactDirectIssue && !empty($items);
 $felInvoicedCompletedTotal = 0.0;
 if ($felInvoicesForQuotation !== [] && $quotation) {
     $felSvcTotals = new FelInvoiceIssuanceService();
@@ -154,6 +153,11 @@ $digifactCfgOk = (trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== 
     || trim((string) ($digifactCredsCheck['url_cert_nit'] ?? '')) !== '')
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
 $canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $digifactCfgOk;
+// Factura manual: Administración group (and super users) only; same certificador gate as direct Digifact.
+$canManualFelIssue = AccessHelper::isInStrictAdministracionGroup()
+    && $felEngineAvailable
+    && $digifactCfgOk
+    && !empty($items);
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
 $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveQuotationLinesForFelDigifact&format=json', false);
 $digifactQuotBillingIsCf = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal(trim((string) ($quotation->client_nit ?? '')));

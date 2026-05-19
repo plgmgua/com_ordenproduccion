@@ -353,20 +353,22 @@ class HtmlView extends BaseHtmlView
                     }
                     $this->quotationHasLinkedPreCotizacion = $preIdsDistinct !== [];
                     $this->ordenesPorPreCotizacionId = $this->buildOrdenesLinksByPreCotizacionIds($db, array_keys($preIdsDistinct));
-                    $this->manualFelOrdensForClient = $this->buildOrdensForManualFelModal(
-                        $db,
-                        $this->quotation,
-                        array_keys($preIdsDistinct)
-                    );
-                    $this->manualFelLinePresets = [];
-                    $felPresetSvc = new FelInvoiceIssuanceService();
-                    foreach ($this->quotationItems as $qiPreset) {
-                        $t = $felPresetSvc->getLineTotalsForFelRow($qiPreset);
-                        $this->manualFelLinePresets[] = [
-                            'descripcion'       => (string) ($qiPreset->descripcion ?? ''),
-                            'cantidad'          => (float) $t['qty'],
-                            'precio_unitario'   => (float) $t['unit_price'],
-                        ];
+                    if (AccessHelper::isInStrictAdministracionGroup() && $this->felEngineAvailable) {
+                        $this->manualFelOrdensForClient = $this->buildOrdensForManualFelModal(
+                            $db,
+                            $this->quotation,
+                            array_keys($preIdsDistinct)
+                        );
+                        $this->manualFelLinePresets = [];
+                        $felPresetSvc = new FelInvoiceIssuanceService();
+                        foreach ($this->quotationItems as $qiPreset) {
+                            $t = $felPresetSvc->getLineTotalsForFelRow($qiPreset);
+                            $this->manualFelLinePresets[] = [
+                                'descripcion'       => (string) ($qiPreset->descripcion ?? ''),
+                                'cantidad'          => (float) $t['qty'],
+                                'precio_unitario'   => (float) $t['unit_price'],
+                            ];
+                        }
                     }
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
                     $this->itemsWithLineDetalles = [];
