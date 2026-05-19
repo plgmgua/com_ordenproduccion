@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.78-STABLE] - 2026-05-19
+
+### Fixed
+- **Cerrar aprobación (facturado):** corregida llamada a método inexistente `onRequestApproved` (ahora `onRequestFullyApproved`), que provocaba `COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_FAILED` al cerrar Fact.Man. con facturas completas.
+
 ## [3.119.77-STABLE] - 2026-05-19
 
 ### Fixed

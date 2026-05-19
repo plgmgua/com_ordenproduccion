@@ -1191,7 +1191,10 @@ class ApprovalWorkflowService
                 // Non-blocking: approval row updates must succeed even if audit table is missing.
             }
 
-            $this->onRequestApproved($req, $actorUserId);
+            $reqFresh = $this->loadRequest($requestId);
+            if ($reqFresh !== null) {
+                $this->onRequestFullyApproved($reqFresh, $actorUserId);
+            }
 
             $this->db->transactionCommit();
         } catch (\Throwable $e) {
