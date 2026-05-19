@@ -111,7 +111,9 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $lang->getTag(), true);
+        $lang->load('com_ordenproduccion', JPATH_SITE);
         $this->state = $this->get('State');
         $this->items = $this->get('Items');
         $this->pagination = $this->get('Pagination');

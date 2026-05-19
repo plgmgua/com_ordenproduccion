@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.73-STABLE] - 2026-05-19
+
+### Fixed
+- **Órdenes — selector de PDF de factura:** títulos y texto del modal en español (carga de idioma del componente y helper `$l`).
+
 ## [3.119.72-STABLE] - 2026-05-19
 
 ### Changed

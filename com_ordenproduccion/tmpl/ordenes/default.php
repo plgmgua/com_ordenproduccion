@@ -9,6 +9,7 @@
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -51,6 +52,21 @@ $t = function ($key, $fallback) {
     $v = Text::_($key);
     return ($v !== $key) ? $v : $fallback;
 };
+$l = function ($key, $fallbackEn, $fallbackEs = null) {
+    $translated = Text::_($key);
+    if ($translated !== $key && strpos((string) $translated, 'COM_ORDENPRODUCCION_') !== 0) {
+        if ($fallbackEs !== null && stripos(Factory::getApplication()->getLanguage()->getTag(), 'es') !== false && $translated === $fallbackEn) {
+            return $fallbackEs;
+        }
+
+        return $translated;
+    }
+    if ($fallbackEs !== null && stripos(Factory::getApplication()->getLanguage()->getTag(), 'es') !== false) {
+        return $fallbackEs;
+    }
+
+    return $fallbackEn;
+};
 $labelFilterSearch = $t('COM_ORDENPRODUCCION_FILTER_SEARCH', 'Buscar');
 $labelFilterSearchPlaceholder = $t('COM_ORDENPRODUCCION_FILTER_SEARCH_PLACEHOLDER', 'Buscar por n?mero de orden, cliente o descripci?n...');
 $labelFilterStatus = $t('COM_ORDENPRODUCCION_FILTER_STATUS', 'Estado');
@@ -63,8 +79,8 @@ $labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
 $labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotizaci?n');
 $labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotizaci?n');
 $labelCotizacionNoPermission = $t('COM_ORDENPRODUCCION_COTIZACION_NO_PERMISSION', 'Sin permiso para ver la cotizaci?n');
-$labelPickInvoicePdf = $t('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF', 'Select invoice PDF', 'Seleccionar PDF de factura');
-$labelPickInvoicePdfIntro = $t('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF_INTRO', 'This work order has more than one linked invoice. Choose which PDF to open.', 'Esta orden tiene más de una factura vinculada. Elija qué PDF abrir.');
+$labelPickInvoicePdf = $l('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF', 'Select invoice PDF', 'Seleccionar PDF de factura');
+$labelPickInvoicePdfIntro = $l('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF_INTRO', 'This work order has more than one linked invoice. Choose which PDF to open.', 'Esta orden tiene más de una factura vinculada. Elija qué PDF abrir.');
 $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=&filter_sales_agent=');
 ?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
