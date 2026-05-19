@@ -20,6 +20,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Factory;
@@ -874,6 +875,12 @@ class FelInvoiceIssuanceService
             $this->appendCertificadorAmbienteToInvoiceFelExtra($invoiceId, ($amb === 'prod') ? 'prod' : 'test');
 
             $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
+
+            $actorId = (int) Factory::getUser()->id;
+            if ($actorId < 1) {
+                $actorId = (int) ($inv->created_by ?? 0);
+            }
+            $this->maybeCompleteFacturacionManualApproval($quotationId, $actorId);
 
             return [
                 'success'    => true,
@@ -2990,6 +2997,8 @@ class FelInvoiceIssuanceService
             $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
         }
 
+        $this->maybeCompleteFacturacionManualApproval($quotationId, $userId);
+
         $outUuid = '';
         if ($felplex !== null && $felplex !== '') {
             $outUuid = (string) $felplex;
@@ -3001,6 +3010,26 @@ class FelInvoiceIssuanceService
             'invoice_id' => $invoiceId,
             'uuid'       => $outUuid,
         ];
+    }
+
+    /**
+     * Close facturación manual approval when completed invoices cover the cotización total.
+     */
+    protected function maybeCompleteFacturacionManualApproval(int $quotationId, int $actorUserId): void
+    {
+        if ($quotationId < 1 || $actorUserId < 1) {
+            return;
+        }
+
+        try {
+            ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalWhenFullyInvoiced(
+                $this->db,
+                $quotationId,
+                $actorUserId
+            );
+        } catch (\Throwable $e) {
+            // Non-blocking: FEL issuance already succeeded.
+        }
     }
 
     /**

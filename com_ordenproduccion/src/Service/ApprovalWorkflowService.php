@@ -1142,6 +1142,66 @@ class ApprovalWorkflowService
     }
 
     /**
+     * When completed FEL invoices for a cotización reach its total, close the open facturación manual approval.
+     *
+     * @return  bool  True if nothing pending or the request was closed successfully
+     *
+     * @since   3.119.71
+     */
+    public function completePendingCotizacionFacturacionManualForInvoicedTotal(int $quotationId, int $actorUserId, string $comment = 'facturacion_manual_invoiced_total_reached'): bool
+    {
+        if (!$this->hasSchema() || $quotationId < 1 || $actorUserId < 1) {
+            return false;
+        }
+
+        $req = $this->getOpenPendingRequest(self::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId);
+
+        if ($req === null) {
+            return true;
+        }
+
+        $requestId = (int) $req->id;
+        $now       = Factory::getDate()->toSql();
+
+        $this->db->transactionStart();
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_request_steps'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('comments') . ' = ' . $this->db->quote($comment))
+                ->set($this->db->quoteName('decided_date') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('request_id') . ' = ' . $requestId)
+                ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('pending'));
+            $this->db->setQuery($q);
+            $this->db->execute();
+
+            $q2 = $this->db->getQuery(true)
+                ->update($this->db->quoteName('#__ordenproduccion_approval_requests'))
+                ->set($this->db->quoteName('status') . ' = ' . $this->db->quote('approved'))
+                ->set($this->db->quoteName('completed') . ' = ' . $this->db->quote($now))
+                ->set($this->db->quoteName('modified') . ' = ' . $this->db->quote($now))
+                ->where($this->db->quoteName('id') . ' = ' . $requestId);
+            $this->db->setQuery($q2);
+            $this->db->execute();
+
+            ApprovalAuditHelper::log($requestId, 'facturacion_manual_invoiced_total', $actorUserId, 'pending', 'approved', $comment);
+
+            $this->onRequestApproved($req, $actorUserId);
+
+            $this->db->transactionCommit();
+        } catch (\Throwable $e) {
+            $this->db->transactionRollback();
+
+            return false;
+        }
+
+        ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'approved', $actorUserId, $comment);
+
+        return true;
+    }
+
+    /**
      * Whether the user has a pending step on the request's current step (may approve or reject).
      *
      * @since  3.113.57

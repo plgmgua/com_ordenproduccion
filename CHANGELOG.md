@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.71-STABLE] - 2026-05-19
+
+### Added
+- **Facturación manual (aprobación):** al completar FEL, si la suma de facturas completadas alcanza el total de la cotización, la solicitud **Fact.Man.** en Aprobaciones se marca como aprobada automáticamente (también al abrir la cotización si ya estaba cubierta).
+
 ## [3.119.70-STABLE] - 2026-05-19
 
 ### Fixed

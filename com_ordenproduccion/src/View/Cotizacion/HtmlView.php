@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -461,6 +462,17 @@ class HtmlView extends BaseHtmlView
                         ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION,
                         $quotationId
                     );
+                    if ($this->pendingCotizacionFacturacionManual !== null && $this->felEngineAvailable && $this->quotation) {
+                        $actorId = (int) Factory::getUser()->id;
+                        if ($actorId > 0 && ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalWhenFullyInvoiced(
+                            Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class),
+                            $quotationId,
+                            $actorId
+                        )) {
+                            $this->pendingCotizacionFacturacionManual = null;
+                            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_AUTO_COMPLETED'), 'success');
+                        }
+                    }
                 }
             }
 

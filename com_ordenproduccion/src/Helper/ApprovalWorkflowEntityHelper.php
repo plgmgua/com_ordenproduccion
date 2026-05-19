@@ -365,6 +365,45 @@ class ApprovalWorkflowEntityHelper
     }
 
     /**
+     * Auto-approve open facturación manual approval when sum(completed FEL) >= cotización total.
+     *
+     * @since  3.119.71
+     */
+    public static function tryCompleteFacturacionManualApprovalWhenFullyInvoiced(
+        DatabaseInterface $db,
+        int $quotationId,
+        int $actorUserId
+    ): bool {
+        $quotationId     = (int) $quotationId;
+        $actorUserId     = (int) $actorUserId;
+        if ($quotationId < 1 || $actorUserId < 1) {
+            return false;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('total_amount'))
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $quotationTotal = round((float) $db->loadResult(), 2);
+        if ($quotationTotal <= 0) {
+            return false;
+        }
+
+        $felSvc   = new FelInvoiceIssuanceService($db);
+        $invoiced = $felSvc->sumCompletedInvoiceAmountsForQuotation($quotationId);
+        if (round($invoiced, 2) < $quotationTotal) {
+            return false;
+        }
+
+        $wfSvc = new ApprovalWorkflowService($db);
+
+        return $wfSvc->completePendingCotizacionFacturacionManualForInvoicedTotal($quotationId, $actorUserId);
+    }
+
+    /**
      * @since  3.113.47
      */
     public static function applyOrdenCompraWorkflowOutcome(DatabaseInterface $db, int $ordenCompraId, string $status): void
