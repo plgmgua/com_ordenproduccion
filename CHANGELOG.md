@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.66-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización — Factura manual:** corregido error fatal en `buildOrdensForManualFelModal` (closure `$loadOrden` devolvía `stdClass` con tipo declarado `?array`).
+
 ## [3.119.65-STABLE] - 2026-05-19
 
 ### Added

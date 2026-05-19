@@ -784,7 +784,7 @@ class HtmlView extends BaseHtmlView
             $valorExpr = 'COALESCE(' . $db->quoteName('invoice_value') . ', 0)';
         }
 
-        $loadOrden = static function (int $oid) use ($db, $orderNumExpr, $valorExpr, $cols): ?array {
+        $loadOrden = static function (int $oid) use ($db, $orderNumExpr, $valorExpr, $cols): ?\stdClass {
             if ($oid < 1) {
                 return null;
             }
@@ -803,7 +803,7 @@ class HtmlView extends BaseHtmlView
             $db->setQuery($q);
             $row = $db->loadObject();
 
-            return $row ?: null;
+            return $row instanceof \stdClass ? $row : null;
         };
 
         foreach (array_keys($seen) as $oid) {
