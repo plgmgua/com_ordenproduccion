@@ -187,6 +187,14 @@ class HtmlView extends BaseHtmlView
     protected $felInvoiceForQuotation = null;
 
     /**
+     * All FEL invoices linked to this cotización (newest first).
+     *
+     * @var    object[]
+     * @since  3.119.68
+     */
+    protected $felInvoicesForQuotation = [];
+
+    /**
      * Confirmar modal: show Facturación radios when quotations.facturacion_modo exists (not only when pre-cots have facturar).
      *
      * @var    bool
@@ -271,6 +279,7 @@ class HtmlView extends BaseHtmlView
                 }
                 $this->felEngineAvailable = false;
                 $this->felInvoiceForQuotation = null;
+                $this->felInvoicesForQuotation = [];
                 if ($this->quotation) {
                     $qcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
                     $qcols = \is_array($qcols) ? array_change_key_case($qcols, CASE_LOWER) : [];
@@ -280,7 +289,10 @@ class HtmlView extends BaseHtmlView
                     $felSvc = new FelInvoiceIssuanceService();
                     $this->felEngineAvailable = $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn();
                     if ($this->felEngineAvailable) {
-                        $this->felInvoiceForQuotation = $felSvc->getInvoiceByQuotationId($quotationId);
+                        $this->felInvoicesForQuotation = $felSvc->getInvoicesByQuotationId($quotationId);
+                        $this->felInvoiceForQuotation = $this->felInvoicesForQuotation !== []
+                            ? $this->felInvoicesForQuotation[0]
+                            : null;
                     }
                     $this->clientName    = $this->quotation->client_name ?? '';
                     $this->clientNit    = $this->quotation->client_nit ?? '';

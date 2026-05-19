@@ -174,25 +174,51 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * Load active invoice linked to quotation, if any.
+     * Load latest active invoice linked to quotation, if any.
      */
     public function getInvoiceByQuotationId(int $quotationId): ?object
     {
+        $rows = $this->getInvoicesByQuotationId($quotationId);
+
+        return $rows !== [] ? $rows[0] : null;
+    }
+
+    /**
+     * All published invoices for a cotización (newest first).
+     *
+     * @return  list<object>
+     */
+    public function getInvoicesByQuotationId(int $quotationId): array
+    {
         if ($quotationId < 1 || !$this->hasQuotationIdColumn()) {
-            return null;
+            return [];
         }
 
-        $q = $this->db->getQuery(true)
-            ->select('*')
-            ->from($this->db->quoteName('#__ordenproduccion_invoices'))
-            ->where($this->db->quoteName('quotation_id') . ' = ' . $quotationId)
-            ->where($this->db->quoteName('state') . ' = 1');
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('#__ordenproduccion_invoices'))
+                ->where($this->db->quoteName('quotation_id') . ' = ' . $quotationId)
+                ->where($this->db->quoteName('state') . ' = 1')
+                ->order($this->db->quoteName('id') . ' DESC')
+        );
 
-        $this->db->setQuery($q);
+        return $this->db->loadObjectList() ?: [];
+    }
 
-        $row = $this->db->loadObject();
+    /**
+     * Sum invoice_amount for completed FEL invoices on a cotización.
+     */
+    public function sumCompletedInvoiceAmountsForQuotation(int $quotationId): float
+    {
+        $sum = 0.0;
+        foreach ($this->getInvoicesByQuotationId($quotationId) as $inv) {
+            if ((string) ($inv->fel_issue_status ?? '') === 'completed') {
+                $sum += (float) ($inv->invoice_amount ?? 0);
+            }
+        }
 
-        return $row ?: null;
+        return round($sum, 2);
     }
 
     /**
@@ -256,6 +282,91 @@ class FelInvoiceIssuanceService
             'notes'              => 'FEL mock queue (cotización)',
             'state'              => 1,
             'version'            => '3.101.51',
+            'created'            => $now,
+            'created_by'         => $userId,
+            'quotation_id'       => $quotationId,
+            'invoice_source'     => 'cotizacion_fel',
+            'fel_issue_status'   => 'pending',
+            'fel_issue_error'    => null,
+            'fel_request_json'   => null,
+            'fel_response_json'  => null,
+            'fel_local_pdf_path' => null,
+            'fel_local_xml_path' => null,
+            'felplex_uuid'       => null,
+        ];
+
+        $cols = $this->db->getTableColumns('#__ordenproduccion_invoices', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $filtered = [];
+        foreach ($row as $k => $v) {
+            if (isset($cols[strtolower($k)])) {
+                $filtered[$k] = $v;
+            }
+        }
+
+        $o = (object) $filtered;
+        $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+        $newId = (int) $o->id;
+        if ($newId > 0) {
+            try {
+                TelegramNotificationHelper::notifyInvoiceCreated($newId);
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return $newId;
+    }
+
+    /**
+     * Always insert a new pending invoice row for a cotización (manual additional FEL).
+     *
+     * @return  int  New invoice id or 0 on failure
+     */
+    public function createNewManualInvoiceFromQuotation(int $quotationId, int $userId): int
+    {
+        if (!$this->isEngineAvailable() || !$this->hasQuotationIdColumn() || $quotationId < 1) {
+            return 0;
+        }
+
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('#__ordenproduccion_quotations'))
+                ->where($this->db->quoteName('id') . ' = ' . $quotationId)
+                ->where($this->db->quoteName('state') . ' = 1')
+        );
+        $quotation = $this->db->loadObject();
+        if (!$quotation) {
+            return 0;
+        }
+
+        $invoiceNumber = $this->generateNextInvoiceNumber();
+        $now           = Factory::getDate()->toSql();
+        $otLabels      = $this->collectOrdenDisplayLabelsForQuotation($quotationId);
+
+        $row = [
+            'invoice_number'     => $invoiceNumber,
+            'orden_id'           => null,
+            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', $otLabels) : '',
+            'client_name'        => $quotation->client_name ?? '',
+            'client_nit'         => $quotation->client_nit ?? null,
+            'sales_agent'        => $quotation->sales_agent ?? null,
+            'request_date'       => !empty($quotation->quote_date) ? $quotation->quote_date : null,
+            'delivery_date'      => null,
+            'invoice_date'       => $now,
+            'invoice_amount'     => 0,
+            'currency'           => $quotation->currency ?? 'Q',
+            'work_description'   => null,
+            'material'           => null,
+            'dimensions'         => null,
+            'print_color'        => null,
+            'line_items'         => '[]',
+            'quotation_file'     => null,
+            'extraction_status'  => 'manual',
+            'status'             => 'draft',
+            'notes'              => 'FEL manual adicional (cotización)',
+            'state'              => 1,
+            'version'            => '3.119.68',
             'created'            => $now,
             'created_by'         => $userId,
             'quotation_id'       => $quotationId,
@@ -1848,11 +1959,6 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).'];
         }
 
-        $existing = $this->getInvoiceByQuotationId($quotationId);
-        if ($existing && (string) ($existing->fel_issue_status ?? '') === 'completed') {
-            return ['success' => false, 'message' => 'Invoice already completed for this quotation.'];
-        }
-
         $buyerName = trim($buyerName);
         $buyerNit  = trim($buyerNit);
         if ($buyerName === '' || $buyerNit === '') {
@@ -1877,9 +1983,9 @@ class FelInvoiceIssuanceService
             $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
         }
 
-        $invoiceId = $existing ? (int) $existing->id : $this->createPendingInvoiceFromQuotation($quotationId, $userId);
+        $invoiceId = $this->createNewManualInvoiceFromQuotation($quotationId, $userId);
         if ($invoiceId < 1) {
-            return ['success' => false, 'message' => 'Could not create invoice row'];
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_CREATE_INVOICE_FAILED')];
         }
 
         $storageLines = [];

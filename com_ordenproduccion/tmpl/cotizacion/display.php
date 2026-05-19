@@ -123,6 +123,13 @@ $instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetall
 $felEngineAvailable = !empty($this->felEngineAvailable);
 $felInv = isset($this->felInvoiceForQuotation) ? $this->felInvoiceForQuotation : null;
 $felStatus = $felInv ? (string) ($felInv->fel_issue_status ?? '') : '';
+$felInvoicesForQuotation = isset($this->felInvoicesForQuotation) && is_array($this->felInvoicesForQuotation) ? $this->felInvoicesForQuotation : [];
+$canManualFelIssue = $canDigifactDirectIssue && !empty($items);
+$felInvoicedCompletedTotal = 0.0;
+if ($felInvoicesForQuotation !== [] && $quotation) {
+    $felSvcTotals = new FelInvoiceIssuanceService();
+    $felInvoicedCompletedTotal = $felSvcTotals->sumCompletedInvoiceAmountsForQuotation($quotationId);
+}
 
 $ebipayMockAvailable = !empty($this->ebipayMockAvailable);
 $canEbiPay = $ebipayMockAvailable
@@ -833,17 +840,33 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
     <div class="mt-4 pt-3 border-top cotizacion-section-factura-relacionada">
         <h3 class="h6 text-uppercase text-muted mb-2"><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_TITLE', 'Related invoice', 'Factura relacionada')); ?></h3>
         <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_HELP', 'Related invoice (Digifact): Only the Administración group and super users see this block. Configure Certificador in Administration → Settings.', 'Factura relacionada (Digifact): Solo el grupo Administración y superusuarios ven este bloque. Configure el Certificador en Administración → Ajustes.')); ?></p>
-        <?php if ($felInv) : ?>
+        <?php if ($felInvoicesForQuotation !== []) : ?>
         <div class="mb-2 small">
-            <span class="text-muted"><?php echo htmlspecialchars(Text::_('JSTATUS')); ?>:</span>
-            <span class="badge bg-secondary"><?php echo htmlspecialchars($felStatus !== '' ? $felStatus : '—'); ?></span>
-            <?php if ($felInv && $felStatus === 'completed') : ?>
-                <a class="btn btn-sm btn-outline-secondary ms-1" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'pdf'), ENT_QUOTES, 'UTF-8'); ?>">PDF</a>
-                <a class="btn btn-sm btn-outline-secondary ms-1" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl((int) $felInv->id, 'xml', true), ENT_QUOTES, 'UTF-8'); ?>">XML</a>
+            <?php foreach ($felInvoicesForQuotation as $felInvRow) :
+                $felRowId = (int) ($felInvRow->id ?? 0);
+                $felRowStatus = (string) ($felInvRow->fel_issue_status ?? '');
+                $felRowNum = trim((string) ($felInvRow->invoice_number ?? ''));
+                if ($felRowId < 1) {
+                    continue;
+                }
+                ?>
+            <div class="mb-1 d-flex flex-wrap align-items-center gap-1">
+                <span class="text-muted"><?php echo htmlspecialchars($felRowNum !== '' ? $felRowNum : ('#' . $felRowId)); ?>:</span>
+                <span class="badge bg-secondary"><?php echo htmlspecialchars($felRowStatus !== '' ? $felRowStatus : '—'); ?></span>
+                <?php if ($felRowStatus === 'completed') : ?>
+                <a class="btn btn-sm btn-outline-secondary py-0" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl($felRowId, 'pdf'), ENT_QUOTES, 'UTF-8'); ?>">PDF</a>
+                <a class="btn btn-sm btn-outline-secondary py-0" target="_blank" rel="noopener" href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadFelArtifactUrl($felRowId, 'xml', true), ENT_QUOTES, 'UTF-8'); ?>">XML</a>
+                <a class="btn btn-sm btn-outline-primary py-0" href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $felRowId); ?>"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_VIEW_INVOICE', 'View', 'Ver')); ?></a>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+            <?php if ($quotation && $felInvoicedCompletedTotal > 0) : ?>
+            <div class="text-muted mt-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_INVOICED_TOTAL', 'Invoiced (completed)', 'Facturado (completadas)')); ?>: Q <?php echo number_format($felInvoicedCompletedTotal, 2); ?> / Q <?php echo number_format($totalAmount, 2); ?></div>
             <?php endif; ?>
         </div>
         <?php endif; ?>
-        <?php if ($canDigifactDirectIssue && $felStatus !== 'completed' && !empty($items)) : ?>
+        <?php if ($canManualFelIssue) : ?>
+        <?php if ($felStatus !== 'completed') : ?>
         <form id="digifact-direct-token-form" class="d-none"><?php echo HTMLHelper::_('form.token'); ?></form>
         <button type="button" class="btn btn-primary" id="digifact-direct-issue-btn"<?php echo $digifactDirectBlockedByOcPdf ? ' disabled' : ''; ?>
             <?php if ($digifactDirectBlockedByOcPdf) : ?> title="<?php echo htmlspecialchars($l(
@@ -852,14 +875,6 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
                 'Adjunte un PDF de orden de compra en esta cotización antes de emitir el FEL.'
             )); ?>"<?php endif; ?>>
             <i class="fas fa-bolt"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BTN', 'Issue FEL via Digifact (direct)', 'Emitir FEL por Digifact (directo)')); ?>
-        </button>
-        <button type="button" class="btn btn-outline-success ms-1" id="manual-fel-open-btn"<?php echo $digifactDirectBlockedByOcPdf ? ' disabled' : ''; ?>
-            <?php if ($digifactDirectBlockedByOcPdf) : ?> title="<?php echo htmlspecialchars($l(
-                'COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BLOCKED_OC_PDF_REQUIRED',
-                'Attach a purchase order PDF on this quotation before issuing FEL.',
-                'Adjunte un PDF de orden de compra en esta cotización antes de emitir el FEL.'
-            )); ?>"<?php endif; ?>>
-            <i class="fas fa-file-invoice"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_BTN', 'Manual invoice', 'Factura manual')); ?>
         </button>
         <div id="digifact-direct-alert" class="small mt-2 d-none" role="status"></div>
         <div class="modal fade" id="digifact-fel-lines-modal" tabindex="-1" aria-labelledby="digifactFelLinesModalLabel" aria-hidden="true">
@@ -960,7 +975,6 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
                 </div>
             </div>
         </div>
-        <?php include __DIR__ . '/manual_fel_modal.php'; ?>
         <script>
         (function() {
             var openBtn = document.getElementById('digifact-direct-issue-btn');
@@ -1269,8 +1283,19 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
             });
         })();
         </script>
-        <?php elseif ($felStatus === 'completed') : ?>
-        <?php /* Issued; PDF/XML above */ ?>
+        <?php endif; ?>
+        <button type="button" class="btn btn-outline-success" id="manual-fel-open-btn"<?php echo $digifactDirectBlockedByOcPdf ? ' disabled' : ''; ?>
+            <?php if ($digifactDirectBlockedByOcPdf) : ?> title="<?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BLOCKED_OC_PDF_REQUIRED',
+                'Attach a purchase order PDF on this quotation before issuing FEL.',
+                'Adjunte un PDF de orden de compra en esta cotización antes de emitir el FEL.'
+            )); ?>"<?php endif; ?>>
+            <i class="fas fa-file-invoice"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_BTN', 'Manual invoice', 'Factura manual')); ?>
+        </button>
+        <?php include __DIR__ . '/manual_fel_modal.php'; ?>
+        <?php if ($felStatus === 'completed') : ?>
+        <p class="small text-muted mt-2 mb-0"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_AFTER_COMPLETED_HINT', 'You can issue additional manual invoices to complete the quotation total.', 'Puede emitir facturas manuales adicionales para completar el total de la cotización.')); ?></p>
+        <?php endif; ?>
         <?php elseif (!$canDigifactEmitPermission) : ?>
         <p class="small text-muted mb-0"><i class="fas fa-user-lock"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURA_RELACIONADA_EMIT_ADMIN_ONLY', 'Direct Digifact issue is available to the Administración group and super users.', 'La emisión directa por Digifact está disponible para el grupo Administración y superusuarios.')); ?></p>
         <?php elseif (!$digifactCfgOk) : ?>
@@ -1278,7 +1303,6 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
         <?php endif; ?>
     </div>
     <?php endif; ?>
-
     <?php
     // Wizard "Orden de Trabajo" (misma UX que Mis Clientes): entrega → contacto → enviar (stub = volver a esta cotización).
     if ($quotationConfirmed) {

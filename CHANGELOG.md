@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.68-STABLE] - 2026-05-19
+
+### Changed
+- **Cotización — Factura manual:** el botón permanece disponible aunque ya exista una factura completada; se listan todas las facturas de la cotización con total facturado vs. total de cotización. Migración SQL elimina el índice único `quotation_id` en facturas para permitir varias FEL por cotización.
+
+## [3.119.67-STABLE] - 2026-05-19
+
+### Changed
+- **Factura manual (cotización):** el campo descripción ocupa todo el ancho de la columna; las órdenes de trabajo no vienen seleccionadas por defecto.
+
 ## [3.119.66-STABLE] - 2026-05-19
 
 ### Fixed
