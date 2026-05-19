@@ -470,14 +470,18 @@ class HtmlView extends BaseHtmlView
                     );
                     if ($this->pendingCotizacionFacturacionManual !== null && $this->quotation) {
                         $actorId = (int) Factory::getUser()->id;
+                        $dbWf    = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
                         if ($actorId > 0 && ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalWhenFullyInvoiced(
-                            Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class),
+                            $dbWf,
                             $quotationId,
                             $actorId
                         )) {
-                            $this->pendingCotizacionFacturacionManual = null;
                             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_AUTO_COMPLETED'), 'success');
                         }
+                        $this->pendingCotizacionFacturacionManual = $wfPending->getOpenPendingRequest(
+                            ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL,
+                            $quotationId
+                        );
                     }
                 }
             }

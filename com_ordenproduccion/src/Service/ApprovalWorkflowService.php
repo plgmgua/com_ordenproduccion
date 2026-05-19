@@ -1185,7 +1185,11 @@ class ApprovalWorkflowService
             $this->db->setQuery($q2);
             $this->db->execute();
 
-            ApprovalAuditHelper::log($requestId, 'facturacion_manual_invoiced_total', $actorUserId, 'pending', 'approved', $comment);
+            try {
+                ApprovalAuditHelper::log($requestId, 'facturacion_manual_invoiced_total', $actorUserId, 'pending', 'approved', $comment);
+            } catch (\Throwable $e) {
+                // Non-blocking: approval row updates must succeed even if audit table is missing.
+            }
 
             $this->onRequestApproved($req, $actorUserId);
 
@@ -1196,7 +1200,11 @@ class ApprovalWorkflowService
             return false;
         }
 
-        ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'approved', $actorUserId, $comment);
+        try {
+            ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'approved', $actorUserId, $comment);
+        } catch (\Throwable $e) {
+            // Non-blocking after commit.
+        }
 
         return true;
     }

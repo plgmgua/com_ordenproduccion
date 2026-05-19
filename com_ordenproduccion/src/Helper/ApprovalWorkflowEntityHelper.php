@@ -365,7 +365,69 @@ class ApprovalWorkflowEntityHelper
     }
 
     /**
-     * Auto-approve open facturación manual approval when sum(completed FEL) >= cotización total.
+     * Billable target for Fact.Man. auto-close: Facturar líneas when &gt; 0, else cotización total.
+     *
+     * @return  array{quotation_total: float, billable_target: float, invoiced_completed: float, is_fully_invoiced: bool}
+     *
+     * @since  3.119.77
+     */
+    public static function getFacturacionManualInvoicingProgress(
+        DatabaseInterface $db,
+        int $quotationId
+    ): array {
+        $quotationId = (int) $quotationId;
+        $empty       = [
+            'quotation_total'   => 0.0,
+            'billable_target' => 0.0,
+            'invoiced_completed' => 0.0,
+            'is_fully_invoiced'  => false,
+        ];
+        if ($quotationId < 1) {
+            return $empty;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('total_amount'))
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $quotationTotal = round((float) $db->loadResult(), 2);
+
+        $billableTarget = $quotationTotal;
+        $app            = Factory::getApplication();
+        $precot         = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (
+            $precot
+            && \is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])
+            && \is_callable([$precot, 'getFacturarBillableTotalForQuotation'])
+            && $precot->getFacturarPreCotizacionesForQuotation($quotationId) !== []
+        ) {
+            $billable = round($precot->getFacturarBillableTotalForQuotation($quotationId), 2);
+            if ($billable > 0) {
+                $billableTarget = $billable;
+            }
+        }
+
+        $felSvc   = new FelInvoiceIssuanceService($db);
+        $invoiced = round($felSvc->sumCompletedInvoiceAmountsForQuotation($quotationId), 2);
+
+        $coversBillable   = $billableTarget > 0 && $invoiced + 1e-9 >= $billableTarget;
+        $coversQuotation  = $quotationTotal > 0 && $invoiced + 1e-9 >= $quotationTotal;
+        $isFullyInvoiced  = $coversBillable || $coversQuotation;
+
+        return [
+            'quotation_total'    => $quotationTotal,
+            'billable_target'    => $billableTarget,
+            'invoiced_completed' => $invoiced,
+            'is_fully_invoiced'  => $isFullyInvoiced,
+        ];
+    }
+
+    /**
+     * Auto-approve open facturación manual approval when sum(completed FEL) covers billable or cotización total.
      *
      * @since  3.119.71
      */
@@ -380,34 +442,8 @@ class ApprovalWorkflowEntityHelper
             return false;
         }
 
-        $db->setQuery(
-            $db->getQuery(true)
-                ->select($db->quoteName('total_amount'))
-                ->from($db->quoteName('#__ordenproduccion_quotations'))
-                ->where($db->quoteName('id') . ' = ' . $quotationId)
-                ->where($db->quoteName('state') . ' = 1')
-        );
-        $quotationTotal = round((float) $db->loadResult(), 2);
-
-        $targetTotal = $quotationTotal;
-        $app         = Factory::getApplication();
-        $precot      = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
-            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
-        if (
-            $precot
-            && \is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])
-            && \is_callable([$precot, 'getFacturarBillableTotalForQuotation'])
-            && $precot->getFacturarPreCotizacionesForQuotation($quotationId) !== []
-        ) {
-            $targetTotal = round($precot->getFacturarBillableTotalForQuotation($quotationId), 2);
-        }
-        if ($targetTotal <= 0) {
-            return false;
-        }
-
-        $felSvc   = new FelInvoiceIssuanceService($db);
-        $invoiced = $felSvc->sumCompletedInvoiceAmountsForQuotation($quotationId);
-        if (round($invoiced, 2) < $targetTotal) {
+        $progress = self::getFacturacionManualInvoicingProgress($db, $quotationId);
+        if (empty($progress['is_fully_invoiced'])) {
             return false;
         }
 

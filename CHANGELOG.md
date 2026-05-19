@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.77-STABLE] - 2026-05-19
+
+### Fixed
+- **Fact.Man. auto-cierre:** compara facturas completadas con el total de la cotización (como en pantalla) y con el subtotal Facturar; auditoría/correo ya no bloquean el cierre.
+- **Cotización:** botón **Cerrar aprobación (facturado)** para Administración cuando las facturas completadas ya cubren el total.
+
 ## [3.119.76-STABLE] - 2026-05-19
 
 ### Fixed

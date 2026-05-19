@@ -1240,6 +1240,80 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * Close open Fact.Man. approval when completed invoices already cover the cotización (or Facturar subtotal).
+     *
+     * @return  void
+     *
+     * @since   3.119.77
+     */
+    public function completeFacturacionManualIfInvoiced(): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+        if (!AccessHelper::canViewApprovalWorkflowTab()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+
+        $quotationId = (int) $app->input->post->getInt('id', 0);
+        if ($quotationId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+
+        $row = $this->loadPublishedQuotationForCurrentUserOrClose($quotationId);
+        if (!$row) {
+            return;
+        }
+
+        $db       = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $progress = ApprovalWorkflowEntityHelper::getFacturacionManualInvoicingProgress($db, $quotationId);
+        if (empty($progress['is_fully_invoiced'])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_NOT_READY'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        $wfSvc = new ApprovalWorkflowService($db);
+        if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId) === null) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_NONE_OPEN'), 'notice');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+
+        if (ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalWhenFullyInvoiced($db, $quotationId, (int) $user->id)) {
+            $still = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId);
+            if ($still === null) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_AUTO_COMPLETED'), 'success');
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_FAILED'), 'error');
+            }
+        } else {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_FAILED'), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+    }
+
+    /**
      * JSON: Digifact-style NIT/CUI lookup for the quotation's billing ID (confirm modal banner).
      *
      * @return  void

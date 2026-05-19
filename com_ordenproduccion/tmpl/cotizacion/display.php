@@ -18,6 +18,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
@@ -129,10 +130,18 @@ $felInv = isset($this->felInvoiceForQuotation) ? $this->felInvoiceForQuotation :
 $felStatus = $felInv ? (string) ($felInv->fel_issue_status ?? '') : '';
 $felInvoicesForQuotation = isset($this->felInvoicesForQuotation) && is_array($this->felInvoicesForQuotation) ? $this->felInvoicesForQuotation : [];
 $felInvoicedCompletedTotal = 0.0;
-if ($felInvoicesForQuotation !== [] && $quotation) {
-    $felSvcTotals = new FelInvoiceIssuanceService();
-    $felInvoicedCompletedTotal = $felSvcTotals->sumCompletedInvoiceAmountsForQuotation($quotationId);
+$factManInvoicingFullyCovered = false;
+if ($quotation) {
+    $felProgress = ApprovalWorkflowEntityHelper::getFacturacionManualInvoicingProgress(
+        Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class),
+        $quotationId
+    );
+    $felInvoicedCompletedTotal    = (float) ($felProgress['invoiced_completed'] ?? 0.0);
+    $factManInvoicingFullyCovered = !empty($felProgress['is_fully_invoiced']);
 }
+$canCompleteFactManApproval = $factManInvoicingFullyCovered
+    && AccessHelper::canViewApprovalWorkflowTab();
+$completeFactManApprovalUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.completeFacturacionManualIfInvoiced', false);
 
 $ebipayMockAvailable = !empty($this->ebipayMockAvailable);
 $canEbiPay = $ebipayMockAvailable
@@ -231,6 +240,17 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
             <div class="flex-grow-1 min-w-0">
                 <strong><i class="fas fa-file-invoice-dollar me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_TITLE', 'Manual invoicing pending approval', 'Facturación manual — aprobación pendiente')); ?></strong>
                 <div class="small mt-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_BANNER_DESC', 'Review the billing instructions stored on this quotation. Approve or reject from Administration → Approvals.', 'Revise las instrucciones de facturación de esta cotización. Apruebe o rechace desde Administración → Aprobaciones.')); ?></div>
+                <?php if ($factManInvoicingFullyCovered && $felInvoicedCompletedTotal > 0) : ?>
+                <p class="small text-success mb-0 mt-2">
+                    <i class="fas fa-check-circle me-1"></i>
+                    <?php echo htmlspecialchars($l(
+                        'COM_ORDENPRODUCCION_FACTURACION_MANUAL_INVOICED_READY_HINT',
+                        'Completed invoices cover this quotation total. You can close the approval without issuing more invoices.',
+                        'Las facturas completadas cubren el total de la cotización. Puede cerrar la aprobación sin emitir más facturas.'
+                    )); ?>
+                    (Q <?php echo number_format($felInvoicedCompletedTotal, 2); ?> / Q <?php echo number_format($totalAmount, 2); ?>)
+                </p>
+                <?php endif; ?>
                 <?php if ($pmInstr !== '') : ?>
                 <div class="mt-2 mb-0">
                     <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></div>
@@ -303,8 +323,27 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
                 </div>
                 <?php endif; ?>
             </div>
+            <div class="d-flex flex-column flex-shrink-0 gap-2 align-items-stretch">
+            <?php if ($canCompleteFactManApproval && !empty($pendingFactManual)) : ?>
+            <form method="post" action="<?php echo htmlspecialchars($completeFactManApprovalUrl); ?>" class="mb-0" onsubmit="return confirm(<?php echo json_encode($l(
+                'COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_JS_CONFIRM',
+                'Close this manual invoicing approval? Completed invoices already cover the quotation total.',
+                '¿Cerrar esta aprobación de facturación manual? Las facturas completadas ya cubren el total de la cotización.'
+            ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="fas fa-check me-1"></i>
+                    <?php echo htmlspecialchars($l(
+                        'COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_BTN',
+                        'Close approval (invoiced)',
+                        'Cerrar aprobación (facturado)'
+                    )); ?>
+                </button>
+            </form>
+            <?php endif; ?>
             <?php if ($canWithdrawFactManual) : ?>
-            <form method="post" action="<?php echo htmlspecialchars($withdrawApprovalPostUrl); ?>" class="flex-shrink-0" onsubmit="return confirm(<?php echo $withdrawManualConfirmJs; ?>);">
+            <form method="post" action="<?php echo htmlspecialchars($withdrawApprovalPostUrl); ?>" class="mb-0" onsubmit="return confirm(<?php echo $withdrawManualConfirmJs; ?>);">
                 <?php echo HTMLHelper::_('form.token'); ?>
                 <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">
                 <input type="hidden" name="approval_kind" value="facturacion_manual">
@@ -313,6 +352,7 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
                 </button>
             </form>
             <?php endif; ?>
+            </div>
         </div>
     </div>
     <?php endif; ?>
