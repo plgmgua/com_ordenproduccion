@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.65-STABLE] - 2026-05-19
+
+### Added
+- **Cotización — Factura manual:** botón junto a «Emitir FEL por Digifact (directo)» abre un modal con cliente/NIT, dirección (predeterminada «Ciudad»), líneas editables de la cotización, órdenes del mismo cliente para vincular, y «Generar factura» que certifica por Digifact con esos datos.
+
 ## [3.119.64-STABLE] - 2026-05-19
 
 ### Changed

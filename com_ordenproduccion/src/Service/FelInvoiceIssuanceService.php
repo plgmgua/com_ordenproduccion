@@ -1101,6 +1101,21 @@ class FelInvoiceIssuanceService
      *
      * @return  array{qty: float, line_total: float, unit_price: float}
      */
+    /**
+     * Whether {@see finalizeDigifactCertificationSuccessFromInterpret()} should skip auto OT linkage (manual FEL screen).
+     */
+    private bool $skipAutoLinkOrdensOnFinalize = false;
+
+    /**
+     * Public accessor for quotation/FEL line math (cotización manual invoice UI).
+     *
+     * @return  array{qty: float, line_total: float, unit_price: float}
+     */
+    public function getLineTotalsForFelRow(object $row): array
+    {
+        return $this->resolveQuotationLineTotals($row);
+    }
+
     protected function resolveQuotationLineTotals(object $row): array
     {
         $qty = isset($row->cantidad) ? (float) $row->cantidad : 1.0;
@@ -1725,6 +1740,238 @@ class FelInvoiceIssuanceService
                 'AdditionalInfo' => $additionalInfos,
             ],
         ];
+    }
+
+    /**
+     * Build Digifact NUC from manually edited buyer/lines (cotización «Factura manual»).
+     *
+     * @param   list<array{descripcion:string, cantidad:float, precio_unitario:float}>  $manualLines
+     *
+     * @return  array<string, mixed>
+     */
+    public function buildDigifactNucJsonPayloadFromManualInput(
+        object $quotation,
+        array $manualLines,
+        array $creds,
+        string $buyerName,
+        string $buyerNitRaw,
+        string $buyerAddress,
+        ?string $nucBuyerTaxIdOverride = null
+    ): array {
+        $lineRows = [];
+        foreach ($manualLines as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $desc = trim((string) ($line['descripcion'] ?? ''));
+            $qty  = (float) ($line['cantidad'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? 0);
+            if ($desc === '' || $qty < 0.000001 || $unit < 0) {
+                continue;
+            }
+            $row = new \stdClass();
+            $row->descripcion     = $desc;
+            $row->cantidad        = $qty;
+            $row->valor_unitario  = $unit;
+            $row->subtotal        = round($qty * $unit, 2);
+            $lineRows[]           = $row;
+        }
+
+        $payload = $this->buildDigifactNucJsonPayload(
+            $quotation,
+            $lineRows,
+            $creds,
+            $nucBuyerTaxIdOverride,
+            $buyerName !== '' ? $buyerName : null
+        );
+
+        $addr = trim($buyerAddress);
+        if ($addr === '') {
+            $addr = 'Ciudad';
+        }
+        if (isset($payload['Buyer']) && \is_array($payload['Buyer'])) {
+            $payload['Buyer']['TaxID'] = $this->resolveManualBuyerTaxIdForNuc($buyerNitRaw, $nucBuyerTaxIdOverride);
+            if ($buyerName !== '') {
+                $payload['Buyer']['Name'] = $buyerName;
+            }
+            $payload['Buyer']['AddressInfo'] = [
+                'Address'  => $addr,
+                'City'     => '01010',
+                'District' => 'GUATEMALA',
+                'State'    => 'GUATEMALA',
+                'Country'  => 'GT',
+            ];
+            $isCf = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerNitRaw);
+            $cui  = CertificadorFactNitLookupHelper::digitsOnlyBillingId(trim((string) ($nucBuyerTaxIdOverride ?? '')));
+            if ($isCf && $cui !== '') {
+                $payload['Buyer']['TaxIDType'] = 'CUI';
+            } elseif (isset($payload['Buyer']['TaxIDType'])) {
+                unset($payload['Buyer']['TaxIDType']);
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param   list<array{descripcion:string, cantidad:float, precio_unitario:float}>  $manualLines
+     * @param   int[]                                                                      $ordenIdsToLink
+     *
+     * @return  array{success:bool, message:string, invoice_id?:int, uuid?:string}
+     */
+    public function issueDigifactNucManualFromQuotation(
+        int $quotationId,
+        int $userId,
+        array $manualLines,
+        string $buyerName,
+        string $buyerNit,
+        string $buyerAddress,
+        array $ordenIdsToLink = [],
+        ?string $nucBuyerTaxIdOverride = null
+    ): array {
+        $quotationId = (int) $quotationId;
+        $userId      = (int) $userId;
+        if ($quotationId < 1 || $userId < 1 || !$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
+            return ['success' => false, 'message' => 'Engine unavailable'];
+        }
+
+        $quotation = $this->loadQuotation($quotationId);
+        if (!$quotation) {
+            return ['success' => false, 'message' => 'Quotation not found'];
+        }
+
+        $creds = $this->getActiveCertificadorCredentials();
+        if ($this->buildDigifactCertificarRequestUrl($creds) === '') {
+            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
+        }
+        if ($this->resolveBearerJwtForDigifactPost() === '') {
+            return ['success' => false, 'message' => 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).'];
+        }
+
+        $existing = $this->getInvoiceByQuotationId($quotationId);
+        if ($existing && (string) ($existing->fel_issue_status ?? '') === 'completed') {
+            return ['success' => false, 'message' => 'Invoice already completed for this quotation.'];
+        }
+
+        $buyerName = trim($buyerName);
+        $buyerNit  = trim($buyerNit);
+        if ($buyerName === '' || $buyerNit === '') {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_REQUIRED')];
+        }
+
+        $payload = $this->buildDigifactNucJsonPayloadFromManualInput(
+            $quotation,
+            $manualLines,
+            $creds,
+            $buyerName,
+            $buyerNit,
+            $buyerAddress,
+            $nucBuyerTaxIdOverride
+        );
+        if (($payload['Items'] ?? []) === []) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')];
+        }
+
+        $grand = 0.0;
+        if (isset($payload['Totals']['GrandTotal']['InvoiceTotal'])) {
+            $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
+        }
+
+        $invoiceId = $existing ? (int) $existing->id : $this->createPendingInvoiceFromQuotation($quotationId, $userId);
+        if ($invoiceId < 1) {
+            return ['success' => false, 'message' => 'Could not create invoice row'];
+        }
+
+        $storageLines = [];
+        foreach ($manualLines as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $qty  = (float) ($line['cantidad'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? 0);
+            $desc = trim((string) ($line['descripcion'] ?? ''));
+            if ($desc === '' || $qty < 0.000001) {
+                continue;
+            }
+            $sub = round($qty * $unit, 2);
+            $storageLines[] = [
+                'cantidad'          => $qty,
+                'descripcion'       => $desc,
+                'precio_unitario'   => $unit,
+                'subtotal'          => $sub,
+            ];
+        }
+
+        $this->updateInvoiceFields($invoiceId, [
+            'client_name'    => $buyerName,
+            'client_nit'     => $buyerNit,
+            'invoice_amount' => $grand,
+            'line_items'     => json_encode($storageLines, JSON_UNESCAPED_UNICODE),
+            'notes'          => 'FEL manual desde cotización',
+        ]);
+
+        $this->skipAutoLinkOrdensOnFinalize = true;
+        $this->setStatus($invoiceId, 'processing');
+        $result = $this->executeDigifactCertificationForInvoice($invoiceId, $quotationId, $payload, $userId);
+        $this->skipAutoLinkOrdensOnFinalize = false;
+
+        if (!empty($result['success'])) {
+            $this->linkInvoiceToSelectedOrdens($invoiceId, $ordenIdsToLink);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param   int[]  $ordenIds
+     */
+    protected function linkInvoiceToSelectedOrdens(int $invoiceId, array $ordenIds): void
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1 || $ordenIds === []) {
+            return;
+        }
+        try {
+            $match = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if (!$match || !\is_callable([$match, 'addManualInvoiceOrdenAssociation']) || !$match->isTableAvailable()) {
+                return;
+            }
+            $seen = [];
+            foreach ($ordenIds as $oid) {
+                $oid = (int) $oid;
+                if ($oid < 1 || isset($seen[$oid])) {
+                    continue;
+                }
+                $seen[$oid] = true;
+                try {
+                    $match->addManualInvoiceOrdenAssociation(
+                        $invoiceId,
+                        $oid,
+                        false,
+                        ['manual', 'cotizacion_fel_manual']
+                    );
+                } catch (\Throwable $e) {
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+    }
+
+    protected function resolveManualBuyerTaxIdForNuc(string $buyerNitRaw, ?string $nucBuyerTaxIdOverride): string
+    {
+        $isCf = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerNitRaw);
+        $cui  = CertificadorFactNitLookupHelper::digitsOnlyBillingId(trim((string) ($nucBuyerTaxIdOverride ?? '')));
+        if ($isCf && $cui !== '') {
+            return $cui;
+        }
+        if ($isCf) {
+            return 'CF';
+        }
+        $dig = CertificadorFactNitLookupHelper::digitsOnlyBillingId($buyerNitRaw);
+
+        return $dig !== '' ? $dig : trim($buyerNitRaw);
     }
 
     /**
@@ -2494,6 +2741,13 @@ class FelInvoiceIssuanceService
         if ($buyerNameFromPayload !== '') {
             $receptorNombre = $buyerNameFromPayload;
         }
+        $receptorDireccion = (string) ($quotation->client_address ?? '');
+        if (isset($nucPayload['Buyer']['AddressInfo']) && \is_array($nucPayload['Buyer']['AddressInfo'])) {
+            $addrFromPayload = trim((string) ($nucPayload['Buyer']['AddressInfo']['Address'] ?? ''));
+            if ($addrFromPayload !== '') {
+                $receptorDireccion = $addrFromPayload;
+            }
+        }
         $update = [
             'fel_issue_status'       => 'completed',
             'fel_issue_error'        => null,
@@ -2503,7 +2757,7 @@ class FelInvoiceIssuanceService
             'fel_fecha_emision'      => $now,
             'fel_receptor_id'        => $receptorDigits,
             'fel_receptor_nombre'    => $receptorNombre,
-            'fel_receptor_direccion' => $quotation->client_address ?? null,
+            'fel_receptor_direccion' => $receptorDireccion !== '' ? $receptorDireccion : null,
             'fel_moneda'             => 'GTQ',
             'fel_scheduled_at'       => null,
             'fel_local_xml_path'     => $xmlRel,
@@ -2517,7 +2771,9 @@ class FelInvoiceIssuanceService
         $update = $this->filterToExistingColumns($update);
         $this->updateInvoiceFields($invoiceId, $update);
 
-        $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
+        if (!$this->skipAutoLinkOrdensOnFinalize) {
+            $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
+        }
 
         $outUuid = '';
         if ($felplex !== null && $felplex !== '') {

@@ -1855,6 +1855,191 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * JSON: issue FEL from cotización with manually edited buyer, lines, and selected work orders.
+     *
+     * POST: quotation_id, manual_buyer_name, manual_buyer_nit, manual_buyer_address,
+     * manual_lines_json, manual_orden_ids_json, optional digifact_buyer_cui (CF).
+     *
+     * @return  void
+     *
+     * @since   3.119.65
+     */
+    public function manualFelIssueFromQuotation(): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId < 1) {
+            $quotationId = $app->input->getInt('id', 0);
+        }
+        if ($quotationId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        if (!AccessHelper::userCanAccessQuotationRow($row)) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        if (!AccessHelper::isInStrictAdministracionGroup()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $qcolsDigifactOc = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qcolsDigifactOc = \is_array($qcolsDigifactOc) ? array_change_key_case($qcolsDigifactOc, CASE_LOWER) : [];
+        if (isset($qcolsDigifactOc['requiere_orden_compra_para_facturar'])
+            && (int) ($row->requiere_orden_compra_para_facturar ?? 0) === 1
+            && isset($qcolsDigifactOc['orden_compra_path'])) {
+            $ocPathDigifact = trim((string) ($row->orden_compra_path ?? ''));
+            $ocExtDigifact  = strtolower(pathinfo($ocPathDigifact, PATHINFO_EXTENSION));
+            if ($ocPathDigifact === '' || $ocExtDigifact !== 'pdf') {
+                echo json_encode([
+                    'success' => false,
+                    'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BLOCKED_OC_PDF_REQUIRED'),
+                ], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+        }
+
+        $buyerName = trim((string) $app->input->post->getString('manual_buyer_name', ''));
+        $buyerNit  = trim((string) $app->input->post->getString('manual_buyer_nit', ''));
+        $buyerAddr = trim((string) $app->input->post->getString('manual_buyer_address', 'Ciudad'));
+
+        $linesRaw = $app->input->post->getString('manual_lines_json', '');
+        $linesDec = \json_decode($linesRaw, true);
+        if (!\is_array($linesDec) || $linesDec === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        $manualLines = [];
+        foreach ($linesDec as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $desc = trim((string) ($line['descripcion'] ?? ''));
+            $qty  = (float) ($line['cantidad'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? 0);
+            if ($desc === '' || $qty < 0.000001 || $unit < 0) {
+                continue;
+            }
+            $manualLines[] = [
+                'descripcion'       => $desc,
+                'cantidad'          => $qty,
+                'precio_unitario'   => $unit,
+            ];
+        }
+        if ($manualLines === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $ordenIdsRaw = $app->input->post->getString('manual_orden_ids_json', '[]');
+        $ordenIdsDec = \json_decode($ordenIdsRaw, true);
+        $ordenIds    = [];
+        if (\is_array($ordenIdsDec)) {
+            foreach ($ordenIdsDec as $oid) {
+                $oid = (int) $oid;
+                if ($oid > 0) {
+                    $ordenIds[] = $oid;
+                }
+            }
+        }
+
+        try {
+            $fel = new FelInvoiceIssuanceService();
+            if (!$fel->isEngineAvailable() || !$fel->hasQuotationIdColumn()) {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_FEL_UNAVAILABLE')], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+
+            $nitRaw  = $buyerNit !== '' ? $buyerNit : trim((string) ($row->client_nit ?? ''));
+            $isCf    = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($nitRaw);
+            $cuiPost = trim((string) $app->input->post->getString('digifact_buyer_cui', ''));
+            $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
+
+            if ($isCf) {
+                if ($cuiDigits === '') {
+                    echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_REQUIRED')], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+                $verify = $fel->verifyDigifactCui($cuiPost);
+                if (empty($verify['success'])) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => (string) ($verify['message'] ?? Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_CUI_NOT_FOUND')),
+                    ], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+                $result = $fel->issueDigifactNucManualFromQuotation(
+                    $quotationId,
+                    (int) $user->id,
+                    $manualLines,
+                    $buyerName,
+                    $nitRaw,
+                    $buyerAddr,
+                    $ordenIds,
+                    $cuiDigits
+                );
+            } else {
+                $result = $fel->issueDigifactNucManualFromQuotation(
+                    $quotationId,
+                    (int) $user->id,
+                    $manualLines,
+                    $buyerName,
+                    $nitRaw,
+                    $buyerAddr,
+                    $ordenIds,
+                    null
+                );
+            }
+
+            if (!empty($result['success']) && !empty($result['invoice_id'])) {
+                $result['invoice_url'] = Route::_(
+                    'index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $result['invoice_id'],
+                    false
+                );
+            }
+
+            echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+
+        $app->close();
+    }
+
+    /**
      * Mock ebi pay: create payment link for quotation (JSON). No invoice required.
      *
      * @return  void

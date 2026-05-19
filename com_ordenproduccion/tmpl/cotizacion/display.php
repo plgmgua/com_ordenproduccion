@@ -152,6 +152,12 @@ $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=coti
 $digifactQuotBillingIsCf = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal(trim((string) ($quotation->client_nit ?? '')));
 $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactCui&format=json', false);
 $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
+$manualFelIssueUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelIssueFromQuotation&format=json', false);
+$manualFelBillingIsCf = $digifactQuotBillingIsCf;
+$manualBuyerNameInitial = $digifactBuyerNameInitial;
+$manualBuyerNitInitial = trim((string) ($quotation->client_nit ?? ''));
+$manualFelLinePresets = isset($this->manualFelLinePresets) && is_array($this->manualFelLinePresets) ? $this->manualFelLinePresets : [];
+$manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($this->manualFelOrdensForClient) ? $this->manualFelOrdensForClient : [];
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -847,6 +853,14 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
             )); ?>"<?php endif; ?>>
             <i class="fas fa-bolt"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BTN', 'Issue FEL via Digifact (direct)', 'Emitir FEL por Digifact (directo)')); ?>
         </button>
+        <button type="button" class="btn btn-outline-success ms-1" id="manual-fel-open-btn"<?php echo $digifactDirectBlockedByOcPdf ? ' disabled' : ''; ?>
+            <?php if ($digifactDirectBlockedByOcPdf) : ?> title="<?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BLOCKED_OC_PDF_REQUIRED',
+                'Attach a purchase order PDF on this quotation before issuing FEL.',
+                'Adjunte un PDF de orden de compra en esta cotización antes de emitir el FEL.'
+            )); ?>"<?php endif; ?>>
+            <i class="fas fa-file-invoice"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_BTN', 'Manual invoice', 'Factura manual')); ?>
+        </button>
         <div id="digifact-direct-alert" class="small mt-2 d-none" role="status"></div>
         <div class="modal fade" id="digifact-fel-lines-modal" tabindex="-1" aria-labelledby="digifactFelLinesModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -946,6 +960,7 @@ $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
                 </div>
             </div>
         </div>
+        <?php include __DIR__ . '/manual_fel_modal.php'; ?>
         <script>
         (function() {
             var openBtn = document.getElementById('digifact-direct-issue-btn');

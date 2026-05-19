@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
@@ -135,6 +136,22 @@ class HtmlView extends BaseHtmlView
      * @since  3.115.13
      */
     protected $ordenesPorPreCotizacionId = [];
+
+    /**
+     * Work orders for same client (manual FEL modal checkboxes).
+     *
+     * @var    array<int, array{id: int, label: string, valor: float}>
+     * @since  3.119.65
+     */
+    protected $manualFelOrdensForClient = [];
+
+    /**
+     * Initial line rows for manual FEL modal.
+     *
+     * @var    array<int, array{descripcion: string, cantidad: float, precio_unitario: float}>
+     * @since  3.119.65
+     */
+    protected $manualFelLinePresets = [];
 
     /**
      * Confirmar modal: billing instruction fields (one per pre-cot with facturar), or empty if none.
@@ -324,6 +341,21 @@ class HtmlView extends BaseHtmlView
                     }
                     $this->quotationHasLinkedPreCotizacion = $preIdsDistinct !== [];
                     $this->ordenesPorPreCotizacionId = $this->buildOrdenesLinksByPreCotizacionIds($db, array_keys($preIdsDistinct));
+                    $this->manualFelOrdensForClient = $this->buildOrdensForManualFelModal(
+                        $db,
+                        $this->quotation,
+                        array_keys($preIdsDistinct)
+                    );
+                    $this->manualFelLinePresets = [];
+                    $felPresetSvc = new FelInvoiceIssuanceService();
+                    foreach ($this->quotationItems as $qiPreset) {
+                        $t = $felPresetSvc->getLineTotalsForFelRow($qiPreset);
+                        $this->manualFelLinePresets[] = [
+                            'descripcion'       => (string) ($qiPreset->descripcion ?? ''),
+                            'cantidad'          => (float) $t['qty'],
+                            'precio_unitario'   => (float) $t['unit_price'],
+                        ];
+                    }
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
                     $this->itemsWithLineDetalles = [];
                     if ($precotModel->lineDetallesTableExists()) {
@@ -704,6 +736,140 @@ class HtmlView extends BaseHtmlView
                 'url'   => $url,
             ];
         }
+
+        return $out;
+    }
+
+    /**
+     * Órdenes de trabajo for manual FEL modal: quotation pre-cot OTs plus same-client NIT, sorted by label desc.
+     *
+     * @param   \Joomla\Database\DatabaseDriver  $db
+     * @param   object                           $quotation
+     * @param   int[]                            $preCotizacionIds
+     *
+     * @return  array<int, array{id: int, label: string, valor: float}>
+     *
+     * @since   3.119.65
+     */
+    protected function buildOrdensForManualFelModal($db, object $quotation, array $preCotizacionIds): array
+    {
+        $seen = [];
+        $out  = [];
+
+        $byPre = $this->buildOrdenesLinksByPreCotizacionIds($db, $preCotizacionIds);
+        foreach ($byPre as $links) {
+            foreach ($links as $link) {
+                $oid = (int) ($link['id'] ?? 0);
+                if ($oid > 0) {
+                    $seen[$oid] = true;
+                }
+            }
+        }
+
+        $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if ($cols === []) {
+            return [];
+        }
+
+        $orderNumExpr = isset($cols['order_number'])
+            ? $db->quoteName('order_number')
+            : (isset($cols['orden_de_trabajo']) ? $db->quoteName('orden_de_trabajo') : $db->quoteName('id'));
+        $valorExpr = '0';
+        if (isset($cols['invoice_value'], $cols['valor_a_facturar'])) {
+            $valorExpr = 'COALESCE(' . $db->quoteName('invoice_value') . ', ' . $db->quoteName('valor_a_facturar') . ', 0)';
+        } elseif (isset($cols['valor_a_facturar'])) {
+            $valorExpr = 'COALESCE(' . $db->quoteName('valor_a_facturar') . ', 0)';
+        } elseif (isset($cols['invoice_value'])) {
+            $valorExpr = 'COALESCE(' . $db->quoteName('invoice_value') . ', 0)';
+        }
+
+        $loadOrden = static function (int $oid) use ($db, $orderNumExpr, $valorExpr, $cols): ?array {
+            if ($oid < 1) {
+                return null;
+            }
+            $q = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('id'),
+                    $orderNumExpr . ' AS orden_label',
+                    $valorExpr . ' AS orden_valor',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('id') . ' = ' . $oid)
+                ->where($db->quoteName('state') . ' = 1');
+            if (isset($cols['nit'])) {
+                $q->select($db->quoteName('nit'));
+            }
+            $db->setQuery($q);
+            $row = $db->loadObject();
+
+            return $row ?: null;
+        };
+
+        foreach (array_keys($seen) as $oid) {
+            $row = $loadOrden((int) $oid);
+            if (!$row) {
+                continue;
+            }
+            $label = trim((string) ($row->orden_label ?? ''));
+            if ($label === '') {
+                $label = 'ORD-' . str_pad((string) $row->id, 6, '0', STR_PAD_LEFT);
+            }
+            $out[] = [
+                'id'    => (int) $row->id,
+                'label' => $label,
+                'valor' => (float) ($row->orden_valor ?? 0),
+            ];
+        }
+
+        $clientDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId((string) ($quotation->client_nit ?? ''));
+        if ($clientDigits !== '' && isset($cols['nit'])) {
+            try {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select([
+                            $db->quoteName('id'),
+                            $orderNumExpr . ' AS orden_label',
+                            $valorExpr . ' AS orden_valor',
+                            $db->quoteName('nit'),
+                        ])
+                        ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->where($db->quoteName('state') . ' = 1')
+                        ->order($orderNumExpr . ' DESC')
+                        ->order($db->quoteName('id') . ' DESC'),
+                    0,
+                    300
+                );
+                foreach ($db->loadObjectList() ?: [] as $row) {
+                    $oid = (int) ($row->id ?? 0);
+                    if ($oid < 1 || isset($seen[$oid])) {
+                        continue;
+                    }
+                    $nitDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId((string) ($row->nit ?? ''));
+                    if ($nitDigits === '' || $nitDigits !== $clientDigits) {
+                        continue;
+                    }
+                    $seen[$oid] = true;
+                    $label = trim((string) ($row->orden_label ?? ''));
+                    if ($label === '') {
+                        $label = 'ORD-' . str_pad((string) $oid, 6, '0', STR_PAD_LEFT);
+                    }
+                    $out[] = [
+                        'id'    => $oid,
+                        'label' => $label,
+                        'valor' => (float) ($row->orden_valor ?? 0),
+                    ];
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        usort(
+            $out,
+            static function ($a, $b) {
+                return strcasecmp((string) ($b['label'] ?? ''), (string) ($a['label'] ?? ''));
+            }
+        );
 
         return $out;
     }
