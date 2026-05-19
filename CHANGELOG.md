@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.70-STABLE] - 2026-05-19
+
+### Fixed
+- **Factura manual (segunda factura por cotización):** error `Duplicate entry … uq_ordenproduccion_invoices_quotation_id` — migración SQL `3.119.70`, auto-eliminación del índice único al emitir, y mensaje claro si la BD aún no se actualizó.
+
+## [3.119.69-STABLE] - 2026-05-19
+
+### Fixed
+- **Factura manual (cotización):** el botón solo se evalúa para el grupo **Administración** (y superusuarios); corregido orden de variables que impedía mostrarlo.
+
 ## [3.119.68-STABLE] - 2026-05-19
 
 ### Changed

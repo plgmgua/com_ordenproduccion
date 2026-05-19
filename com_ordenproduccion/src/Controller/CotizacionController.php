@@ -2033,7 +2033,12 @@ class CotizacionController extends BaseController
 
             echo json_encode($result, JSON_UNESCAPED_UNICODE);
         } catch (\Throwable $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+            $errMsg = $e->getMessage();
+            if (stripos($errMsg, 'uq_ordenproduccion_invoices_quotation_id') !== false
+                || (stripos($errMsg, 'Duplicate entry') !== false && stripos($errMsg, 'quotation') !== false)) {
+                $errMsg = Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_MIGRATION_REQUIRED');
+            }
+            echo json_encode(['success' => false, 'message' => $errMsg], JSON_UNESCAPED_UNICODE);
         }
 
         $app->close();

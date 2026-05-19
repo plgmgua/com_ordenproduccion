@@ -166,6 +166,95 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Whether the one-invoice-per-cotización unique index is still present (migration 3.119.68+ should remove it).
+     */
+    public function hasUniqueQuotationIdIndex(): bool
+    {
+        if (!$this->hasQuotationIdColumn()) {
+            return false;
+        }
+
+        try {
+            $table = $this->db->replacePrefix('#__ordenproduccion_invoices');
+            $this->db->setQuery(
+                'SELECT COUNT(*) FROM ' . $this->db->quoteName('INFORMATION_SCHEMA.STATISTICS')
+                . ' WHERE ' . $this->db->quoteName('TABLE_SCHEMA') . ' = DATABASE()'
+                . ' AND ' . $this->db->quoteName('TABLE_NAME') . ' = ' . $this->db->quote($table)
+                . ' AND ' . $this->db->quoteName('INDEX_NAME') . ' = ' . $this->db->quote('uq_ordenproduccion_invoices_quotation_id')
+                . ' AND ' . $this->db->quoteName('NON_UNIQUE') . ' = 0'
+            );
+
+            return (int) $this->db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Drop unique quotation_id index so multiple FEL invoices can reference one cotización.
+     */
+    public function dropUniqueQuotationIdIndexIfPresent(): bool
+    {
+        if (!$this->hasUniqueQuotationIdIndex()) {
+            return true;
+        }
+
+        try {
+            $this->db->setQuery(
+                'ALTER TABLE ' . $this->db->quoteName('#__ordenproduccion_invoices')
+                . ' DROP INDEX ' . $this->db->quoteName('uq_ordenproduccion_invoices_quotation_id')
+            );
+            $this->db->execute();
+
+            if (!$this->hasIndexOnInvoicesTable('idx_ordenproduccion_invoices_quotation_id')) {
+                $this->db->setQuery(
+                    'ALTER TABLE ' . $this->db->quoteName('#__ordenproduccion_invoices')
+                    . ' ADD KEY ' . $this->db->quoteName('idx_ordenproduccion_invoices_quotation_id')
+                    . ' (' . $this->db->quoteName('quotation_id') . ')'
+                );
+                $this->db->execute();
+            }
+
+            return !$this->hasUniqueQuotationIdIndex();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Ensure schema allows multiple invoices per cotización (SQL migration 3.119.68 / auto-fix).
+     */
+    public function ensureMultipleInvoicesPerQuotationSchema(): bool
+    {
+        return $this->dropUniqueQuotationIdIndexIfPresent();
+    }
+
+    protected function hasIndexOnInvoicesTable(string $indexName): bool
+    {
+        try {
+            $table = $this->db->replacePrefix('#__ordenproduccion_invoices');
+            $this->db->setQuery(
+                'SELECT COUNT(*) FROM ' . $this->db->quoteName('INFORMATION_SCHEMA.STATISTICS')
+                . ' WHERE ' . $this->db->quoteName('TABLE_SCHEMA') . ' = DATABASE()'
+                . ' AND ' . $this->db->quoteName('TABLE_NAME') . ' = ' . $this->db->quote($table)
+                . ' AND ' . $this->db->quoteName('INDEX_NAME') . ' = ' . $this->db->quote($indexName)
+            );
+
+            return (int) $this->db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    protected function isDuplicateQuotationIdConstraintError(\Throwable $e): bool
+    {
+        $msg = $e->getMessage();
+
+        return stripos($msg, 'Duplicate entry') !== false
+            && stripos($msg, 'uq_ordenproduccion_invoices_quotation_id') !== false;
+    }
+
+    /**
      * Whether fel_scheduled_at exists (migration 3.101.51).
      */
     public function hasFelScheduledAtColumn(): bool
@@ -389,8 +478,24 @@ class FelInvoiceIssuanceService
             }
         }
 
+        $this->ensureMultipleInvoicesPerQuotationSchema();
+
         $o = (object) $filtered;
-        $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+        try {
+            $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+        } catch (\Throwable $e) {
+            if ($this->isDuplicateQuotationIdConstraintError($e) && $this->dropUniqueQuotationIdIndexIfPresent()) {
+                $o = (object) $filtered;
+                try {
+                    $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+                } catch (\Throwable $retryEx) {
+                    return 0;
+                }
+            } else {
+                return 0;
+            }
+        }
+
         $newId = (int) $o->id;
         if ($newId > 0) {
             try {
@@ -1985,7 +2090,11 @@ class FelInvoiceIssuanceService
 
         $invoiceId = $this->createNewManualInvoiceFromQuotation($quotationId, $userId);
         if ($invoiceId < 1) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_CREATE_INVOICE_FAILED')];
+            $message = $this->hasUniqueQuotationIdIndex()
+                ? Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_MIGRATION_REQUIRED')
+                : Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_CREATE_INVOICE_FAILED');
+
+            return ['success' => false, 'message' => $message];
         }
 
         $storageLines = [];
