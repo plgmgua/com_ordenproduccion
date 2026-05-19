@@ -468,7 +468,7 @@ class HtmlView extends BaseHtmlView
                         ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION,
                         $quotationId
                     );
-                    if ($this->pendingCotizacionFacturacionManual !== null && $this->felEngineAvailable && $this->quotation) {
+                    if ($this->pendingCotizacionFacturacionManual !== null && $this->quotation) {
                         $actorId = (int) Factory::getUser()->id;
                         if ($actorId > 0 && ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalWhenFullyInvoiced(
                             Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class),

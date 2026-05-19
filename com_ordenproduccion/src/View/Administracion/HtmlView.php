@@ -17,6 +17,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OtWizardCreationLogHelper;
@@ -1897,6 +1898,16 @@ class HtmlView extends BaseHtmlView
                 $this->approvalWorkflowSchemaAvailable = $approvalService->hasSchema();
                 if ($this->approvalWorkflowSchemaAvailable) {
                     $user = Factory::getUser();
+                    $actorId = (int) $user->id;
+                    if ($actorId > 0) {
+                        $swept = ApprovalWorkflowEntityHelper::sweepOpenFacturacionManualApprovalsWhenFullyInvoiced(
+                            Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class),
+                            $actorId
+                        );
+                        if ($swept > 0) {
+                            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_AUTO_COMPLETED'), 'success');
+                        }
+                    }
                     $this->approvalPendingRows = AccessHelper::getPendingApprovalRowsMerged($approvalService, (int) $user->id);
                     $preCotIds = [];
                     $ocIds     = [];

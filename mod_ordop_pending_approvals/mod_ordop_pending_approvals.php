@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Module\OrdopPendingApprovals\Helper\RecordLink as ApprovalRecordLink;
 use Joomla\CMS\Factory;
@@ -49,6 +50,12 @@ if (!AccessHelper::canViewApprovalWorkflowTab()) {
 
 $approvalService = new ApprovalWorkflowService();
 $schemaOk        = $approvalService->hasSchema();
+if ($schemaOk && (int) $user->id > 0) {
+    ApprovalWorkflowEntityHelper::sweepOpenFacturacionManualApprovalsWhenFullyInvoiced(
+        Factory::getContainer()->get(DatabaseInterface::class),
+        (int) $user->id
+    );
+}
 $rows            = $schemaOk ? AccessHelper::getPendingApprovalRowsMerged($approvalService, (int) $user->id) : [];
 
 if ($rows !== []) {

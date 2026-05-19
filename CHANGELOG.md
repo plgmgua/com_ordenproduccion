@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.76-STABLE] - 2026-05-19
+
+### Fixed
+- **Fact.Man. (aprobaciones):** al abrir Administración → Aprobaciones o el módulo de pendientes, se cierran automáticamente las solicitudes de facturación manual ya cubiertas por facturas FEL completadas (antes solo al abrir la cotización o al timbrar).
+
 ## [3.119.75-STABLE] - 2026-05-19
 
 ### Fixed

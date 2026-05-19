@@ -417,6 +417,60 @@ class ApprovalWorkflowEntityHelper
     }
 
     /**
+     * Close open Fact.Man. approvals when completed invoices already cover the billable total.
+     * Use when loading Administración → Aprobaciones or mod_ordop_pending_approvals.
+     *
+     * @return  int  Number of requests auto-closed
+     *
+     * @since   3.119.76
+     */
+    public static function sweepOpenFacturacionManualApprovalsWhenFullyInvoiced(
+        DatabaseInterface $db,
+        int $actorUserId
+    ): int {
+        $actorUserId = (int) $actorUserId;
+        if ($actorUserId < 1) {
+            return 0;
+        }
+
+        $wfSvc = new ApprovalWorkflowService($db);
+        if (!$wfSvc->hasSchema()) {
+            return 0;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('DISTINCT ' . $db->quoteName('entity_id'))
+                ->from($db->quoteName('#__ordenproduccion_approval_requests'))
+                ->where(
+                    $db->quoteName('entity_type') . ' = '
+                    . $db->quote(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL)
+                )
+                ->where($db->quoteName('status') . ' = ' . $db->quote('pending'))
+        );
+        $quotationIds = $db->loadColumn() ?: [];
+        $closed       = 0;
+
+        foreach ($quotationIds as $qid) {
+            $qid = (int) $qid;
+            if ($qid < 1) {
+                continue;
+            }
+            if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $qid) === null) {
+                continue;
+            }
+            if (!self::tryCompleteFacturacionManualApprovalWhenFullyInvoiced($db, $qid, $actorUserId)) {
+                continue;
+            }
+            if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $qid) === null) {
+                $closed++;
+            }
+        }
+
+        return $closed;
+    }
+
+    /**
      * @since  3.113.47
      */
     public static function applyOrdenCompraWorkflowOutcome(DatabaseInterface $db, int $ordenCompraId, string $status): void
