@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -705,6 +706,57 @@ class PrecotizacionModel extends ListModel
         }
 
         return $out;
+    }
+
+    /**
+     * Sum quotation line amounts only for items linked to pre-cotizaciones with facturar = 1.
+     * Uses the same line math as FEL ({@see FelInvoiceIssuanceService::sumQuotationLinesTotals}).
+     *
+     * @param   int  $quotationId  Quotation id.
+     *
+     * @return  float  Rounded to 2 decimals; 0 when nothing is marked to bill.
+     *
+     * @since   3.119.74
+     */
+    public function getFacturarBillableTotalForQuotation(int $quotationId): float
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return 0.0;
+        }
+
+        $db = $this->getDatabase();
+        $itemCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $itemCols = is_array($itemCols) ? array_change_key_case($itemCols, CASE_LOWER) : [];
+        if (!isset($itemCols['pre_cotizacion_id'])) {
+            return 0.0;
+        }
+        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+        if (!isset($pcCols['facturar'])) {
+            return 0.0;
+        }
+
+        $q = $db->getQuery(true)
+            ->select('i.*')
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'i'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_pre_cotizacion', 'p'),
+                $db->quoteName('p.id') . ' = ' . $db->quoteName('i.pre_cotizacion_id')
+            )
+            ->where($db->quoteName('i.quotation_id') . ' = ' . $quotationId)
+            ->where($db->quoteName('i.pre_cotizacion_id') . ' > 0')
+            ->where($db->quoteName('p.facturar') . ' = 1')
+            ->order($db->quoteName('i.id') . ' ASC');
+        $db->setQuery($q);
+        $rows = $db->loadObjectList() ?: [];
+        if ($rows === []) {
+            return 0.0;
+        }
+
+        $felSvc = new FelInvoiceIssuanceService();
+
+        return $felSvc->sumQuotationLinesTotals($rows);
     }
 
     /**

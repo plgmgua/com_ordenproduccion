@@ -335,7 +335,7 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 if ($linkedInvoiceOpens !== [] && $this->canOpenInvoiceFromOrdenesList()) :
                                                     if (count($linkedInvoiceOpens) === 1) :
                                                         $singleOpen = $linkedInvoiceOpens[0];
-                                                        $openLabel  = Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE');
+                                                        $openLabel  = $l('COM_ORDENPRODUCCION_OPEN_INVOICE', 'View invoice', 'Ver factura');
                                                         ?>
                                                 <a href="<?php echo htmlspecialchars($singleOpen['url'], ENT_QUOTES, 'UTF-8'); ?>"
                                                    class="btn btn-sm btn-outline-dark"

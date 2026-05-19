@@ -685,19 +685,27 @@ class CotizacionController extends BaseController
             return;
         }
 
-        $quickFacturacionFinalize = (int) $app->input->post->get('confirmar_sin_modal_facturacion', 0) === 1;
-        if ($quickFacturacionFinalize) {
-            $precotModelFinalize = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
-                ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
-            if ($precotModelFinalize !== null) {
-                $facturarPrecots = $precotModelFinalize->getFacturarPreCotizacionesForQuotation($quotationId);
-                if ($facturarPrecots !== []) {
-                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_REQUIRED_FACTURACION'), 'error');
-                    $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
-
-                    return;
-                }
+        $precotBillingModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        $facturarPrecotsForBilling = [];
+        $facturarBillableTotal     = 0.0;
+        if ($precotBillingModel !== null) {
+            $facturarPrecotsForBilling = $precotBillingModel->getFacturarPreCotizacionesForQuotation($quotationId);
+            if (
+                $facturarPrecotsForBilling !== []
+                && \is_callable([$precotBillingModel, 'getFacturarBillableTotalForQuotation'])
+            ) {
+                $facturarBillableTotal = $precotBillingModel->getFacturarBillableTotalForQuotation($quotationId);
             }
+        }
+        $hasFacturarBillingLines = $facturarPrecotsForBilling !== [];
+
+        $quickFacturacionFinalize = (int) $app->input->post->get('confirmar_sin_modal_facturacion', 0) === 1;
+        if ($quickFacturacionFinalize && $hasFacturarBillingLines) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CONFIRMAR_MODAL_REQUIRED_FACTURACION'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
         }
 
         $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
@@ -841,7 +849,7 @@ class CotizacionController extends BaseController
         $nqNitFailed  = false;
         $nqCfOverLimit = false;
         $nqNitForDb   = null;
-        if (isset($cols['client_nit'])) {
+        if (isset($cols['client_nit']) && $hasFacturarBillingLines) {
             try {
                 $felNit    = new FelInvoiceIssuanceService();
                 $bearerNit = $felNit->getActiveCertificadorBearerToken();
@@ -873,10 +881,11 @@ class CotizacionController extends BaseController
         }
 
         if (
-            isset($cols['facturar_cotizacion_exacta'])
+            $hasFacturarBillingLines
+            && isset($cols['facturar_cotizacion_exacta'])
             && isset($cols['client_nit'])
             && CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal((string) ($row->client_nit ?? ''))
-            && CertificadorFactNitLookupHelper::consumidorFinalQuotationNeedsManualBillingForAmount((float) ($row->total_amount ?? 0.0))
+            && CertificadorFactNitLookupHelper::consumidorFinalQuotationNeedsManualBillingForAmount($facturarBillableTotal)
         ) {
             $facturarCotizacionExactaDb = 0;
             $nqCfOverLimit              = true;

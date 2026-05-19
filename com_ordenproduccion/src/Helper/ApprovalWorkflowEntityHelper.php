@@ -388,13 +388,26 @@ class ApprovalWorkflowEntityHelper
                 ->where($db->quoteName('state') . ' = 1')
         );
         $quotationTotal = round((float) $db->loadResult(), 2);
-        if ($quotationTotal <= 0) {
+
+        $targetTotal = $quotationTotal;
+        $app         = Factory::getApplication();
+        $precot      = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (
+            $precot
+            && \is_callable([$precot, 'getFacturarPreCotizacionesForQuotation'])
+            && \is_callable([$precot, 'getFacturarBillableTotalForQuotation'])
+            && $precot->getFacturarPreCotizacionesForQuotation($quotationId) !== []
+        ) {
+            $targetTotal = round($precot->getFacturarBillableTotalForQuotation($quotationId), 2);
+        }
+        if ($targetTotal <= 0) {
             return false;
         }
 
         $felSvc   = new FelInvoiceIssuanceService($db);
         $invoiced = $felSvc->sumCompletedInvoiceAmountsForQuotation($quotationId);
-        if (round($invoiced, 2) < $quotationTotal) {
+        if (round($invoiced, 2) < $targetTotal) {
             return false;
         }
 

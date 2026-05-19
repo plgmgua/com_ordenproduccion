@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.74-STABLE] - 2026-05-19
+
+### Fixed
+- **Confirmar cotización — CF / facturación manual:** el límite GTQ 2,499 para Consumidor Final y la verificación NIT/Digifact solo aplican al monto de líneas con pre-cotización marcada **Facturar**; las líneas sin facturar no disparan aprobación manual ni avisos CF.
+
 ## [3.119.73-STABLE] - 2026-05-19
 
 ### Fixed
