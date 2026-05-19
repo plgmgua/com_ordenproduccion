@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.79-STABLE] - 2026-05-19
+
+### Changed
+- **Factura manual (modal FEL):** el campo **Subtotal** es editable; al cambiar subtotal o cantidad se recalcula el **precio unitario** (subtotal ÷ cantidad). Al cambiar precio unitario se actualiza el subtotal como antes.
+
 ## [3.119.78-STABLE] - 2026-05-19
 
 ### Fixed

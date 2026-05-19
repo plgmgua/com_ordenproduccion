@@ -92,8 +92,8 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
                             <tr class="manual-fel-line-row">
                                 <td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="<?php echo htmlspecialchars((string) $pq, ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="<?php echo htmlspecialchars((string) ($preset['descripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" /></td>
-                                <td><input type="number" class="form-control form-control-sm manual-fel-unit" step="0.01" min="0" value="<?php echo htmlspecialchars((string) $pu, ENT_QUOTES, 'UTF-8'); ?>" /></td>
-                                <td class="text-end text-nowrap manual-fel-subtotal"><?php echo number_format($ps, 2); ?></td>
+                                <td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="<?php echo htmlspecialchars((string) $pu, ENT_QUOTES, 'UTF-8'); ?>" /></td>
+                                <td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="<?php echo htmlspecialchars(number_format($ps, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_SUBTOTAL_HINT', 'Edit subtotal; unit price is calculated from quantity.', 'Edite el subtotal; el precio unitario se calcula según la cantidad.'), ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td class="text-center">
                                     <button type="button" class="btn btn-sm btn-outline-danger manual-fel-remove-line py-0 px-1" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_REMOVE_LINE', 'Remove line', 'Quitar línea')); ?>">&times;</button>
                                 </td>
@@ -184,21 +184,52 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
         var n = parseFloat(String(v).replace(',', '.'));
         return isFinite(n) ? n : 0;
     }
-    function updateRowSubtotal(tr) {
-        var qty = parseNum(tr.querySelector('.manual-fel-qty') && tr.querySelector('.manual-fel-qty').value);
-        var unit = parseNum(tr.querySelector('.manual-fel-unit') && tr.querySelector('.manual-fel-unit').value);
-        var cell = tr.querySelector('.manual-fel-subtotal');
-        if (cell) {
-            cell.textContent = (qty * unit).toFixed(2);
+    function round2(n) {
+        return Math.round(n * 100) / 100;
+    }
+    function round4(n) {
+        return Math.round(n * 10000) / 10000;
+    }
+    /** qty × unit → subtotal */
+    function updateRowSubtotalFromUnit(tr) {
+        var qtyInp = tr.querySelector('.manual-fel-qty');
+        var unitInp = tr.querySelector('.manual-fel-unit');
+        var subInp = tr.querySelector('.manual-fel-subtotal');
+        if (!qtyInp || !unitInp || !subInp) {
+            return;
         }
+        var qty = parseNum(qtyInp.value);
+        var unit = parseNum(unitInp.value);
+        subInp.value = round2(qty * unit).toFixed(2);
+    }
+    /** subtotal ÷ qty → unit (keeps subtotal when quantity changes) */
+    function updateRowUnitFromSubtotal(tr) {
+        var qtyInp = tr.querySelector('.manual-fel-qty');
+        var unitInp = tr.querySelector('.manual-fel-unit');
+        var subInp = tr.querySelector('.manual-fel-subtotal');
+        if (!qtyInp || !unitInp || !subInp) {
+            return;
+        }
+        var qty = parseNum(qtyInp.value);
+        var sub = parseNum(subInp.value);
+        if (qty < 0.001) {
+            return;
+        }
+        unitInp.value = round4(sub / qty).toFixed(4);
     }
     function bindRow(tr) {
-        ['manual-fel-qty', 'manual-fel-unit'].forEach(function(cls) {
-            var inp = tr.querySelector('.' + cls);
-            if (inp) {
-                inp.addEventListener('input', function() { updateRowSubtotal(tr); });
-            }
-        });
+        var qtyInp = tr.querySelector('.manual-fel-qty');
+        var unitInp = tr.querySelector('.manual-fel-unit');
+        var subInp = tr.querySelector('.manual-fel-subtotal');
+        if (unitInp) {
+            unitInp.addEventListener('input', function() { updateRowSubtotalFromUnit(tr); });
+        }
+        if (subInp) {
+            subInp.addEventListener('input', function() { updateRowUnitFromSubtotal(tr); });
+        }
+        if (qtyInp) {
+            qtyInp.addEventListener('input', function() { updateRowUnitFromSubtotal(tr); });
+        }
         var rm = tr.querySelector('.manual-fel-remove-line');
         if (rm) {
             rm.addEventListener('click', function() {
@@ -216,8 +247,8 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
         tr.className = 'manual-fel-line-row';
         tr.innerHTML = '<td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="1" /></td>'
             + '<td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="" /></td>'
-            + '<td><input type="number" class="form-control form-control-sm manual-fel-unit" step="0.01" min="0" value="0" /></td>'
-            + '<td class="text-end text-nowrap manual-fel-subtotal">0.00</td>'
+            + '<td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="0" /></td>'
+            + '<td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="0.00" /></td>'
             + '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger manual-fel-remove-line py-0 px-1">&times;</button></td>';
         tbody.appendChild(tr);
         bindRow(tr);
@@ -323,9 +354,14 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
             var desc = tr.querySelector('.manual-fel-desc');
             var qty = tr.querySelector('.manual-fel-qty');
             var unit = tr.querySelector('.manual-fel-unit');
+            var sub = tr.querySelector('.manual-fel-subtotal');
             var d = desc ? String(desc.value || '').trim() : '';
             var q = qty ? parseNum(qty.value) : 0;
+            var subVal = sub ? parseNum(sub.value) : 0;
             var u = unit ? parseNum(unit.value) : 0;
+            if (q >= 0.001 && subVal > 0) {
+                u = round4(subVal / q);
+            }
             if (d === '' || q < 0.001) {
                 return;
             }
