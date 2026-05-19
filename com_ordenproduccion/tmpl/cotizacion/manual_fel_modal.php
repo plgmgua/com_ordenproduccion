@@ -70,11 +70,11 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
                     </button>
                 </div>
                 <div class="table-responsive mb-3" style="max-height: 40vh;">
-                    <table class="table table-sm table-bordered align-middle mb-0" id="manual-fel-lines-table">
+                    <table class="table table-sm table-bordered align-middle mb-0 w-100" id="manual-fel-lines-table" style="table-layout: fixed;">
                         <thead class="table-light">
                             <tr>
                                 <th style="width:6rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.')); ?></th>
-                                <th><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_ITEM_DESCRIPTION', 'Description', 'Descripción')); ?></th>
+                                <th style="width: auto;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_ITEM_DESCRIPTION', 'Description', 'Descripción')); ?></th>
                                 <th style="width:8rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_UNIT_PRICE', 'Unit price', 'Precio unit.')); ?></th>
                                 <th style="width:8rem;" class="text-end"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_LINE_TOTAL', 'Subtotal', 'Subtotal')); ?></th>
                                 <th style="width:3rem;"></th>
@@ -91,7 +91,7 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
                                 ?>
                             <tr class="manual-fel-line-row">
                                 <td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="<?php echo htmlspecialchars((string) $pq, ENT_QUOTES, 'UTF-8'); ?>" /></td>
-                                <td><input type="text" class="form-control form-control-sm manual-fel-desc" value="<?php echo htmlspecialchars((string) ($preset['descripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" /></td>
+                                <td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="<?php echo htmlspecialchars((string) ($preset['descripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td><input type="number" class="form-control form-control-sm manual-fel-unit" step="0.01" min="0" value="<?php echo htmlspecialchars((string) $pu, ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td class="text-end text-nowrap manual-fel-subtotal"><?php echo number_format($ps, 2); ?></td>
                                 <td class="text-center">
@@ -115,7 +115,7 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
                         }
                         ?>
                     <div class="form-check">
-                        <input class="form-check-input manual-fel-orden-cb" type="checkbox" value="<?php echo $oid; ?>" id="manual-fel-orden-<?php echo $oid; ?>" checked />
+                        <input class="form-check-input manual-fel-orden-cb" type="checkbox" value="<?php echo $oid; ?>" id="manual-fel-orden-<?php echo $oid; ?>" />
                         <label class="form-check-label small" for="manual-fel-orden-<?php echo $oid; ?>">
                             <?php echo htmlspecialchars($olab, ENT_QUOTES, 'UTF-8'); ?>
                             <span class="text-muted">— Q <?php echo number_format($oval, 2); ?></span>
@@ -215,7 +215,7 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
         var tr = document.createElement('tr');
         tr.className = 'manual-fel-line-row';
         tr.innerHTML = '<td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="1" /></td>'
-            + '<td><input type="text" class="form-control form-control-sm manual-fel-desc" value="" /></td>'
+            + '<td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="" /></td>'
             + '<td><input type="number" class="form-control form-control-sm manual-fel-unit" step="0.01" min="0" value="0" /></td>'
             + '<td class="text-end text-nowrap manual-fel-subtotal">0.00</td>'
             + '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger manual-fel-remove-line py-0 px-1">&times;</button></td>';
@@ -251,6 +251,9 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
         if (needsCfCui && cuiInput) {
             cuiInput.value = '';
         }
+        modalEl.querySelectorAll('.manual-fel-orden-cb').forEach(function(cb) {
+            cb.checked = false;
+        });
         resetCuiGate();
         if (!needsCfCui) {
             generarBtn.disabled = false;
