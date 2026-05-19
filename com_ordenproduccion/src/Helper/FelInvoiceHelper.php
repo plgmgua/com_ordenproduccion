@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 
@@ -106,6 +107,32 @@ class FelInvoiceHelper
         $root = rtrim(Uri::root(false), '/');
 
         return $root . '/index.php?' . http_build_query($params);
+    }
+
+    /**
+     * PDF / factura open URL for órdenes list action button (manual upload, Grimpsa template, or invoice screen).
+     *
+     * @since  3.119.72
+     */
+    public static function resolveOpenUrlForOrdenesList(int $invoiceId, string $manualPdfRel, bool $grimpsaTemplatePdfOk): string
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1) {
+            return '';
+        }
+
+        if (trim($manualPdfRel) !== '') {
+            return Route::_(
+                'index.php?option=com_ordenproduccion&task=invoice.downloadManualPdf&invoice_id=' . $invoiceId,
+                false
+            );
+        }
+
+        if ($grimpsaTemplatePdfOk) {
+            return self::downloadGrimpsaFacturaPdfUrl($invoiceId);
+        }
+
+        return Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId, false);
     }
 
     /**

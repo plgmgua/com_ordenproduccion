@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.72-STABLE] - 2026-05-19
+
+### Changed
+- **Órdenes de trabajo:** si hay varias facturas vinculadas, un solo icono abre un diálogo para elegir qué PDF de factura ver (p. ej. FAC-000046 / FAC-000047).
+
 ## [3.119.71-STABLE] - 2026-05-19
 
 ### Added

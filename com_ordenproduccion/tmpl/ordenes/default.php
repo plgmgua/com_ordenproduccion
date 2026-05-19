@@ -63,6 +63,8 @@ $labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
 $labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotizaci?n');
 $labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotizaci?n');
 $labelCotizacionNoPermission = $t('COM_ORDENPRODUCCION_COTIZACION_NO_PERMISSION', 'Sin permiso para ver la cotizaci?n');
+$labelPickInvoicePdf = $t('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF', 'Select invoice PDF', 'Seleccionar PDF de factura');
+$labelPickInvoicePdfIntro = $t('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF_INTRO', 'This work order has more than one linked invoice. Choose which PDF to open.', 'Esta orden tiene más de una factura vinculada. Elija qué PDF abrir.');
 $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=&filter_sales_agent=');
 ?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
@@ -277,27 +279,49 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 </span>
                                                 <?php endif; ?>
                                                 <?php
-                                                $linkedInvoiceIds = is_array($item->linked_invoice_ids ?? null)
-                                                    ? array_values(array_filter(array_map('intval', $item->linked_invoice_ids), static fn ($id) => $id > 0))
-                                                    : [];
-                                                if ($linkedInvoiceIds === [] && (int) ($item->linked_invoice_id ?? 0) > 0) {
-                                                    $linkedInvoiceIds = [(int) $item->linked_invoice_id];
-                                                }
-                                                if ($linkedInvoiceIds !== [] && $this->canOpenInvoiceFromOrdenesList()) :
-                                                    $manualInvPdfPrimary = trim((string) ($item->linked_invoice_manual_pdf_rel ?? ''));
-                                                    foreach ($linkedInvoiceIds as $linkedInvoiceId) :
-                                                        $facturaHref = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $linkedInvoiceId);
-                                                        if (
-                                                            $manualInvPdfPrimary === ''
-                                                            && $grimpsaListaPdfOk
-                                                        ) {
-                                                            $facturaHref = FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl($linkedInvoiceId);
+                                                $linkedInvoiceOpens = [];
+                                                if (isset($item->linked_invoice_opens) && \is_array($item->linked_invoice_opens)) {
+                                                    foreach ($item->linked_invoice_opens as $openRow) {
+                                                        if (!\is_object($openRow)) {
+                                                            continue;
                                                         }
-                                                        $openLabel = count($linkedInvoiceIds) > 1
-                                                            ? Text::sprintf('COM_ORDENPRODUCCION_OPEN_LINKED_INVOICE', $linkedInvoiceId)
-                                                            : Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE');
+                                                        $openUrl = trim((string) ($openRow->url ?? ''));
+                                                        if ($openUrl === '') {
+                                                            continue;
+                                                        }
+                                                        $linkedInvoiceOpens[] = [
+                                                            'id'    => (int) ($openRow->id ?? 0),
+                                                            'label' => trim((string) ($openRow->label ?? '')),
+                                                            'url'   => $openUrl,
+                                                        ];
+                                                    }
+                                                }
+                                                if ($linkedInvoiceOpens === [] && $this->canOpenInvoiceFromOrdenesList()) {
+                                                    $linkedInvoiceIds = is_array($item->linked_invoice_ids ?? null)
+                                                        ? array_values(array_filter(array_map('intval', $item->linked_invoice_ids), static fn ($id) => $id > 0))
+                                                        : [];
+                                                    if ($linkedInvoiceIds === [] && (int) ($item->linked_invoice_id ?? 0) > 0) {
+                                                        $linkedInvoiceIds = [(int) $item->linked_invoice_id];
+                                                    }
+                                                    $manualInvPdfPrimary = trim((string) ($item->linked_invoice_manual_pdf_rel ?? ''));
+                                                    foreach ($linkedInvoiceIds as $linkedInvoiceId) {
+                                                        $linkedInvoiceOpens[] = [
+                                                            'id'    => $linkedInvoiceId,
+                                                            'label' => (string) $linkedInvoiceId,
+                                                            'url'   => FelInvoiceHelper::resolveOpenUrlForOrdenesList(
+                                                                $linkedInvoiceId,
+                                                                $manualInvPdfPrimary,
+                                                                $grimpsaListaPdfOk
+                                                            ),
+                                                        ];
+                                                    }
+                                                }
+                                                if ($linkedInvoiceOpens !== [] && $this->canOpenInvoiceFromOrdenesList()) :
+                                                    if (count($linkedInvoiceOpens) === 1) :
+                                                        $singleOpen = $linkedInvoiceOpens[0];
+                                                        $openLabel  = Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE');
                                                         ?>
-                                                <a href="<?php echo htmlspecialchars((string) $facturaHref, ENT_QUOTES, 'UTF-8'); ?>"
+                                                <a href="<?php echo htmlspecialchars($singleOpen['url'], ENT_QUOTES, 'UTF-8'); ?>"
                                                    class="btn btn-sm btn-outline-dark"
                                                    target="_blank"
                                                    rel="noopener noreferrer"
@@ -305,7 +329,20 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                    aria-label="<?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>">
                                                     <i class="fas fa-file-invoice-dollar fa-sm" aria-hidden="true"></i>
                                                 </a>
-                                                    <?php endforeach; ?>
+                                                    <?php else :
+                                                        $pickJson = json_encode($linkedInvoiceOpens, JSON_UNESCAPED_UNICODE);
+                                                        if ($pickJson === false) {
+                                                            $pickJson = '[]';
+                                                        }
+                                                        ?>
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline-dark orden-invoice-pick-btn"
+                                                    title="<?php echo htmlspecialchars($labelPickInvoicePdf, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    aria-label="<?php echo htmlspecialchars($labelPickInvoicePdf, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    data-invoice-picks="<?php echo htmlspecialchars($pickJson, ENT_QUOTES, 'UTF-8'); ?>">
+                                                    <i class="fas fa-file-invoice-dollar fa-sm" aria-hidden="true"></i>
+                                                </button>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                                 <!-- Solicitar anulaci?n - groups from Settings or super user / order owner -->
                                                 <?php if ($this->canShowSolicitarAnulacion($item)) :
@@ -433,6 +470,22 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         <?php include __DIR__ . '/../payment_info_modal.php'; ?>
         <?php endif; ?>
 
+        <!-- Linked invoice PDF picker (multiple invoices per OT) -->
+        <div class="modal fade" id="ordenInvoicePickModal" tabindex="-1" aria-labelledby="ordenInvoicePickModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="ordenInvoicePickModalLabel"><?php echo htmlspecialchars($labelPickInvoicePdf); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3"><?php echo htmlspecialchars($labelPickInvoicePdfIntro); ?></p>
+                        <div class="list-group" id="ordenInvoicePickList" role="list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Cotizaci?n file popup modal -->
         <div class="modal fade" id="cotizacionPopupModal" tabindex="-1" aria-labelledby="cotizacionPopupModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -449,6 +502,46 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
         </div>
         <script>
         (function() {
+            var pickModal = document.getElementById('ordenInvoicePickModal');
+            var pickList = document.getElementById('ordenInvoicePickList');
+            if (pickModal && pickList) {
+                document.querySelectorAll('.orden-invoice-pick-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var raw = this.getAttribute('data-invoice-picks') || '[]';
+                        var picks = [];
+                        try {
+                            picks = JSON.parse(raw);
+                        } catch (e) {
+                            picks = [];
+                        }
+                        if (!Array.isArray(picks) || picks.length === 0) {
+                            return;
+                        }
+                        pickList.innerHTML = '';
+                        picks.forEach(function(pick) {
+                            if (!pick || !pick.url) {
+                                return;
+                            }
+                            var label = pick.label || ('#' + (pick.id || ''));
+                            var a = document.createElement('a');
+                            a.href = pick.url;
+                            a.target = '_blank';
+                            a.rel = 'noopener noreferrer';
+                            a.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
+                            var icon = document.createElement('i');
+                            icon.className = 'fas fa-file-pdf text-danger';
+                            icon.setAttribute('aria-hidden', 'true');
+                            var span = document.createElement('span');
+                            span.textContent = label;
+                            a.appendChild(icon);
+                            a.appendChild(span);
+                            pickList.appendChild(a);
+                        });
+                        bootstrap.Modal.getOrCreateInstance(pickModal).show();
+                    });
+                });
+            }
+
             var modal = document.getElementById('cotizacionPopupModal');
             var iframe = document.getElementById('cotizacionPopupIframe');
             if (modal && iframe) {

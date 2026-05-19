@@ -15,6 +15,8 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\ListModel;
 use Joomla\CMS\User\UserHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 
 /**
  * Ordenes model for com_ordenproduccion
@@ -187,6 +189,8 @@ class OrdenesModel extends ListModel
             }
             $uniqInvoiceIds = array_values(array_unique($uniqInvoiceIds));
             $manualPdfByInvoice = $this->getManualPdfRelativePathsByInvoiceIds($uniqInvoiceIds);
+            $invoiceNumbers     = $this->getInvoiceNumbersByIds($uniqInvoiceIds);
+            $grimpsaListaPdfOk  = InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable();
             foreach ($items as &$item) {
                 $item->shipping_count = $shippingCounts[(int) $item->id] ?? 0;
                 $ids = $linkedInvoiceLists[(int) $item->id] ?? [];
@@ -194,14 +198,28 @@ class OrdenesModel extends ListModel
                 $lid = $ids !== [] ? (int) $ids[0] : 0;
                 $item->linked_invoice_id = $lid;
                 $manualRel = '';
+                $opens     = [];
                 foreach ($ids as $iid) {
                     $iid = (int) $iid;
-                    if ($iid > 0 && isset($manualPdfByInvoice[$iid]) && $manualPdfByInvoice[$iid] !== '') {
-                        $manualRel = $manualPdfByInvoice[$iid];
-                        break;
+                    if ($iid < 1) {
+                        continue;
                     }
+                    if ($manualRel === '' && isset($manualPdfByInvoice[$iid]) && $manualPdfByInvoice[$iid] !== '') {
+                        $manualRel = $manualPdfByInvoice[$iid];
+                    }
+                    $num = isset($invoiceNumbers[$iid]) ? trim((string) $invoiceNumbers[$iid]) : '';
+                    $opens[] = (object) [
+                        'id'    => $iid,
+                        'label' => $num !== '' ? $num : ('#' . $iid),
+                        'url'   => FelInvoiceHelper::resolveOpenUrlForOrdenesList(
+                            $iid,
+                            $manualPdfByInvoice[$iid] ?? '',
+                            $grimpsaListaPdfOk
+                        ),
+                    ];
                 }
                 $item->linked_invoice_manual_pdf_rel = $manualRel;
+                $item->linked_invoice_opens          = $opens;
             }
         }
 
@@ -356,6 +374,49 @@ class OrdenesModel extends ListModel
         }
 
         return $map;
+    }
+
+    /**
+     * Invoice numbers keyed by invoice id.
+     *
+     * @param   list<int>  $invoiceIds
+     *
+     * @return  array<int, string>
+     *
+     * @since   3.119.72
+     */
+    protected function getInvoiceNumbersByIds(array $invoiceIds): array
+    {
+        $invoiceIds = array_values(array_unique(array_filter(array_map('intval', $invoiceIds), static fn ($id) => $id > 0)));
+        if ($invoiceIds === []) {
+            return [];
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('id'),
+                        $db->quoteName('invoice_number'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_invoices'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('id') . ' IN (' . implode(',', $invoiceIds) . ')')
+            );
+            $rows = $db->loadObjectList('id') ?: [];
+            $map  = [];
+            foreach ($rows as $id => $row) {
+                $id = (int) $id;
+                if ($id > 0) {
+                    $map[$id] = trim((string) ($row->invoice_number ?? ''));
+                }
+            }
+
+            return $map;
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /**
