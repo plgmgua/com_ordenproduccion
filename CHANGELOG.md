@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.75-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización confirmada vs. OT:** si ya existe orden de trabajo publicada, la cotización se marca como confirmada al abrirla (repara filas con `cotizacion_confirmada = 0`) y deja de mostrarse **Confirmar Cotización**; ya no se borra la confirmación al retirar una solicitud de facturación manual.
+
 ## [3.119.74-STABLE] - 2026-05-19
 
 ### Fixed

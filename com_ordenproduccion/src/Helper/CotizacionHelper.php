@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
+use Joomla\Database\DatabaseInterface;
 
 /**
  * Helpers for cotización (quotation) UI and PDF.
@@ -93,6 +94,92 @@ abstract class CotizacionHelper
             'fallbackEs' => 'Creada',
             'cssClass'   => 'status-creada status-badge--quotation',
         ];
+    }
+
+    /**
+     * Set cotizacion_confirmada = 1 when the column exists and the flag is not already set.
+     *
+     * @return  bool  True when the row was updated.
+     *
+     * @since   3.119.75
+     */
+    public static function ensureCotizacionConfirmadaFlag(DatabaseInterface $db, int $quotationId, int $actorUserId = 0): bool
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return false;
+        }
+
+        $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qCols = \is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        if (!isset($qCols['cotizacion_confirmada'])) {
+            return false;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('cotizacion_confirmada'))
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        if ((int) $db->loadResult() === 1) {
+            return false;
+        }
+
+        $actorUserId = (int) $actorUserId;
+        if ($actorUserId < 1) {
+            $actorUserId = (int) Factory::getUser()->id;
+        }
+
+        $sets = [
+            $db->quoteName('cotizacion_confirmada') . ' = 1',
+            $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
+        ];
+        if (isset($qCols['modified_by']) && $actorUserId > 0) {
+            $sets[] = $db->quoteName('modified_by') . ' = ' . $actorUserId;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_quotations'))
+                ->set($sets)
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $db->execute();
+
+        return true;
+    }
+
+    /**
+     * Repair inconsistent rows: published OT on a linked pre-cot but cotizacion_confirmada still 0.
+     *
+     * @return  bool  True when cotizacion_confirmada was updated.
+     *
+     * @since   3.119.75
+     */
+    public static function syncCotizacionConfirmadaIfOrdenTrabajoExists(
+        DatabaseInterface $db,
+        int $quotationId,
+        int $actorUserId = 0
+    ): bool {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return false;
+        }
+
+        $app    = Factory::getApplication();
+        $precot = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
+        if (!$precot || !\is_callable([$precot, 'quotationHasActiveOrdenTrabajo'])) {
+            return false;
+        }
+        if (!$precot->quotationHasActiveOrdenTrabajo($quotationId)) {
+            return false;
+        }
+
+        return self::ensureCotizacionConfirmadaFlag($db, $quotationId, $actorUserId);
     }
 
     /**

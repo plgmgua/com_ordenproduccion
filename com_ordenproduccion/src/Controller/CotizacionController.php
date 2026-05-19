@@ -1222,19 +1222,6 @@ class CotizacionController extends BaseController
 
         if ($kind === 'facturacion_manual') {
             $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-            $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
-            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
-            if (isset($cols['cotizacion_confirmada'])) {
-                $db->setQuery(
-                    $db->getQuery(true)
-                        ->update($db->quoteName('#__ordenproduccion_quotations'))
-                        ->set($db->quoteName('cotizacion_confirmada') . ' = 0')
-                        ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
-                        ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
-                        ->where($db->quoteName('id') . ' = ' . $quotationId)
-                );
-                $db->execute();
-            }
 
             $felSvc = new FelInvoiceIssuanceService();
             if ($felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn()) {
@@ -2722,6 +2709,7 @@ class CotizacionController extends BaseController
         }
 
         $this->syncQuotationLineOrdenDeTrabajoAfterOtPersist($db, $quotationId, $preCotizacionId, $newId);
+        CotizacionHelper::ensureCotizacionConfirmadaFlag($db, $quotationId, (int) $orderingUser->id);
 
         $redirect = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $newId);
 

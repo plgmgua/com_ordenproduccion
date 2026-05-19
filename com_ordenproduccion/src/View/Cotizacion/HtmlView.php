@@ -427,6 +427,12 @@ class HtmlView extends BaseHtmlView
                     }
                     $this->refreshConfirmarCotizacionSkipModal();
                     $this->quotationHasActiveOrdenTrabajo = $precotModel->quotationHasActiveOrdenTrabajo((int) $quotationId);
+                    if ($this->quotationHasActiveOrdenTrabajo && $this->quotation) {
+                        $actorId = (int) Factory::getUser()->id;
+                        if (CotizacionHelper::syncCotizacionConfirmadaIfOrdenTrabajoExists($db, (int) $quotationId, $actorId)) {
+                            $this->quotation->cotizacion_confirmada = 1;
+                        }
+                    }
                 } else {
                     $this->quotationItems = [];
                     $this->ordenesPorPreCotizacionId = [];

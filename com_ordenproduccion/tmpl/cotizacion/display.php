@@ -49,6 +49,10 @@ $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amoun
 $currency = $quotation->currency ?? 'Q';
 $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
 $quotationLockedByOrdenTrabajo = !empty($this->quotationHasActiveOrdenTrabajo);
+$pendingCotizacionConfirmation = $this->pendingCotizacionConfirmation ?? null;
+if (!$quotationConfirmed && $quotationLockedByOrdenTrabajo) {
+    $quotationConfirmed = true;
+}
 $quotationHasLinkedPreCotizacion = !empty($this->quotationHasLinkedPreCotizacion);
 $wizClientIdTrimForOt = isset($quotation->client_id) ? trim((string) $quotation->client_id) : '';
 $wizClientNumericForOt = $wizClientIdTrimForOt !== '' && ctype_digit($wizClientIdTrimForOt);
@@ -314,7 +318,7 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
     <?php endif; ?>
 
     <?php
-    $pendingConfirmAppr = $this->pendingCotizacionConfirmation ?? null;
+    $pendingConfirmAppr = $pendingCotizacionConfirmation;
     if ($pendingConfirmAppr) :
         $canWithdrawConfirmAppr = !$currentUserCot->guest && AccessHelper::userCanWithdrawCotizacionApprovalRequest(
             $quotation,
@@ -610,6 +614,12 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
         <div class="d-flex flex-wrap align-items-center gap-3">
             <?php if ($quotationConfirmed) : ?>
                 <span class="badge bg-success"><i class="fas fa-check"></i> <?php echo $l('COM_ORDENPRODUCCION_CONFIRMAR_YA_FINALIZADA', 'Confirmation completed', 'Confirmación finalizada'); ?></span>
+            <?php elseif ($pendingCotizacionConfirmation) : ?>
+                <span class="badge bg-info text-dark"><i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($l(
+                    'COM_ORDENPRODUCCION_COTIZACION_CONFIRMATION_PENDING_BANNER_TITLE',
+                    'Quotation confirmation pending approval',
+                    'Confirmación de cotización — aprobación pendiente'
+                ), ENT_QUOTES, 'UTF-8'); ?></span>
             <?php elseif (!$quotationHasLinkedPreCotizacion) : ?>
                 <span class="text-muted small">
                     <i class="fas fa-info-circle"></i>
