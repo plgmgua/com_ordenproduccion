@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.64-STABLE] - 2026-05-19
+
+### Changed
+- **Facturas ↔ órdenes de trabajo:** se permite asociar manualmente más de una factura a la misma OT (seguimiento de lo adeudado). La lista de órdenes muestra un acceso por cada factura vinculada; en el detalle de factura FEL el desplegable ya no oculta OTs solo por estar vinculadas a otra factura.
+
 ## [3.119.63-STABLE] - 2026-05-16
 
 ### Changed

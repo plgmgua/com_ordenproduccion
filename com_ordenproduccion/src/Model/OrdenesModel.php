@@ -175,23 +175,33 @@ class OrdenesModel extends ListModel
         if (!empty($items)) {
             $orderIds = array_map(static function ($i) { return (int) $i->id; }, $items);
             $shippingCounts = $this->getShippingCounts($orderIds);
-            $linkedInvoices = $this->getLinkedInvoiceIdsForOrders($orderIds);
-            $uniqInvoiceIds = array_values(
-                array_unique(
-                    array_filter(
-                        array_map('intval', $linkedInvoices),
-                        static fn ($id) => (int) $id > 0
-                    )
-                )
-            );
+            $linkedInvoiceLists = $this->getLinkedInvoiceIdListsForOrders($orderIds);
+            $uniqInvoiceIds = [];
+            foreach ($linkedInvoiceLists as $ids) {
+                foreach ($ids as $id) {
+                    $id = (int) $id;
+                    if ($id > 0) {
+                        $uniqInvoiceIds[] = $id;
+                    }
+                }
+            }
+            $uniqInvoiceIds = array_values(array_unique($uniqInvoiceIds));
             $manualPdfByInvoice = $this->getManualPdfRelativePathsByInvoiceIds($uniqInvoiceIds);
             foreach ($items as &$item) {
                 $item->shipping_count = $shippingCounts[(int) $item->id] ?? 0;
-                $lid = (int) ($linkedInvoices[(int) $item->id] ?? 0);
+                $ids = $linkedInvoiceLists[(int) $item->id] ?? [];
+                $item->linked_invoice_ids = $ids;
+                $lid = $ids !== [] ? (int) $ids[0] : 0;
                 $item->linked_invoice_id = $lid;
-                $item->linked_invoice_manual_pdf_rel = ($lid > 0 && isset($manualPdfByInvoice[$lid]))
-                    ? $manualPdfByInvoice[$lid]
-                    : '';
+                $manualRel = '';
+                foreach ($ids as $iid) {
+                    $iid = (int) $iid;
+                    if ($iid > 0 && isset($manualPdfByInvoice[$iid]) && $manualPdfByInvoice[$iid] !== '') {
+                        $manualRel = $manualPdfByInvoice[$iid];
+                        break;
+                    }
+                }
+                $item->linked_invoice_manual_pdf_rel = $manualRel;
             }
         }
 
@@ -241,56 +251,48 @@ class OrdenesModel extends ListModel
     }
 
     /**
-     * For each order id, resolve a linked invoice id: direct link on invoice row (orden_id),
-     * else approved row in invoice_orden_suggestions (FEL imports without orden_id on invoice).
+     * For each order id, all linked invoice ids (direct orden_id on invoice + approved suggestions).
+     * Newest invoice id first. Used for tracking multiple invoices per work order.
      *
      * @param   int[]  $orderIds
      *
-     * @return  array<int, int>  order_id => invoice_id
+     * @return  array<int, int[]>  order_id => list of invoice_id
      */
-    protected function getLinkedInvoiceIdsForOrders(array $orderIds): array
+    protected function getLinkedInvoiceIdListsForOrders(array $orderIds): array
     {
-        if (empty($orderIds)) {
+        $orderIds = array_values(array_unique(array_filter(array_map('intval', $orderIds), static fn ($id) => $id > 0)));
+        if ($orderIds === []) {
             return [];
         }
 
         $db = $this->getDatabase();
-        $ids = implode(',', array_map('intval', $orderIds));
-        $map = [];
+        $ids = implode(',', $orderIds);
+        $lists = [];
+        foreach ($orderIds as $oid) {
+            $lists[$oid] = [];
+        }
 
         try {
-            $query = $db->getQuery(true)
-                ->select([
-                    $db->quoteName('orden_id'),
-                    'MAX(' . $db->quoteName('id') . ') AS invoice_id',
-                ])
-                ->from($db->quoteName('#__ordenproduccion_invoices'))
-                ->where($db->quoteName('state') . ' = 1')
-                ->where($db->quoteName('orden_id') . ' IN (' . $ids . ')')
-                ->where($db->quoteName('orden_id') . ' > 0')
-                ->group($db->quoteName('orden_id'));
-            $db->setQuery($query);
-            $rows = $db->loadObjectList() ?: [];
-            foreach ($rows as $row) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('orden_id'),
+                        $db->quoteName('id'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_invoices'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('orden_id') . ' IN (' . $ids . ')')
+                    ->where($db->quoteName('orden_id') . ' > 0')
+                    ->order($db->quoteName('id') . ' DESC')
+            );
+            foreach ($db->loadObjectList() ?: [] as $row) {
                 $oid = (int) ($row->orden_id ?? 0);
-                $iid = (int) ($row->invoice_id ?? 0);
+                $iid = (int) ($row->id ?? 0);
                 if ($oid > 0 && $iid > 0) {
-                    $map[$oid] = $iid;
+                    $lists[$oid][] = $iid;
                 }
             }
         } catch (\Throwable $e) {
-        }
-
-        $missing = [];
-        foreach ($orderIds as $oid) {
-            $oid = (int) $oid;
-            if ($oid > 0 && !isset($map[$oid])) {
-                $missing[] = $oid;
-            }
-        }
-
-        if ($missing === []) {
-            return $map;
         }
 
         try {
@@ -304,31 +306,53 @@ class OrdenesModel extends ListModel
                     break;
                 }
             }
-            if (!$hasSug) {
-                return $map;
-            }
-
-            $m = implode(',', array_map('intval', $missing));
-            $query = $db->getQuery(true)
-                ->select([
-                    $db->quoteName('orden_id'),
-                    'MAX(' . $db->quoteName('invoice_id') . ') AS invoice_id',
-                ])
-                ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
-                ->where($db->quoteName('status') . ' = ' . $db->quote('approved'))
-                ->where($db->quoteName('state') . ' = 1')
-                ->where($db->quoteName('orden_id') . ' IN (' . $m . ')')
-                ->group($db->quoteName('orden_id'));
-            $db->setQuery($query);
-            $rows = $db->loadObjectList() ?: [];
-            foreach ($rows as $row) {
-                $oid = (int) ($row->orden_id ?? 0);
-                $iid = (int) ($row->invoice_id ?? 0);
-                if ($oid > 0 && $iid > 0) {
-                    $map[$oid] = $iid;
+            if ($hasSug) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select([
+                            $db->quoteName('orden_id'),
+                            $db->quoteName('invoice_id'),
+                        ])
+                        ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                        ->where($db->quoteName('status') . ' = ' . $db->quote('approved'))
+                        ->where($db->quoteName('state') . ' = 1')
+                        ->where($db->quoteName('orden_id') . ' IN (' . $ids . ')')
+                        ->order($db->quoteName('invoice_id') . ' DESC')
+                );
+                foreach ($db->loadObjectList() ?: [] as $row) {
+                    $oid = (int) ($row->orden_id ?? 0);
+                    $iid = (int) ($row->invoice_id ?? 0);
+                    if ($oid > 0 && $iid > 0) {
+                        $lists[$oid][] = $iid;
+                    }
                 }
             }
         } catch (\Throwable $e) {
+        }
+
+        foreach ($lists as $oid => $invoiceIds) {
+            $invoiceIds = array_values(array_unique(array_filter(array_map('intval', $invoiceIds), static fn ($id) => $id > 0)));
+            rsort($invoiceIds, SORT_NUMERIC);
+            $lists[$oid] = $invoiceIds;
+        }
+
+        return $lists;
+    }
+
+    /**
+     * Primary linked invoice per order (newest id). Backward compatibility for single-link consumers.
+     *
+     * @param   int[]  $orderIds
+     *
+     * @return  array<int, int>  order_id => invoice_id
+     */
+    protected function getLinkedInvoiceIdsForOrders(array $orderIds): array
+    {
+        $map = [];
+        foreach ($this->getLinkedInvoiceIdListsForOrders($orderIds) as $oid => $invoiceIds) {
+            if ($invoiceIds !== []) {
+                $map[$oid] = (int) $invoiceIds[0];
+            }
         }
 
         return $map;

@@ -277,25 +277,35 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                                 </span>
                                                 <?php endif; ?>
                                                 <?php
-                                                $linkedInvoiceId = (int) ($item->linked_invoice_id ?? 0);
-                                                if ($linkedInvoiceId > 0 && $this->canOpenInvoiceFromOrdenesList()) :
-                                                    $manualInvPdf = trim((string) ($item->linked_invoice_manual_pdf_rel ?? ''));
-                                                    $facturaHref  = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $linkedInvoiceId);
-                                                    if (
-                                                        $manualInvPdf === ''
-                                                        && $grimpsaListaPdfOk
-                                                    ) {
-                                                        $facturaHref = FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl($linkedInvoiceId);
-                                                    }
-                                                    ?>
+                                                $linkedInvoiceIds = is_array($item->linked_invoice_ids ?? null)
+                                                    ? array_values(array_filter(array_map('intval', $item->linked_invoice_ids), static fn ($id) => $id > 0))
+                                                    : [];
+                                                if ($linkedInvoiceIds === [] && (int) ($item->linked_invoice_id ?? 0) > 0) {
+                                                    $linkedInvoiceIds = [(int) $item->linked_invoice_id];
+                                                }
+                                                if ($linkedInvoiceIds !== [] && $this->canOpenInvoiceFromOrdenesList()) :
+                                                    $manualInvPdfPrimary = trim((string) ($item->linked_invoice_manual_pdf_rel ?? ''));
+                                                    foreach ($linkedInvoiceIds as $linkedInvoiceId) :
+                                                        $facturaHref = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $linkedInvoiceId);
+                                                        if (
+                                                            $manualInvPdfPrimary === ''
+                                                            && $grimpsaListaPdfOk
+                                                        ) {
+                                                            $facturaHref = FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl($linkedInvoiceId);
+                                                        }
+                                                        $openLabel = count($linkedInvoiceIds) > 1
+                                                            ? Text::sprintf('COM_ORDENPRODUCCION_OPEN_LINKED_INVOICE', $linkedInvoiceId)
+                                                            : Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE');
+                                                        ?>
                                                 <a href="<?php echo htmlspecialchars((string) $facturaHref, ENT_QUOTES, 'UTF-8'); ?>"
                                                    class="btn btn-sm btn-outline-dark"
                                                    target="_blank"
                                                    rel="noopener noreferrer"
-                                                   title="<?php echo Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE'); ?>"
-                                                   aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_OPEN_INVOICE'); ?>">
+                                                   title="<?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>"
+                                                   aria-label="<?php echo htmlspecialchars($openLabel, ENT_QUOTES, 'UTF-8'); ?>">
                                                     <i class="fas fa-file-invoice-dollar fa-sm" aria-hidden="true"></i>
                                                 </a>
+                                                    <?php endforeach; ?>
                                                 <?php endif; ?>
                                                 <!-- Solicitar anulaci?n - groups from Settings or super user / order owner -->
                                                 <?php if ($this->canShowSolicitarAnulacion($item)) :

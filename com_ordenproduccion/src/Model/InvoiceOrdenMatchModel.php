@@ -1010,6 +1010,8 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     /**
      * Orden IDs linked to any *other* invoice (column orden_id or active suggestion row).
      *
+     * @deprecated  3.119.64  Multiple invoices per work order are allowed; do not use to block association.
+     *
      * @return  int[]
      */
     public function getOrdenIdsClaimedByOtherInvoices(int $invoiceId): array
@@ -1047,12 +1049,12 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     }
 
     /**
-     * Same client as getOrdnesForInvoiceDropdown, excluding órdenes linked to this invoice or claimed elsewhere.
+     * Same client as getOrdnesForInvoiceDropdown, excluding órdenes already linked to this invoice only.
+     * Multiple invoices may be associated with the same work order (manual tracking).
+     *
+     * @param   string|null  $assocNitRaw  Optional GET filter: show órdenes for this NIT (Administración conciliation).
      *
      * @return  array<int, array{id: int, label: string}>
-     */
-    /**
-     * @param   string|null  $assocNitRaw  Optional GET filter: show órdenes for this NIT (Administración conciliation).
      */
     public function getOrdnesForInvoiceDetailDropdown(int $invoiceId, ?string $assocNitRaw = null): array
     {
@@ -1074,7 +1076,6 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         }
 
         $exclude = $this->getLinkedOrdenIdsForInvoice($invoiceId);
-        $exclude = array_merge($exclude, $this->getOrdenIdsClaimedByOtherInvoices($invoiceId));
         if ((int) ($inv->orden_id ?? 0) > 0) {
             $exclude[] = (int) $inv->orden_id;
         }
