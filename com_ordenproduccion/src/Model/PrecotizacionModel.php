@@ -1050,6 +1050,10 @@ class PrecotizacionModel extends ListModel
             return false;
         }
         if (isset($colsPc['oferta']) && !empty($row->oferta)) {
+            if (AccessHelper::userCanReviewOpenSolicitudDescuentoForPreCot($preCotizacionId)) {
+                return true;
+            }
+
             return (int) $row->created_by === (int) $user->id;
         }
 
@@ -1154,12 +1158,12 @@ class PrecotizacionModel extends ListModel
         if ($lineType === 'envio' || $lineType === 'tercerizado' || $lineType === 'proveedor_externo') {
             return false;
         }
+        $paperId = (int) ($line->paper_type_id ?? 0);
+        $sizeId  = (int) ($line->size_id ?? 0);
+        if ($paperId > 0 && $sizeId > 0) {
+            return true;
+        }
         if ($lineType === 'elementos' && !empty($line->elemento_id)) {
-            $paperId = (int) ($line->paper_type_id ?? 0);
-            $sizeId  = (int) ($line->size_id ?? 0);
-            if ($paperId > 0 && $sizeId > 0) {
-                return true;
-            }
             $breakdown = $line->breakdown ?? [];
             if (is_array($breakdown) && $breakdown !== []) {
                 return true;
@@ -1174,6 +1178,119 @@ class PrecotizacionModel extends ListModel
         }
 
         return true;
+    }
+
+    /**
+     * Rebuild pliego calculation rows from stored line fields (same logic as calculatePliegoPrice).
+     *
+     * @param   \stdClass  $line  Line from getLines() or getLine()
+     *
+     * @return  array<int, array<string, mixed>>
+     *
+     * @since   3.119.86
+     */
+    protected function buildPliegoBreakdownFromLineFields($line): array
+    {
+        $quantity = max(1, (int) ($line->quantity ?? 1));
+        $paperTypeId = (int) ($line->paper_type_id ?? 0);
+        $sizeId = (int) ($line->size_id ?? 0);
+        if ($paperTypeId < 1 || $sizeId < 1) {
+            return [];
+        }
+
+        $tiroRetiro = (isset($line->tiro_retiro) && (string) $line->tiro_retiro === 'retiro') ? 'retiro' : 'tiro';
+        $laminationTypeId = (int) ($line->lamination_type_id ?? 0);
+        $laminationTiroRetiro = isset($line->lamination_tiro_retiro) ? (string) $line->lamination_tiro_retiro : '';
+        if ($laminationTiroRetiro !== 'retiro' && $laminationTiroRetiro !== 'tiro') {
+            $laminationTiroRetiro = $tiroRetiro;
+        }
+
+        $processIds = [];
+        if (!empty($line->process_ids_array) && is_array($line->process_ids_array)) {
+            $processIds = array_map('intval', array_filter($line->process_ids_array));
+        } elseif (!empty($line->process_ids)) {
+            $decoded = json_decode((string) $line->process_ids, true);
+            if (is_array($decoded)) {
+                $processIds = array_map('intval', array_filter($decoded));
+            }
+        }
+
+        try {
+            $productosModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Productos', 'Site', ['ignore_request' => true]);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        if (!$productosModel || !method_exists($productosModel, 'getPrintPricePerSheet')) {
+            return [];
+        }
+
+        $printPrice = $productosModel->getPrintPricePerSheet($paperTypeId, $sizeId, $tiroRetiro, $quantity);
+        if ($printPrice === null) {
+            return [];
+        }
+
+        $laminationPrice = 0.0;
+        if ($laminationTypeId > 0 && method_exists($productosModel, 'getLaminationPricePerSheet')) {
+            $laminationPrice = $productosModel->getLaminationPricePerSheet($laminationTypeId, $sizeId, $laminationTiroRetiro, $quantity);
+            if ($laminationPrice === null) {
+                $laminationPrice = 0.0;
+            }
+        }
+
+        $processesTotal = 0.0;
+        $processRows = [];
+        if ($processIds !== [] && method_exists($productosModel, 'getProcesses')) {
+            foreach ($productosModel->getProcesses() as $p) {
+                if (!in_array((int) ($p->id ?? 0), $processIds, true)) {
+                    continue;
+                }
+                $ceiling = (int) ($p->range_1_ceiling ?? 1000);
+                if ($ceiling < 1) {
+                    $ceiling = 1000;
+                }
+                $useRange1 = $quantity <= $ceiling;
+                $price = $useRange1 ? (float) ($p->price_1_to_1000 ?? 0) : (float) ($p->price_1001_plus ?? 0);
+                $processesTotal += $price;
+                $rangeLabel = $useRange1 ? ('1–' . $ceiling) : (($ceiling + 1) . '+');
+                $processRows[] = [
+                    'label'    => (string) ($p->name ?? ''),
+                    'detail'   => $rangeLabel . ': Q ' . number_format($price, 2),
+                    'subtotal' => round($price, 2),
+                ];
+            }
+        }
+
+        $getLabel = static function ($key, $fallback) {
+            $t = Text::_($key);
+
+            return (is_string($t) && (strpos($t, 'COM_ORDENPRODUCCION_') === 0 || $t === $key)) ? $fallback : $t;
+        };
+
+        $printLabel = $tiroRetiro === 'retiro'
+            ? $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_RETIRO', 'Impresión (Tiro/Retiro)')
+            : $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_TIRO', 'Impresión (Tiro)');
+
+        $rows = [[
+            'label'    => $printLabel,
+            'detail'   => 'Q ' . number_format((float) $printPrice, 2),
+            'subtotal' => round((float) $printPrice * $quantity, 2),
+        ]];
+
+        if ($laminationPrice > 0) {
+            $rows[] = [
+                'label'    => $getLabel('COM_ORDENPRODUCCION_CALC_LAMINATION', 'Laminación'),
+                'detail'   => 'Q ' . number_format((float) $laminationPrice, 2),
+                'subtotal' => round((float) $laminationPrice * $quantity, 2),
+            ];
+        }
+
+        foreach ($processRows as $processRow) {
+            $rows[] = $processRow;
+        }
+
+        return $rows;
     }
 
     /**
@@ -1202,6 +1319,11 @@ class PrecotizacionModel extends ListModel
         }
         if ($breakdown !== []) {
             return $breakdown;
+        }
+
+        $rebuilt = $this->buildPliegoBreakdownFromLineFields($line);
+        if ($rebuilt !== []) {
+            return $rebuilt;
         }
 
         $total = round((float) ($line->total ?? 0), 2);

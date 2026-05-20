@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.86-STABLE] - 2026-05-19
+
+### Fixed
+- **Aprobación solicitud de descuento:** el aprobador ve el desglose completo de cada línea pliego (Impresión, Laminación, Corte, etc.) con cajas editables de subtotal y columna Mín, reconstruido desde los datos de la línea cuando falta `calculation_breakdown`; también en pre-cotizaciones marcadas como oferta.
+
 ## [3.119.85-STABLE] - 2026-05-19
 
 ### Fixed

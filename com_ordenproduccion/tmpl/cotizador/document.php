@@ -164,9 +164,16 @@ if ($labelProductoTercerizado === 'COM_ORDENPRODUCCION_PRE_COT_TERCERIZADO_BTN')
 }
 $envios = $this->envios ?? [];
 
+$canReviewDiscountApproval = !empty($this->canReviewDiscountApproval);
+$pendingSolicitudDescuento    = !empty($this->pendingSolicitudDescuento);
+$canAdjustLineSubtotals = $canSaveImpresionOverride
+    || ($canReviewDiscountApproval && $pendingSolicitudDescuento);
+$showLineBreakdownDetail = $canSeePrecotInternalTax
+    || ($canAdjustLineSubtotals && $canReviewDiscountApproval);
+
 $hasAnyBreakdownOverrideRows = false;
 $precotModelDoc = $this->precotizacionModel ?? null;
-if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
+if ($canAdjustLineSubtotals && $lines !== [] && $precotModelDoc) {
     foreach ($lines as $ln) {
         if (!$precotModelDoc->isPliegoQuoteLine($ln)) {
             continue;
@@ -176,6 +183,13 @@ if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
             if ($precotModelDoc->getBreakdownRowAdjustmentMeta($ln, (int) $bi) !== null) {
                 $hasAnyBreakdownOverrideRows = true;
                 break 2;
+            }
+            if ($canReviewDiscountApproval && $pendingSolicitudDescuento) {
+                $st = round((float) ($_br['subtotal'] ?? 0), 2);
+                if ($st > 0) {
+                    $hasAnyBreakdownOverrideRows = true;
+                    break 2;
+                }
             }
         }
     }
@@ -221,7 +235,6 @@ $showDiscountApprovalBanner  = $canReviewDiscountApproval && !empty($this->pendi
 
 $discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
 $canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
-$pendingSolicitudDescuento    = !empty($this->pendingSolicitudDescuento);
 $solicitudDescuentoLatestNote = isset($this->solicitudDescuentoLatestNote)
     ? trim((string) $this->solicitudDescuentoLatestNote)
     : '';
@@ -764,18 +777,24 @@ $solicitarDescuentoAction   = Route::_(
                                     $breakdown = $precotRowModel
                                         ? $precotRowModel->resolvePliegoBreakdownForLine($line)
                                         : ($line->breakdown ?? []);
-                                    $hasBreakdownOverrideCols = $canSaveImpresionOverride && $precotRowModel && $breakdown !== [];
-                                    if ($hasBreakdownOverrideCols) {
-                                        $hasBreakdownOverrideCols = false;
+                                    $hasBreakdownOverrideCols = false;
+                                    if ($canAdjustLineSubtotals && $precotRowModel && $breakdown !== []) {
                                         foreach ($breakdown as $bi => $_br) {
                                             if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi) !== null) {
                                                 $hasBreakdownOverrideCols = true;
                                                 break;
                                             }
+                                            if ($canReviewDiscountApproval && $pendingSolicitudDescuento) {
+                                                $stChk = round((float) ($_br['subtotal'] ?? 0), 2);
+                                                if ($stChk > 0) {
+                                                    $hasBreakdownOverrideCols = true;
+                                                    break;
+                                                }
+                                            }
                                         }
                                     }
                                     $precotBreakdownFixedSubtotal = 0.0;
-                                    if ($canSeePrecotInternalTax && $hasBreakdownOverrideCols && $precotRowModel) {
+                                    if ($showLineBreakdownDetail && $hasBreakdownOverrideCols && $precotRowModel) {
                                         foreach ($breakdown as $biFix => $rowFix) {
                                             if ($precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $biFix) === null) {
                                                 $precotBreakdownFixedSubtotal += (float) ($rowFix['subtotal'] ?? 0);
@@ -786,7 +805,7 @@ $solicitarDescuentoAction   = Route::_(
                                     <table class="table table-sm table-bordered mb-0 precot-pliego-breakdown-table" style="max-width: 920px;"
                                         data-precot-line-id="<?php echo (int) $line->id; ?>"
                                         data-precot-fixed-subtotal="<?php echo htmlspecialchars(number_format($precotBreakdownFixedSubtotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
-                                        <?php if ($canSeePrecotInternalTax) : ?>
+                                        <?php if ($showLineBreakdownDetail) : ?>
                                         <thead>
                                             <tr>
                                                 <th><?php echo Text::_('COM_ORDENPRODUCCION_CALC_COL_ITEM'); ?></th>
@@ -805,6 +824,16 @@ $solicitarDescuentoAction   = Route::_(
                                                 $rowMeta = ($hasBreakdownOverrideCols && $precotRowModel)
                                                     ? $precotRowModel->getBreakdownRowAdjustmentMeta($line, (int) $bi)
                                                     : null;
+                                                if ($rowMeta === null && $hasBreakdownOverrideCols && $canReviewDiscountApproval && $pendingSolicitudDescuento) {
+                                                    $stAdj = isset($row['subtotal']) ? round((float) $row['subtotal'], 2) : 0.0;
+                                                    if ($stAdj > 0) {
+                                                        $rowMeta = [
+                                                            'base'    => $stAdj,
+                                                            'min'     => round($stAdj * 0.6, 2),
+                                                            'current' => $stAdj,
+                                                        ];
+                                                    }
+                                                }
                                             ?>
                                                 <tr>
                                                     <td><?php echo $label; ?></td>
@@ -877,7 +906,7 @@ $solicitarDescuentoAction   = Route::_(
                         <?php endif; ?>
                     <?php endforeach; ?>
                     <?php
-                    $showApproverDiscountActions = !empty($canSaveImpresionOverride)
+                    $showApproverDiscountActions = !empty($canAdjustLineSubtotals)
                         && (!empty($hasAnyBreakdownOverrideRows) || !empty($pendingSolicitudDescuento));
                     ?>
                     <?php if ($showApproverDiscountActions) : ?>
@@ -989,7 +1018,7 @@ $solicitarDescuentoAction   = Route::_(
         .margen-total-row td { background-color: #d4edda !important; color: #155724; font-weight: 500; }
         </style>
     <?php
-    if (!empty($lines) && !empty($canSeePrecotInternalTax) && (!empty($hasAnyBreakdownOverrideRows) || ($canReviewDiscountApproval && $pendingSolicitudDescuento && $canSaveImpresionOverride))) {
+    if (!empty($lines) && !empty($showLineBreakdownDetail) && (!empty($hasAnyBreakdownOverrideRows) || ($canReviewDiscountApproval && $pendingSolicitudDescuento && $canAdjustLineSubtotals))) {
         $precotLt = [];
         foreach ($lines as $_ln) {
             $precotLt[(string) (int) $_ln->id] = round((float) ($_ln->total ?? 0), 2);
@@ -1196,7 +1225,7 @@ $solicitarDescuentoAction   = Route::_(
 <?php endif; ?>
 
 <?php
-$showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverride)
+$showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotals)
     && (!empty($hasAnyBreakdownOverrideRows) || !empty($pendingSolicitudDescuento));
 ?>
 <?php if ($showApproverDiscountActionsJs) : ?>
@@ -1909,7 +1938,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canSaveImpresionOverr
     var calcDetail = document.getElementById('pliego_modal_calc_detail');
     var calcBody = document.getElementById('pliego_modal_calc_body');
     var calcTotalCell = document.getElementById('pliego_modal_calc_total_cell');
-    var precotShowLineBreakdownDetail = <?php echo $canSeePrecotInternalTax ? 'true' : 'false'; ?>;
+    var precotShowLineBreakdownDetail = <?php echo !empty($showLineBreakdownDetail) ? 'true' : 'false'; ?>;
     var modalTitle = document.getElementById('pliegoLineModalLabel');
     var pliegoModal = document.getElementById('pliegoLineModal');
     var pliegoTipoElemento = document.getElementById('pliego_modal_tipo_elemento');
