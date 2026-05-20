@@ -462,6 +462,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                     </div>
                     <div class="card-body">
                         <p class="small text-muted mb-2"><?php echo htmlspecialchars($this->labelPaymentProofNoEdit ?? 'Los comprobantes guardados no se pueden modificar, solo eliminar (desde Control de Pagos).'); ?></p>
+                        <div class="table-responsive payment-proof-list-table-wrap">
                         <table class="table table-sm payment-proof-list-table">
                             <thead>
                                 <tr>
@@ -472,9 +473,9 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($bankAccountColumnLabel); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
                                     <th class="text-nowrap"><?php echo htmlspecialchars($this->labelEstado ?? 'Estado'); ?></th>
-                                    <th style="width: 200px;"><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILES_COLUMN', 'Attached files', 'Archivos adjuntos')); ?></th>
-                                    <th class="text-center" style="width: 52px;" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar a esta línea')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></th>
-                                    <th style="width: 180px;"><?php echo htmlspecialchars($this->labelMismatchNoteActions ?? 'Nota / Acciones'); ?></th>
+                                    <th><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILES_COLUMN', 'Attached files', 'Archivos adjuntos')); ?></th>
+                                    <th class="text-center payment-proof-col-clip" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar a esta línea')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></th>
+                                    <th><?php echo htmlspecialchars($this->labelMismatchNoteActions ?? 'Nota / Acciones'); ?></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -501,7 +502,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 ?>
                                 <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; } ?>>
                                     <td><?php echo $isFirstLine ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
-                                    <td><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
+                                    <td class="payment-proof-doc-number"><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td class="text-nowrap"><?php
                                         $docDate = $line->document_date ?? null;
                                         if (!empty($docDate)) {
@@ -607,7 +608,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 ?>
                                 <tr id="proof-<?php echo (int)($proof->id ?? 0); ?>">
                                     <td>PA-<?php echo str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT); ?></td>
-                                    <td><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
+                                    <td class="payment-proof-doc-number"><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td class="text-nowrap">—</td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>—</td>
@@ -746,6 +747,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 </tr>
                             </tfoot>
                         </table>
+                        </div>
                         <?php if (!empty($existingPayments)) : ?>
                         <div class="modal fade" id="paymentProofAddFileModal" tabindex="-1" aria-labelledby="paymentProofAddFileModalLabel" aria-hidden="true">
                             <div class="modal-dialog modal-dialog-centered">

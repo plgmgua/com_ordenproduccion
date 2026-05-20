@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.88-STABLE] - 2026-05-19
+
+### Fixed
+- **Registro de comprobante de pago:** la tabla «Pagos existentes» muestra el número de documento completo (sin recorte) y todas las columnas se ajustan al ancho del módulo.
+
 ## [3.119.87-STABLE] - 2026-05-19
 
 ### Changed
