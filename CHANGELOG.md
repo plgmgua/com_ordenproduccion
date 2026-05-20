@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.85-STABLE] - 2026-05-19
+
+### Fixed
+- **Pre-cotización líneas (detalle):** columna con botón expandir/contraer (chevron) para ver el desglose de cada línea pliego; filas legacy marcadas como `elementos` pero con datos de pliego (papel/tamaño) también muestran detalle y campos de descuento.
+
 ## [3.119.84-STABLE] - 2026-05-19
 
 ### Fixed

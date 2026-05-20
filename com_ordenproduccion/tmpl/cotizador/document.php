@@ -168,11 +168,7 @@ $hasAnyBreakdownOverrideRows = false;
 $precotModelDoc = $this->precotizacionModel ?? null;
 if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
     foreach ($lines as $ln) {
-        $lt = isset($ln->line_type) ? trim((string) $ln->line_type) : '';
-        $isEnvioLn = $lt === 'envio';
-        $isTercLn = $lt === 'tercerizado';
-        $isElemLn = !$isEnvioLn && !$isTercLn && $lt === 'elementos' && !empty($ln->elemento_id);
-        if ($isEnvioLn || $isTercLn || $isElemLn) {
+        if (!$precotModelDoc->isPliegoQuoteLine($ln)) {
             continue;
         }
         $br = $precotModelDoc->resolvePliegoBreakdownForLine($ln);
@@ -184,6 +180,16 @@ if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
         }
     }
 }
+$hasExpandablePliegoLines = false;
+if ($lines !== [] && $precotModelDoc) {
+    foreach ($lines as $_lnExp) {
+        if ($precotModelDoc->isPliegoQuoteLine($_lnExp)) {
+            $hasExpandablePliegoLines = true;
+            break;
+        }
+    }
+}
+$linesTableColspan = $hasExpandablePliegoLines ? 8 : 7;
 $saveBreakdownBatchUrl = Route::_(
     'index.php?option=com_ordenproduccion&task=precotizacion.saveBreakdownSubtotalsBatch&format=json&tmpl=component',
     false,
@@ -632,6 +638,11 @@ $solicitarDescuentoAction   = Route::_(
             <table class="table table-bordered">
                 <thead>
                     <tr>
+                        <?php if ($hasExpandablePliegoLines) : ?>
+                        <th class="text-center precot-line-expand-col" style="width: 3.25rem;" scope="col">
+                            <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
+                        </th>
+                        <?php endif; ?>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LINE_QUANTITY'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COL_ELEMENTO'); ?></th>
@@ -647,6 +658,8 @@ $solicitarDescuentoAction   = Route::_(
                         $isEnvio = isset($line->line_type) && $line->line_type === 'envio';
                         $isTercerizado = isset($line->line_type) && $line->line_type === 'tercerizado';
                         $isElemento = !$isEnvio && !$isTercerizado && isset($line->line_type) && $line->line_type === 'elementos' && !empty($line->elemento_id);
+                        $isPliegoQuoteLine = $precotModelDoc && $precotModelDoc->isPliegoQuoteLine($line);
+                        $lineDetailExpanded = $autoExpandPliegoLineDetails && $isPliegoQuoteLine;
                         if ($isEnvio) {
                             $paperName = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_LABEL');
                             if (strpos($paperName, 'COM_ORDENPRODUCCION_') === 0) {
@@ -663,7 +676,7 @@ $solicitarDescuentoAction   = Route::_(
                                 $paperName = '—';
                             }
                             $sizeName = '—';
-                        } elseif ($isElemento && isset($elementosById[(int) $line->elemento_id])) {
+                        } elseif ($isElemento && !$isPliegoQuoteLine && isset($elementosById[(int) $line->elemento_id])) {
                             $el = $elementosById[(int) $line->elemento_id];
                             $paperName = $el->name ?? '';
                             $sizeName = $el->size ?? '—';
@@ -689,22 +702,31 @@ $solicitarDescuentoAction   = Route::_(
                         $terImportePend = $isTercerizado && !empty($line->tercerizado_importe_pendiente);
                         ?>
                         <tr class="line-data-row">
+                            <?php if ($hasExpandablePliegoLines) : ?>
+                            <td class="text-center align-middle p-1 precot-line-expand-col">
+                                <?php if ($isPliegoQuoteLine) : ?>
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-primary toggle-line-detail px-2 py-1"
+                                    data-detail-id="line-detail-<?php echo (int) $line->id; ?>"
+                                    aria-expanded="<?php echo $lineDetailExpanded ? 'true' : 'false'; ?>"
+                                    title="<?php echo htmlspecialchars($lineDetailExpanded ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OCULTAR_DETALLE') : Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'), ENT_QUOTES, 'UTF-8'); ?>">
+                                    <i class="fas fa-chevron-<?php echo $lineDetailExpanded ? 'up' : 'down'; ?> toggle-detail-icon" aria-hidden="true"></i>
+                                    <span class="visually-hidden toggle-detail-label"><?php echo $lineDetailExpanded ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OCULTAR_DETALLE') : Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
+                                </button>
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
                             <td><?php if ($terImportePend && $canSetTercerizadoImporte) : ?>
                                 <span class="text-warning me-1" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_TERCERIZADO_IMPORTE_PENDIENTE_HINT'), ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-circle-exclamation" aria-hidden="true"></i></span>
                                 <?php endif; ?><?php echo htmlspecialchars($tipoElemento); ?></td>
                             <td><?php echo (int) $line->quantity; ?></td>
-                            <td><?php echo $isEnvio ? htmlspecialchars($paperName) : ($isElemento || $isTercerizado ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
+                            <td><?php echo $isEnvio ? htmlspecialchars($paperName) : (($isElemento && !$isPliegoQuoteLine) || $isTercerizado ? htmlspecialchars($paperName) : htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FOLIOS_PREFIX') . ' ' . $paperName)); ?></td>
                             <td><?php echo htmlspecialchars($sizeName); ?></td>
-                            <td><?php echo ($isEnvio || $isTercerizado) ? '—' : ($isElemento ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
+                            <td><?php echo ($isEnvio || $isTercerizado) ? '—' : (($isElemento && !$isPliegoQuoteLine) ? '—' : (($line->tiro_retiro ?? '') === 'retiro' ? 'Tiro/Retiro' : 'Tiro')); ?></td>
                             <td class="text-end precot-line-total-cell" data-line-id="<?php echo (int) $line->id; ?>"><span class="precot-line-total-amt">Q <?php echo number_format((float) $line->total, 2); ?></span></td>
                             <td class="text-end">
-                                <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
-                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="<?php echo $autoExpandPliegoLineDetails ? 'true' : 'false'; ?>">
-                                    <span class="toggle-detail-label"><?php echo $autoExpandPliegoLineDetails ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OCULTAR_DETALLE') : Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
-                                </button>
-                                <?php endif; ?>
                                 <?php if ($canEditDocument) : ?>
-                                    <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
+                                    <?php if ($isPliegoQuoteLine) : ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary pliego-edit-line-btn" data-line="<?php echo $lineJson; ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_EDIT_LINE'); ?>
                                     </button>
@@ -733,9 +755,9 @@ $solicitarDescuentoAction   = Route::_(
                                 <?php endif; ?>
                             </td>
                         </tr>
-                        <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
-                        <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row"<?php echo $autoExpandPliegoLineDetails ? '' : ' style="display:none;"'; ?>>
-                            <td colspan="7" class="p-0 bg-light align-top">
+                        <?php if ($isPliegoQuoteLine) : ?>
+                        <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row"<?php echo $lineDetailExpanded ? '' : ' style="display:none;"'; ?>>
+                            <td colspan="<?php echo (int) $linesTableColspan; ?>" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <?php
                                     $precotRowModel = $this->precotizacionModel ?? null;
@@ -860,7 +882,7 @@ $solicitarDescuentoAction   = Route::_(
                     ?>
                     <?php if ($showApproverDiscountActions) : ?>
                     <tr class="precotizacion-breakdown-batch-save-row">
-                        <td colspan="7" class="bg-light border-top py-3 text-end">
+                        <td colspan="<?php echo (int) $linesTableColspan; ?>" class="bg-light border-top py-3 text-end">
                             <div class="d-inline-flex flex-wrap justify-content-end gap-2">
                                 <?php if (!empty($pendingSolicitudDescuento)) : ?>
                                 <button type="button" id="precotizacion-reject-sin-descuento" class="btn btn-outline-danger">
@@ -879,7 +901,7 @@ $solicitarDescuentoAction   = Route::_(
                     <?php endif; ?>
                 </tbody>
                 <tfoot>
-                    <?php $tfootLabelSpan = 5; ?>
+                    <?php $tfootLabelSpan = $hasExpandablePliegoLines ? 6 : 5; ?>
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?></td>
                         <td class="text-end"><span id="precot-footer-subtotal">Q <?php echo number_format($linesSubtotal, 2); ?></span></td>
@@ -1157,11 +1179,17 @@ $solicitarDescuentoAction   = Route::_(
         if (!id) return;
         var row = document.getElementById(id);
         var label = btn.querySelector('.toggle-detail-label');
+        var icon = btn.querySelector('.toggle-detail-icon');
         if (!row || !label) return;
         var isHidden = row.style.display === 'none';
         row.style.display = isHidden ? 'table-row' : 'none';
         btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
         label.textContent = isHidden ? ocultarDetalle : verDetalle;
+        if (icon) {
+            icon.classList.remove(isHidden ? 'fa-chevron-down' : 'fa-chevron-up');
+            icon.classList.add(isHidden ? 'fa-chevron-up' : 'fa-chevron-down');
+        }
+        btn.setAttribute('title', isHidden ? ocultarDetalle : verDetalle);
     });
 })();
 </script>

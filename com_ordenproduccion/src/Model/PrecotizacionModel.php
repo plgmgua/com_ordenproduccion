@@ -1137,6 +1137,46 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Whether a pre-cotización line should show pliego-style breakdown (incl. legacy rows mis-tagged as elementos).
+     *
+     * @param   \stdClass  $line  Line from getLines() or getLine()
+     *
+     * @return  bool
+     *
+     * @since   3.119.85
+     */
+    public function isPliegoQuoteLine($line): bool
+    {
+        if (!is_object($line)) {
+            return false;
+        }
+        $lineType = isset($line->line_type) ? trim((string) $line->line_type) : '';
+        if ($lineType === 'envio' || $lineType === 'tercerizado' || $lineType === 'proveedor_externo') {
+            return false;
+        }
+        if ($lineType === 'elementos' && !empty($line->elemento_id)) {
+            $paperId = (int) ($line->paper_type_id ?? 0);
+            $sizeId  = (int) ($line->size_id ?? 0);
+            if ($paperId > 0 && $sizeId > 0) {
+                return true;
+            }
+            $breakdown = $line->breakdown ?? [];
+            if (is_array($breakdown) && $breakdown !== []) {
+                return true;
+            }
+            if (!empty($line->calculation_breakdown)) {
+                $decoded = json_decode((string) $line->calculation_breakdown, true);
+
+                return is_array($decoded) && $decoded !== [];
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Pliego line breakdown for display and discount review (falls back to line total when JSON is empty).
      *
      * @param   \stdClass  $line  Line from getLines() or getLine()
@@ -1147,11 +1187,7 @@ class PrecotizacionModel extends ListModel
      */
     public function resolvePliegoBreakdownForLine($line): array
     {
-        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
-        if ($lineType === 'envio' || $lineType === 'tercerizado') {
-            return [];
-        }
-        if ($lineType === 'elementos' && !empty($line->elemento_id)) {
+        if (!$this->isPliegoQuoteLine($line)) {
             return [];
         }
 
@@ -1214,11 +1250,7 @@ class PrecotizacionModel extends ListModel
         if ($lineId < 1 || !$this->canUserSaveImpresionOverrideOnLine($lineId)) {
             return null;
         }
-        $lineType = isset($line->line_type) ? trim((string) $line->line_type) : '';
-        if ($lineType === '') {
-            $lineType = 'pliego';
-        }
-        if ($lineType !== 'pliego') {
+        if (!$this->isPliegoQuoteLine($line)) {
             return null;
         }
         $breakdown = $this->resolvePliegoBreakdownForLine($line);
@@ -1280,11 +1312,7 @@ class PrecotizacionModel extends ListModel
         if (!$line) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')];
         }
-        $lineType = isset($line->line_type) ? trim((string) $line->line_type) : '';
-        if ($lineType === '') {
-            $lineType = 'pliego';
-        }
-        if ($lineType !== 'pliego') {
+        if (!$this->isPliegoQuoteLine($line)) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NOT_PLIEGO')];
         }
         $breakdown = $this->resolvePliegoBreakdownForLine($line);
