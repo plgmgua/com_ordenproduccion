@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.83-STABLE] - 2026-05-19
+
+### Fixed
+- **Solicitud de descuento + cotización vinculada:** el aprobador (Aprobaciones Ventas o paso asignado) puede ver el desglose completo de líneas pliego y guardar ajustes de subtotal aunque la pre-cotización ya esté asociada o confirmada en una cotización; las filas de detalle se expanden automáticamente durante la revisión.
+
 ## [3.119.82-STABLE] - 2026-05-19
 
 ### Fixed

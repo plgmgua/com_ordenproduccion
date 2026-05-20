@@ -127,6 +127,14 @@ class HtmlView extends BaseHtmlView
     protected $pendingSolicitudDescuento = false;
 
     /**
+     * Document: user may review/adjust line subtotals for an open solicitud de descuento (even if PRE is on a cotización).
+     *
+     * @var    bool
+     * @since  3.119.83
+     */
+    protected $canReviewDiscountApproval = false;
+
+    /**
      * Document: user may submit a new solicitud de descuento.
      *
      * @var    bool
@@ -396,10 +404,11 @@ class HtmlView extends BaseHtmlView
                         || $precotModel->isAssociatedWithConfirmedQuotation((int) $id);
                     $this->precotizacionDocumentEditable = $precotModel->canUserEditPreCotizacionDocument((int) $id)
                         && !$this->precotizacionLocked;
-                    $this->canSaveImpresionOverride = $precotModel->canUserSaveImpresionOverrideOnPreCotizacion((int) $id);
                     $this->canSetTercerizadoImporte  = AccessHelper::canSetTercerizadoImporte();
                     $this->discountWorkflowAvailable   = false;
                     $this->pendingSolicitudDescuento     = false;
+                    $this->canReviewDiscountApproval     = false;
+                    $this->canSaveImpresionOverride      = false;
                     $this->canRequestSolicitudDescuento  = false;
                     $this->solicitudDescuentoLatestNote  = '';
                     $this->solicitudCotizacionWorkflowAvailable = false;
@@ -522,10 +531,14 @@ class HtmlView extends BaseHtmlView
                         $this->canCompleteCreacionOtApprovalHere    = false;
                         $this->pendingCreacionOtDefaultFechaYmd       = '';
                         $this->canSetTercerizadoImporte               = false;
+                        $this->canReviewDiscountApproval            = false;
+                        $this->canSaveImpresionOverride             = false;
                     }
                     $this->canRequestSolicitudDescuento = $this->discountWorkflowAvailable
                         && $precotModel->canUserSubmitPreCotizacionWorkflowRequests((int) $id)
                         && !$this->pendingSolicitudDescuento;
+                    $this->canReviewDiscountApproval = AccessHelper::userCanReviewOpenSolicitudDescuentoForPreCot((int) $id);
+                    $this->canSaveImpresionOverride    = $precotModel->canUserSaveImpresionOverrideOnPreCotizacion((int) $id);
                     $this->canRequestSolicitudCotizacion = $docMode === 'proveedor_externo'
                         && $this->solicitudCotizacionWorkflowAvailable
                         && $precotModel->canUserSubmitPreCotizacionWorkflowRequests((int) $id)

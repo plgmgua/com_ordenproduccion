@@ -206,6 +206,10 @@ $showCreacionOtApprovalBanner = AccessHelper::isInAprobacionesVentasGroup()
     && ($this->canCompleteCreacionOtApprovalHere ?? false)
     && $pendingCreacionOtReq > 0;
 
+$canReviewDiscountApproval = !empty($this->canReviewDiscountApproval);
+$autoExpandPliegoLineDetails = $canReviewDiscountApproval && !empty($this->pendingSolicitudDescuento);
+$showDiscountApprovalBanner  = $canReviewDiscountApproval && !empty($this->pendingSolicitudDescuento);
+
 $discountWorkflowAvailable   = !empty($this->discountWorkflowAvailable);
 $canRequestSolicitudDescuento = !empty($this->canRequestSolicitudDescuento);
 $pendingSolicitudDescuento    = !empty($this->pendingSolicitudDescuento);
@@ -238,6 +242,15 @@ $solicitarDescuentoAction   = Route::_(
             <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#precotCreacionOtApprovalModal">
                 <i class="fas fa-clipboard-check" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_CREACION_OT_APPROVAL_BTN_REVIEW'); ?>
             </button>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($showDiscountApprovalBanner) : ?>
+    <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_PENDING_BADGE'); ?></strong>
+            <span class="d-block small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_APPROVAL_LINE_DETAIL_HINT'); ?></span>
         </div>
     </div>
     <?php endif; ?>
@@ -676,8 +689,8 @@ $solicitarDescuentoAction   = Route::_(
                             <td class="text-end precot-line-total-cell" data-line-id="<?php echo (int) $line->id; ?>"><span class="precot-line-total-amt">Q <?php echo number_format((float) $line->total, 2); ?></span></td>
                             <td class="text-end">
                                 <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
-                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="false">
-                                    <span class="toggle-detail-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-line-detail" data-detail-id="line-detail-<?php echo (int) $line->id; ?>" aria-expanded="<?php echo $autoExpandPliegoLineDetails ? 'true' : 'false'; ?>">
+                                    <span class="toggle-detail-label"><?php echo $autoExpandPliegoLineDetails ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_OCULTAR_DETALLE') : Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_VER_DETALLE'); ?></span>
                                 </button>
                                 <?php endif; ?>
                                 <?php if ($canEditDocument) : ?>
@@ -711,7 +724,7 @@ $solicitarDescuentoAction   = Route::_(
                             </td>
                         </tr>
                         <?php if (!$isElemento && !$isEnvio && !$isTercerizado) : ?>
-                        <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row" style="display:none;">
+                        <tr id="line-detail-<?php echo (int) $line->id; ?>" class="line-detail-row"<?php echo $autoExpandPliegoLineDetails ? '' : ' style="display:none;"'; ?>>
                             <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <?php

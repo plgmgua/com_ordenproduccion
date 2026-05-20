@@ -405,7 +405,10 @@ class AccessHelper
         }
 
         if (self::isInVentasGroup() && !self::isInAprobacionesVentasGroup()) {
-            if ($preCotizacionId > 0 && self::userCanActOnOpenSolicitudDescuentoForPreCot($preCotizacionId)) {
+            if ($preCotizacionId > 0 && (
+                self::userCanReviewOpenSolicitudDescuentoForPreCot($preCotizacionId)
+                || self::userCanActOnOpenSolicitudDescuentoForPreCot($preCotizacionId)
+            )) {
                 return true;
             }
 
@@ -413,6 +416,62 @@ class AccessHelper
         }
 
         return true;
+    }
+
+    /**
+     * Open solicitud de descuento exists for this pre-cotización.
+     *
+     * @param   int  $preCotizacionId
+     *
+     * @return  bool
+     *
+     * @since   3.119.83
+     */
+    public static function hasOpenSolicitudDescuentoForPreCot(int $preCotizacionId): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        try {
+            $wf = new ApprovalWorkflowService();
+
+            if (!$wf->hasSchema()) {
+                return false;
+            }
+
+            return $wf->getOpenPendingRequest(
+                ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
+                $preCotizacionId
+            ) !== null;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * May review an open solicitud de descuento (see line breakdown + adjust subtotals) even when the PRE
+     * is already on a cotización. Aprobaciones Ventas or the assigned approver on the pending step.
+     *
+     * @param   int  $preCotizacionId
+     *
+     * @return  bool
+     *
+     * @since   3.119.83
+     */
+    public static function userCanReviewOpenSolicitudDescuentoForPreCot(int $preCotizacionId): bool
+    {
+        if (!self::hasOpenSolicitudDescuentoForPreCot($preCotizacionId)) {
+            return false;
+        }
+
+        if (self::isInAprobacionesVentasGroup()) {
+            return true;
+        }
+
+        return self::userCanActOnOpenSolicitudDescuentoForPreCot($preCotizacionId);
     }
 
     /**

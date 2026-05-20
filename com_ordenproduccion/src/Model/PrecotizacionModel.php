@@ -818,7 +818,10 @@ class PrecotizacionModel extends ListModel
             return false;
         }
 
-        if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
+        if (
+            $this->isAssociatedWithConfirmedQuotation($preCotizacionId)
+            && !AccessHelper::userCanReviewOpenSolicitudDescuentoForPreCot($preCotizacionId)
+        ) {
             return false;
         }
 
@@ -1013,7 +1016,10 @@ class PrecotizacionModel extends ListModel
         ) {
             return false;
         }
-        if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {
+        if (
+            $this->isAssociatedWithConfirmedQuotation($preCotizacionId)
+            && !AccessHelper::userCanReviewOpenSolicitudDescuentoForPreCot($preCotizacionId)
+        ) {
             return false;
         }
         if ($this->hasActiveOrdenTrabajoForPrecotizacion($preCotizacionId)) {
