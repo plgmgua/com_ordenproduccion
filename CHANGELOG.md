@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.87-STABLE] - 2026-05-19
+
+### Changed
+- **Comprobante de pago duplicado:** ya no se bloquea el guardado cuando existe la misma combinación tipo de pago + banco + número de documento; se envía alerta al canal de Telegram de Administración con el número de documento duplicado.
+
 ## [3.119.86-STABLE] - 2026-05-19
 
 ### Fixed

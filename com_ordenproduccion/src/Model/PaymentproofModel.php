@@ -33,6 +33,26 @@ class PaymentproofModel extends ItemModel
     public $typeAlias = 'com_ordenproduccion.paymentproof';
 
     /**
+     * Document numbers flagged as duplicates during the last save() call.
+     *
+     * @var    string[]
+     * @since  3.119.87
+     */
+    protected $duplicateDocumentNumbersOnSave = [];
+
+    /**
+     * Document numbers detected as duplicates on the last successful save().
+     *
+     * @return  string[]
+     *
+     * @since   3.119.87
+     */
+    public function getDuplicateDocumentNumbersOnSave(): array
+    {
+        return $this->duplicateDocumentNumbersOnSave;
+    }
+
+    /**
      * Method to get the record form.
      *
      * @param   array    $data      Data for the form.
@@ -142,6 +162,7 @@ class PaymentproofModel extends ItemModel
 
         try {
             $db = $this->getDatabase();
+            $this->duplicateDocumentNumbersOnSave = [];
 
             // Build payment_lines from data (new multi-line or legacy single-line)
             $paymentLines = $this->normalizePaymentLines($data);
@@ -149,17 +170,17 @@ class PaymentproofModel extends ItemModel
                 $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
                 return false;
             }
-            // Reject if any line has a duplicate combination of payment_type + bank + document_number
+            // Flag duplicate combinations (payment_type + bank + document_number) but allow save.
             foreach ($paymentLines as $line) {
                 $type = trim((string) ($line['payment_type'] ?? ''));
                 $bank = trim((string) ($line['bank'] ?? ''));
                 $doc = trim((string) ($line['document_number'] ?? ''));
                 $baId = (int) ($line['bank_account_id'] ?? 0);
                 if ($type !== '' && $doc !== '' && $this->documentCombinationExists($type, $bank, $doc, $baId)) {
-                    $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DOCUMENT_ALREADY_EXISTS'));
-                    return false;
+                    $this->duplicateDocumentNumbersOnSave[] = $doc;
                 }
             }
+            $this->duplicateDocumentNumbersOnSave = array_values(array_unique($this->duplicateDocumentNumbersOnSave));
             $paymentAmount = 0;
             foreach ($paymentLines as $line) {
                 $paymentAmount += (float) ($line['amount'] ?? 0);

@@ -228,6 +228,12 @@ class PaymentproofController extends BaseController
 
                 try {
                     TelegramNotificationHelper::notifyPaymentProofEntered((int) $proofId);
+                    $duplicateDocs = method_exists($model, 'getDuplicateDocumentNumbersOnSave')
+                        ? $model->getDuplicateDocumentNumbersOnSave()
+                        : [];
+                    if ($duplicateDocs !== []) {
+                        TelegramNotificationHelper::notifyPaymentProofDuplicateDocuments((int) $proofId, $duplicateDocs);
+                    }
                     if ($mismatchNote !== '' || $mismatchDifference !== '') {
                         TelegramNotificationHelper::notifyMismatchTicketAnchors((int) $proofId);
                     }

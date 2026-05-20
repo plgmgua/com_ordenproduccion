@@ -40,6 +40,9 @@ class TelegramNotificationHelper
     /** Purchase order file attached on cotización (facturación), uploaded by quotation owner. */
     public const EVENT_ORDEN_COMPRA_COTIZACION = 'orden_compra_cotizacion';
 
+    /** Duplicate payment document number registered (Administración channel alert). */
+    public const EVENT_PAYMENT_PROOF_DUPLICATE = 'proof_duplicate';
+
     /**
      * After a new invoice row is stored: notify linked order owner(s).
      * Skips Telegram DMs and Administración broadcasts when Certificar Fact (FEL)
@@ -302,6 +305,47 @@ class TelegramNotificationHelper
     }
 
     /**
+     * Alert Administración Telegram channel when a payment proof reuses an existing document number.
+     *
+     * @param   int          $proofId          Saved payment proof PK
+     * @param   string[]     $documentNumbers  Duplicate document number(s) detected on save
+     *
+     * @return  void
+     *
+     * @since   3.119.87
+     */
+    public static function notifyPaymentProofDuplicateDocuments(int $proofId, array $documentNumbers): void
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return;
+        }
+
+        $uniqueDocs = array_values(array_unique(array_filter(array_map(
+            static fn ($n) => trim((string) $n),
+            $documentNumbers
+        ), static fn ($n) => $n !== '')));
+        if ($uniqueDocs === []) {
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        if ((int) $params->get('telegram_enabled', 0) !== 1) {
+            return;
+        }
+        if (trim((string) $params->get('telegram_bot_token', '')) === '') {
+            return;
+        }
+
+        self::ensureTelegramLanguageLoaded();
+
+        $docList = implode(', ', $uniqueDocs);
+        $body = Text::sprintf('COM_ORDENPRODUCCION_TELEGRAM_PAYMENT_PROOF_DUPLICATE_BODY', $docList);
+
+        self::sendToAdministracionBroadcastChannel($params, $body, self::EVENT_PAYMENT_PROOF_DUPLICATE);
+    }
+
+    /**
      * After a payment proof is marked Verificado (directly or via approval workflow).
      *
      * @param   int      $proofId           Payment proof PK
@@ -544,6 +588,10 @@ class TelegramNotificationHelper
             return (int) ($arr['telegram_broadcast_orden_compra_cotizacion'] ?? 1) === 1;
         }
 
+        if ($event === self::EVENT_PAYMENT_PROOF_DUPLICATE) {
+            return true;
+        }
+
         return false;
     }
 
@@ -579,6 +627,7 @@ class TelegramNotificationHelper
             self::EVENT_ENVIO => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_ENVIO',
             self::EVENT_PAYMENT_PROOF_ENTERED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_ENTERED',
             self::EVENT_PAYMENT_PROOF_VERIFIED => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_VERIFIED',
+            self::EVENT_PAYMENT_PROOF_DUPLICATE => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_PAYMENT_PROOF_DUPLICATE',
             self::EVENT_APPROVAL_WORKFLOW => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_APPROVAL_WORKFLOW',
             self::EVENT_ORDEN_COMPRA_COTIZACION => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_ORDEN_COMPRA_COTIZACION',
             default => 'COM_ORDENPRODUCCION_TELEGRAM_BROADCAST_PREFIX_INVOICE',
