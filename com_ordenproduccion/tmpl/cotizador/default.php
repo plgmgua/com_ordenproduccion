@@ -232,7 +232,21 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                         <?php if (!empty($this->showSalesAgentColumn)) : ?>
                         <td><?php echo htmlspecialchars($item->created_by_name ?? '—'); ?></td>
                         <?php endif; ?>
-                        <td class="col-descripcion"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
+                        <?php
+                        $descFull = trim((string) ($item->descripcion ?? ''));
+                        $descList = $descFull;
+                        $descTitleAttr = '';
+                        if ($descFull !== '') {
+                            $descNorm = preg_replace('/\s+/u', ' ', $descFull) ?? $descFull;
+                            $descLen = function_exists('mb_strlen') ? mb_strlen($descNorm, 'UTF-8') : strlen($descNorm);
+                            $descList = $descNorm;
+                            if ($descLen > 100) {
+                                $descList = (function_exists('mb_substr') ? mb_substr($descNorm, 0, 100, 'UTF-8') : substr($descNorm, 0, 100)) . '…';
+                                $descTitleAttr = ' title="' . htmlspecialchars($descFull, ENT_QUOTES, 'UTF-8') . '"';
+                            }
+                        }
+                        ?>
+                        <td class="col-descripcion"<?php echo $descTitleAttr; ?>><?php echo htmlspecialchars($descList); ?></td>
                         <td class="col-cotizacion-num">
                             <?php
                             if (empty($quotationNumbers)) {

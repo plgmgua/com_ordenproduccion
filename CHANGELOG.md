@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.80-STABLE] - 2026-05-19
+
+### Changed
+- **Lista pre-cotizaciones:** la columna **Descripción** muestra como máximo 100 caracteres (con «…» si es más larga). El texto completo sigue visible en la vista del documento pre-cotización; al pasar el cursor sobre una descripción truncada se muestra el texto completo.
+
 ## [3.119.79-STABLE] - 2026-05-19
 
 ### Changed
