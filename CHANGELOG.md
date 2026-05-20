@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.81-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización (lectura):** miembros de **Aprobaciones Ventas** y aprobadores con solicitudes pendientes vinculadas a la cotización pueden abrirla desde el enlace en la pre-cotización (p. ej. al revisar creación de OT).
+
 ## [3.119.80-STABLE] - 2026-05-19
 
 ### Changed

@@ -958,6 +958,151 @@ class AccessHelper
     }
 
     /**
+     * Whether the current user may open the cotización read-only/detail view (broader than edit ACL).
+     *
+     * @param   object|null  $quotation  Row from #__ordenproduccion_quotations
+     *
+     * @return  bool
+     *
+     * @since   3.119.81
+     */
+    public static function userCanViewQuotationRow($quotation): bool
+    {
+        if (!$quotation) {
+            return false;
+        }
+
+        if (self::userCanAccessQuotationRow($quotation)) {
+            return true;
+        }
+
+        if (self::isInAprobacionesVentasGroup()) {
+            return true;
+        }
+
+        return self::userHasApprovalWorkflowAccessToQuotation((int) ($quotation->id ?? 0));
+    }
+
+    /**
+     * Pending approval (approver or submitter) linked to this quotation id.
+     *
+     * @param   int       $quotationId
+     * @param   int|null  $userId
+     *
+     * @return  bool
+     *
+     * @since   3.119.81
+     */
+    public static function userHasApprovalWorkflowAccessToQuotation(int $quotationId, ?int $userId = null): bool
+    {
+        if ($quotationId < 1) {
+            return false;
+        }
+
+        $uid = $userId !== null ? (int) $userId : (int) Factory::getUser()->id;
+
+        if ($uid < 1) {
+            return false;
+        }
+
+        try {
+            $svc = new ApprovalWorkflowService();
+
+            if (!$svc->hasSchema()) {
+                return false;
+            }
+
+            foreach (self::getPendingApprovalRowsMerged($svc, $uid) as $row) {
+                if (self::approvalRowReferencesQuotationId($row, $quotationId)) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param   object  $row          Approval request row (entity_type, entity_id, metadata)
+     * @param   int     $quotationId
+     *
+     * @return  bool
+     *
+     * @since   3.119.81
+     */
+    protected static function approvalRowReferencesQuotationId(object $row, int $quotationId): bool
+    {
+        $etype = ApprovalWorkflowService::normalizeEntityType((string) ($row->entity_type ?? ''));
+        $eid   = (int) ($row->entity_id ?? 0);
+
+        if (
+            $etype === ApprovalWorkflowService::ENTITY_COTIZACION_CONFIRMATION
+            || $etype === ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL
+        ) {
+            return $eid === $quotationId;
+        }
+
+        $meta    = [];
+        $metaRaw = isset($row->metadata) ? trim((string) $row->metadata) : '';
+
+        if ($metaRaw !== '') {
+            $dec = json_decode($metaRaw, true);
+
+            if (\is_array($dec)) {
+                $meta = $dec;
+            }
+        }
+
+        if ((int) ($meta['quotation_id'] ?? 0) === $quotationId) {
+            return true;
+        }
+
+        if (
+            $eid > 0
+            && (
+                $etype === ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO
+                || $etype === ApprovalWorkflowService::ENTITY_SOLICITUD_COTIZACION
+                || $etype === ApprovalWorkflowService::ENTITY_CREACION_ORDEN_TRABAJO
+            )
+        ) {
+            return self::preCotizacionReferencesQuotation($eid, $quotationId);
+        }
+
+        return false;
+    }
+
+    /**
+     * @param   int  $preCotizacionId
+     * @param   int  $quotationId
+     *
+     * @return  bool
+     *
+     * @since   3.119.81
+     */
+    protected static function preCotizacionReferencesQuotation(int $preCotizacionId, int $quotationId): bool
+    {
+        if ($preCotizacionId < 1 || $quotationId < 1) {
+            return false;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $q  = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+                ->where($db->quoteName('quotation_id') . ' = ' . $quotationId);
+            $db->setQuery($q);
+
+            return (int) $db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Whether the current user may view or act on this quotation row (ownership vs admin).
      *
      * @param   object|null  $quotation  Row from #__ordenproduccion_quotations (needs created_by when not admin).
@@ -990,15 +1135,7 @@ class AccessHelper
      */
     public static function userCanAccessQuotationForCreacionOtApproval($quotation): bool
     {
-        if (!$quotation) {
-            return false;
-        }
-
-        if (self::userCanAccessQuotationRow($quotation)) {
-            return true;
-        }
-
-        return self::isInAprobacionesVentasGroup();
+        return self::userCanViewQuotationRow($quotation);
     }
 
     /**

@@ -272,7 +272,7 @@ class HtmlView extends BaseHtmlView
                     ->where($db->quoteName('state') . ' = 1');
                 $db->setQuery($query);
                 $this->quotation = $db->loadObject();
-                if ($this->quotation && !AccessHelper::userCanAccessQuotationRow($this->quotation)) {
+                if ($this->quotation && !AccessHelper::userCanViewQuotationRow($this->quotation)) {
                     $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
                     $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
 
@@ -638,23 +638,13 @@ class HtmlView extends BaseHtmlView
                 return;
             }
             
-            // Check if user is in ventas group
-            $userGroups = $user->getAuthorisedGroups();
-            $db = Factory::getDbo();
-            $query = $db->getQuery(true)
-                ->select('id')
-                ->from($db->quoteName('#__usergroups'))
-                ->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
-            
-            $db->setQuery($query);
-            $ventasGroupId = $db->loadResult();
-            
-            $hasVentasAccess = false;
-            if ($ventasGroupId && in_array($ventasGroupId, $userGroups)) {
-                $hasVentasAccess = true;
-            }
-            
-            if (!$hasVentasAccess) {
+            // Cotización views: Ventas may create/edit; Aprobaciones Ventas and linked approvers may read.
+            $canAccessCotizacionView = AccessHelper::isInVentasGroup()
+                || AccessHelper::isInAprobacionesVentasGroup()
+                || AccessHelper::canViewAllCotizacionesLikePrecot()
+                || ($quotationId > 0 && $this->quotation && AccessHelper::userCanViewQuotationRow($this->quotation));
+
+            if (!$canAccessCotizacionView) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_NO_PERMISSION'), 'error');
                 $app->redirect('index.php?option=com_ordenproduccion&view=cotizaciones');
                 return;
