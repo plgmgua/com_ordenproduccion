@@ -83,7 +83,8 @@ if ($item) {
         ? (float) $item->total_con_tarjeta
         : null;
 }
-$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
+$preCotizacionIdDetails = (int) ($item->id ?? 0);
+$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown($preCotizacionIdDetails);
 
 $precotFooterShowIva = $canSeePrecotInternalTax && $facturar
     && (($paramIva != 0) || abs((float) $ivaAmount) >= 0.005);

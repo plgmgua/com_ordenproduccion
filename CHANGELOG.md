@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.82-STABLE] - 2026-05-19
+
+### Fixed
+- **Solicitud de descuento:** el aprobador asignado (incluso usuario solo Ventas) ve el desglose completo de cada línea pliego (Detalle + Subtotal, IVA/margen en pie) y puede guardar ajustes de subtotal mientras la solicitud está pendiente.
+
 ## [3.119.81-STABLE] - 2026-05-19
 
 ### Fixed

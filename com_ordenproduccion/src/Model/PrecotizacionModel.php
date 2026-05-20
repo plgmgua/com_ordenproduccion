@@ -803,7 +803,14 @@ class PrecotizacionModel extends ListModel
     private function userMayEditWhileVentasApprover(int $preCotizacionId, object $item, array $precotColsLc): bool
     {
         $user = Factory::getUser();
-        if ($user->guest || !AccessHelper::isInAprobacionesVentasGroup()) {
+        if ($user->guest) {
+            return false;
+        }
+
+        $isAprobVentas = AccessHelper::isInAprobacionesVentasGroup();
+        $isDiscountApprover = AccessHelper::userCanActOnOpenSolicitudDescuentoForPreCot($preCotizacionId);
+
+        if (!$isAprobVentas && !$isDiscountApprover) {
             return false;
         }
 
@@ -997,7 +1004,13 @@ class PrecotizacionModel extends ListModel
             return false;
         }
         $user = Factory::getUser();
-        if ($user->guest || !AccessHelper::isInAprobacionesVentasGroup()) {
+        if ($user->guest) {
+            return false;
+        }
+        if (
+            !AccessHelper::isInAprobacionesVentasGroup()
+            && !AccessHelper::userCanActOnOpenSolicitudDescuentoForPreCot($preCotizacionId)
+        ) {
             return false;
         }
         if ($this->isAssociatedWithConfirmedQuotation($preCotizacionId)) {

@@ -97,7 +97,7 @@ $pctMgUi = (float) $paramMargen;
 $precotMargenPctText = (\abs($pctMgUi - \round($pctMgUi)) < 0.000001)
     ? (string) (int) \round($pctMgUi)
     : \number_format($pctMgUi, 1, '.', '');
-$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
+$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown($preCotizacionId);
 $precotFooterShowIva = $canSeePrecotInternalTax && $facturar
     && (($paramIva != 0) || abs((float) $ivaAmount) >= 0.005);
 $precotFooterShowIsr = $canSeePrecotInternalTax && $facturar

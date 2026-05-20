@@ -133,7 +133,7 @@ $tcTasa = isset($item->tarjeta_credito_tasa) && $item->tarjeta_credito_tasa !== 
 $totalConTarjeta = isset($item->total_con_tarjeta) && $item->total_con_tarjeta !== null && $item->total_con_tarjeta !== ''
     ? (float) $item->total_con_tarjeta
     : null;
-$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown();
+$canSeePrecotInternalTax = AccessHelper::canSeePrecotizacionInternalTaxBreakdown($preCotizacionId);
 $canSetTercerizadoImporte = !empty($this->canSetTercerizadoImporte);
 
 /* IVA/ISR líneas pie: necesitan vista interna + Facturar. Además debe haber tasa global (params iva/isr)

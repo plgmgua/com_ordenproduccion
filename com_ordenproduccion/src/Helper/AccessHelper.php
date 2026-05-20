@@ -392,20 +392,69 @@ class AccessHelper
      * columns for everyone except **Ventas-only** users (in Ventas but not in Aprobaciones Ventas group 16).
      * Ventas-only users see line labels (Concepto) only in the nested table. Super users and
      * Administracion/Admon always see full detail; non-Ventas roles (e.g. Producción-only) see full detail.
+     * Ventas-only users assigned as approver on an open solicitud de descuento also see full line detail.
+     *
+     * @param   int  $preCotizacionId  Optional PRE id for discount-approver exception
      *
      * @return  bool
      */
-    public static function canSeePrecotizacionInternalTaxBreakdown()
+    public static function canSeePrecotizacionInternalTaxBreakdown(int $preCotizacionId = 0)
     {
         if (self::isSuperUser() || self::isInAdministracionOrAdmonGroup()) {
             return true;
         }
 
         if (self::isInVentasGroup() && !self::isInAprobacionesVentasGroup()) {
+            if ($preCotizacionId > 0 && self::userCanActOnOpenSolicitudDescuentoForPreCot($preCotizacionId)) {
+                return true;
+            }
+
             return false;
         }
 
         return true;
+    }
+
+    /**
+     * Current user may act on the pending solicitud de descuento for this pre-cotización (approval step).
+     *
+     * @param   int  $preCotizacionId
+     *
+     * @return  bool
+     *
+     * @since   3.119.82
+     */
+    public static function userCanActOnOpenSolicitudDescuentoForPreCot(int $preCotizacionId): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        $user            = Factory::getUser();
+
+        if ($preCotizacionId < 1 || $user->guest) {
+            return false;
+        }
+
+        try {
+            $wf = new ApprovalWorkflowService();
+
+            if (!$wf->hasSchema()) {
+                return false;
+            }
+
+            $pending = $wf->getOpenPendingRequest(
+                ApprovalWorkflowService::ENTITY_SOLICITUD_DESCUENTO,
+                $preCotizacionId
+            );
+
+            if ($pending === null) {
+                return false;
+            }
+
+            $requestId = (int) ($pending->id ?? 0);
+
+            return $requestId > 0 && $wf->canUserActOnPendingStep($requestId, (int) $user->id);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
