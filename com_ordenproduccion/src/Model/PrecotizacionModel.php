@@ -1022,7 +1022,10 @@ class PrecotizacionModel extends ListModel
         ) {
             return false;
         }
-        if ($this->hasActiveOrdenTrabajoForPrecotizacion($preCotizacionId)) {
+        if (
+            $this->hasActiveOrdenTrabajoForPrecotizacion($preCotizacionId)
+            && !AccessHelper::userCanReviewOpenSolicitudDescuentoForPreCot($preCotizacionId)
+        ) {
             return false;
         }
         $db = $this->getDatabase();
@@ -1134,6 +1137,68 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Pliego line breakdown for display and discount review (falls back to line total when JSON is empty).
+     *
+     * @param   \stdClass  $line  Line from getLines() or getLine()
+     *
+     * @return  array<int, array<string, mixed>>
+     *
+     * @since   3.119.84
+     */
+    public function resolvePliegoBreakdownForLine($line): array
+    {
+        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        if ($lineType === 'envio' || $lineType === 'tercerizado') {
+            return [];
+        }
+        if ($lineType === 'elementos' && !empty($line->elemento_id)) {
+            return [];
+        }
+
+        $breakdown = [];
+        if (isset($line->breakdown) && is_array($line->breakdown) && $line->breakdown !== []) {
+            $breakdown = $line->breakdown;
+        } elseif (!empty($line->calculation_breakdown)) {
+            $decoded = json_decode((string) $line->calculation_breakdown, true);
+            if (is_array($decoded) && $decoded !== []) {
+                $breakdown = $decoded;
+            }
+        }
+        if ($breakdown !== []) {
+            return $breakdown;
+        }
+
+        $total = round((float) ($line->total ?? 0), 2);
+        if ($total <= 0) {
+            return [];
+        }
+
+        $qty = max(1, (int) ($line->quantity ?? 1));
+        $perSheet = round($total / $qty, 2);
+        $impBase = null;
+        if (isset($line->impresion_subtotal_base) && $line->impresion_subtotal_base !== null && $line->impresion_subtotal_base !== '') {
+            $impBase = round((float) $line->impresion_subtotal_base, 2);
+            if ($impBase <= 0) {
+                $impBase = null;
+            }
+        }
+
+        $printSub = ($impBase !== null) ? $impBase : $total;
+        $row = [
+            'label'    => 'Impresión',
+            'detail'   => 'Q ' . number_format($perSheet, 2),
+            'subtotal' => $printSub,
+        ];
+        if ($impBase !== null) {
+            $row['subtotal_base'] = $impBase;
+        } else {
+            $row['subtotal_base'] = $total;
+        }
+
+        return [$row];
+    }
+
+    /**
      * Min/max/current subtotal for one breakdown row (Aprobaciones Ventas UI).
      *
      * @param   \stdClass  $line      Line from getLines()
@@ -1149,11 +1214,14 @@ class PrecotizacionModel extends ListModel
         if ($lineId < 1 || !$this->canUserSaveImpresionOverrideOnLine($lineId)) {
             return null;
         }
-        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        $lineType = isset($line->line_type) ? trim((string) $line->line_type) : '';
+        if ($lineType === '') {
+            $lineType = 'pliego';
+        }
         if ($lineType !== 'pliego') {
             return null;
         }
-        $breakdown = $line->breakdown ?? [];
+        $breakdown = $this->resolvePliegoBreakdownForLine($line);
         if (!isset($breakdown[$rowIndex]) || !is_array($breakdown[$rowIndex])) {
             return null;
         }
@@ -1212,11 +1280,14 @@ class PrecotizacionModel extends ListModel
         if (!$line) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_INVALID_ID')];
         }
-        $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
+        $lineType = isset($line->line_type) ? trim((string) $line->line_type) : '';
+        if ($lineType === '') {
+            $lineType = 'pliego';
+        }
         if ($lineType !== 'pliego') {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NOT_PLIEGO')];
         }
-        $breakdown = $line->breakdown ?? [];
+        $breakdown = $this->resolvePliegoBreakdownForLine($line);
         if (!isset($breakdown[$rowIndex]) || !is_array($breakdown[$rowIndex])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PRE_COT_IMPRESION_OVERRIDE_NO_BREAKDOWN')];
         }

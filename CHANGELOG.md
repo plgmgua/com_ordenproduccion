@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.84-STABLE] - 2026-05-19
+
+### Fixed
+- **Solicitud de descuento (revisión):** la nota de la solicitud se muestra arriba del título de la pre-cotización; líneas pliego sin `calculation_breakdown` guardado (o con `line_type` vacío) muestran desglose sintético, campos de ajuste de subtotal y botón **Guardar subtotales**; revisión de descuento no se bloquea por OT activa.
+
 ## [3.119.83-STABLE] - 2026-05-19
 
 ### Fixed

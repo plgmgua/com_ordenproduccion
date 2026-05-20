@@ -168,11 +168,14 @@ $hasAnyBreakdownOverrideRows = false;
 $precotModelDoc = $this->precotizacionModel ?? null;
 if ($canSaveImpresionOverride && $lines !== [] && $precotModelDoc) {
     foreach ($lines as $ln) {
-        $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
-        if ($lt !== 'pliego') {
+        $lt = isset($ln->line_type) ? trim((string) $ln->line_type) : '';
+        $isEnvioLn = $lt === 'envio';
+        $isTercLn = $lt === 'tercerizado';
+        $isElemLn = !$isEnvioLn && !$isTercLn && $lt === 'elementos' && !empty($ln->elemento_id);
+        if ($isEnvioLn || $isTercLn || $isElemLn) {
             continue;
         }
-        $br = $ln->breakdown ?? [];
+        $br = $precotModelDoc->resolvePliegoBreakdownForLine($ln);
         foreach ($br as $bi => $_br) {
             if ($precotModelDoc->getBreakdownRowAdjustmentMeta($ln, (int) $bi) !== null) {
                 $hasAnyBreakdownOverrideRows = true;
@@ -252,6 +255,13 @@ $solicitarDescuentoAction   = Route::_(
             <strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_PENDING_BADGE'); ?></strong>
             <span class="d-block small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_APPROVAL_LINE_DETAIL_HINT'); ?></span>
         </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($showDiscountApprovalBanner && $solicitudDescuentoLatestNote !== '') : ?>
+    <div class="mb-3 precotizacion-discount-request-note">
+        <div class="small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_NOTE_LABEL'); ?></div>
+        <div class="border rounded p-2 bg-light small text-body"><?php echo nl2br(htmlspecialchars($solicitudDescuentoLatestNote, ENT_QUOTES, 'UTF-8')); ?></div>
     </div>
     <?php endif; ?>
 
@@ -728,9 +738,11 @@ $solicitarDescuentoAction   = Route::_(
                             <td colspan="7" class="p-0 bg-light align-top">
                                 <div class="p-2">
                                     <?php
-                                    $breakdown = $line->breakdown ?? [];
                                     $precotRowModel = $this->precotizacionModel ?? null;
-                                    $hasBreakdownOverrideCols = $canSaveImpresionOverride && $precotRowModel;
+                                    $breakdown = $precotRowModel
+                                        ? $precotRowModel->resolvePliegoBreakdownForLine($line)
+                                        : ($line->breakdown ?? []);
+                                    $hasBreakdownOverrideCols = $canSaveImpresionOverride && $precotRowModel && $breakdown !== [];
                                     if ($hasBreakdownOverrideCols) {
                                         $hasBreakdownOverrideCols = false;
                                         foreach ($breakdown as $bi => $_br) {
@@ -955,7 +967,7 @@ $solicitarDescuentoAction   = Route::_(
         .margen-total-row td { background-color: #d4edda !important; color: #155724; font-weight: 500; }
         </style>
     <?php
-    if (!empty($lines) && !empty($canSeePrecotInternalTax) && !empty($hasAnyBreakdownOverrideRows)) {
+    if (!empty($lines) && !empty($canSeePrecotInternalTax) && (!empty($hasAnyBreakdownOverrideRows) || ($canReviewDiscountApproval && $pendingSolicitudDescuento && $canSaveImpresionOverride))) {
         $precotLt = [];
         foreach ($lines as $_ln) {
             $precotLt[(string) (int) $_ln->id] = round((float) ($_ln->total ?? 0), 2);
@@ -992,7 +1004,7 @@ $solicitarDescuentoAction   = Route::_(
 
     <?php if ($discountWorkflowAvailable) : ?>
     <div class="mt-3 text-end precotizacion-discount-footer">
-        <?php if ($solicitudDescuentoLatestNote !== '') : ?>
+        <?php if ($solicitudDescuentoLatestNote !== '' && !$showDiscountApprovalBanner) : ?>
         <div class="text-start ms-auto mb-3" style="max-width: 42rem; margin-left: auto !important;">
             <div class="small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_DESCUENTO_NOTE_LABEL'); ?></div>
             <div class="border rounded p-2 bg-light small text-body"><?php echo nl2br(htmlspecialchars($solicitudDescuentoLatestNote, ENT_QUOTES, 'UTF-8')); ?></div>
