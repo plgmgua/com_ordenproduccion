@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.95-STABLE] - 2026-05-19
+
+### Changed
+- **Pre-cotización proveedor externo:** «Guardar líneas» queda debajo de «Agregar linea» y «Gastos de Envio».
+
 ## [3.119.94-STABLE] - 2026-05-19
 
 ### Changed

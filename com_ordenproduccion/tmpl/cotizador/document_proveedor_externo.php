@@ -984,6 +984,10 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <div></div>
             <?php endif; ?>
             <div class="d-flex flex-column gap-2 align-items-stretch precot-vendor-save-stack" style="min-width: 220px; max-width: 100%;">
+                <div class="text-end d-flex flex-wrap gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="proveedor-externo-add-line"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?></button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm<?php echo $hasGastosEnvioRow ? ' d-none' : ''; ?>" id="proveedor-externo-add-gastos-envio"><?php echo htmlspecialchars($colGastosEnvio); ?></button>
+                </div>
                 <button type="submit" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" class="btn btn-success w-100"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
                 <?php if (!$user->guest && $solicitudCotWf && $pendingSolicitudCot) : ?>
                 <button type="button" class="btn btn-primary w-100" disabled title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_VENDOR_QUOTE_PENDING_HELP'), ENT_QUOTES, 'UTF-8'); ?>">
@@ -998,10 +1002,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     </button>
                 </form>
                 <?php endif; ?>
-                <div class="text-end d-flex flex-wrap gap-2 justify-content-end">
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="proveedor-externo-add-line"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?></button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm<?php echo $hasGastosEnvioRow ? ' d-none' : ''; ?>" id="proveedor-externo-add-gastos-envio"><?php echo htmlspecialchars($colGastosEnvio); ?></button>
-                </div>
             </div>
         </div>
     <?php
