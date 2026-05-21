@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.89-STABLE] - 2026-05-19
+
+### Added
+- **Pliegos – Procesos por pliego:** nueva subpestaña para configurar precios de Barniz (Tiro y Tiro/Retiro) por tamaño de pliego.
+- **Pre-cotización pliegos:** checkbox Barniz con opción Tiro/Retiro en el modal de línea, integrado al cálculo de precio por pliego y al desglose (igual que laminación).
+
 ## [3.119.88-STABLE] - 2026-05-19
 
 ### Fixed

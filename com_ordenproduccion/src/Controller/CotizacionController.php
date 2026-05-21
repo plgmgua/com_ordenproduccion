@@ -183,6 +183,11 @@ class CotizacionController extends BaseController
         if ($laminationTiroRetiro !== 'retiro' && $laminationTiroRetiro !== 'tiro') {
             $laminationTiroRetiro = $tiroRetiro;
         }
+        $needsBarniz = $app->input->getBool('needs_barniz', false);
+        $barnizTiroRetiro = 'tiro';
+        if ($needsBarniz) {
+            $barnizTiroRetiro = $app->input->get('barniz_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro';
+        }
         $processIds = $app->input->get('process_ids', [], 'array');
         $processIds = array_map('intval', array_filter($processIds));
 
@@ -207,6 +212,14 @@ class CotizacionController extends BaseController
             }
         }
 
+        $barnizPrice = 0.0;
+        if ($needsBarniz && method_exists($productosModel, 'getBarnizPricePerSheet')) {
+            $barnizPrice = $productosModel->getBarnizPricePerSheet($sizeId, $barnizTiroRetiro, $quantity);
+            if ($barnizPrice === null) {
+                $barnizPrice = 0.0;
+            }
+        }
+
         // Procesos Adicionales: custom range per process (range_1_ceiling = upper bound of first range)
         $processesTotal = 0.0;
         if (!empty($processIds)) {
@@ -226,7 +239,7 @@ class CotizacionController extends BaseController
             }
         }
 
-        $pricePerSheet = $printPrice + $laminationPrice;
+        $pricePerSheet = $printPrice + $laminationPrice + $barnizPrice;
         $total = $pricePerSheet * $quantity + $processesTotal;
 
         $getLabel = function ($key, $fallback) {
@@ -238,6 +251,7 @@ class CotizacionController extends BaseController
             ? $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_RETIRO', 'Impresión (Tiro/Retiro)')
             : $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_TIRO', 'Impresión (Tiro)');
         $laminationLabel = $getLabel('COM_ORDENPRODUCCION_CALC_LAMINATION', 'Laminación');
+        $barnizLabel = $getLabel('COM_ORDENPRODUCCION_CALC_BARNIZ', 'Barniz');
 
         $rows = [];
         $rows[] = [
@@ -250,6 +264,13 @@ class CotizacionController extends BaseController
                 'label' => $laminationLabel,
                 'detail' => 'Q ' . number_format((float) $laminationPrice, 2),
                 'subtotal' => round($laminationPrice * $quantity, 2),
+            ];
+        }
+        if ($barnizPrice > 0) {
+            $rows[] = [
+                'label' => $barnizLabel,
+                'detail' => 'Q ' . number_format((float) $barnizPrice, 2),
+                'subtotal' => round($barnizPrice * $quantity, 2),
             ];
         }
         if (!empty($processIds)) {
@@ -280,6 +301,7 @@ class CotizacionController extends BaseController
             'total' => round($total, 2),
             'print_price' => $printPrice,
             'lamination_price' => $laminationPrice,
+            'barniz_price' => $barnizPrice,
             'processes_total' => $processesTotal,
             'rows' => $rows,
         ]);

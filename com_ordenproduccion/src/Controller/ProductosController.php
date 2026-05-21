@@ -359,6 +359,51 @@ class ProductosController extends BaseController
     }
 
     /**
+     * Save barniz prices per size (Tiro and Tiro/Retiro).
+     *
+     * @return  void
+     * @since   3.119.89
+     */
+    public function saveBarnizPrices()
+    {
+        if (!Session::checkToken('post')) {
+            $this->setRedirectPliegoProcesos(Text::_('JINVALID_TOKEN'), 'error');
+            return;
+        }
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->setRedirectPliegoProcesos(Text::_('JGLOBAL_AUTH_ACCESS_DENIED'), 'error');
+            return;
+        }
+        $input = Factory::getApplication()->input;
+        $pricesTiro = $input->post->get('price_tiro', [], 'array');
+        $pricesRetiro = $input->post->get('price_retiro', [], 'array');
+        $pricesTiro = array_map('floatval', $pricesTiro);
+        $pricesRetiro = array_map('floatval', $pricesRetiro);
+
+        $model = $this->getModel('Productos', 'Site');
+        if (!$model->saveBarnizPrices($pricesTiro, $pricesRetiro)) {
+            $this->setRedirectPliegoProcesos($model->getError() ?: Text::_('COM_ORDENPRODUCCION_BARNIZ_SAVE_ERROR'), 'error');
+            return;
+        }
+        $this->setRedirectPliegoProcesos(Text::_('COM_ORDENPRODUCCION_BARNIZ_SAVE_SUCCESS'), 'success');
+    }
+
+    /**
+     * Redirect to Productos Procesos por pliego tab.
+     *
+     * @param   string  $msg   Message text
+     * @param   string  $type  Message type
+     * @return  void
+     * @since   3.119.89
+     */
+    private function setRedirectPliegoProcesos($msg, $type = 'notice')
+    {
+        Factory::getApplication()->enqueueMessage($msg, $type);
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=pliego_procesos', false));
+    }
+
+    /**
      * Save elemento (name, size, price). Redirects to Productos section=elementos.
      *
      * @return  void

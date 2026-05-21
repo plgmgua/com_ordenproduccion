@@ -295,6 +295,12 @@ $l = function ($key, $fallback) {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link <?php echo $activeTab === 'pliego_procesos' ? 'active' : ''; ?>"
+                   href="<?php echo Route::_($basePliegos . '&tab=pliego_procesos'); ?>">
+                    <?php echo $l('COM_ORDENPRODUCCION_PRODUCTOS_TAB_PLIEGO_PROCESOS', 'Procesos por pliego'); ?>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link <?php echo $activeTab === 'pliego' ? 'active' : ''; ?>"
                    href="<?php echo Route::_($basePliegos . '&tab=pliego'); ?>">
                     Pliego Papel
@@ -750,6 +756,53 @@ $l = function ($key, $fallback) {
                         </form>
                     <?php elseif ($this->selectedLaminationTypeId > 0 && empty($this->sizes)) : ?>
                         <p class="text-muted">No hay tamaños definidos. Agregue tamaños en la pestaña Tamaños.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($activeTab === 'pliego_procesos') : ?>
+            <div class="card mb-3">
+                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_PLIEGO_HEADER', 'Procesos por pliego – Barniz'); ?></div>
+                <div class="card-body">
+                    <p class="text-muted mb-3"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_PLIEGO_DESC', 'Defina el precio por pliego de Barniz para cada tamaño. Tiro = un solo lado; Tiro/Retiro = ambos lados.'); ?></p>
+                    <?php if (!empty($this->sizes)) : ?>
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveBarnizPrices'); ?>" method="post">
+                            <?php echo HTMLHelper::_('form.token'); ?>
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th><?php echo $l('COM_ORDENPRODUCCION_SIZE_NAME', 'Tamaño'); ?></th>
+                                        <th>Dimensiones (in)</th>
+                                        <th class="bg-light" style="width:180px;"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO', 'Tiro (un lado) – Precio (Q)'); ?></th>
+                                        <th class="bg-light" style="width:180px;"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO_RETIRO', 'Tiro/Retiro (ambos lados) – Precio (Q)'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php
+                                    $barnizPrices = $this->barnizPrices ?? [];
+                                    foreach ($this->sizes as $s) :
+                                        $sid = (int) $s->id;
+                                        $tiroVal = isset($barnizPrices[$sid]['tiro']) ? (float) $barnizPrices[$sid]['tiro'] : '';
+                                        $retiroVal = isset($barnizPrices[$sid]['retiro']) ? (float) $barnizPrices[$sid]['retiro'] : '';
+                                    ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
+                                            <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
+                                            <td>
+                                                <input type="number" name="price_tiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $tiroVal !== '' ? $tiroVal : ''; ?>" placeholder="0.00">
+                                            </td>
+                                            <td>
+                                                <input type="number" name="price_retiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $retiroVal !== '' ? $retiroVal : ''; ?>" placeholder="0.00">
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            <button type="submit" class="btn btn-primary mt-2"><?php echo $l('COM_ORDENPRODUCCION_SAVE_BARNIZ_PRICES', 'Guardar precios'); ?></button>
+                        </form>
+                    <?php else : ?>
+                        <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_SIZES', 'No hay tamaños definidos.'); ?></p>
                     <?php endif; ?>
                 </div>
             </div>

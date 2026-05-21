@@ -343,6 +343,19 @@ class HtmlView extends BaseHtmlView
         }
         $this->pliegoLaminationTypeIdsBySizeTiro = $laminationTypeIdsBySizeTiro;
         $this->pliegoLaminationTypeIdsBySizeRetiro = $laminationTypeIdsBySizeRetiro;
+        $barnizSizeIdsTiro = [];
+        $barnizSizeIdsRetiro = [];
+        foreach ($this->pliegoSizes as $sz) {
+            $sid = (int) $sz->id;
+            if ($productosModel->sizeHasBarnizPrice($sid, 'tiro')) {
+                $barnizSizeIdsTiro[] = $sid;
+            }
+            if ($productosModel->sizeHasBarnizPrice($sid, 'retiro')) {
+                $barnizSizeIdsRetiro[] = $sid;
+            }
+        }
+        $this->pliegoBarnizSizeIdsTiro = $barnizSizeIdsTiro;
+        $this->pliegoBarnizSizeIdsRetiro = $barnizSizeIdsRetiro;
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();
 

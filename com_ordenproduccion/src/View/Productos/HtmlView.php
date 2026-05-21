@@ -105,6 +105,14 @@ class HtmlView extends BaseHtmlView
     protected $laminationPrices = [];
 
     /**
+     * Barniz prices by size_id for Procesos por pliego tab (size_id => ['tiro'=>, 'retiro'=>])
+     *
+     * @var    array
+     * @since  3.119.89
+     */
+    protected $barnizPrices = [];
+
+    /**
      * Active section: pliegos | elementos
      *
      * @var    string
@@ -384,6 +392,9 @@ class HtmlView extends BaseHtmlView
                 $this->laminationPrices = $this->selectedLaminationTypeId > 0
                     ? $model->getLaminationPricesForType($this->selectedLaminationTypeId)
                     : [];
+            }
+            if ($this->activeTab === 'pliego_procesos') {
+                $this->barnizPrices = $model->getBarnizPrices();
             }
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING'), 'warning');

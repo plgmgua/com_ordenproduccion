@@ -1286,6 +1286,23 @@ class PrecotizacionModel extends ListModel
             ];
         }
 
+        $barnizTiroRetiro = isset($line->barniz_tiro_retiro) ? (string) $line->barniz_tiro_retiro : '';
+        $barnizPrice = 0.0;
+        if (($barnizTiroRetiro === 'retiro' || $barnizTiroRetiro === 'tiro')
+            && method_exists($productosModel, 'getBarnizPricePerSheet')) {
+            $barnizPrice = $productosModel->getBarnizPricePerSheet($sizeId, $barnizTiroRetiro, $quantity);
+            if ($barnizPrice === null) {
+                $barnizPrice = 0.0;
+            }
+        }
+        if ($barnizPrice > 0) {
+            $rows[] = [
+                'label'    => $getLabel('COM_ORDENPRODUCCION_CALC_BARNIZ', 'Barniz'),
+                'detail'   => 'Q ' . number_format((float) $barnizPrice, 2),
+                'subtotal' => round((float) $barnizPrice * $quantity, 2),
+            ];
+        }
+
         foreach ($processRows as $processRow) {
             $rows[] = $processRow;
         }
@@ -2444,6 +2461,10 @@ class PrecotizacionModel extends ListModel
                 $obj->tipo_elemento = null;
             }
         }
+        if (isset($columns['barniz_tiro_retiro'])) {
+            $btr = $data['barniz_tiro_retiro'] ?? null;
+            $obj->barniz_tiro_retiro = ($btr === 'retiro' || $btr === 'tiro') ? $btr : null;
+        }
 
         $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
         if (isset($columns['impresion_subtotal_base']) && $lineType === 'pliego'
@@ -2862,6 +2883,10 @@ class PrecotizacionModel extends ListModel
                 $line->impresion_subtotal_base     = $impBase;
                 $line->impresion_subtotal_override = null;
             }
+        }
+        if ($isPliego && isset($columns['barniz_tiro_retiro'])) {
+            $btr = $data['barniz_tiro_retiro'] ?? null;
+            $line->barniz_tiro_retiro = ($btr === 'retiro' || $btr === 'tiro') ? $btr : null;
         }
 
         try {

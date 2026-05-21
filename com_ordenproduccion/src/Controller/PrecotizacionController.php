@@ -448,6 +448,9 @@ class PrecotizacionController extends BaseController
             'tiro_retiro'            => $app->input->get('tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
             'lamination_type_id'     => (int) $app->input->get('lamination_type_id', 0) ?: null,
             'lamination_tiro_retiro' => $app->input->get('lamination_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
+            'barniz_tiro_retiro'     => $app->input->getBool('needs_barniz', false)
+                ? ($app->input->get('barniz_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro')
+                : null,
             'process_ids'            => $app->input->get('process_ids', [], 'array'),
             'price_per_sheet'        => (float) $app->input->get('price_per_sheet', 0),
             'total'                  => (float) $app->input->get('total', 0),
@@ -550,6 +553,9 @@ class PrecotizacionController extends BaseController
             'tiro_retiro'            => $app->input->get('tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
             'lamination_type_id'     => (int) $app->input->get('lamination_type_id', 0) ?: null,
             'lamination_tiro_retiro' => $app->input->get('lamination_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
+            'barniz_tiro_retiro'     => $app->input->getBool('needs_barniz', false)
+                ? ($app->input->get('barniz_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro')
+                : null,
             'process_ids'            => $app->input->get('process_ids', [], 'array'),
             'price_per_sheet'        => (float) $app->input->get('price_per_sheet', 0),
             'total'                  => (float) $app->input->get('total', 0),

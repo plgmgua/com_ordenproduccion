@@ -879,6 +879,195 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Check if barniz prices table exists.
+     *
+     * @return  bool
+     * @since   3.119.89
+     */
+    public function barnizTableExists()
+    {
+        $db = $this->getDatabase();
+        $tables = $db->getTableList();
+        $prefix = $db->getPrefix();
+        $needle = $prefix . 'ordenproduccion_barniz_prices';
+        foreach ($tables as $name) {
+            if (strcasecmp($name, $needle) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get barniz prices per size (Tiro and Tiro/Retiro).
+     *
+     * @return  array  size_id => ['tiro' => price|null, 'retiro' => price|null]
+     * @since   3.119.89
+     */
+    public function getBarnizPrices()
+    {
+        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+            return [];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('size_id') . ', ' . $db->quoteName('tiro_retiro') . ', ' . $db->quoteName('price_per_sheet'))
+            ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+            ->where($db->quoteName('qty_min') . ' = 1')
+            ->where($db->quoteName('state') . ' = 1');
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            $sid = (int) $row->size_id;
+            if (!isset($out[$sid])) {
+                $out[$sid] = ['tiro' => null, 'retiro' => null];
+            }
+            $key = ($row->tiro_retiro === 'retiro') ? 'retiro' : 'tiro';
+            $out[$sid][$key] = (float) $row->price_per_sheet;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Save barniz prices: tiro and retiro price per size (qty 1–999999).
+     *
+     * @param   array  $pricesTiro    size_id => price_per_sheet (one side)
+     * @param   array  $pricesRetiro   size_id => price_per_sheet (both sides)
+     * @return  bool
+     * @since   3.119.89
+     */
+    public function saveBarnizPrices($pricesTiro, $pricesRetiro = [])
+    {
+        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+            $this->setError('Barniz table not installed.');
+            return false;
+        }
+        $user = Factory::getUser();
+        $db = $this->getDatabase();
+        $now = Factory::getDate()->toSql();
+        $userId = (int) $user->id;
+
+        $allSizes = array_unique(array_merge(array_keys($pricesTiro), array_keys($pricesRetiro)));
+        foreach ($allSizes as $sizeId) {
+            $sizeId = (int) $sizeId;
+            if ($sizeId <= 0) {
+                continue;
+            }
+            foreach (['tiro' => $pricesTiro, 'retiro' => $pricesRetiro] as $tiroRetiro => $prices) {
+                $price = isset($prices[$sizeId]) ? (float) $prices[$sizeId] : null;
+                if ($price === null && $tiroRetiro === 'retiro') {
+                    continue;
+                }
+                if ($price === null) {
+                    $price = 0.0;
+                }
+
+                $query = $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+                    ->where($db->quoteName('size_id') . ' = ' . $sizeId)
+                    ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
+                    ->where($db->quoteName('qty_min') . ' = 1');
+                $db->setQuery($query);
+                $id = (int) $db->loadResult();
+
+                if ($id > 0) {
+                    $obj = (object) [
+                        'id' => $id,
+                        'price_per_sheet' => $price,
+                        'modified' => $now,
+                        'modified_by' => $userId,
+                    ];
+                    $db->updateObject('#__ordenproduccion_barniz_prices', $obj, ['id']);
+                } else {
+                    $obj = (object) [
+                        'size_id' => $sizeId,
+                        'tiro_retiro' => $tiroRetiro,
+                        'qty_min' => 1,
+                        'qty_max' => 999999,
+                        'price_per_sheet' => $price,
+                        'state' => 1,
+                        'created' => $now,
+                        'created_by' => $userId,
+                        'modified' => $now,
+                        'modified_by' => $userId,
+                    ];
+                    $db->insertObject('#__ordenproduccion_barniz_prices', $obj);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether the given size has a non-zero barniz price for tiro or retiro.
+     *
+     * @param   int     $sizeId      Size ID
+     * @param   string  $tiroRetiro  'tiro' or 'retiro'
+     * @return  bool
+     * @since   3.119.89
+     */
+    public function sizeHasBarnizPrice($sizeId, $tiroRetiro = 'tiro')
+    {
+        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+            return false;
+        }
+        $sizeId = (int) $sizeId;
+        if ($sizeId <= 0) {
+            return false;
+        }
+        $tiroRetiro = $tiroRetiro === 'retiro' ? 'retiro' : 'tiro';
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+            ->where($db->quoteName('size_id') . ' = ' . $sizeId)
+            ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('price_per_sheet') . ' > 0');
+        $db->setQuery($query);
+
+        return (int) $db->loadResult() > 0;
+    }
+
+    /**
+     * Get barniz price per sheet for given size, tiro/retiro and quantity.
+     *
+     * @param   int     $sizeId       Size ID
+     * @param   string  $tiroRetiro   'tiro' or 'retiro'
+     * @param   int     $quantity     Order quantity
+     * @return  float|null  Price per sheet or null if not found
+     * @since   3.119.89
+     */
+    public function getBarnizPricePerSheet($sizeId, $tiroRetiro, $quantity)
+    {
+        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+            return null;
+        }
+        $db = $this->getDatabase();
+        $tiroRetiro = $tiroRetiro === 'retiro' ? 'retiro' : 'tiro';
+        $quantity = (int) $quantity;
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('price_per_sheet'))
+            ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+            ->where($db->quoteName('size_id') . ' = ' . (int) $sizeId)
+            ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where($db->quoteName('qty_min') . ' <= ' . $quantity)
+            ->where($db->quoteName('qty_max') . ' >= ' . $quantity)
+            ->order($db->quoteName('qty_min') . ' DESC')
+            ->setLimit(1);
+        $db->setQuery($query);
+        $result = $db->loadResult();
+
+        return $result !== null ? (float) $result : null;
+    }
+
+    /**
      * Check if elementos table exists
      *
      * @return  bool
