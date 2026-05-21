@@ -1007,7 +1007,6 @@ $solicitarDescuentoAction   = Route::_(
                             (<?php echo htmlspecialchars($precotComisionMaPctText, ENT_QUOTES, 'UTF-8'); ?>%) = Q.<span id="precot-footer-comision-ma-dot"><?php echo \number_format($comisionMargenAdicionalAmount, 2, '.', ''); ?></span>
                             &mdash;
                             <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?>
-                            |
                         </td>
                         <td class="text-end"><span id="precot-footer-total-comision-sum"><?php echo 'Q ' . \number_format($totalComision, 2, '.', ''); ?></span></td>
                         <td></td>

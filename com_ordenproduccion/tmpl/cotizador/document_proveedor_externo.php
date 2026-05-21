@@ -1094,7 +1094,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <?php if ($comisionMargenAdicionalAmount > 0) : ?>
                 <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
                 <tr>
-                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo htmlspecialchars($precotComisionMaPctText, ENT_QUOTES, 'UTF-8'); ?>%) = Q.<?php echo \number_format($comisionMargenAdicionalAmount, 2, '.', ''); ?> &mdash; <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?> |</td>
+                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_COMISION_MARGEN_ADICIONAL'); ?> (<?php echo htmlspecialchars($precotComisionMaPctText, ENT_QUOTES, 'UTF-8'); ?>%) = Q.<?php echo \number_format($comisionMargenAdicionalAmount, 2, '.', ''); ?> &mdash; <?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_COMISION'); ?></td>
                     <td class="text-end fw-semibold"><?php echo 'Q ' . \number_format($totalComision, 2, '.', ''); ?></td>
                 </tr>
                 <?php endif; ?>
