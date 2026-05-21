@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.93-STABLE] - 2026-05-19
+
+### Changed
+- **Pre-cotización proveedor externo:** la línea «Gastos de envío» ya no aparece fija; se agrega con un botón **+** dedicado y se puede quitar con **×**.
+
 ## [3.119.92-STABLE] - 2026-05-19
 
 ### Added

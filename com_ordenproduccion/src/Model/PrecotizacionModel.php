@@ -3017,7 +3017,7 @@ class PrecotizacionModel extends ListModel
      *
      * @since   3.112.0
      */
-    public function saveProveedorExternoLines(int $preCotizacionId, array $rows, ?float $gastosEnvio = null): bool
+    public function saveProveedorExternoLines(int $preCotizacionId, array $rows, float $gastosEnvio = 0.0): bool
     {
         $preCotizacionId = (int) $preCotizacionId;
         if ($preCotizacionId < 1) {
@@ -3083,7 +3083,7 @@ class PrecotizacionModel extends ListModel
                 }
             }
 
-            if ($gastosEnvio !== null && !$this->saveProveedorExternoGastosEnvio($preCotizacionId, $gastosEnvio, false)) {
+            if (!$this->saveProveedorExternoGastosEnvio($preCotizacionId, $gastosEnvio, false)) {
                 throw new \RuntimeException('saveProveedorExternoGastosEnvio failed');
             }
 

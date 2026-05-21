@@ -48,6 +48,8 @@ foreach ($lines as $ln) {
     }
 }
 $colGastosEnvio = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_GASTOS_ENVIO');
+$hasGastosEnvioRow = ($gastosEnvioLine !== null);
+$addGastosEnvioLabel = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_GASTOS_ENVIO');
 $anyVendorLineUnitPricePositive = false;
 foreach ($vendorLines as $_vl) {
     if (round((float) ($_vl->price_per_sheet ?? 0), 2) > 0) {
@@ -877,6 +879,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     <form method="post" action="<?php echo htmlspecialchars($saveVendorLinesUrl); ?>" id="<?php echo htmlspecialchars($saveLinesFormId); ?>" class="d-none" aria-hidden="true">
         <?php echo HTMLHelper::_('form.token'); ?>
         <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>">
+        <input type="hidden" name="gastos_envio_present" id="gastos-envio-present-flag" value="<?php echo $hasGastosEnvioRow ? '1' : '0'; ?>">
     </form>
     <div class="pre-cot-vendor-lines-wrap mb-3">
             <table class="table table-sm table-bordered pre-cot-vendor-lines-table" id="proveedor-externo-lines-table">
@@ -932,6 +935,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php if ($hasGastosEnvioRow) :
+                        $gastosEnvioLineId = (int) $gastosEnvioLine->id;
+                        ?>
                     <tr class="proveedor-externo-gastos-envio-row">
                         <td class="col-qty align-middle">1</td>
                         <td class="col-desc align-middle"><?php echo htmlspecialchars($colGastosEnvio); ?></td>
@@ -944,8 +950,20 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <td class="col-total text-end align-middle">
                             <span class="js-gastos-envio-total">Q <?php echo number_format($gastosEnvioAmount, 2); ?></span>
                         </td>
-                        <td class="col-actions"></td>
+                        <td class="col-actions text-center align-middle">
+                            <?php if ($gastosEnvioLineId > 0) :
+                                $deleteGastosEnvioUrl = 'index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . $gastosEnvioLineId . '&id=' . $preCotizacionId;
+                                ?>
+                            <form action="<?php echo Route::_($deleteGastosEnvioUrl); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <button type="submit" class="btn btn-sm btn-outline-danger btn-vendor-row-action" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
+                            </form>
+                            <?php else : ?>
+                            <button type="button" class="btn btn-sm btn-outline-secondary btn-vendor-row-action js-remove-gastos-envio-row" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
+                            <?php endif; ?>
+                        </td>
                     </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
     </div>
@@ -981,8 +999,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     </button>
                 </form>
                 <?php endif; ?>
-                <div class="text-end">
-                    <button type="button" class="btn btn-outline-primary px-3" id="proveedor-externo-add-line" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE'); ?>">+</button>
+                <div class="text-end d-flex flex-wrap gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-primary px-3" id="proveedor-externo-add-line" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?>" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?>">+</button>
+                    <button type="button" class="btn btn-outline-secondary px-3<?php echo $hasGastosEnvioRow ? ' d-none' : ''; ?>" id="proveedor-externo-add-gastos-envio" aria-label="<?php echo htmlspecialchars($addGastosEnvioLabel); ?>" title="<?php echo htmlspecialchars($addGastosEnvioLabel); ?>">+</button>
                 </div>
             </div>
         </div>
@@ -1021,13 +1040,63 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             </td>
         </tr>
     </template>
+    <template id="proveedor-externo-gastos-envio-template">
+        <tr class="proveedor-externo-gastos-envio-row">
+            <td class="col-qty align-middle">1</td>
+            <td class="col-desc align-middle"><?php echo htmlspecialchars($colGastosEnvio); ?></td>
+            <td class="col-price">
+                <input type="number" class="form-control form-control-sm text-end js-gastos-envio-amount" name="gastos_envio" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="0.00" aria-label="<?php echo htmlspecialchars($colGastosEnvio); ?>">
+            </td>
+            <?php if ($showVendorPupColumn) : ?>
+            <td class="col-pup text-end align-middle text-muted">—</td>
+            <?php endif; ?>
+            <td class="col-total text-end align-middle">
+                <span class="js-gastos-envio-total">Q 0.00</span>
+            </td>
+            <td class="col-actions text-center align-middle">
+                <button type="button" class="btn btn-sm btn-outline-secondary btn-vendor-row-action js-remove-gastos-envio-row" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
+            </td>
+        </tr>
+    </template>
     <script>
     (function() {
         var tbody = document.getElementById('proveedor-externo-lines-tbody');
         var tpl = document.getElementById('proveedor-externo-line-template');
+        var gastosTpl = document.getElementById('proveedor-externo-gastos-envio-template');
         var btnAdd = document.getElementById('proveedor-externo-add-line');
+        var btnAddGastos = document.getElementById('proveedor-externo-add-gastos-envio');
+        var gastosPresentFlag = document.getElementById('gastos-envio-present-flag');
         if (!tbody || !tpl || !btnAdd) return;
         var nextIdx = tbody.querySelectorAll('tr.proveedor-externo-line-row').length;
+
+        function setGastosEnvioPresent(isPresent) {
+            if (gastosPresentFlag) {
+                gastosPresentFlag.value = isPresent ? '1' : '0';
+            }
+            if (btnAddGastos) {
+                btnAddGastos.classList.toggle('d-none', !!isPresent);
+            }
+        }
+
+        function bindGastosEnvioRow(row) {
+            var inp = row.querySelector('.js-gastos-envio-amount');
+            var out = row.querySelector('.js-gastos-envio-total');
+            if (inp && out) {
+                inp.addEventListener('input', function() {
+                    var v = Math.round(parseNum(inp) * 100) / 100;
+                    out.textContent = 'Q ' + v.toFixed(2);
+                });
+                var v0 = Math.round(parseNum(inp) * 100) / 100;
+                out.textContent = 'Q ' + v0.toFixed(2);
+            }
+            var rm = row.querySelector('.js-remove-gastos-envio-row');
+            if (rm) {
+                rm.addEventListener('click', function() {
+                    row.parentNode.removeChild(row);
+                    setGastosEnvioPresent(false);
+                });
+            }
+        }
 
         function parseNum(el) {
             if (!el) return 0;
@@ -1074,15 +1143,31 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
 
         tbody.querySelectorAll('tr.proveedor-externo-line-row').forEach(bindRow);
 
-        var gastosInp = document.querySelector('.js-gastos-envio-amount');
-        var gastosOut = document.querySelector('.js-gastos-envio-total');
-        if (gastosInp && gastosOut) {
-            function updateGastosEnvioTotal() {
-                var v = Math.round(parseNum(gastosInp) * 100) / 100;
-                gastosOut.textContent = 'Q ' + v.toFixed(2);
-            }
-            gastosInp.addEventListener('input', updateGastosEnvioTotal);
-            updateGastosEnvioTotal();
+        var existingGastosRow = tbody.querySelector('tr.proveedor-externo-gastos-envio-row');
+        if (existingGastosRow) {
+            bindGastosEnvioRow(existingGastosRow);
+            setGastosEnvioPresent(true);
+        } else {
+            setGastosEnvioPresent(false);
+        }
+
+        if (btnAddGastos && gastosTpl) {
+            btnAddGastos.addEventListener('click', function() {
+                if (tbody.querySelector('tr.proveedor-externo-gastos-envio-row')) {
+                    return;
+                }
+                var wrap = document.createElement('tbody');
+                wrap.innerHTML = gastosTpl.innerHTML.trim();
+                var row = wrap.firstElementChild;
+                if (!row) return;
+                tbody.appendChild(row);
+                bindGastosEnvioRow(row);
+                setGastosEnvioPresent(true);
+                var inp = row.querySelector('.js-gastos-envio-amount');
+                if (inp) {
+                    inp.focus();
+                }
+            });
         }
 
         btnAdd.addEventListener('click', function() {
