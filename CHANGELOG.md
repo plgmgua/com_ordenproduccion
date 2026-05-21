@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.91-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización con varias pre-cotizaciones:** ya se puede generar orden de trabajo para la segunda, tercera, etc. pre-cotización aunque otras líneas ya tengan OT; el asistente vuelve a mostrar el paso 3 y envía la solicitud de aprobación por pre-cotización en lugar de redirigir sin acción.
+
 ## [3.119.90-STABLE] - 2026-05-19
 
 ### Fixed

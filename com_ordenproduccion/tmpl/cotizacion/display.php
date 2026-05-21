@@ -123,7 +123,7 @@ $elementosByIdIo = [];
 foreach ($elementosIo as $el) {
     $elementosByIdIo[(int) $el->id] = $el;
 }
-$instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetalles) && !$quotationLockedByOrdenTrabajo;
+$instruccionesModalCanSave = $lineDetallesTableOk && !empty($itemsWithLineDetalles);
 
 $felEngineAvailable = !empty($this->felEngineAvailable);
 $felInv = isset($this->felInvoiceForQuotation) ? $this->felInvoiceForQuotation : null;

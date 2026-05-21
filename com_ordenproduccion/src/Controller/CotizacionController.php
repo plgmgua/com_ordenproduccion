@@ -87,6 +87,24 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * True if this pre-cotización already has an active orden de trabajo.
+     *
+     * @since  3.119.91
+     */
+    private function preCotizacionHasActiveOrdenTrabajoRow(int $preCotizacionId): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+        $db  = Factory::getDbo();
+        $svc = new OrdenFromQuotationService($db);
+        $existing = $svc->findExistingActiveOrderByPreCotizacionId($preCotizacionId);
+
+        return $existing !== null && isset($existing->id) && (int) $existing->id > 0;
+    }
+
+    /**
      * Block mutation tasks when the quotation already has an active OT; redirect to read-only cotización view.
      *
      * @return  bool  True if the request was blocked (caller should return immediately).
@@ -2334,7 +2352,20 @@ class CotizacionController extends BaseController
             return;
         }
         $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
-        if ($precotModel && $precotModel->quotationHasActiveOrdenTrabajo($quotationId)) {
+        if ($preCotizacionId > 0 && $this->preCotizacionHasActiveOrdenTrabajoRow($preCotizacionId)) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+            $isAjaxEarly = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
+            if ($isAjaxEarly) {
+                $app->setHeader('Content-Type', 'application/json', true);
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_COT_PRE_OT_ALREADY_EXISTS')]);
+                $app->close();
+            }
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_COT_PRE_OT_ALREADY_EXISTS'), 'warning');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+
+            return;
+        }
+        if ($preCotizacionId < 1 && $precotModel && $precotModel->quotationHasActiveOrdenTrabajo($quotationId)) {
             $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
             $isAjaxEarly = $app->input->get('format') === 'json' || $app->input->post->get('format') === 'json';
             if ($isAjaxEarly) {
@@ -2494,8 +2525,8 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
-        if ($this->quotationHasActiveOrdenTrabajoRow($quotationId)) {
-            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
+        if ($this->preCotizacionHasActiveOrdenTrabajoRow($preCotizacionId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_COT_PRE_OT_ALREADY_EXISTS')]);
             $app->close();
         }
 
@@ -2549,11 +2580,6 @@ class CotizacionController extends BaseController
 
         if (!$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
             echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')]);
-            $app->close();
-        }
-
-        if ($this->quotationHasActiveOrdenTrabajoRow($quotationId)) {
-            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LOCKED_ORDEN_TRABAJO')]);
             $app->close();
         }
 
