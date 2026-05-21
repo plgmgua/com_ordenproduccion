@@ -907,7 +907,7 @@ class ProductosModel extends BaseDatabaseModel
      */
     public function getBarnizPrices()
     {
-        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+        if (!$this->barnizTableExists()) {
             return [];
         }
         $db = $this->getDatabase();
@@ -941,7 +941,7 @@ class ProductosModel extends BaseDatabaseModel
      */
     public function saveBarnizPrices($pricesTiro, $pricesRetiro = [])
     {
-        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+        if (!$this->barnizTableExists()) {
             $this->setError('Barniz table not installed.');
             return false;
         }
@@ -1013,7 +1013,7 @@ class ProductosModel extends BaseDatabaseModel
      */
     public function sizeHasBarnizPrice($sizeId, $tiroRetiro = 'tiro')
     {
-        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+        if (!$this->barnizTableExists()) {
             return false;
         }
         $sizeId = (int) $sizeId;
@@ -1035,6 +1035,31 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
+     * Size IDs that have a non-zero barniz price, keyed by size for JSON/JS lookup.
+     *
+     * @return  array{tiro: array<int, bool>, retiro: array<int, bool>}
+     * @since   3.119.90
+     */
+    public function getBarnizAvailabilityBySize()
+    {
+        $out = ['tiro' => [], 'retiro' => []];
+        foreach ($this->getBarnizPrices() as $sizeId => $prices) {
+            $sizeId = (int) $sizeId;
+            if ($sizeId < 1) {
+                continue;
+            }
+            if (isset($prices['tiro']) && (float) $prices['tiro'] > 0) {
+                $out['tiro'][$sizeId] = true;
+            }
+            if (isset($prices['retiro']) && (float) $prices['retiro'] > 0) {
+                $out['retiro'][$sizeId] = true;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * Get barniz price per sheet for given size, tiro/retiro and quantity.
      *
      * @param   int     $sizeId       Size ID
@@ -1045,7 +1070,7 @@ class ProductosModel extends BaseDatabaseModel
      */
     public function getBarnizPricePerSheet($sizeId, $tiroRetiro, $quantity)
     {
-        if (!$this->tablesExist() || !$this->barnizTableExists()) {
+        if (!$this->barnizTableExists()) {
             return null;
         }
         $db = $this->getDatabase();

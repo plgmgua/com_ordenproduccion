@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.90-STABLE] - 2026-05-19
+
+### Fixed
+- **Pre-cotización Barniz:** el checkbox ya no queda deshabilitado cuando hay precios configurados; la disponibilidad se resuelve por mapa de tamaños desde la base de datos.
+
+### Added
+- **Procesos por pliego:** checkbox «Usar el mismo precio para todos los tamaños» para aplicar un solo precio Tiro / Tiro-Retiro a todos los tamaños.
+
 ## [3.119.89-STABLE] - 2026-05-19
 
 ### Added

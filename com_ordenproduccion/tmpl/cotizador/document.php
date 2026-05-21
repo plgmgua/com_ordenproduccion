@@ -66,8 +66,8 @@ $paperTypes = $this->pliegoPaperTypes ?? [];
 $sizeIdsByPaperType = $this->pliegoSizeIdsByPaperType ?? [];
 $laminationTypeIdsBySizeTiro = $this->pliegoLaminationTypeIdsBySizeTiro ?? [];
 $laminationTypeIdsBySizeRetiro = $this->pliegoLaminationTypeIdsBySizeRetiro ?? [];
-$pliegoBarnizSizeIdsTiro = $this->pliegoBarnizSizeIdsTiro ?? [];
-$pliegoBarnizSizeIdsRetiro = $this->pliegoBarnizSizeIdsRetiro ?? [];
+$pliegoBarnizBySizeTiro = $this->pliegoBarnizBySizeTiro ?? [];
+$pliegoBarnizBySizeRetiro = $this->pliegoBarnizBySizeRetiro ?? [];
 $laminationTypes = $this->pliegoLaminationTypes ?? [];
 $processes = $this->pliegoProcesses ?? [];
 $tablesExist = $this->pliegoTablesExist ?? false;
@@ -1937,8 +1937,8 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
     var sizeIdsByPaperType = <?php echo json_encode($sizeIdsByPaperType); ?>;
     var laminationTypeIdsBySizeTiro = <?php echo json_encode($laminationTypeIdsBySizeTiro); ?>;
     var laminationTypeIdsBySizeRetiro = <?php echo json_encode($laminationTypeIdsBySizeRetiro); ?>;
-    var pliegoBarnizSizeIdsTiro = <?php echo json_encode($pliegoBarnizSizeIdsTiro); ?>;
-    var pliegoBarnizSizeIdsRetiro = <?php echo json_encode($pliegoBarnizSizeIdsRetiro); ?>;
+    var pliegoBarnizBySizeTiro = <?php echo json_encode($pliegoBarnizBySizeTiro); ?>;
+    var pliegoBarnizBySizeRetiro = <?php echo json_encode($pliegoBarnizBySizeRetiro); ?>;
     var addLineBtnLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ADD_LINE_BTN')); ?>;
     var saveLineBtnLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SAVE_LINE_BTN')); ?>;
     var modalTitleNew = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_NUEVA_COTIZACION_PLIEGO_TITLE')); ?>;
@@ -2056,13 +2056,21 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
     if (barniz) barniz.addEventListener('change', updateBarnizVisibility);
     if (barnizRetiro) barnizRetiro.addEventListener('change', function() { filterBarnizBySize(); recalc(); });
 
+    function barnizMapHasSize(map, sizeId) {
+        if (!sizeId || !map) {
+            return false;
+        }
+        return !!(map[sizeId] || map[String(sizeId)]);
+    }
+
     function filterBarnizBySize() {
         var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
         var barnRetiro = barnizRetiro && barnizRetiro.checked;
-        var allowedIds = barnRetiro ? pliegoBarnizSizeIdsRetiro : pliegoBarnizSizeIdsTiro;
-        var hasPrice = sizeId && allowedIds.indexOf(sizeId) !== -1;
+        var hasTiro = barnizMapHasSize(pliegoBarnizBySizeTiro, sizeId);
+        var hasRetiro = barnizMapHasSize(pliegoBarnizBySizeRetiro, sizeId);
+        var hasPrice = barnRetiro ? hasRetiro : hasTiro;
         if (barniz) {
-            barniz.disabled = !hasPrice;
+            barniz.disabled = !(hasTiro || hasRetiro);
             if (!hasPrice && barniz.checked) {
                 barniz.checked = false;
                 if (barnizRetiro) barnizRetiro.checked = false;
@@ -2180,6 +2188,15 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
     var nuevaLineaBtn = document.querySelector('[data-bs-target="#pliegoLineModal"]');
     if (nuevaLineaBtn) {
         nuevaLineaBtn.addEventListener('click', function() { setAddMode(); });
+    }
+    if (pliegoModal) {
+        pliegoModal.addEventListener('shown.bs.modal', function() {
+            filterSizeDropdown();
+            filterLaminationBySize();
+            filterBarnizBySize();
+            updateLaminationVisibility();
+            updateBarnizVisibility();
+        });
     }
 
     document.addEventListener('click', function(e) {

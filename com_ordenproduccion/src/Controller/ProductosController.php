@@ -376,12 +376,33 @@ class ProductosController extends BaseController
             return;
         }
         $input = Factory::getApplication()->input;
+        $samePriceAll = $input->post->getBool('same_price_all', false);
         $pricesTiro = $input->post->get('price_tiro', [], 'array');
         $pricesRetiro = $input->post->get('price_retiro', [], 'array');
-        $pricesTiro = array_map('floatval', $pricesTiro);
-        $pricesRetiro = array_map('floatval', $pricesRetiro);
 
         $model = $this->getModel('Productos', 'Site');
+        if ($samePriceAll) {
+            $globalTiro = $input->post->get('price_tiro_all', '', 'string');
+            $globalRetiro = $input->post->get('price_retiro_all', '', 'string');
+            $pricesTiro = [];
+            $pricesRetiro = [];
+            foreach ($model->getSizes() as $size) {
+                $sid = (int) ($size->id ?? 0);
+                if ($sid < 1) {
+                    continue;
+                }
+                if ($globalTiro !== '') {
+                    $pricesTiro[$sid] = (float) $globalTiro;
+                }
+                if ($globalRetiro !== '') {
+                    $pricesRetiro[$sid] = (float) $globalRetiro;
+                }
+            }
+        } else {
+            $pricesTiro = array_map('floatval', $pricesTiro);
+            $pricesRetiro = array_map('floatval', $pricesRetiro);
+        }
+
         if (!$model->saveBarnizPrices($pricesTiro, $pricesRetiro)) {
             $this->setRedirectPliegoProcesos($model->getError() ?: Text::_('COM_ORDENPRODUCCION_BARNIZ_SAVE_ERROR'), 'error');
             return;

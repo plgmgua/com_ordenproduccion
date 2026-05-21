@@ -767,8 +767,43 @@ $l = function ($key, $fallback) {
                 <div class="card-body">
                     <p class="text-muted mb-3"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_PLIEGO_DESC', 'Defina el precio por pliego de Barniz para cada tamaño. Tiro = un solo lado; Tiro/Retiro = ambos lados.'); ?></p>
                     <?php if (!empty($this->sizes)) : ?>
-                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveBarnizPrices'); ?>" method="post">
+                        <?php
+                        $barnizPrices = $this->barnizPrices ?? [];
+                        $barnizSameTiro = null;
+                        $barnizSameRetiro = null;
+                        $barnizAllSame = true;
+                        foreach ($this->sizes as $s) {
+                            $sid = (int) $s->id;
+                            $tiroVal = isset($barnizPrices[$sid]['tiro']) ? (float) $barnizPrices[$sid]['tiro'] : null;
+                            $retiroVal = isset($barnizPrices[$sid]['retiro']) ? (float) $barnizPrices[$sid]['retiro'] : null;
+                            if ($barnizSameTiro === null) {
+                                $barnizSameTiro = $tiroVal;
+                                $barnizSameRetiro = $retiroVal;
+                                continue;
+                            }
+                            if ($tiroVal !== $barnizSameTiro || $retiroVal !== $barnizSameRetiro) {
+                                $barnizAllSame = false;
+                                break;
+                            }
+                        }
+                        ?>
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveBarnizPrices'); ?>" method="post" id="barniz-prices-form">
                             <?php echo HTMLHelper::_('form.token'); ?>
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="barniz_same_all_sizes" name="same_price_all" value="1" <?php echo $barnizAllSame && $barnizSameTiro !== null ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="barniz_same_all_sizes"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_SAME_PRICE_ALL', 'Usar el mismo precio para todos los tamaños'); ?></label>
+                            </div>
+                            <div id="barniz_same_all_fields" class="row g-2 mb-3" style="<?php echo ($barnizAllSame && $barnizSameTiro !== null) ? '' : 'display:none;'; ?>">
+                                <div class="col-md-6">
+                                    <label for="barniz_price_tiro_all" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO', 'Tiro (un lado) – Precio (Q)'); ?></label>
+                                    <input type="number" name="price_tiro_all" id="barniz_price_tiro_all" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $barnizSameTiro !== null ? htmlspecialchars((string) $barnizSameTiro, ENT_QUOTES, 'UTF-8') : ''; ?>" placeholder="0.00">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="barniz_price_retiro_all" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO_RETIRO', 'Tiro/Retiro (ambos lados) – Precio (Q)'); ?></label>
+                                    <input type="number" name="price_retiro_all" id="barniz_price_retiro_all" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $barnizSameRetiro !== null ? htmlspecialchars((string) $barnizSameRetiro, ENT_QUOTES, 'UTF-8') : ''; ?>" placeholder="0.00">
+                                </div>
+                            </div>
+                            <div id="barniz_per_size_table">
                             <table class="table table-sm table-bordered">
                                 <thead>
                                     <tr>
@@ -780,7 +815,6 @@ $l = function ($key, $fallback) {
                                 </thead>
                                 <tbody>
                                     <?php
-                                    $barnizPrices = $this->barnizPrices ?? [];
                                     foreach ($this->sizes as $s) :
                                         $sid = (int) $s->id;
                                         $tiroVal = isset($barnizPrices[$sid]['tiro']) ? (float) $barnizPrices[$sid]['tiro'] : '';
@@ -790,17 +824,34 @@ $l = function ($key, $fallback) {
                                             <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
                                             <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
                                             <td>
-                                                <input type="number" name="price_tiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $tiroVal !== '' ? $tiroVal : ''; ?>" placeholder="0.00">
+                                                <input type="number" name="price_tiro[<?php echo $sid; ?>]" class="form-control form-control-sm barniz-price-tiro-input" step="0.01" min="0" value="<?php echo $tiroVal !== '' ? $tiroVal : ''; ?>" placeholder="0.00">
                                             </td>
                                             <td>
-                                                <input type="number" name="price_retiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $retiroVal !== '' ? $retiroVal : ''; ?>" placeholder="0.00">
+                                                <input type="number" name="price_retiro[<?php echo $sid; ?>]" class="form-control form-control-sm barniz-price-retiro-input" step="0.01" min="0" value="<?php echo $retiroVal !== '' ? $retiroVal : ''; ?>" placeholder="0.00">
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
+                            </div>
                             <button type="submit" class="btn btn-primary mt-2"><?php echo $l('COM_ORDENPRODUCCION_SAVE_BARNIZ_PRICES', 'Guardar precios'); ?></button>
                         </form>
+                        <script>
+                        (function() {
+                            var sameAll = document.getElementById('barniz_same_all_sizes');
+                            var sameFields = document.getElementById('barniz_same_all_fields');
+                            var perSizeTable = document.getElementById('barniz_per_size_table');
+                            var tiroAll = document.getElementById('barniz_price_tiro_all');
+                            var retiroAll = document.getElementById('barniz_price_retiro_all');
+                            function syncBarnizSameAllUi() {
+                                var useSame = sameAll && sameAll.checked;
+                                if (sameFields) sameFields.style.display = useSame ? '' : 'none';
+                                if (perSizeTable) perSizeTable.style.display = useSame ? 'none' : '';
+                            }
+                            if (sameAll) sameAll.addEventListener('change', syncBarnizSameAllUi);
+                            syncBarnizSameAllUi();
+                        })();
+                        </script>
                     <?php else : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_SIZES', 'No hay tamaños definidos.'); ?></p>
                     <?php endif; ?>
