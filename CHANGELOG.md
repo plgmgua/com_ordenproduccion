@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.94-STABLE] - 2026-05-19
+
+### Changed
+- **Pre-cotización proveedor externo:** botones «Agregar linea» y «Gastos de Envio» con etiqueta de texto en lugar del signo +.
+
 ## [3.119.93-STABLE] - 2026-05-19
 
 ### Changed

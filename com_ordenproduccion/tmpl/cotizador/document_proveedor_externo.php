@@ -49,7 +49,6 @@ foreach ($lines as $ln) {
 }
 $colGastosEnvio = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_GASTOS_ENVIO');
 $hasGastosEnvioRow = ($gastosEnvioLine !== null);
-$addGastosEnvioLabel = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_GASTOS_ENVIO');
 $anyVendorLineUnitPricePositive = false;
 foreach ($vendorLines as $_vl) {
     if (round((float) ($_vl->price_per_sheet ?? 0), 2) > 0) {
@@ -1000,8 +999,8 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 </form>
                 <?php endif; ?>
                 <div class="text-end d-flex flex-wrap gap-2 justify-content-end">
-                    <button type="button" class="btn btn-outline-primary px-3" id="proveedor-externo-add-line" aria-label="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?>" title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?>">+</button>
-                    <button type="button" class="btn btn-outline-secondary px-3<?php echo $hasGastosEnvioRow ? ' d-none' : ''; ?>" id="proveedor-externo-add-gastos-envio" aria-label="<?php echo htmlspecialchars($addGastosEnvioLabel); ?>" title="<?php echo htmlspecialchars($addGastosEnvioLabel); ?>">+</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="proveedor-externo-add-line"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?></button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm<?php echo $hasGastosEnvioRow ? ' d-none' : ''; ?>" id="proveedor-externo-add-gastos-envio"><?php echo htmlspecialchars($colGastosEnvio); ?></button>
                 </div>
             </div>
         </div>
