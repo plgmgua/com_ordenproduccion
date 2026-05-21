@@ -1125,7 +1125,12 @@ class PrecotizacionController extends BaseController
             }
 
             $lines = $app->input->post->get('lines', [], 'array');
-            if (!$model->saveProveedorExternoLines($id, is_array($lines) ? $lines : [])) {
+            $gastosEnvioRaw = $app->input->post->get('gastos_envio', null, 'string');
+            $gastosEnvio = null;
+            if ($gastosEnvioRaw !== null) {
+                $gastosEnvio = round(max(0, (float) str_replace(',', '.', trim((string) $gastosEnvioRaw))), 2);
+            }
+            if (!$model->saveProveedorExternoLines($id, is_array($lines) ? $lines : [], $gastosEnvio)) {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVE_ERROR'), 'error');
             } else {
                 $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_SAVED'));

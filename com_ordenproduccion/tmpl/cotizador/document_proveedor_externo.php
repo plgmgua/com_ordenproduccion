@@ -36,12 +36,18 @@ $canEditDocument = isset($this->precotizacionDocumentEditable)
 $ofertaViewOnly = !empty($item->oferta) && !$canEditDocument && !$precotizacionLocked;
 
 $vendorLines = [];
+$gastosEnvioLine = null;
+$gastosEnvioAmount = 0.0;
 foreach ($lines as $ln) {
     $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
     if ($lt === 'proveedor_externo') {
         $vendorLines[] = $ln;
+    } elseif ($lt === 'envio' && (empty($ln->envio_id) || (int) $ln->envio_id === 0)) {
+        $gastosEnvioLine = $ln;
+        $gastosEnvioAmount = round((float) ($ln->total ?? 0), 2);
     }
 }
+$colGastosEnvio = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_GASTOS_ENVIO');
 $anyVendorLineUnitPricePositive = false;
 foreach ($vendorLines as $_vl) {
     if (round((float) ($_vl->price_per_sheet ?? 0), 2) > 0) {
@@ -607,7 +613,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     <?php endif; ?>
 
     <?php if ($linesTableLocked && !$canAdminEditPupWhenLocked) : ?>
-        <?php if (empty($vendorLines)) : ?>
+        <?php if (empty($vendorLines) && $gastosEnvioAmount <= 0) : ?>
             <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <?php else : ?>
         <div class="pre-cot-vendor-lines-wrap">
@@ -646,6 +652,21 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
+                    <?php if ($gastosEnvioAmount > 0) : ?>
+                    <tr>
+                        <td class="col-qty">1</td>
+                        <td class="col-desc"><?php echo htmlspecialchars($colGastosEnvio); ?></td>
+                        <?php if ($showVendorPriceTotalColumnsReadonly) : ?>
+                        <td class="col-price text-end">Q <?php echo number_format($gastosEnvioAmount, 2); ?></td>
+                        <?php endif; ?>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <td class="col-pup text-end">—</td>
+                        <?php endif; ?>
+                        <?php if ($showVendorPriceTotalColumnsReadonly) : ?>
+                        <td class="col-total text-end">Q <?php echo number_format($gastosEnvioAmount, 2); ?></td>
+                        <?php endif; ?>
+                    </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -678,7 +699,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         </div>
         <?php endif; ?>
     <?php elseif ($linesTableLocked && $canAdminEditPupWhenLocked) : ?>
-        <?php if (empty($vendorLines)) : ?>
+        <?php if (empty($vendorLines) && $gastosEnvioAmount <= 0) : ?>
             <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <?php else : ?>
         <?php
@@ -734,6 +755,17 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <td class="col-total text-end align-middle"><span class="js-admin-locked-line-total">Q <?php echo number_format($tot, 2); ?></span></td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php if ($gastosEnvioAmount > 0) : ?>
+                    <tr>
+                        <td class="col-qty">1</td>
+                        <td class="col-desc"><?php echo htmlspecialchars($colGastosEnvio); ?></td>
+                        <td class="col-price text-end">Q <?php echo number_format($gastosEnvioAmount, 2); ?></td>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <td class="col-pup text-end">—</td>
+                        <?php endif; ?>
+                        <td class="col-total text-end">Q <?php echo number_format($gastosEnvioAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -900,6 +932,20 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                     </tr>
                     <?php endforeach; ?>
+                    <tr class="proveedor-externo-gastos-envio-row">
+                        <td class="col-qty align-middle">1</td>
+                        <td class="col-desc align-middle"><?php echo htmlspecialchars($colGastosEnvio); ?></td>
+                        <td class="col-price">
+                            <input type="number" class="form-control form-control-sm text-end js-gastos-envio-amount" name="gastos_envio" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" min="0" step="0.01" value="<?php echo htmlspecialchars(number_format($gastosEnvioAmount, 2, '.', '')); ?>" aria-label="<?php echo htmlspecialchars($colGastosEnvio); ?>">
+                        </td>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <td class="col-pup text-end align-middle text-muted">—</td>
+                        <?php endif; ?>
+                        <td class="col-total text-end align-middle">
+                            <span class="js-gastos-envio-total">Q <?php echo number_format($gastosEnvioAmount, 2); ?></span>
+                        </td>
+                        <td class="col-actions"></td>
+                    </tr>
                 </tbody>
             </table>
     </div>
@@ -1027,6 +1073,17 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         }
 
         tbody.querySelectorAll('tr.proveedor-externo-line-row').forEach(bindRow);
+
+        var gastosInp = document.querySelector('.js-gastos-envio-amount');
+        var gastosOut = document.querySelector('.js-gastos-envio-total');
+        if (gastosInp && gastosOut) {
+            function updateGastosEnvioTotal() {
+                var v = Math.round(parseNum(gastosInp) * 100) / 100;
+                gastosOut.textContent = 'Q ' + v.toFixed(2);
+            }
+            gastosInp.addEventListener('input', updateGastosEnvioTotal);
+            updateGastosEnvioTotal();
+        }
 
         btnAdd.addEventListener('click', function() {
             var html = tpl.innerHTML.replace(/__I__/g, String(nextIdx));

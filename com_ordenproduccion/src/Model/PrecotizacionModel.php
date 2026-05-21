@@ -2759,7 +2759,7 @@ class PrecotizacionModel extends ListModel
         if ($lineType === 'proveedor_externo' && $docMode !== 'proveedor_externo') {
             return false;
         }
-        if ($lineType !== 'proveedor_externo' && $docMode === 'proveedor_externo') {
+        if ($lineType !== 'proveedor_externo' && $lineType !== 'envio' && $docMode === 'proveedor_externo') {
             return false;
         }
 
@@ -2782,6 +2782,8 @@ class PrecotizacionModel extends ListModel
                         $totalLine = (float) ($envio->valor ?? 0);
                     }
                 }
+            } else {
+                $totalLine = round(max(0, (float) ($data['envio_valor'] ?? $data['total'] ?? 0)), 2);
             }
         }
         if ($lineType === 'tercerizado') {
@@ -3015,7 +3017,7 @@ class PrecotizacionModel extends ListModel
      *
      * @since   3.112.0
      */
-    public function saveProveedorExternoLines(int $preCotizacionId, array $rows): bool
+    public function saveProveedorExternoLines(int $preCotizacionId, array $rows, ?float $gastosEnvio = null): bool
     {
         $preCotizacionId = (int) $preCotizacionId;
         if ($preCotizacionId < 1) {
@@ -3081,6 +3083,10 @@ class PrecotizacionModel extends ListModel
                 }
             }
 
+            if ($gastosEnvio !== null && !$this->saveProveedorExternoGastosEnvio($preCotizacionId, $gastosEnvio, false)) {
+                throw new \RuntimeException('saveProveedorExternoGastosEnvio failed');
+            }
+
             $db->transactionCommit();
         } catch (\Throwable $e) {
             $db->transactionRollback();
@@ -3088,7 +3094,147 @@ class PrecotizacionModel extends ListModel
             return false;
         }
 
+        $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
+
         return true;
+    }
+
+    /**
+     * Manual shipping line (envio without catalog envio_id) for proveedor_externo pre-cotizaciones.
+     *
+     * @param   int  $preCotizacionId  Pre-cotización id.
+     *
+     * @return  \stdClass|null
+     *
+     * @since   3.119.92
+     */
+    public function findProveedorExternoGastosEnvioLine(int $preCotizacionId): ?\stdClass
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return null;
+        }
+
+        $db = $this->getDatabase();
+        $columns = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $columns = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+        if (!isset($columns['line_type']) || !isset($columns['envio_id'])) {
+            return null;
+        }
+
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+            ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+            ->where($db->quoteName('line_type') . ' = ' . $db->quote('envio'))
+            ->where($db->quoteName('envio_id') . ' IS NULL');
+        $db->setQuery($query, 0, 1);
+        $row = $db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Create, update, or remove the manual Gastos de envío line on a proveedor_externo pre-cotización.
+     *
+     * @param   int    $preCotizacionId   Pre-cotización id.
+     * @param   float  $amount            Amount (0 removes the line).
+     * @param   bool   $refreshSnapshot   Whether to refresh stored totals on the pre-cotización.
+     *
+     * @return  bool
+     *
+     * @since   3.119.92
+     */
+    public function saveProveedorExternoGastosEnvio(int $preCotizacionId, float $amount, bool $refreshSnapshot = true): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return false;
+        }
+
+        $item = $this->getItem($preCotizacionId);
+        if (!$item) {
+            return false;
+        }
+
+        $mode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
+        if ($mode !== 'proveedor_externo') {
+            return false;
+        }
+
+        $amount   = round(max(0, $amount), 2);
+        $existing = $this->findProveedorExternoGastosEnvioLine($preCotizacionId);
+        $db       = $this->getDatabase();
+        $columns  = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+        $columns  = is_array($columns) ? array_change_key_case($columns, CASE_LOWER) : [];
+        $label    = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_GASTOS_ENVIO');
+
+        try {
+            if ($amount <= 0) {
+                if ($existing) {
+                    $db->setQuery(
+                        $db->getQuery(true)
+                            ->delete($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                            ->where($db->quoteName('id') . ' = ' . (int) $existing->id)
+                    )->execute();
+                }
+            } elseif ($existing) {
+                $obj = (object) [
+                    'id'              => (int) $existing->id,
+                    'quantity'        => 1,
+                    'total'           => $amount,
+                    'price_per_sheet' => $amount,
+                ];
+                if (isset($columns['envio_valor'])) {
+                    $obj->envio_valor = $amount;
+                }
+                if (isset($columns['tipo_elemento'])) {
+                    $obj->tipo_elemento = $label;
+                }
+                $db->updateObject('#__ordenproduccion_pre_cotizacion_line', $obj, 'id');
+            } else {
+                $ordering = 0;
+                $q = $db->getQuery(true)
+                    ->select('COALESCE(MAX(ordering), 0) + 1')
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                    ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId);
+                $db->setQuery($q);
+                $ordering = (int) $db->loadResult();
+
+                $line = (object) [
+                    'pre_cotizacion_id' => $preCotizacionId,
+                    'quantity'          => 1,
+                    'paper_type_id'     => 0,
+                    'size_id'           => 0,
+                    'tiro_retiro'       => 'tiro',
+                    'process_ids'       => '[]',
+                    'price_per_sheet'   => $amount,
+                    'total'             => $amount,
+                    'ordering'          => $ordering,
+                ];
+                if (isset($columns['line_type'])) {
+                    $line->line_type = 'envio';
+                }
+                if (isset($columns['envio_id'])) {
+                    $line->envio_id = null;
+                }
+                if (isset($columns['envio_valor'])) {
+                    $line->envio_valor = $amount;
+                }
+                if (isset($columns['tipo_elemento'])) {
+                    $line->tipo_elemento = $label;
+                }
+                $db->insertObject('#__ordenproduccion_pre_cotizacion_line', $line, 'id');
+            }
+
+            if ($refreshSnapshot) {
+                $this->refreshPreCotizacionTotalsSnapshot($preCotizacionId);
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

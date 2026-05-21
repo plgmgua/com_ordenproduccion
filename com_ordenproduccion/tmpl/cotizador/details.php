@@ -94,14 +94,18 @@ $precotFooterShowIsr = $canSeePrecotInternalTax && $facturar
 $docMode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
 $isProveedorExternoDoc = ($docMode === 'proveedor_externo');
 $vendorLines           = [];
+$gastosEnvioAmount     = 0.0;
 if ($isProveedorExternoDoc) {
     foreach ($lines as $ln) {
         $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
         if ($lt === 'proveedor_externo') {
             $vendorLines[] = $ln;
+        } elseif ($lt === 'envio' && (empty($ln->envio_id) || (int) $ln->envio_id === 0)) {
+            $gastosEnvioAmount = round((float) ($ln->total ?? 0), 2);
         }
     }
 }
+$colGastosEnvioPe = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_GASTOS_ENVIO');
 
 $colQtyPe   = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_QTY');
 $colDescPe  = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_DESC');
@@ -117,7 +121,7 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
 <div class="com-ordenproduccion-precotizacion-details p-3">
     <?php if (!$item) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'); ?></p>
-    <?php elseif ($isProveedorExternoDoc && $vendorLines === []) : ?>
+    <?php elseif ($isProveedorExternoDoc && $vendorLines === [] && $gastosEnvioAmount <= 0) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <p class="mb-0 text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?>:</strong> Q 0.00 &rarr; <strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q 0.00</p>
     <?php elseif ($isProveedorExternoDoc) :
@@ -151,6 +155,15 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                         <td class="text-end text-nowrap">Q <?php echo number_format($tot, 2); ?></td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php if ($gastosEnvioAmount > 0) : ?>
+                    <tr>
+                        <td class="text-nowrap">1</td>
+                        <td><?php echo htmlspecialchars($colGastosEnvioPe, ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td class="text-end text-nowrap">Q <?php echo number_format($gastosEnvioAmount, 2); ?></td>
+                        <td class="text-end text-nowrap">—</td>
+                        <td class="text-end text-nowrap">Q <?php echo number_format($gastosEnvioAmount, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
                 </tbody>
                 <tfoot>
                     <tr>

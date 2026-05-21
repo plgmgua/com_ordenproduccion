@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.92-STABLE] - 2026-05-19
+
+### Added
+- **Pre-cotización proveedor externo:** línea manual «Gastos de envío» en la tabla de líneas; se guarda con «Guardar líneas» e incluye el importe en subtotal e impuestos.
+
 ## [3.119.91-STABLE] - 2026-05-19
 
 ### Fixed
