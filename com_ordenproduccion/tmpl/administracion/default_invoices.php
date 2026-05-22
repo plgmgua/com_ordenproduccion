@@ -444,7 +444,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                 <span class="visually-hidden"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_OPEN_QUOTE'); ?></span>
                             </a>
                             <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.cancelQuotationEnvioFelQueue'); ?>" class="d-inline"
-                                  onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_CANCEL_CONFIRM')); ?>); ?>">
+                                  onsubmit='return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_CANCEL_CONFIRM')); ?>);'>
                                 <?php echo HTMLHelper::_('form.token'); ?>
                                 <input type="hidden" name="quotation_id" value="<?php echo (int) $er->quotation_id; ?>" />
                                 <button type="submit" class="btn btn-sm btn-outline-danger"
@@ -548,7 +548,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                             <?php endif; ?>
                             <?php if (!empty($qr->id) && \in_array($st, ['scheduled', 'pending', 'processing'], true)) : ?>
                             <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.cancelInvoiceFelQueue'); ?>" class="d-inline"
-                                  onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_CANCEL_CONFIRM')); ?>); ?>">
+                                  onsubmit='return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_CANCEL_CONFIRM')); ?>);'>
                                 <?php echo HTMLHelper::_('form.token'); ?>
                                 <input type="hidden" name="invoice_id" value="<?php echo (int) $qr->id; ?>" />
                                 <button type="submit" class="btn btn-sm btn-outline-danger"

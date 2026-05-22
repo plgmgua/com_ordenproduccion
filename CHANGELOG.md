@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.96-STABLE] - 2026-05-19
+
+### Fixed
+- **Cola de facturas:** se eliminaron los caracteres `">` visibles en la columna de acciones (error de comillas en `onsubmit` del formulario de quitar de cola).
+
 ## [3.119.95-STABLE] - 2026-05-19
 
 ### Changed
