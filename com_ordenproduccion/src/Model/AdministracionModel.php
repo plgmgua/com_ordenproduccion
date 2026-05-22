@@ -24,6 +24,58 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 class AdministracionModel extends BaseDatabaseModel
 {
     /**
+     * Cached: ordenes table has status column (Anulada void).
+     *
+     * @var bool|null
+     */
+    protected $ordenesHasStatusColumn;
+
+    /**
+     * Whether #__ordenproduccion_ordenes has a status column.
+     *
+     * @param   \Joomla\Database\DatabaseInterface|null  $db
+     *
+     * @return  bool
+     */
+    protected function ordenesTableHasStatusColumn($db = null): bool
+    {
+        if ($this->ordenesHasStatusColumn !== null) {
+            return $this->ordenesHasStatusColumn;
+        }
+
+        $db = $db ?: Factory::getDbo();
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $this->ordenesHasStatusColumn = is_array($cols) && isset($cols['status']);
+        } catch (\Throwable $e) {
+            $this->ordenesHasStatusColumn = false;
+        }
+
+        return $this->ordenesHasStatusColumn;
+    }
+
+    /**
+     * Exclude work orders voided as Anulada from statistics/resumen queries.
+     *
+     * @param   \Joomla\Database\Query\Query  $query
+     * @param   string                        $alias  Table alias (e.g. '' or 'o')
+     *
+     * @return  \Joomla\Database\Query\Query
+     */
+    protected function appendExcludeAnuladaOrdenesWhere($query, $alias = '')
+    {
+        if (!$this->ordenesTableHasStatusColumn()) {
+            return $query;
+        }
+
+        $db = Factory::getDbo();
+        $prefix = $alias !== '' ? rtrim($alias, '.') . '.' : '';
+        $query->where('LOWER(' . $prefix . $db->quoteName('status') . ') != ' . $db->quote('anulada'));
+
+        return $query;
+    }
+
+    /**
      * Get dashboard statistics
      *
      * @param   int     $month        Month number (1-12)
@@ -79,6 +131,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $stats->totalOrders = $db->loadResult() ?: 0;
 
@@ -92,6 +145,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $stats->totalInvoiceValue = $db->loadResult() ?: 0;
 
@@ -117,6 +171,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $stats->topOrders = $db->loadObjectList() ?: [];
 
@@ -134,6 +189,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $stats->ordersByStatus = $db->loadObjectList() ?: [];
 
@@ -158,6 +214,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $query->group($db->quoteName('sales_agent'))
             ->order('total_sales DESC');
         $db->setQuery($query);
@@ -182,6 +239,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->group($db->quoteName('client_name'))
                 ->order('total_value DESC')
                 ->setLimit(5);
+            $this->appendExcludeAnuladaOrdenesWhere($query);
             $db->setQuery($query);
             $agent->topClients = $db->loadObjectList() ?: [];
             
@@ -1761,6 +1819,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->group($db->quoteName('client_name'))
                 ->order('total_value DESC')
                 ->setLimit(10);
+            $this->appendExcludeAnuladaOrdenesWhere($query);
             $db->setQuery($query);
             $topClients = $db->loadObjectList('client_name') ?: [];
             
@@ -1779,6 +1838,7 @@ class AdministracionModel extends BaseDatabaseModel
                         ->where($db->quoteName('state') . ' = 1')
                         ->where('DATE(' . $db->quoteName('created') . ') = ' . $db->quote($dateStr))
                         ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+                    $this->appendExcludeAnuladaOrdenesWhere($query);
                     $db->setQuery($query);
                     $total = $db->loadResult() ?: 0;
                     
@@ -1805,6 +1865,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->group($db->quoteName('client_name'))
                 ->order('total_value DESC')
                 ->setLimit(10);
+            $this->appendExcludeAnuladaOrdenesWhere($query);
             $db->setQuery($query);
             $topClients = $db->loadObjectList('client_name') ?: [];
             
@@ -1825,6 +1886,7 @@ class AdministracionModel extends BaseDatabaseModel
                         ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
                         ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
                         ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+                    $this->appendExcludeAnuladaOrdenesWhere($query);
                     $db->setQuery($query);
                     $total = $db->loadResult() ?: 0;
                     
@@ -1868,6 +1930,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
         
@@ -1888,6 +1951,7 @@ class AdministracionModel extends BaseDatabaseModel
                     ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
                     ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
                     ->where($db->quoteName('sales_agent') . ' = ' . $db->quote($agentName));
+                $this->appendExcludeAnuladaOrdenesWhere($query);
                 $db->setQuery($query);
                 $total = $db->loadResult() ?: 0;
                 
@@ -1942,6 +2006,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $topClients = $db->loadObjectList('client_name') ?: [];
         
@@ -1962,6 +2027,10 @@ class AdministracionModel extends BaseDatabaseModel
                     ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
                     ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate . ' 23:59:59'))
                     ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName));
+                if ($salesAgent !== null && $salesAgent !== '') {
+                    $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+                }
+                $this->appendExcludeAnuladaOrdenesWhere($query);
                 $db->setQuery($query);
                 $total = $db->loadResult() ?: 0;
                 
@@ -2083,27 +2152,34 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $stats->workOrdersCreated = (int) $db->loadResult();
 
-        // 2. Status changes (from historial table)
+        // 2. Status changes (from historial table, non-anulada orders only)
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
-            ->from($db->quoteName('#__ordenproduccion_historial'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
-            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate));
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $stats->statusChanges = (int) $db->loadResult();
 
-        // 3. Payment proofs recorded
+        // 3. Payment proofs recorded (non-anulada orders only)
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
-            ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate));
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('pp.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $stats->paymentProofsRecorded = (int) $db->loadResult();
 
@@ -2119,74 +2195,86 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgentFilter !== null) {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgentFilter));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $stats->moneyGenerated = (float) ($db->loadResult() ?: 0);
 
-        // 5. Value of money collected via payment proofs (payment_amount sum)
+        // 5. Value of money collected via payment proofs (payment_amount sum, non-anulada orders)
         $query = $db->getQuery(true)
-            ->select('SUM(CAST(' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
-            ->from($db->quoteName('#__ordenproduccion_payment_proofs'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
-            ->where($db->quoteName('payment_amount') . ' IS NOT NULL')
-            ->where($db->quoteName('payment_amount') . ' > 0');
+            ->select('SUM(CAST(pp.' . $db->quoteName('payment_amount') . ' AS DECIMAL(10,2))) as total')
+            ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON pp.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('pp.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('pp.' . $db->quoteName('payment_amount') . ' IS NOT NULL')
+            ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $stats->moneyCollected = (float) ($db->loadResult() ?: 0);
 
         // 6. Shipping slips printed - full (completo)
-        // Check historial for print events with tipo_envio = completo
-        // The event_description contains "Envio completo impreso via" or metadata has tipo_envio = completo
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
-            ->from($db->quoteName('#__ordenproduccion_historial'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
-            ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio completo%') . 
-                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"completo"%') . 
-                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%\"tipo_envio\":\"completo\"%') . ')');
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(' . 'h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio completo%') .
+                    ' OR ' . 'h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"completo"%') .
+                    ' OR ' . 'h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%\"tipo_envio\":\"completo\"%') . ')');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $stats->shippingSlipsFull = (int) $db->loadResult();
 
         // 7. Shipping slips printed - partial (parcial)
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
-            ->from($db->quoteName('#__ordenproduccion_historial'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
-            ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') . 
-                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"parcial"%') . 
-                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%\"tipo_envio\":\"parcial\"%') . ')');
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(' . 'h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') .
+                    ' OR ' . 'h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio":"parcial"%') .
+                    ' OR ' . 'h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%\"tipo_envio\":\"parcial\"%') . ')');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $stats->shippingSlipsPartial = (int) $db->loadResult();
 
         // 8. Alternative: Check for print events with tipo_envio in metadata
-        // If the above doesn't work well, we'll also check for any print events related to shipping
         $query = $db->getQuery(true)
             ->select('COUNT(*) as total')
-            ->from($db->quoteName('#__ordenproduccion_historial'))
-            ->where($db->quoteName('state') . ' = 1')
-            ->where($db->quoteName('event_type') . ' = ' . $db->quote('print'))
-            ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-            ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
-            ->where('(' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%impreso%') . 
-                    ' OR ' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%') . ')');
+            ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+            ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('print'))
+            ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+            ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+            ->where('(' . 'h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%impreso%') .
+                    ' OR ' . 'h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%') . ')');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $printEvents = (int) $db->loadResult();
 
         // If we didn't get good results from the specific queries, use print events as fallback
         if ($stats->shippingSlipsFull == 0 && $stats->shippingSlipsPartial == 0 && $printEvents > 0) {
-            // Try to parse metadata to determine tipo_envio
             $query = $db->getQuery(true)
-                ->select($db->quoteName('metadata'))
-                ->from($db->quoteName('#__ordenproduccion_historial'))
-                ->where($db->quoteName('state') . ' = 1')
-                ->where($db->quoteName('event_type') . ' = ' . $db->quote('print'))
-                ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
-                ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
-                ->where($db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%'));
+                ->select('h.' . $db->quoteName('metadata'))
+                ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+                ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
+                ->where('h.' . $db->quoteName('state') . ' = 1')
+                ->where('o.' . $db->quoteName('state') . ' = 1')
+                ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('print'))
+                ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
+                ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
+                ->where('h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%'));
+            $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
             $db->setQuery($query);
             $metadataList = $db->loadColumn() ?: [];
             
@@ -2241,6 +2329,8 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where($db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query);
+        $query->order($db->quoteName('sales_agent') . ' ASC');
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
@@ -2266,6 +2356,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
                 ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
                 ->order($db->quoteName('orden_de_trabajo') . ' DESC');
+            $this->appendExcludeAnuladaOrdenesWhere($query);
             $db->setQuery($query);
             $orders = $db->loadObjectList() ?: [];
 
@@ -2351,6 +2442,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->where($db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where($db->quoteName('created') . ' <= ' . $db->quote($endDate))
             ->order($db->quoteName('orden_de_trabajo') . ' DESC');
+        $this->appendExcludeAnuladaOrdenesWhere($query);
         $db->setQuery($query);
         $noAgentOrders = $db->loadObjectList() ?: [];
 
@@ -2472,18 +2564,22 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
-        // Get all status values that have occurred
+        // Get all status values that have occurred (non-anulada orders only)
         $query = $db->getQuery(true)
             ->select('DISTINCT h.' . $db->quoteName('event_description'))
             ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
+            ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
             ->where('h.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('state') . ' = 1')
             ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
             ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
             ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
             ->order('h.' . $db->quoteName('event_description') . ' ASC');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $allStatuses = $db->loadColumn() ?: [];
 
@@ -2504,6 +2600,7 @@ class AdministracionModel extends BaseDatabaseModel
                     ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
                     ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
                     ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+                $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
                 $db->setQuery($query);
                 $agentStats->statusCounts[$status] = (int) $db->loadResult();
             }
@@ -2514,10 +2611,12 @@ class AdministracionModel extends BaseDatabaseModel
                 ->from($db->quoteName('#__ordenproduccion_historial', 'h'))
                 ->join('INNER', $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON h.' . $db->quoteName('order_id') . ' = o.' . $db->quoteName('id'))
                 ->where('h.' . $db->quoteName('state') . ' = 1')
+                ->where('o.' . $db->quoteName('state') . ' = 1')
                 ->where('h.' . $db->quoteName('event_type') . ' = ' . $db->quote('status_change'))
                 ->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($agent))
                 ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
                 ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+            $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
             $db->setQuery($query);
             $agentStats->totalStatusChanges = (int) $db->loadResult();
 
@@ -2536,6 +2635,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . 
                    $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
                    $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $noAgentCount = (int) $db->loadResult();
 
@@ -2556,6 +2656,7 @@ class AdministracionModel extends BaseDatabaseModel
                            $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
                     ->where('h.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
                     ->where('h.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
+                $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
                 $db->setQuery($query);
                 $noAgentStats->statusCounts[$status] = (int) $db->loadResult();
             }
@@ -2652,6 +2753,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
@@ -2686,6 +2788,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->where('pp.' . $db->quoteName('created') . ' >= ' . $db->quote($startDate))
                 ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
                 ->order('pp.' . $db->quoteName('created') . ' DESC');
+            $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
             $db->setQuery($query);
             $paymentProofs = $db->loadObjectList() ?: [];
 
@@ -2702,6 +2805,7 @@ class AdministracionModel extends BaseDatabaseModel
                 ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
                 ->where('pp.' . $db->quoteName('payment_amount') . ' IS NOT NULL')
                 ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
+            $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
             $db->setQuery($query);
             $agentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
 
@@ -2722,6 +2826,7 @@ class AdministracionModel extends BaseDatabaseModel
                         ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate));
                 };
                 $query = $baseQuery()->where($verificadoWhere);
+                $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
                 $db->setQuery($query);
                 $row = $db->loadObject();
                 if ($row) {
@@ -2755,6 +2860,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('pp.' . $db->quoteName('created') . ' <= ' . $db->quote($endDate))
             ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
             ->order('pp.' . $db->quoteName('created') . ' DESC');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $noAgentPaymentProofs = $db->loadObjectList() ?: [];
 
@@ -2795,6 +2901,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
             ->where('pp.' . $db->quoteName('payment_amount') . ' IS NOT NULL')
             ->where('pp.' . $db->quoteName('payment_amount') . ' > 0');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $noAgentStats->moneyCollected = (float) ($db->loadResult() ?: 0);
 
@@ -2815,6 +2922,7 @@ class AdministracionModel extends BaseDatabaseModel
                     ->where('(o.' . $db->quoteName('sales_agent') . ' IS NULL OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')');
             };
             $query = $noAgentBaseQuery()->where($verificadoWhere);
+            $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
             $db->setQuery($query);
             $row = $db->loadObject();
             if ($row) {
@@ -2867,6 +2975,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $rows = $db->loadObjectList() ?: [];
 
@@ -2999,6 +3108,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $agents = $db->loadColumn() ?: [];
 
@@ -3030,6 +3140,7 @@ class AdministracionModel extends BaseDatabaseModel
                        ' OR h.' . $db->quoteName('event_description') . ' LIKE ' . $db->quote('%Envio parcial%') .
                        ' OR h.' . $db->quoteName('metadata') . ' LIKE ' . $db->quote('%"tipo_envio"%') . ')')
                 ->order('h.' . $db->quoteName('created') . ' DESC');
+            $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
             $db->setQuery($query);
             $shippingSlips = $db->loadObjectList() ?: [];
 
@@ -3102,6 +3213,7 @@ class AdministracionModel extends BaseDatabaseModel
                    $db->quoteName('sales_agent') . ' = ' . $db->quote('') . ' OR o.' .
                    $db->quoteName('sales_agent') . ' = ' . $db->quote(' ') . ')')
             ->order('h.' . $db->quoteName('created') . ' DESC');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
         $db->setQuery($query);
         $noAgentShippingSlips = $db->loadObjectList() ?: [];
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.98-STABLE] - 2026-05-19
+
+### Fixed
+- **Control de Ventas — Resumen de actividades y Estadísticas:** las órdenes de trabajo con estado **Anulada** ya no se incluyen en conteos, montos, tendencias, comprobantes de pago ni envíos.
+
 ## [3.119.97-STABLE] - 2026-05-19
 
 ### Fixed
