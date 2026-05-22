@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.103-STABLE] - 2026-05-19
+
+### Changed
+- **Rango de días:** columnas de antigüedad en orden inverso (Más de 45 días → 0 a 15 días); Total al final.
+
 ## [3.119.102-STABLE] - 2026-05-19
 
 ### Fixed

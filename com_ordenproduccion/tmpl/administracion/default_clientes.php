@@ -619,10 +619,18 @@ function safeEscape($value, $default = '')
             '31_45'  => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_31_45'),
             '45_plus' => Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_45_PLUS'),
         ];
+        // Display oldest bucket first (Más de 45 días → 0 a 15 días); Total stays last.
+        $diasCreditoBucketColumnOrder = ['45_plus', '31_45', '16_30', '0_15'];
         $b0 = $clientesDiasCreditoBuckets['0_15'] ?? ['count' => 0, 'total_value' => 0.0];
         $b1 = $clientesDiasCreditoBuckets['16_30'] ?? ['count' => 0, 'total_value' => 0.0];
         $b2 = $clientesDiasCreditoBuckets['31_45'] ?? ['count' => 0, 'total_value' => 0.0];
         $b3 = $clientesDiasCreditoBuckets['45_plus'] ?? ['count' => 0, 'total_value' => 0.0];
+        $bucketSummaryByKey = [
+            '0_15'    => $b0,
+            '16_30'   => $b1,
+            '31_45'   => $b2,
+            '45_plus' => $b3,
+        ];
         $totalValue = (float)$b0['total_value'] + (float)$b1['total_value'] + (float)$b2['total_value'] + (float)$b3['total_value'];
         $totalCount = (int)$b0['count'] + (int)$b1['count'] + (int)$b2['count'] + (int)$b3['count'];
         $hasAny = $totalCount > 0;
@@ -651,30 +659,14 @@ function safeEscape($value, $default = '')
                                 <?php if ($clientesDiasCreditoOrdering === 'client') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
                             </a>
                         </th>
+                        <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) : ?>
                         <th>
-                            <a href="<?php echo diasCreditoSortUrl('0_15', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '0_15' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
-                                <?php echo $bucketLabels['0_15']; ?>
-                                <?php if ($clientesDiasCreditoOrdering === '0_15') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
+                            <a href="<?php echo diasCreditoSortUrl($bucketKey, $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === $bucketKey ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
+                                <?php echo $bucketLabels[$bucketKey]; ?>
+                                <?php if ($clientesDiasCreditoOrdering === $bucketKey) : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
                             </a>
                         </th>
-                        <th>
-                            <a href="<?php echo diasCreditoSortUrl('16_30', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '16_30' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
-                                <?php echo $bucketLabels['16_30']; ?>
-                                <?php if ($clientesDiasCreditoOrdering === '16_30') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
-                            </a>
-                        </th>
-                        <th>
-                            <a href="<?php echo diasCreditoSortUrl('31_45', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '31_45' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
-                                <?php echo $bucketLabels['31_45']; ?>
-                                <?php if ($clientesDiasCreditoOrdering === '31_45') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
-                            </a>
-                        </th>
-                        <th>
-                            <a href="<?php echo diasCreditoSortUrl('45_plus', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === '45_plus' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
-                                <?php echo $bucketLabels['45_plus']; ?>
-                                <?php if ($clientesDiasCreditoOrdering === '45_plus') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
-                            </a>
-                        </th>
+                        <?php endforeach; ?>
                         <th class="dias-credito-total-col">
                             <a href="<?php echo diasCreditoSortUrl('total', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === 'total' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_TOTAL')); ?>">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?>
@@ -689,10 +681,6 @@ function safeEscape($value, $default = '')
                             <?php
                             $agentName = $agentRow->sales_agent ?? '';
                             $agentClients = $clientsByAgent[$agentName] ?? [];
-                            $a0 = (int)($agentRow->count_0_15 ?? 0);
-                            $a1 = (int)($agentRow->count_16_30 ?? 0);
-                            $a2 = (int)($agentRow->count_31_45 ?? 0);
-                            $a3 = (int)($agentRow->count_45_plus ?? 0);
                             $agentTotalVal = (float)($agentRow->total_value_0_15 ?? 0) + (float)($agentRow->total_value_16_30 ?? 0) + (float)($agentRow->total_value_31_45 ?? 0) + (float)($agentRow->total_value_45_plus ?? 0);
                             $agentTotalCnt = (int)($agentRow->order_count ?? 0);
                             ?>
@@ -703,22 +691,15 @@ function safeEscape($value, $default = '')
                                     </button>
                                     <?php echo safeEscape($agentName); ?>
                                 </td>
+                                <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) :
+                                    $countField = 'count_' . $bucketKey;
+                                    $valueField = 'total_value_' . $bucketKey;
+                                ?>
                                 <td>
-                                    Q.<?php echo number_format((float)($agentRow->total_value_0_15 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo $a0; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                    Q.<?php echo number_format((float)($agentRow->{$valueField} ?? 0), 2); ?>
+                                    <div class="bucket-count"><?php echo (int)($agentRow->{$countField} ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
                                 </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($agentRow->total_value_16_30 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo $a1; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($agentRow->total_value_31_45 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo $a2; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($agentRow->total_value_45_plus ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo $a3; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
+                                <?php endforeach; ?>
                                 <td class="dias-credito-total-col">
                                     Q.<?php echo number_format($agentTotalVal, 2); ?>
                                     <div class="bucket-count"><?php echo $agentTotalCnt; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
@@ -727,22 +708,15 @@ function safeEscape($value, $default = '')
                             <?php foreach ($agentClients as $row) : ?>
                             <tr class="dias-credito-detail-row" data-agent-idx="<?php echo (int) $agentIdx; ?>" style="display: none;">
                                 <td class="col-client-name dias-credito-detail-indent"><?php echo safeEscape($row->client_name ?? ''); ?></td>
+                                <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) :
+                                    $countField = 'count_' . $bucketKey;
+                                    $valueField = 'total_value_' . $bucketKey;
+                                ?>
                                 <td>
-                                    Q.<?php echo number_format((float)($row->total_value_0_15 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_0_15 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                    Q.<?php echo number_format((float)($row->{$valueField} ?? 0), 2); ?>
+                                    <div class="bucket-count"><?php echo (int)($row->{$countField} ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
                                 </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($row->total_value_16_30 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_16_30 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($row->total_value_31_45 ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_31_45 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
-                                <td>
-                                    Q.<?php echo number_format((float)($row->total_value_45_plus ?? 0), 2); ?>
-                                    <div class="bucket-count"><?php echo (int)($row->count_45_plus ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                                </td>
+                                <?php endforeach; ?>
                                 <td class="dias-credito-total-col">
                                     Q.<?php echo number_format((float)($row->total_value ?? 0), 2); ?>
                                     <div class="bucket-count"><?php echo (int)($row->order_count ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
@@ -757,22 +731,14 @@ function safeEscape($value, $default = '')
                                 <i class="fas fa-plus" id="dias-credito-toggle-icon" aria-hidden="true"></i>
                             </button>
                         </td>
+                        <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) :
+                            $bucketSummary = $bucketSummaryByKey[$bucketKey];
+                        ?>
                         <td>
-                            Q.<?php echo number_format((float)$b0['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b0['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                            Q.<?php echo number_format((float)$bucketSummary['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$bucketSummary['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
                         </td>
-                        <td>
-                            Q.<?php echo number_format((float)$b1['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b1['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                        </td>
-                        <td>
-                            Q.<?php echo number_format((float)$b2['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b2['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                        </td>
-                        <td>
-                            Q.<?php echo number_format((float)$b3['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b3['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                        </td>
+                        <?php endforeach; ?>
                         <td class="dias-credito-total-col">
                             Q.<?php echo number_format($totalValue, 2); ?>
                             <div class="bucket-count"><?php echo $totalCount; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
@@ -782,22 +748,15 @@ function safeEscape($value, $default = '')
                         <?php foreach ($clientesDiasCreditoByClient as $row) : ?>
                         <tr class="dias-credito-detail-row" style="display: none;">
                             <td class="col-client-name"><?php echo safeEscape($row->client_name ?? ''); ?></td>
+                            <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) :
+                                $countField = 'count_' . $bucketKey;
+                                $valueField = 'total_value_' . $bucketKey;
+                            ?>
                             <td>
-                                Q.<?php echo number_format((float)($row->total_value_0_15 ?? 0), 2); ?>
-                                <div class="bucket-count"><?php echo (int)($row->count_0_15 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                                Q.<?php echo number_format((float)($row->{$valueField} ?? 0), 2); ?>
+                                <div class="bucket-count"><?php echo (int)($row->{$countField} ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
                             </td>
-                            <td>
-                                Q.<?php echo number_format((float)($row->total_value_16_30 ?? 0), 2); ?>
-                                <div class="bucket-count"><?php echo (int)($row->count_16_30 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                            </td>
-                            <td>
-                                Q.<?php echo number_format((float)($row->total_value_31_45 ?? 0), 2); ?>
-                                <div class="bucket-count"><?php echo (int)($row->count_31_45 ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                            </td>
-                            <td>
-                                Q.<?php echo number_format((float)($row->total_value_45_plus ?? 0), 2); ?>
-                                <div class="bucket-count"><?php echo (int)($row->count_45_plus ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                            </td>
+                            <?php endforeach; ?>
                             <td class="dias-credito-total-col">
                                 Q.<?php echo number_format((float)($row->total_value ?? 0), 2); ?>
                                 <div class="bucket-count"><?php echo (int)($row->order_count ?? 0); ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
@@ -813,22 +772,14 @@ function safeEscape($value, $default = '')
                 <tfoot>
                     <tr class="dias-credito-grand-total-row">
                         <td class="dias-credito-grand-total-label"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_GRAND_TOTAL'); ?></td>
+                        <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) :
+                            $bucketSummary = $bucketSummaryByKey[$bucketKey];
+                        ?>
                         <td>
-                            Q.<?php echo number_format((float)$b0['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b0['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
+                            Q.<?php echo number_format((float)$bucketSummary['total_value'], 2); ?>
+                            <div class="bucket-count"><?php echo (int)$bucketSummary['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
                         </td>
-                        <td>
-                            Q.<?php echo number_format((float)$b1['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b1['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                        </td>
-                        <td>
-                            Q.<?php echo number_format((float)$b2['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b2['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                        </td>
-                        <td>
-                            Q.<?php echo number_format((float)$b3['total_value'], 2); ?>
-                            <div class="bucket-count"><?php echo (int)$b3['count']; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
-                        </td>
+                        <?php endforeach; ?>
                         <td class="dias-credito-total-col">
                             Q.<?php echo number_format($totalValue, 2); ?>
                             <div class="bucket-count"><?php echo $totalCount; ?> <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_ORDERS'); ?></div>
