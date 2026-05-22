@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.104-STABLE] - 2026-05-19
+
+### Added
+- **Rango de días:** filtro por cliente con autocompletado y búsqueda en vivo mientras escribe.
+
 ## [3.119.103-STABLE] - 2026-05-19
 
 ### Changed

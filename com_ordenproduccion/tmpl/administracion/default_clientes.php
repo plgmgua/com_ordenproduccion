@@ -64,9 +64,9 @@ function clientesSortUrl($col, $currentOrdering, $currentDirection, $currentHide
 }
 
 /**
- * Query params for Rango de días — preserves sort and agent filter.
+ * Query params for Rango de días — preserves sort, agent and client filters.
  */
-function diasCreditoBaseParams($ordering, $direction, $clientesSalesAgent)
+function diasCreditoBaseParams($ordering, $direction, $clientesSalesAgent, $clientesClientName = '')
 {
     $params = [
         'option' => 'com_ordenproduccion',
@@ -79,13 +79,16 @@ function diasCreditoBaseParams($ordering, $direction, $clientesSalesAgent)
     if ($clientesSalesAgent !== '') {
         $params['filter_clientes_sales_agent'] = $clientesSalesAgent;
     }
+    if ($clientesClientName !== '') {
+        $params['filter_clientes_client'] = $clientesClientName;
+    }
     return $params;
 }
 
-function diasCreditoSortUrl($col, $currentOrdering, $currentDirection, $clientesSalesAgent = '')
+function diasCreditoSortUrl($col, $currentOrdering, $currentDirection, $clientesSalesAgent = '', $clientesClientName = '')
 {
     $dir = ($col === $currentOrdering && $currentDirection === 'asc') ? 'desc' : 'asc';
-    $params = diasCreditoBaseParams($col, $dir, $clientesSalesAgent);
+    $params = diasCreditoBaseParams($col, $dir, $clientesSalesAgent, $clientesClientName);
 
     return \Joomla\CMS\Router\Route::_('index.php?' . http_build_query($params));
 }
@@ -434,6 +437,42 @@ function safeEscape($value, $default = '')
     background: #f0f4f8;
     font-weight: 600;
 }
+.dias-credito-client-wrap {
+    position: relative;
+    display: inline-block;
+}
+.dias-credito-client-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+.dias-credito-client-suggestions li {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+.dias-credito-client-suggestions li:last-child {
+    border-bottom: none;
+}
+.dias-credito-client-suggestions li:hover,
+.dias-credito-client-suggestions li.dias-credito-suggestion-active {
+    background: #e7f3ff;
+}
+.dias-credito-row-filter-hidden {
+    display: none !important;
+}
 </style>
 
 <div id="com-op-clientes" class="clientes-section">
@@ -446,6 +485,9 @@ function safeEscape($value, $default = '')
         $subtabBase = ['option' => 'com_ordenproduccion', 'view' => 'administracion', 'tab' => 'clientes'];
         if ($clientesSalesAgent !== '') {
             $subtabBase['filter_clientes_sales_agent'] = $clientesSalesAgent;
+        }
+        if ($clientesClientName !== '') {
+            $subtabBase['filter_clientes_client'] = $clientesClientName;
         }
         $subtabEstadoUrl = Route::_('index.php?' . http_build_query($subtabBase + ['subtab' => 'estado_cuenta']));
         $subtabDiasUrl = Route::_('index.php?' . http_build_query($subtabBase + ['subtab' => 'dias_credito']));
@@ -587,18 +629,25 @@ function safeEscape($value, $default = '')
     <?php endif; ?>
         <?php endif; ?>
 
-    <?php if ($clientesSubtab === 'dias_credito') : ?>
-        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes&subtab=dias_credito'); ?>" class="clientes-filters-form mb-4">
+    <?php if ($clientesSubtab === 'dias_credito') :
+        $diasCreditoSuggestToken = \Joomla\CMS\Session\Session::getFormToken();
+        $diasCreditoSuggestUrl = Route::_(
+            'index.php?option=com_ordenproduccion&task=ajax.suggestDiasCreditoClients&format=json&'
+            . $diasCreditoSuggestToken . '=1'
+        );
+    ?>
+        <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=clientes&subtab=dias_credito'); ?>" class="clientes-filters-form mb-4" id="dias-credito-filters-form">
             <input type="hidden" name="option" value="com_ordenproduccion" />
             <input type="hidden" name="view" value="administracion" />
             <input type="hidden" name="tab" value="clientes" />
             <input type="hidden" name="subtab" value="dias_credito" />
             <input type="hidden" name="filter_dias_credito_ordering" value="<?php echo safeEscape($clientesDiasCreditoOrdering); ?>" />
             <input type="hidden" name="filter_dias_credito_direction" value="<?php echo safeEscape($clientesDiasCreditoDirection); ?>" />
+            <div class="clientes-filter-bar d-flex flex-wrap align-items-end gap-3">
             <?php if ($showClientesSalesAgentFilter) : ?>
-            <label class="clientes-filter-item d-inline-block me-3">
+            <label class="clientes-filter-item">
                 <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_SALES_AGENT'); ?>
-                <select name="filter_clientes_sales_agent" class="form-select form-select-sm" style="min-width: 180px;">
+                <select name="filter_clientes_sales_agent" id="dias-credito-filter-sales-agent" class="form-select form-select-sm" style="min-width: 180px;">
                     <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_SALES_AGENTS'); ?></option>
                     <?php foreach ($clientesSalesAgents as $agent) : ?>
                         <option value="<?php echo safeEscape($agent); ?>" <?php echo $clientesSalesAgent === $agent ? 'selected="selected"' : ''; ?>><?php echo safeEscape($agent); ?></option>
@@ -606,10 +655,26 @@ function safeEscape($value, $default = '')
                 </select>
             </label>
             <?php endif; ?>
+            <label class="clientes-filter-item dias-credito-client-wrap">
+                <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_CLIENT'); ?>
+                <input type="text"
+                       name="filter_clientes_client"
+                       id="dias-credito-filter-client"
+                       class="form-control form-control-sm"
+                       value="<?php echo safeEscape($clientesClientName); ?>"
+                       placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_CLIENT_PLACEHOLDER'); ?>"
+                       autocomplete="off"
+                       style="min-width: 220px;"
+                       data-suggest-url="<?php echo safeEscape($diasCreditoSuggestUrl); ?>"
+                       aria-autocomplete="list"
+                       aria-controls="dias-credito-client-suggestions" />
+                <ul id="dias-credito-client-suggestions" class="dias-credito-client-suggestions" role="listbox" hidden></ul>
+            </label>
             <button type="submit" class="btn btn-sm btn-primary">
                 <i class="fas fa-search"></i>
                 <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_FILTER_BTN'); ?>
             </button>
+            </div>
         </form>
         <p class="text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_INTRO'); ?></p>
         <?php
@@ -654,21 +719,21 @@ function safeEscape($value, $default = '')
                 <thead>
                     <tr>
                         <th class="dias-credito-col-toggle">
-                            <a href="<?php echo diasCreditoSortUrl('client', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === 'client' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_CLIENT')); ?>">
+                            <a href="<?php echo diasCreditoSortUrl('client', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent, $clientesClientName); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === 'client' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_CLIENT')); ?>">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_COL_CLIENT'); ?>
                                 <?php if ($clientesDiasCreditoOrdering === 'client') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
                             </a>
                         </th>
                         <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) : ?>
                         <th>
-                            <a href="<?php echo diasCreditoSortUrl($bucketKey, $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === $bucketKey ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
+                            <a href="<?php echo diasCreditoSortUrl($bucketKey, $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent, $clientesClientName); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === $bucketKey ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_BUCKET')); ?>">
                                 <?php echo $bucketLabels[$bucketKey]; ?>
                                 <?php if ($clientesDiasCreditoOrdering === $bucketKey) : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
                             </a>
                         </th>
                         <?php endforeach; ?>
                         <th class="dias-credito-total-col">
-                            <a href="<?php echo diasCreditoSortUrl('total', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === 'total' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_TOTAL')); ?>">
+                            <a href="<?php echo diasCreditoSortUrl('total', $clientesDiasCreditoOrdering, $clientesDiasCreditoDirection, $clientesSalesAgent, $clientesClientName); ?>" class="dias-credito-sort-link text-decoration-none<?php echo $clientesDiasCreditoOrdering === 'total' ? ' fw-bold' : ''; ?>" title="<?php echo safeEscape(Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_SORT_TOTAL')); ?>">
                                 <?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_TOTAL'); ?>
                                 <?php if ($clientesDiasCreditoOrdering === 'total') : ?><i class="fas fa-sort-<?php echo $clientesDiasCreditoDirection === 'asc' ? 'down' : 'up'; ?> ms-1" aria-hidden="true"></i><?php else : ?><i class="fas fa-sort ms-1 text-muted opacity-50" style="font-size:0.85em;" aria-hidden="true"></i><?php endif; ?>
                             </a>
@@ -684,7 +749,7 @@ function safeEscape($value, $default = '')
                             $agentTotalVal = (float)($agentRow->total_value_0_15 ?? 0) + (float)($agentRow->total_value_16_30 ?? 0) + (float)($agentRow->total_value_31_45 ?? 0) + (float)($agentRow->total_value_45_plus ?? 0);
                             $agentTotalCnt = (int)($agentRow->order_count ?? 0);
                             ?>
-                            <tr class="dias-credito-agent-row" data-agent-idx="<?php echo (int) $agentIdx; ?>">
+                            <tr class="dias-credito-agent-row" data-agent-idx="<?php echo (int) $agentIdx; ?>" data-search-label="<?php echo safeEscape(mb_strtolower($agentName, 'UTF-8')); ?>">
                                 <td class="dias-credito-col-toggle">
                                     <button type="button" class="dias-credito-expand-btn dias-credito-agent-toggle" data-agent-idx="<?php echo (int) $agentIdx; ?>" aria-expanded="false" title="<?php echo Text::_('COM_ORDENPRODUCCION_CLIENTES_DIAS_CREDITO_BY_CLIENT_TOGGLE'); ?>">
                                         <i class="fas fa-plus" aria-hidden="true"></i>
@@ -706,7 +771,7 @@ function safeEscape($value, $default = '')
                                 </td>
                             </tr>
                             <?php foreach ($agentClients as $row) : ?>
-                            <tr class="dias-credito-detail-row" data-agent-idx="<?php echo (int) $agentIdx; ?>" style="display: none;">
+                            <tr class="dias-credito-detail-row" data-agent-idx="<?php echo (int) $agentIdx; ?>" data-search-label="<?php echo safeEscape(mb_strtolower((string) ($row->client_name ?? ''), 'UTF-8')); ?>" style="display: none;">
                                 <td class="col-client-name dias-credito-detail-indent"><?php echo safeEscape($row->client_name ?? ''); ?></td>
                                 <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) :
                                     $countField = 'count_' . $bucketKey;
@@ -746,7 +811,7 @@ function safeEscape($value, $default = '')
                     </tr>
                     <?php if (!empty($clientesDiasCreditoByClient)) : ?>
                         <?php foreach ($clientesDiasCreditoByClient as $row) : ?>
-                        <tr class="dias-credito-detail-row" style="display: none;">
+                        <tr class="dias-credito-detail-row" data-search-label="<?php echo safeEscape(mb_strtolower((string) ($row->client_name ?? ''), 'UTF-8')); ?>" style="display: none;">
                             <td class="col-client-name"><?php echo safeEscape($row->client_name ?? ''); ?></td>
                             <?php foreach ($diasCreditoBucketColumnOrder as $bucketKey) :
                                 $countField = 'count_' . $bucketKey;
@@ -794,6 +859,178 @@ function safeEscape($value, $default = '')
         <?php endif; ?>
         <script>
         (function() {
+            var filterInput = document.getElementById('dias-credito-filter-client');
+            var suggestList = document.getElementById('dias-credito-client-suggestions');
+            var agentSelect = document.getElementById('dias-credito-filter-sales-agent');
+            var filterForm = document.getElementById('dias-credito-filters-form');
+            var table = document.getElementById('dias-credito-unified-table');
+            var suggestDebounce = null;
+            var filterDebounce = null;
+            var suggestActiveIndex = -1;
+
+            function normalizeSearch(value) {
+                return (value || '').toLowerCase().trim();
+            }
+
+            function applyLiveClientFilter() {
+                if (!table || !filterInput) return;
+                var needle = normalizeSearch(filterInput.value);
+                var agentRows = table.querySelectorAll('.dias-credito-agent-row');
+                var detailRows = table.querySelectorAll('.dias-credito-detail-row');
+
+                if (agentRows.length) {
+                    agentRows.forEach(function(agentRow) {
+                        var idx = agentRow.getAttribute('data-agent-idx');
+                        var agentLabel = agentRow.getAttribute('data-search-label') || '';
+                        var childRows = idx
+                            ? table.querySelectorAll('.dias-credito-detail-row[data-agent-idx="' + idx + '"]')
+                            : [];
+                        var anyChildMatch = false;
+
+                        childRows.forEach(function(childRow) {
+                            var childLabel = childRow.getAttribute('data-search-label') || '';
+                            var childMatch = !needle || childLabel.indexOf(needle) !== -1;
+                            childRow.classList.toggle('dias-credito-row-filter-hidden', !childMatch);
+                            if (childMatch) {
+                                anyChildMatch = true;
+                            }
+                        });
+
+                        var agentMatch = !needle || agentLabel.indexOf(needle) !== -1 || anyChildMatch;
+                        agentRow.classList.toggle('dias-credito-row-filter-hidden', !agentMatch);
+
+                        if (needle && anyChildMatch) {
+                            var toggleBtn = agentRow.querySelector('.dias-credito-agent-toggle');
+                            var icon = toggleBtn ? toggleBtn.querySelector('i') : null;
+                            childRows.forEach(function(childRow) {
+                                if (!childRow.classList.contains('dias-credito-row-filter-hidden')) {
+                                    childRow.style.display = '';
+                                }
+                            });
+                            if (toggleBtn) {
+                                toggleBtn.setAttribute('aria-expanded', 'true');
+                            }
+                            if (icon) {
+                                icon.className = 'fas fa-minus';
+                            }
+                        }
+                    });
+                    return;
+                }
+
+                detailRows.forEach(function(row) {
+                    var label = row.getAttribute('data-search-label') || '';
+                    var match = !needle || label.indexOf(needle) !== -1;
+                    row.classList.toggle('dias-credito-row-filter-hidden', !match);
+                    if (needle && match) {
+                        row.style.display = '';
+                    }
+                });
+            }
+
+            function hideSuggestions() {
+                if (!suggestList) return;
+                suggestList.hidden = true;
+                suggestList.innerHTML = '';
+                suggestActiveIndex = -1;
+            }
+
+            function showSuggestions(items) {
+                if (!suggestList || !filterInput) return;
+                suggestList.innerHTML = '';
+                if (!items || !items.length) {
+                    hideSuggestions();
+                    return;
+                }
+                items.forEach(function(name) {
+                    var li = document.createElement('li');
+                    li.textContent = name;
+                    li.setAttribute('role', 'option');
+                    li.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                    });
+                    li.addEventListener('click', function() {
+                        filterInput.value = name;
+                        hideSuggestions();
+                        applyLiveClientFilter();
+                        if (filterForm) {
+                            filterForm.submit();
+                        }
+                    });
+                    suggestList.appendChild(li);
+                });
+                suggestList.hidden = false;
+                suggestActiveIndex = -1;
+            }
+
+            if (filterInput) {
+                filterInput.addEventListener('input', function() {
+                    clearTimeout(filterDebounce);
+                    filterDebounce = setTimeout(applyLiveClientFilter, 120);
+
+                    if (!suggestList) return;
+                    clearTimeout(suggestDebounce);
+                    var q = normalizeSearch(filterInput.value);
+                    if (q.length < 2) {
+                        hideSuggestions();
+                        return;
+                    }
+                    var baseUrl = filterInput.getAttribute('data-suggest-url') || '';
+                    if (!baseUrl) return;
+                    suggestDebounce = setTimeout(function() {
+                        var salesAgent = agentSelect ? (agentSelect.value || '') : '';
+                        var url = baseUrl + '&q=' + encodeURIComponent(q);
+                        if (salesAgent) {
+                            url += '&sales_agent=' + encodeURIComponent(salesAgent);
+                        }
+                        fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                            .then(function(r) { return r.json(); })
+                            .then(function(data) {
+                                showSuggestions(data && data.success && Array.isArray(data.clients) ? data.clients : []);
+                            })
+                            .catch(function() { hideSuggestions(); });
+                    }, 280);
+                });
+
+                filterInput.addEventListener('keydown', function(e) {
+                    if (!suggestList || suggestList.hidden) return;
+                    var items = suggestList.querySelectorAll('li');
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        suggestActiveIndex = Math.min(suggestActiveIndex + 1, items.length - 1);
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        suggestActiveIndex = Math.max(suggestActiveIndex - 1, -1);
+                    } else if (e.key === 'Enter' && suggestActiveIndex >= 0 && items[suggestActiveIndex]) {
+                        e.preventDefault();
+                        filterInput.value = items[suggestActiveIndex].textContent;
+                        hideSuggestions();
+                        applyLiveClientFilter();
+                        if (filterForm) {
+                            filterForm.submit();
+                        }
+                        return;
+                    } else if (e.key === 'Escape') {
+                        hideSuggestions();
+                        return;
+                    } else {
+                        return;
+                    }
+                    items.forEach(function(li, i) {
+                        li.classList.toggle('dias-credito-suggestion-active', i === suggestActiveIndex);
+                        if (i === suggestActiveIndex) {
+                            li.scrollIntoView({ block: 'nearest' });
+                        }
+                    });
+                });
+
+                filterInput.addEventListener('blur', function() {
+                    setTimeout(hideSuggestions, 180);
+                });
+
+                applyLiveClientFilter();
+            }
+
             if (document.querySelectorAll('.dias-credito-agent-toggle').length) {
                 document.querySelectorAll('.dias-credito-agent-toggle').forEach(function(btn) {
                     var idx = btn.getAttribute('data-agent-idx');
@@ -805,6 +1042,9 @@ function safeEscape($value, $default = '')
                         btn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
                         icon.className = isExpanded ? 'fas fa-minus' : 'fas fa-plus';
                         document.querySelectorAll('.dias-credito-detail-row[data-agent-idx="' + idx + '"]').forEach(function(tr) {
+                            if (tr.classList.contains('dias-credito-row-filter-hidden')) {
+                                return;
+                            }
                             tr.style.display = isExpanded ? '' : 'none';
                         });
                     });
@@ -819,7 +1059,12 @@ function safeEscape($value, $default = '')
                         isExpanded = !isExpanded;
                         legacyBtn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
                         legacyIcon.className = isExpanded ? 'fas fa-minus' : 'fas fa-plus';
-                        detailRows.forEach(function(tr) { tr.style.display = isExpanded ? '' : 'none'; });
+                        detailRows.forEach(function(tr) {
+                            if (tr.classList.contains('dias-credito-row-filter-hidden')) {
+                                return;
+                            }
+                            tr.style.display = isExpanded ? '' : 'none';
+                        });
                     });
                 }
             }

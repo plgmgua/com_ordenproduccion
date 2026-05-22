@@ -1513,9 +1513,10 @@ class HtmlView extends BaseHtmlView
                 $this->clientesSalesAgents = $statsModel->getReportSalesAgents($salesAgentFilter);
                 if ($clientesSubtab === 'dias_credito') {
                     $agentFilter = $this->clientesSalesAgent !== '' ? $this->clientesSalesAgent : null;
-                    $this->clientesDiasCreditoBuckets = $statsModel->getOrdersWithoutPaymentProofByAgeBuckets($agentFilter);
-                    $this->clientesDiasCreditoByAgent = $statsModel->getOrdersWithoutPaymentProofSummaryByAgent($agentFilter);
-                    $this->clientesDiasCreditoByClient = $statsModel->getOrdersWithoutPaymentProofSummaryByClient($agentFilter);
+                    $clientFilter = $this->clientesClientName;
+                    $this->clientesDiasCreditoBuckets = $statsModel->getOrdersWithoutPaymentProofByAgeBuckets($agentFilter, $clientFilter);
+                    $this->clientesDiasCreditoByAgent = $statsModel->getOrdersWithoutPaymentProofSummaryByAgent($agentFilter, $clientFilter);
+                    $this->clientesDiasCreditoByClient = $statsModel->getOrdersWithoutPaymentProofSummaryByClient($agentFilter, $clientFilter);
                     $diasCreditoOrdering = $input->getString('filter_dias_credito_ordering', 'client');
                     if (!in_array($diasCreditoOrdering, ['client', '0_15', '16_30', '31_45', '45_plus', 'total'], true)) {
                         $diasCreditoOrdering = 'client';

@@ -1122,4 +1122,41 @@ class AjaxController extends BaseController
         }
         exit;
     }
+
+    /**
+     * Suggest client names for Rango de días filter (orders without payment proof since 2026-01-01).
+     *
+     * @return  void
+     *
+     * @since   3.119.104
+     */
+    public function suggestDiasCreditoClients()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'clients' => []]);
+            exit;
+        }
+
+        if (!Session::checkToken('get')) {
+            echo json_encode(['success' => false, 'clients' => []]);
+            exit;
+        }
+
+        $q = trim($app->input->getString('q', ''));
+        $salesAgent = trim($app->input->getString('sales_agent', ''));
+
+        try {
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+            $clients = $model->getDiasCreditoClientSuggestions($q, $salesAgent !== '' ? $salesAgent : null);
+            echo json_encode(['success' => true, 'clients' => $clients]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'clients' => []]);
+        }
+        exit;
+    }
 }

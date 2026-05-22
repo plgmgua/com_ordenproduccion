@@ -713,21 +713,121 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Resolve client name column on ordenes table (alias o).
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     *
+     * @return  string
+     *
+     * @since   3.119.104
+     */
+    private function getOrdenesClientNameColumn($db): string
+    {
+        $clientCol = $db->quoteName('o.client_name');
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($cols['nombre_del_cliente']) && !isset($cols['client_name'])) {
+                $clientCol = $db->quoteName('o.nombre_del_cliente');
+            }
+        } catch (\Exception $e) {
+        }
+
+        return $clientCol;
+    }
+
+    /**
+     * Apply optional partial client name filter to Rango de días queries.
+     *
+     * @param   \Joomla\Database\Query\QueryInterface  $query
+     * @param   string                               $clientCol
+     * @param   string                               $clientNameFilter
+     *
+     * @return  void
+     *
+     * @since   3.119.104
+     */
+    private function applyDiasCreditoClientNameFilter($query, string $clientCol, string $clientNameFilter): void
+    {
+        $clientNameFilter = trim($clientNameFilter);
+        if ($clientNameFilter === '') {
+            return;
+        }
+
+        $db = Factory::getDbo();
+        $needle = '%' . $db->escape(mb_strtolower($clientNameFilter, 'UTF-8'), true) . '%';
+        $query->where('LOWER(' . $clientCol . ') LIKE ' . $db->quote($needle));
+    }
+
+    /**
+     * Distinct client names for Rango de días autocomplete (orders without payment proof since 2026-01-01).
+     *
+     * @param   string       $search      Partial client name
+     * @param   string|null  $salesAgent  Optional sales agent filter
+     *
+     * @return  array
+     *
+     * @since   3.119.104
+     */
+    public function getDiasCreditoClientSuggestions(string $search = '', $salesAgent = null): array
+    {
+        $db = Factory::getDbo();
+        if (!$this->hasTable($db, '#__ordenproduccion_payment_orders')) {
+            return [];
+        }
+
+        $clientCol = $this->getOrdenesClientNameColumn($db);
+        $noProofCond = 'NOT EXISTS (SELECT 1 FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
+            ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
+            ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = o.id)';
+
+        $query = $db->getQuery(true)
+            ->select('DISTINCT ' . $clientCol)
+            ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+            ->where('o.' . $db->quoteName('state') . ' = 1')
+            ->where('o.' . $db->quoteName('created') . ' >= ' . $db->quote('2026-01-01 00:00:00'))
+            ->where('(' . $noProofCond . ')')
+            ->where($clientCol . ' IS NOT NULL')
+            ->where($clientCol . ' != ' . $db->quote(''))
+            ->order($clientCol . ' ASC')
+            ->setLimit(25);
+
+        try {
+            $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            if (isset($oCols['status'])) {
+                $query->where('o.' . $db->quoteName('status') . ' != ' . $db->quote('Anulada'));
+            }
+        } catch (\Exception $e) {
+        }
+
+        if ($salesAgent !== null && $salesAgent !== '') {
+            $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
+        }
+
+        $this->applyDiasCreditoClientNameFilter($query, $clientCol, $search);
+
+        $db->setQuery($query);
+
+        return array_values(array_filter(array_map('trim', $db->loadColumn() ?: [])));
+    }
+
+    /**
      * Get summary of work orders (from Jan 1, 2026) that have no payment proof, grouped by age in days.
      * Buckets: 0-15 days, 16-30 days, 31-45 days, >45 days (days since order creation).
      * Returns only counts and total values per bucket, no order details.
      *
-     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
+     * @param   string|null  $salesAgent         Optional sales agent filter (Ventas: own orders only)
+     * @param   string       $clientNameFilter   Optional partial client name filter
      * @return  array  ['0_15' => ['count' => N, 'total_value' => X], '16_30' => ..., '31_45' => ..., '45_plus' => ...]
      * @since   3.99.0
      */
-    public function getOrdersWithoutPaymentProofByAgeBuckets($salesAgent = null)
+    public function getOrdersWithoutPaymentProofByAgeBuckets($salesAgent = null, string $clientNameFilter = '')
     {
         $db = Factory::getDbo();
         $emptySummary = ['0_15' => ['count' => 0, 'total_value' => 0.0], '16_30' => ['count' => 0, 'total_value' => 0.0], '31_45' => ['count' => 0, 'total_value' => 0.0], '45_plus' => ['count' => 0, 'total_value' => 0.0]];
         if (!$this->hasTable($db, '#__ordenproduccion_payment_orders')) {
             return $emptySummary;
         }
+        $clientCol = $this->getOrdenesClientNameColumn($db);
         $invoiceCol = $db->quoteName('o.invoice_value');
         try {
             $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
@@ -758,6 +858,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->applyDiasCreditoClientNameFilter($query, $clientCol, $clientNameFilter);
         $db->setQuery($query);
         $rows = $db->loadObjectList() ?: [];
         $buckets = ['0_15' => ['count' => 0, 'total_value' => 0.0], '16_30' => ['count' => 0, 'total_value' => 0.0], '31_45' => ['count' => 0, 'total_value' => 0.0], '45_plus' => ['count' => 0, 'total_value' => 0.0]];
@@ -785,23 +886,21 @@ class AdministracionModel extends BaseDatabaseModel
      * Get summary of work orders (from Jan 1, 2026) without payment proof, grouped by client with per-bucket breakdown.
      * Same filters as getOrdersWithoutPaymentProofByAgeBuckets. Returns list with client_name and count/value per range (0_15, 16_30, 31_45, 45_plus) plus total.
      *
-     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only)
+     * @param   string|null  $salesAgent         Optional sales agent filter (Ventas: own orders only)
+     * @param   string       $clientNameFilter   Optional partial client name filter
      * @return  array  List of objects: client_name, count_0_15, total_value_0_15, count_16_30, total_value_16_30, count_31_45, total_value_31_45, count_45_plus, total_value_45_plus, order_count, total_value
      * @since   3.99.0
      */
-    public function getOrdersWithoutPaymentProofSummaryByClient($salesAgent = null)
+    public function getOrdersWithoutPaymentProofSummaryByClient($salesAgent = null, string $clientNameFilter = '')
     {
         $db = Factory::getDbo();
         if (!$this->hasTable($db, '#__ordenproduccion_payment_orders')) {
             return [];
         }
-        $clientCol = $db->quoteName('o.client_name');
+        $clientCol = $this->getOrdenesClientNameColumn($db);
         $invoiceCol = $db->quoteName('o.invoice_value');
         try {
             $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
-            if (isset($cols['nombre_del_cliente']) && !isset($cols['client_name'])) {
-                $clientCol = $db->quoteName('o.nombre_del_cliente');
-            }
             if (isset($cols['valor_a_facturar']) && !isset($cols['invoice_value'])) {
                 $invoiceCol = $db->quoteName('o.valor_a_facturar');
             }
@@ -850,6 +949,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->applyDiasCreditoClientNameFilter($query, $clientCol, $clientNameFilter);
         $db->setQuery($query);
         $rows = $db->loadObjectList() ?: [];
         return $rows;
@@ -859,16 +959,18 @@ class AdministracionModel extends BaseDatabaseModel
      * Get summary of work orders (from Jan 1, 2026) without payment proof, grouped by sales agent with per-bucket breakdown.
      * Same filters as getOrdersWithoutPaymentProofByAgeBuckets. Returns list with sales_agent and count/value per range (0_15, 16_30, 31_45, 45_plus) plus total.
      *
-     * @param   string|null  $salesAgent  Optional sales agent filter (Ventas: own orders only). When set, returns one row for that agent.
+     * @param   string|null  $salesAgent         Optional sales agent filter (Ventas: own orders only). When set, returns one row for that agent.
+     * @param   string       $clientNameFilter   Optional partial client name filter
      * @return  array  List of objects: sales_agent, count_0_15, total_value_0_15, count_16_30, total_value_16_30, count_31_45, total_value_31_45, count_45_plus, total_value_45_plus, order_count, total_value
      * @since   3.99.0
      */
-    public function getOrdersWithoutPaymentProofSummaryByAgent($salesAgent = null)
+    public function getOrdersWithoutPaymentProofSummaryByAgent($salesAgent = null, string $clientNameFilter = '')
     {
         $db = Factory::getDbo();
         if (!$this->hasTable($db, '#__ordenproduccion_payment_orders')) {
             return [];
         }
+        $clientCol = $this->getOrdenesClientNameColumn($db);
         $invoiceCol = $db->quoteName('o.invoice_value');
         try {
             $cols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
@@ -912,6 +1014,7 @@ class AdministracionModel extends BaseDatabaseModel
         if ($salesAgent !== null && $salesAgent !== '') {
             $query->where('o.' . $db->quoteName('sales_agent') . ' = ' . $db->quote($salesAgent));
         }
+        $this->applyDiasCreditoClientNameFilter($query, $clientCol, $clientNameFilter);
         $db->setQuery($query);
         $rows = $db->loadObjectList() ?: [];
         return $rows;
