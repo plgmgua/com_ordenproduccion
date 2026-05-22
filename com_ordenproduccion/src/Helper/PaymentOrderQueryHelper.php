@@ -29,12 +29,17 @@ class PaymentOrderQueryHelper
     public static function effectiveAppliedAmountExpr(DatabaseInterface $db, string $poAlias = 'po', string $ppAlias = 'pp'): string
     {
         $poCnt = $db->quoteName('#__ordenproduccion_payment_orders', 'po_cnt');
+        $applied = 'COALESCE(' . $poAlias . '.' . $db->quoteName('amount_applied') . ', 0)';
+        $proofAmt = $ppAlias . '.' . $db->quoteName('payment_amount');
 
-        return 'CASE WHEN COALESCE(' . $poAlias . '.' . $db->quoteName('amount_applied') . ', 0) > 0'
-            . ' THEN ' . $poAlias . '.' . $db->quoteName('amount_applied')
+        // Prefer amount_applied; cap at payment_amount when junction over-allocated (e.g. two partial
+        // proofs each stored with the full invoice in amount_applied); else single-order fallback.
+        return 'CASE'
+            . ' WHEN ' . $applied . ' > 0 AND ' . $applied . ' > ' . $proofAmt . ' THEN ' . $proofAmt
+            . ' WHEN ' . $applied . ' > 0 THEN ' . $poAlias . '.' . $db->quoteName('amount_applied')
             . ' WHEN (SELECT COUNT(*) FROM ' . $poCnt
             . ' WHERE po_cnt.' . $db->quoteName('payment_proof_id') . ' = ' . $ppAlias . '.' . $db->quoteName('id') . ') = 1'
-            . ' THEN ' . $ppAlias . '.' . $db->quoteName('payment_amount')
+            . ' THEN ' . $proofAmt
             . ' ELSE 0 END';
     }
 

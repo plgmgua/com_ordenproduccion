@@ -709,18 +709,20 @@ class PaymentproofModel extends ItemModel
     public function getEffectiveAmountAppliedToOrder($proof): float
     {
         $applied = (float) ($proof->amount_applied ?? 0);
+        $paymentAmount = (float) ($proof->payment_amount ?? 0);
+
         if ($applied > 0) {
-            return $applied;
+            return ($paymentAmount > 0 && $applied > $paymentAmount) ? $paymentAmount : $applied;
         }
 
         $proofId = (int) ($proof->id ?? 0);
         if ($proofId <= 0 || !$this->hasPaymentOrdersTable()) {
-            return (float) ($proof->payment_amount ?? 0);
+            return $paymentAmount;
         }
 
         $linked = $this->getOrdersByPaymentProofId($proofId);
 
-        return count($linked) <= 1 ? (float) ($proof->payment_amount ?? 0) : 0.0;
+        return count($linked) <= 1 ? $paymentAmount : 0.0;
     }
 
     /**
