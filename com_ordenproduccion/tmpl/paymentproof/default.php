@@ -472,7 +472,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <th><?php echo htmlspecialchars($this->labelPaymentType ?? 'Tipo de Pago'); ?></th>
                                     <th><?php echo htmlspecialchars($bankAccountColumnLabel); ?></th>
                                     <th><?php echo htmlspecialchars($this->labelPaymentAmount ?? 'Monto del Pago'); ?></th>
-                                    <th class="text-nowrap"><?php echo htmlspecialchars($this->labelEstado ?? 'Estado'); ?></th>
+                                    <th><?php echo htmlspecialchars($this->labelEstado ?? 'Estado'); ?></th>
                                     <th><?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_PROOF_FILES_COLUMN', 'Attached files', 'Archivos adjuntos')); ?></th>
                                     <th class="text-center payment-proof-col-clip" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ADD_FILE', 'Add file for this line', 'Adjuntar a esta línea')); ?>"><i class="fas fa-paperclip" aria-hidden="true"></i></th>
                                     <th><?php echo htmlspecialchars($this->labelMismatchNoteActions ?? 'Nota / Acciones'); ?></th>

@@ -131,6 +131,7 @@
 /* Payment proof list: bold column headers, compact layout for module width */
 .com-ordenproduccion-paymentproof .payment-proof-list-table {
     width: 100%;
+    min-width: 780px;
     max-width: 100%;
     table-layout: fixed;
     margin-bottom: 0;
@@ -147,6 +148,10 @@
     white-space: normal;
     line-height: 1.2;
     word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table tbody td {
     font-size: 0.78rem;
@@ -155,6 +160,7 @@
     white-space: normal;
     word-break: break-word;
     overflow-wrap: anywhere;
+    box-sizing: border-box;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table tfoot td {
     font-size: 0.78rem;
@@ -162,11 +168,13 @@
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(1),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(1) {
-    width: 6%;
+    width: 5%;
+    min-width: 3.25rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(2),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(2) {
-    width: 13%;
+    width: 12%;
+    min-width: 4.5rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table .payment-proof-doc-number {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -178,32 +186,41 @@
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(3),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(3) {
-    width: 7%;
+    width: 9%;
+    min-width: 4rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(4),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(4) {
-    width: 12%;
+    width: 11%;
+    min-width: 4.5rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(5),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(5) {
-    width: 10%;
+    width: 9%;
+    min-width: 4rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(6),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(6) {
-    width: 9%;
+    width: 11%;
+    min-width: 4.75rem;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(6) {
     white-space: nowrap;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(7),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(7) {
-    width: 8%;
+    width: 9%;
+    min-width: 4rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(8),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(8) {
-    width: 16%;
+    width: 14%;
+    min-width: 4.5rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(9),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(9) {
     width: 4%;
+    min-width: 1.75rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th.payment-proof-col-clip,
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(9) {
@@ -212,7 +229,8 @@
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(10),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(10) {
-    width: 15%;
+    width: 16%;
+    min-width: 5rem;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table .payment-proof-thumb {
     max-width: 36px;
