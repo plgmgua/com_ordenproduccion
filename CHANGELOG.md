@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.97-STABLE] - 2026-05-19
+
+### Fixed
+- **Cola de facturas:** confirmación de quitar de cola usa `data-confirm` + JS (sin `onsubmit` inline) para eliminar definitivamente los caracteres `">` en acciones.
+
 ## [3.119.96-STABLE] - 2026-05-19
 
 ### Fixed
