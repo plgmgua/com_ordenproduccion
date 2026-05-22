@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.106-STABLE] - 2026-05-19
+
+### Fixed
+- **Comprobante de pago:** evita registros duplicados al hacer doble clic en Guardar.
+
+## [3.119.105-STABLE] - 2026-05-19
+
+### Fixed
+- **Comprobantes de pago:** encabezados de columnas ya no se superponen (Monto del Pago / Estado).
+
 ## [3.119.104-STABLE] - 2026-05-19
 
 ### Added

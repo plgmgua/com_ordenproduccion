@@ -265,6 +265,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const mismatchDiffHidden = document.getElementById('payment_mismatch_difference');
         const proceedBtn = document.getElementById('payment-mismatch-proceed-btn');
 
+        function getSubmitButtons() {
+            return form.querySelectorAll('button[type="submit"], input[type="submit"]');
+        }
+
+        function lockSubmitButtons() {
+            getSubmitButtons().forEach(function(submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('loading');
+                submitBtn.setAttribute('aria-disabled', 'true');
+            });
+        }
+
+        function unlockSubmitButtons() {
+            form.dataset.submitting = '0';
+            getSubmitButtons().forEach(function(submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+                submitBtn.removeAttribute('aria-disabled');
+            });
+        }
+
+        function isSubmitLocked() {
+            return form.dataset.submitting === '1' || form._mismatchConfirmed === true;
+        }
+
+        function lockSubmitFlow() {
+            form.dataset.submitting = '1';
+            lockSubmitButtons();
+        }
+
+        getSubmitButtons().forEach(function(submitBtn) {
+            submitBtn.addEventListener('click', function(e) {
+                if (isSubmitLocked()) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return false;
+                }
+            }, true);
+        });
+
         function getLinesTotal() {
             let sum = 0;
             document.querySelectorAll('.payment-line-amount').forEach(function(inp) {
@@ -282,6 +322,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function submitFormWithMismatch() {
+            if (isSubmitLocked()) {
+                return;
+            }
             if (mismatchNoteTa && mismatchNoteHidden) {
                 mismatchNoteHidden.value = (mismatchNoteTa.value || '').trim();
             }
@@ -289,7 +332,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 mismatchDiffHidden.value = String(form._pendingMismatchDiff);
             }
             form._mismatchConfirmed = true;
+            if (proceedBtn) {
+                proceedBtn.disabled = true;
+            }
             if (mismatchModal) mismatchModal.hide();
+            lockSubmitFlow();
             form.submit();
         }
 
@@ -301,10 +348,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         form.addEventListener('submit', function(e) {
             if (form._mismatchConfirmed) {
+                lockSubmitFlow();
                 return;
             }
+
+            if (form.dataset.submitting === '1') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+
+            lockSubmitFlow();
+
             if (!validateForm()) {
                 e.preventDefault();
+                unlockSubmitButtons();
                 return false;
             }
 
@@ -314,6 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (difference >= 0.01 && mismatchModal && mismatchDifferenceText) {
                 e.preventDefault();
+                unlockSubmitButtons();
                 form._pendingMismatchDiff = (linesTotal - ordersTotal);
                 const diffStr = (form._pendingMismatchDiff >= 0 ? 'Q. ' : '-Q. ') + Math.abs(form._pendingMismatchDiff).toFixed(2);
                 mismatchDifferenceText.textContent = diffStr;
@@ -327,12 +386,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (mismatchNoteTa) mismatchNoteTa.focus();
                 }, 300);
                 return false;
-            }
-
-            var submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.classList.add('loading');
-                submitBtn.disabled = true;
             }
         });
     }

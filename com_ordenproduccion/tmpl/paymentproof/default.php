@@ -236,7 +236,7 @@ if (empty($order)) :
                     <script type="application/json" id="unpaid-orders-data"><?php echo $this->availableOrdersJson ?? '[]'; ?></script>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> <?php echo htmlspecialchars($this->labelRegisterPaymentProof ?? 'Registrar Comprobante de Pago'); ?></button>
+                        <button type="submit" class="btn btn-primary" id="payment-proof-submit-btn"><i class="fas fa-save"></i> <?php echo htmlspecialchars($this->labelRegisterPaymentProof ?? 'Registrar Comprobante de Pago'); ?></button>
                         <a href="<?php echo htmlspecialchars($backUrl); ?>" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($this->labelCancel ?? 'Cancelar'); ?></a>
                     </div>
                 </form>
@@ -1579,7 +1579,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                             </script>
 
                             <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary" id="payment-proof-submit-btn">
                                     <i class="fas fa-save"></i>
                                     <?php echo htmlspecialchars($this->labelRegisterPaymentProof ?? 'Registrar Comprobante de Pago'); ?>
                                 </button>
