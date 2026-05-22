@@ -51,6 +51,7 @@ class PaymentOrderQueryHelper
     {
         $pp = $db->quoteName('#__ordenproduccion_payment_proofs', 'pp');
         $po = $db->quoteName('#__ordenproduccion_payment_orders', 'po');
+        $poX = $db->quoteName('#__ordenproduccion_payment_orders', 'po_x');
         $effective = self::effectiveAppliedAmountExpr($db, 'po', 'pp');
 
         if ($hasPaymentOrdersTable) {
@@ -62,7 +63,7 @@ class PaymentOrderQueryHelper
             $legacySum = '(SELECT COALESCE(SUM(pp.' . $db->quoteName('payment_amount') . '), 0) FROM ' . $pp
                 . ' WHERE pp.' . $db->quoteName('order_id') . ' = ' . $orderIdColumn
                 . ' AND pp.' . $db->quoteName('state') . ' = 1'
-                . ' AND NOT EXISTS (SELECT 1 FROM ' . $po . ' po_x WHERE po_x.' . $db->quoteName('payment_proof_id') . ' = pp.' . $db->quoteName('id') . '))';
+                . ' AND NOT EXISTS (SELECT 1 FROM ' . $poX . ' WHERE po_x.' . $db->quoteName('payment_proof_id') . ' = pp.' . $db->quoteName('id') . '))';
 
             return '(' . $junctionSum . ' + ' . $legacySum . ')';
         }

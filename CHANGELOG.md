@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.100-STABLE] - 2026-05-19
+
+### Fixed
+- **Reportes:** error de sintaxis SQL en subconsultas de pagos (`AS po po_x` alias duplicado).
+
 ## [3.119.99-STABLE] - 2026-05-19
 
 ### Fixed

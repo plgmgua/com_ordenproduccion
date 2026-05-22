@@ -471,13 +471,14 @@ class AdministracionModel extends BaseDatabaseModel
         $fmt = "CONCAT('PA-', LPAD(pp.id, 5, '0'))";
         if ($this->hasTable($db, '#__ordenproduccion_payment_orders')) {
             $po = $db->quoteName('#__ordenproduccion_payment_orders', 'po');
+            $poX = $db->quoteName('#__ordenproduccion_payment_orders', 'po_x');
             return '(SELECT GROUP_CONCAT(pa_label ORDER BY pa_id SEPARATOR ", ") FROM ('
                 . 'SELECT pp.id AS pa_id, ' . $fmt . ' AS pa_label FROM ' . $po
                 . ' INNER JOIN ' . $q . ' ON pp.id = po.payment_proof_id AND pp.state = 1'
                 . ' WHERE po.order_id = ' . $orderIdColumn
                 . ' UNION SELECT pp.id AS pa_id, ' . $fmt . ' AS pa_label FROM ' . $q
                 . ' WHERE pp.order_id = ' . $orderIdColumn . ' AND pp.state = 1'
-                . ' AND NOT EXISTS (SELECT 1 FROM ' . $po . ' po_x WHERE po_x.payment_proof_id = pp.id)'
+                . ' AND NOT EXISTS (SELECT 1 FROM ' . $poX . ' WHERE po_x.' . $db->quoteName('payment_proof_id') . ' = pp.' . $db->quoteName('id') . ')'
                 . ') AS payment_labels)';
         }
         return '(SELECT GROUP_CONCAT(' . $fmt . ' ORDER BY pp.id SEPARATOR ", ") FROM ' . $q .
