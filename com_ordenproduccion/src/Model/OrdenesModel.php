@@ -17,6 +17,7 @@ use Joomla\CMS\User\UserHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 
 /**
  * Ordenes model for com_ordenproduccion
@@ -810,15 +811,6 @@ class OrdenesModel extends ListModel
             }
         }
 
-        if ($hasPaymentOrders) {
-            return '(SELECT COALESCE(SUM(po.amount_applied), 0) FROM ' .
-                $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
-                ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
-                ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = a.id)';
-        }
-
-        return '(SELECT COALESCE(SUM(pp.payment_amount), 0) FROM ' .
-            $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
-            ' WHERE pp.order_id = a.id AND pp.state = 1)';
+        return PaymentOrderQueryHelper::totalPaidSubqueryForOrder($db, 'a.id', $hasPaymentOrders);
     }
 }

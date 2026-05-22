@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 
 /**
  * Administracion Model
@@ -449,13 +450,11 @@ class AdministracionModel extends BaseDatabaseModel
      */
     protected function getReportTotalPaidSubquery($db, $orderIdColumn = 'o.id')
     {
-        if ($this->hasTable($db, '#__ordenproduccion_payment_orders')) {
-            return '(SELECT COALESCE(SUM(po.amount_applied), 0) FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
-                ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
-                ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = ' . $orderIdColumn . ')';
-        }
-        return '(SELECT COALESCE(SUM(pp.payment_amount), 0) FROM ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') .
-            ' WHERE pp.order_id = ' . $orderIdColumn . ' AND pp.state = 1)';
+        return PaymentOrderQueryHelper::totalPaidSubqueryForOrder(
+            $db,
+            $orderIdColumn,
+            $this->hasTable($db, '#__ordenproduccion_payment_orders')
+        );
     }
 
     /**
@@ -471,8 +470,15 @@ class AdministracionModel extends BaseDatabaseModel
         $q = $db->quoteName('#__ordenproduccion_payment_proofs', 'pp');
         $fmt = "CONCAT('PA-', LPAD(pp.id, 5, '0'))";
         if ($this->hasTable($db, '#__ordenproduccion_payment_orders')) {
-            return '(SELECT GROUP_CONCAT(' . $fmt . ' ORDER BY pp.id SEPARATOR ", ") FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po') .
-                ' INNER JOIN ' . $q . ' ON pp.id = po.payment_proof_id AND pp.state = 1 WHERE po.order_id = ' . $orderIdColumn . ')';
+            $po = $db->quoteName('#__ordenproduccion_payment_orders', 'po');
+            return '(SELECT GROUP_CONCAT(pa_label ORDER BY pa_id SEPARATOR ", ") FROM ('
+                . 'SELECT pp.id AS pa_id, ' . $fmt . ' AS pa_label FROM ' . $po
+                . ' INNER JOIN ' . $q . ' ON pp.id = po.payment_proof_id AND pp.state = 1'
+                . ' WHERE po.order_id = ' . $orderIdColumn
+                . ' UNION SELECT pp.id AS pa_id, ' . $fmt . ' AS pa_label FROM ' . $q
+                . ' WHERE pp.order_id = ' . $orderIdColumn . ' AND pp.state = 1'
+                . ' AND NOT EXISTS (SELECT 1 FROM ' . $po . ' po_x WHERE po_x.payment_proof_id = pp.id)'
+                . ') AS payment_labels)';
         }
         return '(SELECT GROUP_CONCAT(' . $fmt . ' ORDER BY pp.id SEPARATOR ", ") FROM ' . $q .
             ' WHERE pp.order_id = ' . $orderIdColumn . ' AND pp.state = 1)';
@@ -1219,7 +1225,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->select([
                 'o.' . $db->quoteName('client_name'),
                 'o.' . $db->quoteName('nit'),
-                'SUM(CAST(po.' . $db->quoteName('amount_applied') . ' AS DECIMAL(15,2))) AS total_paid'
+                'SUM(CAST(' . PaymentOrderQueryHelper::effectiveAppliedAmountExpr($db) . ' AS DECIMAL(15,2))) AS total_paid'
             ])
             ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
             ->innerJoin(
@@ -1249,7 +1255,7 @@ class AdministracionModel extends BaseDatabaseModel
             ->select([
                 'o.' . $db->quoteName('client_name'),
                 'o.' . $db->quoteName('nit'),
-                'SUM(CAST(po.' . $db->quoteName('amount_applied') . ' AS DECIMAL(15,2))) AS total_paid'
+                'SUM(CAST(' . PaymentOrderQueryHelper::effectiveAppliedAmountExpr($db) . ' AS DECIMAL(15,2))) AS total_paid'
             ])
             ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
             ->innerJoin(

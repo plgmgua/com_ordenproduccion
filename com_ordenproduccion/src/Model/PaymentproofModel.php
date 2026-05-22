@@ -12,6 +12,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ItemModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 class PaymentproofModel extends ItemModel
@@ -697,6 +698,32 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Amount credited to a work order from one proof row (junction amount_applied, or payment_amount fallback).
+     *
+     * @param   object  $proof  Payment proof row (may include amount_applied from junction)
+     *
+     * @return  float
+     *
+     * @since   3.119.99
+     */
+    public function getEffectiveAmountAppliedToOrder($proof): float
+    {
+        $applied = (float) ($proof->amount_applied ?? 0);
+        if ($applied > 0) {
+            return $applied;
+        }
+
+        $proofId = (int) ($proof->id ?? 0);
+        if ($proofId <= 0 || !$this->hasPaymentOrdersTable()) {
+            return (float) ($proof->payment_amount ?? 0);
+        }
+
+        $linked = $this->getOrdersByPaymentProofId($proofId);
+
+        return count($linked) <= 1 ? (float) ($proof->payment_amount ?? 0) : 0.0;
+    }
+
+    /**
      * Get total amount paid for a specific order (sum of amount_applied from all payment proofs)
      *
      * @param   integer  $orderId  The order ID
@@ -717,8 +744,9 @@ class PaymentproofModel extends ItemModel
             $verifiedCondition = isset($ppCols['verification_status'])
                 ? " AND pp.verification_status = 'verificado'"
                 : '';
+            $effective = PaymentOrderQueryHelper::effectiveAppliedAmountExpr($db);
             $query = $db->getQuery(true)
-                ->select('COALESCE(SUM(po.amount_applied), 0)')
+                ->select('COALESCE(SUM(' . $effective . '), 0)')
                 ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
                 ->innerJoin(
                     $db->quoteName('#__ordenproduccion_payment_proofs', 'pp') . ' ON pp.id = po.payment_proof_id AND pp.state = 1' . $verifiedCondition
@@ -726,7 +754,21 @@ class PaymentproofModel extends ItemModel
                 ->where('po.' . $db->quoteName('order_id') . ' = ' . (int) $orderId);
 
             $db->setQuery($query);
-            return (float) $db->loadResult();
+            $junctionTotal = (float) $db->loadResult();
+
+            $legacyQuery = $db->getQuery(true)
+                ->select('COALESCE(SUM(pp.' . $db->quoteName('payment_amount') . '), 0)')
+                ->from($db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+                ->where('pp.' . $db->quoteName('order_id') . ' = ' . (int) $orderId)
+                ->where('pp.' . $db->quoteName('state') . ' = 1')
+                ->where('NOT EXISTS (SELECT 1 FROM ' . $db->quoteName('#__ordenproduccion_payment_orders', 'po_x')
+                    . ' WHERE po_x.' . $db->quoteName('payment_proof_id') . ' = pp.' . $db->quoteName('id') . ')');
+            if ($verifiedCondition !== '') {
+                $legacyQuery->where("pp.verification_status = 'verificado'");
+            }
+            $db->setQuery($legacyQuery);
+
+            return $junctionTotal + (float) $db->loadResult();
             
         } catch (\Throwable $e) {
             return $this->getTotalPaidByOrderIdLegacy($orderId);

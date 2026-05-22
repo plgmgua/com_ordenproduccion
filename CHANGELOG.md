@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.99-STABLE] - 2026-05-19
+
+### Fixed
+- **Reportes / Estado de cuenta:** el total pagado por orden ahora coincide con Registro de comprobantes cuando `amount_applied` en la tabla de enlace está en cero pero el comprobante tiene `payment_amount` (datos legacy o migrados).
+
 ## [3.119.98-STABLE] - 2026-05-19
 
 ### Fixed

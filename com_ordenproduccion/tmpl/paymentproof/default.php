@@ -598,7 +598,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <?php /* Removed duplicate simple "Orden #" list; keep detailed "Información de la Orden" table below. */ ?>
                                 <?php
                                     else:
-                                        $totalMonto += (float)($proof->payment_amount ?? 0);
+                                        $totalMonto += $proofModel->getEffectiveAmountAppliedToOrder($proof);
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                         $delConfirmMsgLegacy = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_DELETE_FILE_CONFIRM');
                                         if (strpos((string) $delConfirmMsgLegacy, 'COM_ORDENPRODUCCION') === 0) {

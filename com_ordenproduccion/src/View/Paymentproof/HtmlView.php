@@ -14,6 +14,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 
 class HtmlView extends BaseHtmlView
 {
@@ -519,10 +520,12 @@ class HtmlView extends BaseHtmlView
                 // ignore
             }
             if ($this->hasPaymentOrdersTable($db)) {
-                $totalPaidExpr = '(SELECT COALESCE(SUM(po2.amount_applied), 0) FROM ' .
+                $effective = PaymentOrderQueryHelper::effectiveAppliedAmountExpr($db, 'po2', 'pp2');
+                $totalPaidExpr = '(SELECT COALESCE(SUM(' . $effective . '), 0) FROM ' .
                     $db->quoteName('#__ordenproduccion_payment_orders', 'po2') .
                     ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
-                    ' ON pp2.id = po2.payment_proof_id AND pp2.state = 1' . $verifiedCond . ' WHERE po2.order_id = o.id)';
+                    ' ON pp2.id = po2.payment_proof_id AND pp2.state = 1' . $verifiedCond .
+                    ' WHERE po2.order_id = o.id)';
             } else {
                 $totalPaidExpr = '(SELECT COALESCE(SUM(pp2.payment_amount), 0) FROM ' .
                     $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
@@ -622,10 +625,12 @@ class HtmlView extends BaseHtmlView
                 // ignore
             }
             if ($this->hasPaymentOrdersTable($db)) {
-                $totalPaidExpr = '(SELECT COALESCE(SUM(po2.amount_applied), 0) FROM ' .
+                $effective = PaymentOrderQueryHelper::effectiveAppliedAmountExpr($db, 'po2', 'pp2');
+                $totalPaidExpr = '(SELECT COALESCE(SUM(' . $effective . '), 0) FROM ' .
                     $db->quoteName('#__ordenproduccion_payment_orders', 'po2') .
                     ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
-                    ' ON pp2.id = po2.payment_proof_id AND pp2.state = 1' . $verifiedCond . ' WHERE po2.order_id = o.id)';
+                    ' ON pp2.id = po2.payment_proof_id AND pp2.state = 1' . $verifiedCond .
+                    ' WHERE po2.order_id = o.id)';
             } else {
                 $totalPaidExpr = '(SELECT COALESCE(SUM(pp2.payment_amount), 0) FROM ' .
                     $db->quoteName('#__ordenproduccion_payment_proofs', 'pp2') .
