@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.102-STABLE] - 2026-05-19
+
+### Fixed
+- **Estado de cuenta:** Saldo alinea con Reportes > Ordenes (usa pagos **Registrado**, incluye ingresado); claves de cliente insensibles a mayúsculas para enlazar Compras/Pagos.
+
+## [3.119.101-STABLE] - 2026-05-19
+
+### Fixed
+- **Reportes / pagos:** cuando `amount_applied` en la tabla de enlace supera `payment_amount` del comprobante (varios pagos parciales con el total de la OT en cada fila), el reporte usa el monto del comprobante y la Diferencia cuadra con Registro de comprobantes.
+
 ## [3.119.100-STABLE] - 2026-05-19
 
 ### Fixed

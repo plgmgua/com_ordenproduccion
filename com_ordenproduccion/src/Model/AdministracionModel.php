@@ -625,7 +625,8 @@ class AdministracionModel extends BaseDatabaseModel
 
     /**
      * Get clients with totals (and optional filters / pagination).
-     * Accounting: Saldo = Total invoiced - (initial_paid_to_dec31_2025 + payments from Jan 1 2026)
+     * Accounting: Saldo = (Compras − Registrado) + (invoice Oct–Dec 2025 − opening paid to Dec 31 2025).
+     * Display shows −saldo in the Saldo column. Registrado includes ingresado proofs (same as Reportes > Ordenes).
      *
      * @param   string   $ordering         Sort column: name, compras, saldo (saldo uses the displayed amount, i.e. negated balance)
      * @param   string   $direction        Sort direction: asc, desc
@@ -1020,8 +1021,9 @@ class AdministracionModel extends BaseDatabaseModel
             $c->registrado_from_jan2026 = $registradoFromJan;
             $c->verificado_from_jan2026 = $paidFromJan;
             $c->compras = $compras;
-            // Saldo = total compras (invoiced) minus total verificado (verified payments only). Positive = client owes.
-            $c->saldo = round($totalInvoiced - $initialPaid - $paidFromJan, 2);
+            // Saldo (Jan 2026 activity): Compras minus Registrado — matches Reportes > Ordenes (ingresado counts).
+            // Opening balance (Oct–Dec 2025) is tracked separately via initial_paid / display_pagado.
+            $c->saldo = round($compras - $registradoFromJan + ($invoiceOctDec2025 - $initialPaid), 2);
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
         }
 
@@ -1181,7 +1183,7 @@ class AdministracionModel extends BaseDatabaseModel
      */
     protected function clientKey($clientName, $nit)
     {
-        return trim($clientName ?? '') . '|' . trim($nit ?? '');
+        return mb_strtolower(trim($clientName ?? '')) . '|' . trim($nit ?? '');
     }
 
     /**
