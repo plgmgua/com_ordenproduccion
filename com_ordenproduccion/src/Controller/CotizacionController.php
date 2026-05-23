@@ -1324,7 +1324,7 @@ class CotizacionController extends BaseController
 
         $db       = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
         $progress = ApprovalWorkflowEntityHelper::getFacturacionManualInvoicingProgress($db, $quotationId);
-        if (empty($progress['is_fully_invoiced'])) {
+        if (empty($progress['should_close_fact_man_approval'])) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_NOT_READY'), 'warning');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
 

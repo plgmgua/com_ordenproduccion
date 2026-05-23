@@ -312,6 +312,22 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Whether the cotización has at least one linked invoice with fel_issue_status completed.
+     *
+     * @since  3.119.107
+     */
+    public function hasCompletedInvoiceForQuotation(int $quotationId): bool
+    {
+        foreach ($this->getInvoicesByQuotationId($quotationId) as $inv) {
+            if ((string) ($inv->fel_issue_status ?? '') === 'completed') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Create pending invoice row for quotation (queue step 1).
      *
      * @return  int  New invoice id or 0 on failure

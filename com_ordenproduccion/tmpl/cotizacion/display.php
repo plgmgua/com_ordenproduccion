@@ -131,6 +131,8 @@ $felStatus = $felInv ? (string) ($felInv->fel_issue_status ?? '') : '';
 $felInvoicesForQuotation = isset($this->felInvoicesForQuotation) && is_array($this->felInvoicesForQuotation) ? $this->felInvoicesForQuotation : [];
 $felInvoicedCompletedTotal = 0.0;
 $factManInvoicingFullyCovered = false;
+$factManHasCompletedInvoice = false;
+$factManShouldCloseApproval = false;
 if ($quotation) {
     $felProgress = ApprovalWorkflowEntityHelper::getFacturacionManualInvoicingProgress(
         Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class),
@@ -138,8 +140,10 @@ if ($quotation) {
     );
     $felInvoicedCompletedTotal    = (float) ($felProgress['invoiced_completed'] ?? 0.0);
     $factManInvoicingFullyCovered = !empty($felProgress['is_fully_invoiced']);
+    $factManHasCompletedInvoice   = !empty($felProgress['has_completed_invoice']);
+    $factManShouldCloseApproval   = !empty($felProgress['should_close_fact_man_approval']);
 }
-$canCompleteFactManApproval = $factManInvoicingFullyCovered
+$canCompleteFactManApproval = $factManShouldCloseApproval
     && AccessHelper::canViewApprovalWorkflowTab();
 $completeFactManApprovalUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.completeFacturacionManualIfInvoiced', false);
 
@@ -250,6 +254,15 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
                     )); ?>
                     (Q <?php echo number_format($felInvoicedCompletedTotal, 2); ?> / Q <?php echo number_format($totalAmount, 2); ?>)
                 </p>
+                <?php elseif ($factManHasCompletedInvoice) : ?>
+                <p class="small text-success mb-0 mt-2">
+                    <i class="fas fa-check-circle me-1"></i>
+                    <?php echo htmlspecialchars($l(
+                        'COM_ORDENPRODUCCION_FACTURACION_MANUAL_INVOICE_ASSOCIATED_HINT',
+                        'This quotation already has a completed related invoice. The manual invoicing approval can be closed.',
+                        'Esta cotización ya tiene una factura relacionada completada. Puede cerrar la aprobación de facturación manual.'
+                    )); ?>
+                </p>
                 <?php endif; ?>
                 <?php if ($pmInstr !== '') : ?>
                 <div class="mt-2 mb-0">
@@ -327,8 +340,8 @@ $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($
             <?php if ($canCompleteFactManApproval && !empty($pendingFactManual)) : ?>
             <form method="post" action="<?php echo htmlspecialchars($completeFactManApprovalUrl); ?>" class="mb-0" onsubmit="return confirm(<?php echo json_encode($l(
                 'COM_ORDENPRODUCCION_FACTURACION_MANUAL_COMPLETE_JS_CONFIRM',
-                'Close this manual invoicing approval? Completed invoices already cover the quotation total.',
-                '¿Cerrar esta aprobación de facturación manual? Las facturas completadas ya cubren el total de la cotización.'
+                'Close this manual invoicing approval? A completed invoice is already linked to this quotation.',
+                '¿Cerrar esta aprobación de facturación manual? Ya hay una factura completada vinculada a esta cotización.'
             ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);">
                 <?php echo HTMLHelper::_('form.token'); ?>
                 <input type="hidden" name="id" value="<?php echo (int) $quotationId; ?>">

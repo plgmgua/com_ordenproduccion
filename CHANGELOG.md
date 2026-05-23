@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.107-STABLE] - 2026-05-19
+
+### Fixed
+- **Fact.Man.:** la aprobación se cierra automáticamente cuando la cotización tiene una factura completada vinculada (no solo cuando el total coincide al centavo).
+
 ## [3.119.106-STABLE] - 2026-05-19
 
 ### Fixed

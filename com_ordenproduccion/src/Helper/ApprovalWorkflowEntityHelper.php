@@ -367,7 +367,7 @@ class ApprovalWorkflowEntityHelper
     /**
      * Billable target for Fact.Man. auto-close: Facturar líneas when &gt; 0, else cotización total.
      *
-     * @return  array{quotation_total: float, billable_target: float, invoiced_completed: float, is_fully_invoiced: bool}
+     * @return  array{quotation_total: float, billable_target: float, invoiced_completed: float, has_completed_invoice: bool, is_fully_invoiced: bool, should_close_fact_man_approval: bool}
      *
      * @since  3.119.77
      */
@@ -380,7 +380,9 @@ class ApprovalWorkflowEntityHelper
             'quotation_total'   => 0.0,
             'billable_target' => 0.0,
             'invoiced_completed' => 0.0,
+            'has_completed_invoice' => false,
             'is_fully_invoiced'  => false,
+            'should_close_fact_man_approval' => false,
         ];
         if ($quotationId < 1) {
             return $empty;
@@ -413,21 +415,26 @@ class ApprovalWorkflowEntityHelper
 
         $felSvc   = new FelInvoiceIssuanceService($db);
         $invoiced = round($felSvc->sumCompletedInvoiceAmountsForQuotation($quotationId), 2);
+        $hasCompletedInvoice = $felSvc->hasCompletedInvoiceForQuotation($quotationId);
 
-        $coversBillable   = $billableTarget > 0 && $invoiced + 1e-9 >= $billableTarget;
-        $coversQuotation  = $quotationTotal > 0 && $invoiced + 1e-9 >= $quotationTotal;
+        $amountTolerance = 0.02;
+        $coversBillable   = $billableTarget > 0 && ($invoiced + $amountTolerance >= $billableTarget);
+        $coversQuotation  = $quotationTotal > 0 && ($invoiced + $amountTolerance >= $quotationTotal);
         $isFullyInvoiced  = $coversBillable || $coversQuotation;
+        $shouldCloseFactManApproval = $hasCompletedInvoice || $isFullyInvoiced;
 
         return [
             'quotation_total'    => $quotationTotal,
             'billable_target'    => $billableTarget,
             'invoiced_completed' => $invoiced,
+            'has_completed_invoice' => $hasCompletedInvoice,
             'is_fully_invoiced'  => $isFullyInvoiced,
+            'should_close_fact_man_approval' => $shouldCloseFactManApproval,
         ];
     }
 
     /**
-     * Auto-approve open facturación manual approval when sum(completed FEL) covers billable or cotización total.
+     * Auto-approve open facturación manual approval when a completed invoice is linked or totals are covered.
      *
      * @since  3.119.71
      */
@@ -443,13 +450,17 @@ class ApprovalWorkflowEntityHelper
         }
 
         $progress = self::getFacturacionManualInvoicingProgress($db, $quotationId);
-        if (empty($progress['is_fully_invoiced'])) {
+        if (empty($progress['should_close_fact_man_approval'])) {
             return false;
         }
 
+        $comment = !empty($progress['has_completed_invoice']) && empty($progress['is_fully_invoiced'])
+            ? 'facturacion_manual_completed_invoice_associated'
+            : 'facturacion_manual_invoiced_total_reached';
+
         $wfSvc = new ApprovalWorkflowService($db);
 
-        return $wfSvc->completePendingCotizacionFacturacionManualForInvoicedTotal($quotationId, $actorUserId);
+        return $wfSvc->completePendingCotizacionFacturacionManualForInvoicedTotal($quotationId, $actorUserId, $comment);
     }
 
     /**
