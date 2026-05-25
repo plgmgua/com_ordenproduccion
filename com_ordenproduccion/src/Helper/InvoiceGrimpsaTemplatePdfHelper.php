@@ -111,6 +111,25 @@ final class InvoiceGrimpsaTemplatePdfHelper
     }
 
     /**
+     * Label for auto-rendered emission datetime line on the factura PDF header.
+     *
+     * @since  3.119.110
+     */
+    private static function fechaEmisionPdfLabel(): string
+    {
+        self::ensureComponentLanguageLoadedForPdf();
+        $key = 'COM_ORDENPRODUCCION_INVOICE_PDF_FECHA_EMISION';
+        $t   = Text::_($key);
+        if ($t === $key || strncmp($t, 'COM_', 4) === 0) {
+            $tag = Factory::getApplication()->getLanguage()->getTag();
+
+            return stripos($tag, 'es') === 0 ? 'Fecha y hora de emision' : 'Issue date and time';
+        }
+
+        return $t;
+    }
+
+    /**
      * Load site component language so {@see Text} resolves in PDF/RAW tasks.
      *
      * @since  3.118.98
@@ -176,9 +195,9 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->AddPage();
 
         $pageW = $pdf->GetPageWidth();
+        $tplVals = InvoiceFacturaTemplateHelper::buildPlaceholderValues($inv, $felExtra);
         $plantilla = self::loadInvoiceFacturaPlantillaSettings();
         if (\is_array($plantilla)) {
-            $tplVals = InvoiceFacturaTemplateHelper::buildPlaceholderValues($inv, $felExtra);
             if (trim((string) ($plantilla['header_izq_html'] ?? '')) !== '') {
                 $headerIzqHtmlProcessed = InvoiceFacturaTemplateHelper::applyTemplate(
                     (string) $plantilla['header_izq_html'],
@@ -279,6 +298,32 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
                 $pdf->SetFont('Helvetica', '', 8);
             }
+        }
+
+        $fechaEmisionDisplay = trim((string) ($tplVals[InvoiceFacturaTemplateHelper::PLACEHOLDER_FECHA_HORA_EMISION] ?? ''));
+        if ($fechaEmisionDisplay === '') {
+            $fechaEmisionDisplay = InvoiceFacturaTemplateHelper::formatEmissionDateTimeForDisplay($inv);
+        }
+        $rawHeaderTpl = \is_array($plantilla)
+            ? trim((string) ($plantilla['header_izq_html'] ?? '')) . trim((string) ($plantilla['header_der_html'] ?? ''))
+            : '';
+        $headerUsesFechaPlaceholder = str_contains(
+            $rawHeaderTpl,
+            InvoiceFacturaTemplateHelper::PLACEHOLDER_FECHA_HORA_EMISION
+        );
+        if ($fechaEmisionDisplay !== '' && !$headerUsesFechaPlaceholder) {
+            $lw = self::PAGE_W_MM - 2 * self::MARGIN_X;
+            $pdf->SetFont('Helvetica', '', 8);
+            $pdf->SetXY(self::MARGIN_X, $yBody);
+            $pdf->Cell(
+                $lw,
+                4.5,
+                $fixEnc(self::fechaEmisionPdfLabel() . ': ' . $fechaEmisionDisplay),
+                0,
+                1,
+                'R'
+            );
+            $yBody = $pdf->GetY() + 1.5;
         }
 
         $lw = self::PAGE_W_MM - 2 * self::MARGIN_X;

@@ -11,6 +11,8 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\HTML\HTMLHelper;
+
 /**
  * Invoice print template placeholders (same style as CotizacionPdfHelper: {NAME}).
  */
@@ -105,10 +107,7 @@ final class InvoiceFacturaTemplateHelper
         $nombre  = InvoiceListHelper::displayReceptorName($item);
         $dir     = InvoiceListHelper::displayReceptorAddress($item);
 
-        $fechaEmisionRaw = '';
-        if (!empty($item->fel_fecha_emision)) {
-            $fechaEmisionRaw = trim((string) $item->fel_fecha_emision);
-        }
+        $fechaEmisionRaw = self::resolveEmissionDateTimeRaw($item);
         $fechaCertRaw = trim((string) ($cert['fecha_hora_certificacion'] ?? ''));
 
         $nitCert    = trim((string) ($cert['nit_certificador'] ?? ''));
@@ -196,14 +195,58 @@ final class InvoiceFacturaTemplateHelper
         return str_replace($search, $replace, $html);
     }
 
+    /**
+     * Resolve invoice issue/creation datetime from row, fel_extra, or certified XML.
+     *
+     * Priority: fel_fecha_emision → invoice_date → created → XML emission timestamp.
+     *
+     * @since  3.119.110
+     */
+    public static function resolveEmissionDateTimeRaw(object $item): string
+    {
+        $xml = self::getXmlRawForInvoiceTemplate($item);
+        if ($xml !== '') {
+            $xf = FelXmlHelper::extractInvoiceTemplateFieldsFromXml($xml);
+            if (($xf['fecha_hora_emision_raw'] ?? '') !== '') {
+                return trim((string) $xf['fecha_hora_emision_raw']);
+            }
+        }
+
+        foreach (['fel_fecha_emision', 'invoice_date', 'created'] as $field) {
+            if (!empty($item->$field)) {
+                $raw = trim((string) $item->$field);
+                if ($raw !== '') {
+                    return $raw;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Formatted emission/creation datetime for PDF and templates (site timezone).
+     *
+     * @since  3.119.110
+     */
+    public static function formatEmissionDateTimeForDisplay(object $item): string
+    {
+        return self::formatDisplayDateTime(self::resolveEmissionDateTimeRaw($item));
+    }
+
     private static function formatDisplayDateTime(string $raw): string
     {
         $raw = trim($raw);
         if ($raw === '') {
             return '';
         }
-        $ts = strtotime($raw);
 
-        return $ts !== false ? date('d-m-Y H:i:s', $ts) : $raw;
+        try {
+            return HTMLHelper::_('date', $raw, 'd-m-Y H:i:s', false);
+        } catch (\Throwable $e) {
+            $ts = strtotime($raw);
+
+            return $ts !== false ? date('d-m-Y H:i:s', $ts) : $raw;
+        }
     }
 }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.110-STABLE] - 2026-05-19
+
+### Fixed
+- **Factura PDF (Grimpsa):** incluye fecha y hora de emisión/creación en el encabezado (resuelve desde XML FEL, fel_fecha_emision, invoice_date o created).
+
 ## [3.119.109-STABLE] - 2026-05-19
 
 ### Fixed
