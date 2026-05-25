@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.108-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización PDF:** el logo de la plantilla se incluye para todos los usuarios; las rutas absolutas (p. ej. URL guardada en Ajustes) se resuelven al archivo en el servidor aunque el host no coincida con la petición actual.
+- **Cotización PDF:** descarga alineada con permisos de vista de cotización (no solo grupo Ventas).
+
 ## [3.119.107-STABLE] - 2026-05-19
 
 ### Fixed

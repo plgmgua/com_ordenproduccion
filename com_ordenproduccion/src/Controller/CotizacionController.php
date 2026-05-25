@@ -350,24 +350,22 @@ class CotizacionController extends BaseController
             return;
         }
 
-        // Ventas group check (same as Cotizacion view)
-        $userGroups = $user->getAuthorisedGroups();
         $db = Factory::getDbo();
-        $query = $db->getQuery(true)
-            ->select('id')
-            ->from($db->quoteName('#__usergroups'))
-            ->where($db->quoteName('title') . ' = ' . $db->quote('ventas'));
-        $db->setQuery($query);
-        $ventasGroupId = $db->loadResult();
-        if (!$ventasGroupId || !in_array($ventasGroupId, $userGroups, true)) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_NO_PERMISSION'), 'error');
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . (int) $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $quotation = $db->loadObject();
+        if (!$quotation) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }
-
-        $quotation = $this->loadPublishedQuotationForCurrentUserOrClose($quotationId);
-        if (!$quotation) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
+        if (!AccessHelper::userCanViewQuotationRow($quotation)) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
             return;
         }

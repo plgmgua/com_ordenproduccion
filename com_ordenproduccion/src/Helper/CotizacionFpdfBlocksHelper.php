@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
 use Joomla\CMS\Uri\Uri;
 
 /**
@@ -287,26 +288,116 @@ class CotizacionFpdfBlocksHelper
      */
     public static function resolveImagePath($src)
     {
-        if (empty($src)) {
+        if ($src === null || $src === '') {
             return null;
         }
-        if (strpos($src, 'data:') === 0) {
+
+        $src = trim((string) $src);
+        if ($src === '' || stripos($src, 'data:') === 0) {
             return null;
         }
-        if (preg_match('/^https?:\/\//i', $src) || strpos($src, '//') === 0) {
-            $siteRoot   = rtrim(Uri::root(), '/');
-            $normalised = preg_replace('/^\/\//', 'https://', $src);
-            if (stripos($normalised, $siteRoot) === 0) {
-                $src = ltrim(substr($normalised, strlen($siteRoot)), '/');
-            } else {
-                return null;
+
+        // Drop cache-busters and com_media query strings before path mapping.
+        $src = preg_replace('/[#?].*$/', '', $src);
+
+        // Absolute filesystem path (rare).
+        if (
+            isset($src[0])
+            && $src[0] === '/'
+            && !preg_match('/^https?:\/\//i', $src)
+            && strpos($src, '//') !== 0
+        ) {
+            if (is_file($src)) {
+                return $src;
+            }
+            $underRoot = JPATH_ROOT . '/' . ltrim($src, '/');
+            if (is_file($underRoot)) {
+                return $underRoot;
             }
         }
-        $src  = ltrim($src, '/');
-        $src  = preg_replace('/\?.*$/', '', $src);
-        $path = JPATH_ROOT . '/' . $src;
 
-        return file_exists($path) ? $path : null;
+        $relative = self::normaliseImageSrcToSiteRelativePath($src);
+        if ($relative === null || $relative === '') {
+            return null;
+        }
+
+        $candidate = JPATH_ROOT . '/' . $relative;
+
+        return is_file($candidate) ? $candidate : null;
+    }
+
+    /**
+     * Map an img src (relative or absolute URL) to a path under JPATH_ROOT.
+     *
+     * @param   string  $src  Raw src after query/fragment stripping
+     *
+     * @return  string|null  Site-relative path (no leading slash) or null
+     */
+    private static function normaliseImageSrcToSiteRelativePath(string $src): ?string
+    {
+        if (preg_match('/^https?:\/\//i', $src) || strpos($src, '//') === 0) {
+            $normalised = strpos($src, '//') === 0 ? 'https:' . $src : $src;
+
+            foreach (self::candidateSiteRootsForImageSrc() as $root) {
+                if ($root !== '' && stripos($normalised, $root) === 0) {
+                    $rel = ltrim(substr($normalised, strlen($root)), '/');
+
+                    return self::sanitiseSiteRelativeImagePath($rel);
+                }
+            }
+
+            $parsed = parse_url($normalised);
+            $path   = isset($parsed['path']) ? ltrim((string) $parsed['path'], '/') : '';
+            if ($path === '') {
+                return null;
+            }
+
+            // Web paths under /administrator/… often map to JPATH_ROOT without that prefix.
+            if (str_starts_with($path, 'administrator/')) {
+                $alt = substr($path, strlen('administrator/'));
+                if ($alt !== '' && is_file(JPATH_ROOT . '/' . $alt)) {
+                    return self::sanitiseSiteRelativeImagePath($alt);
+                }
+            }
+
+            return self::sanitiseSiteRelativeImagePath($path);
+        }
+
+        return self::sanitiseSiteRelativeImagePath(ltrim($src, '/'));
+    }
+
+    /**
+     * @return list<string>  Normalised site URL roots (no trailing slash)
+     */
+    private static function candidateSiteRootsForImageSrc(): array
+    {
+        $roots = [rtrim(Uri::root(), '/')];
+
+        try {
+            $liveSite = rtrim((string) Factory::getApplication()->getConfig()->get('live_site', ''), '/');
+            if ($liveSite !== '') {
+                $roots[] = $liveSite;
+            }
+        } catch (\Throwable $e) {
+            // Ignore config read failures.
+        }
+
+        return array_values(array_unique(array_filter($roots)));
+    }
+
+    /**
+     * @param   string  $path  Candidate path relative to JPATH_ROOT
+     *
+     * @return  string|null
+     */
+    private static function sanitiseSiteRelativeImagePath(string $path): ?string
+    {
+        $path = str_replace('\\', '/', trim($path));
+        if ($path === '' || str_contains($path, '..')) {
+            return null;
+        }
+
+        return ltrim($path, '/');
     }
 
     /**
