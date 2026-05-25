@@ -52,6 +52,38 @@ class CotizacionFpdfBlocksHelper
     }
 
     /**
+     * Bottom margin (mm) to reserve during flow layout so content does not overlap the pinned CMY bar.
+     *
+     * @param   float  $barH  Bar height in mm
+     *
+     * @return  float
+     *
+     * @since   3.119.109
+     */
+    public static function brandBarBottomReserveMm(float $barH = 4.0): float
+    {
+        return $barH + 6.0;
+    }
+
+    /**
+     * Draw CMY brand bar flush to the bottom edge of the current page (fixed position, not flow).
+     *
+     * @param   \FPDF  $pdf
+     * @param   float  $barH  Bar height in mm
+     *
+     * @return  void
+     *
+     * @since   3.119.109
+     */
+    public static function pinBottomBrandBar(\FPDF $pdf, float $barH = 4.0): void
+    {
+        $thirdW = $pdf->GetPageWidth() / 3;
+        $pdf->SetAutoPageBreak(false);
+        $pdf->SetXY(0.0, $pdf->GetPageHeight() - $barH);
+        self::drawCmyBrandBar($pdf, $thirdW, $barH, 1);
+    }
+
+    /**
      * Parse HTML into blocks with alignment (preserve WYSIWYG: left/right/center and line breaks).
      * Used for encabezado, términos and pie. Block text preserves \n for MultiCell.
      *

@@ -546,11 +546,11 @@ class VendorQuoteHelper
         callable $fix
     ): string {
         $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
+        $cmyBarH = 4;
         $pdf->AddPage();
         $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->SetAutoPageBreak(true, CotizacionFpdfBlocksHelper::brandBarBottomReserveMm($cmyBarH));
 
-        $cmyBarH = 4;
         $thirdW  = $pdf->GetPageWidth() / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
@@ -605,10 +605,7 @@ class VendorQuoteHelper
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fix);
         }
 
-        $pdf->Ln(4);
-        $pdf->SetY($pdf->GetY());
-        $pdf->SetX(0);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
+        CotizacionFpdfBlocksHelper::pinBottomBrandBar($pdf, $cmyBarH);
 
         return $pdf->Output('S');
     }
@@ -633,9 +630,10 @@ class VendorQuoteHelper
         callable $fix
     ): string {
         $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
+        $cmyBarH = 4;
         $pdf->AddPage();
         $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->SetAutoPageBreak(true, CotizacionFpdfBlocksHelper::brandBarBottomReserveMm($cmyBarH));
 
         $logoPath  = isset($pdfSettings['logo_path']) ? trim((string) $pdfSettings['logo_path']) : '';
         $logoX     = isset($pdfSettings['logo_x']) ? (float) $pdfSettings['logo_x'] : 15;
@@ -648,7 +646,6 @@ class VendorQuoteHelper
         $marginR = 15;
         $contentW = $pageW - 15 - $marginR;
 
-        $cmyBarH = 4;
         $thirdW  = $pageW / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
@@ -715,9 +712,7 @@ class VendorQuoteHelper
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fix);
         }
 
-        $pdf->SetY($pdf->GetY() + 4);
-        $pdf->SetX(0);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
+        CotizacionFpdfBlocksHelper::pinBottomBrandBar($pdf, $cmyBarH);
 
         return $pdf->Output('S');
     }

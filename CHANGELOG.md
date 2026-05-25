@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.109-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización PDF:** la franja CMY inferior queda fija al pie de la página (no se empuja sola a una página extra).
+
 ## [3.119.108-STABLE] - 2026-05-19
 
 ### Fixed

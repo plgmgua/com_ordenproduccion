@@ -3947,12 +3947,12 @@ class CotizacionController extends BaseController
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
 
         $pdf = new \FPDF('P', 'mm', [215.9, 279.4]); // 8.5" x 11" Letter
+        $cmyBarH = 4;
         $pdf->AddPage();
         $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->SetAutoPageBreak(true, CotizacionFpdfBlocksHelper::brandBarBottomReserveMm($cmyBarH));
 
         // Top brand bar (Cyan 2925C | Yellow 803C | Magenta 213C)
-        $cmyBarH = 4;
         $thirdW  = $pdf->GetPageWidth() / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
@@ -4110,12 +4110,7 @@ class CotizacionController extends BaseController
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
         }
 
-        // Bottom brand bar
-        $pdf->Ln(4);
-        $curY = $pdf->GetY();
-        $pdf->SetY($curY);
-        $pdf->SetX(0);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
+        CotizacionFpdfBlocksHelper::pinBottomBrandBar($pdf, $cmyBarH);
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
         $dest = $forceDownload ? 'D' : 'I';
@@ -4144,10 +4139,11 @@ class CotizacionController extends BaseController
     {
         require_once JPATH_ROOT . '/fpdf/fpdf.php';
 
+        $cmyBarH = 4;
         $pdf = new \FPDF('P', 'mm', [215.9, 279.4]);
         $pdf->AddPage();
         $pdf->SetMargins(15, 15, 15);
-        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->SetAutoPageBreak(true, CotizacionFpdfBlocksHelper::brandBarBottomReserveMm($cmyBarH));
 
         $fixSpanishChars = static function ($text) {
             if ($text === null || $text === '') {
@@ -4178,7 +4174,6 @@ class CotizacionController extends BaseController
         $contentW = $pageW - 15 - $marginR;
 
         // ── Top brand bar (Cyan 2925C | Yellow 803C | Magenta 213C) ──
-        $cmyBarH = 4;
         $thirdW  = $pageW / 3;
         $pdf->SetY(0);
         $pdf->SetX(0);
@@ -4352,11 +4347,7 @@ class CotizacionController extends BaseController
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $pieBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars);
         }
 
-        // ── Bottom brand bar ──
-        $curY = $pdf->GetY();
-        $pdf->SetY($curY + 4);
-        $pdf->SetX(0);
-        CotizacionFpdfBlocksHelper::drawCmyBrandBar($pdf, $thirdW, $cmyBarH, 1);
+        CotizacionFpdfBlocksHelper::pinBottomBrandBar($pdf, $cmyBarH);
 
         $filename = 'cotizacion-' . preg_replace('/[^a-zA-Z0-9\-_]/', '_', $numeroCotizacion) . '.pdf';
         $dest = $forceDownload ? 'D' : 'I';
