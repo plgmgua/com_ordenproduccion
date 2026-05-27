@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.111-STABLE] - 2026-05-19
+
+### Added
+- **Control de Ventas → User Audit (Super User):** new tab listing user session/device data (IP, browser, platform, user-agent, session metadata, first/last activity). Records are captured on authenticated component requests.
+
 ## [3.119.110-STABLE] - 2026-05-19
 
 ### Fixed

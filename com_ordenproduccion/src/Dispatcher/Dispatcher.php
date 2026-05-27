@@ -4,6 +4,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Dispatcher;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\UserSessionAuditHelper;
 use Joomla\CMS\Dispatcher\ComponentDispatcher;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Router\Route;
@@ -84,6 +85,10 @@ class Dispatcher extends ComponentDispatcher
             $return = urlencode(base64_encode($returnUrl));
             $app->redirect(Route::_('index.php?option=com_users&view=login&return=' . $return, false));
             return;
+        }
+
+        if (!$user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook) {
+            UserSessionAuditHelper::recordFromRequest($this->input);
         }
 
         parent::dispatch();

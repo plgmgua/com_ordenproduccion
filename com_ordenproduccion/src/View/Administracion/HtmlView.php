@@ -20,6 +20,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\UserSessionAuditHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OtWizardCreationLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
@@ -554,6 +555,74 @@ class HtmlView extends BaseHtmlView
      * @since  3.113.39
      */
     protected $outboundEmailLogSeeAllUsers = false;
+
+    /**
+     * User session audit rows (tab=user_audit).
+     *
+     * @var    array<int, object>
+     * @since  3.119.111
+     */
+    protected $userSessionAuditRows = [];
+
+    /**
+     * @var    int
+     * @since  3.119.111
+     */
+    protected $userSessionAuditTotal = 0;
+
+    /**
+     * @var    \Joomla\CMS\Pagination\Pagination|null
+     * @since  3.119.111
+     */
+    protected $userSessionAuditPagination = null;
+
+    /**
+     * @var    bool
+     * @since  3.119.111
+     */
+    protected $userSessionAuditTableAvailable = false;
+
+    /**
+     * @var    int
+     * @since  3.119.111
+     */
+    protected $userSessionAuditLimit = 20;
+
+    /**
+     * @var    int
+     * @since  3.119.111
+     */
+    protected $userSessionAuditLimitStart = 0;
+
+    /**
+     * @var    array<int, string>
+     * @since  3.119.111
+     */
+    protected $userSessionAuditUserFilterOptions = [];
+
+    /**
+     * @var    int
+     * @since  3.119.111
+     */
+    protected $userSessionAuditFilterUserId = 0;
+
+    /**
+     * @var    string
+     * @since  3.119.111
+     */
+    protected $userSessionAuditFilterIp = '';
+
+    /**
+     * @var    string
+     * @since  3.119.111
+     */
+    protected $userSessionAuditFilterDateFrom = '';
+
+    /**
+     * @var    string
+     * @since  3.119.111
+     */
+    protected $userSessionAuditFilterDateTo = '';
 
     /**
      * Ajustes → Creación OT: lines from Joomla logs (createOrdenFromQuotation failures).
@@ -1158,6 +1227,11 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
+        if ($activeTab === 'user_audit' && !AccessHelper::isSuperUser()) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
         if ($activeTab === 'financiero' && !AccessHelper::isSuperUser()) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
@@ -1749,6 +1823,67 @@ class HtmlView extends BaseHtmlView
                 $this->outboundEmailLogPagination->setAdditionalUrlParam('view', 'administracion');
                 $this->outboundEmailLogPagination->setAdditionalUrlParam('tab', 'email_log');
                 $this->outboundEmailLogPagination->setAdditionalUrlParam('email_log_limit', (string) $this->outboundEmailLogLimit);
+            }
+        }
+
+        if ($activeTab === 'user_audit') {
+            $this->userSessionAuditTableAvailable = UserSessionAuditHelper::isTableAvailable();
+            $this->userSessionAuditFilterUserId   = max(0, (int) $input->getInt('user_audit_user_id', 0));
+            $this->userSessionAuditFilterIp       = trim($input->getString('user_audit_ip', ''));
+            $this->userSessionAuditFilterDateFrom = trim($input->getString('user_audit_date_from', ''));
+            $this->userSessionAuditFilterDateTo   = trim($input->getString('user_audit_date_to', ''));
+            $this->userSessionAuditLimit          = max(5, min(100, (int) $input->getInt('user_audit_limit', 20)));
+            $this->userSessionAuditLimitStart     = max(0, (int) $input->getInt('user_audit_limitstart', 0));
+            $this->userSessionAuditUserFilterOptions = UserSessionAuditHelper::getUserFilterOptions();
+
+            $pack = UserSessionAuditHelper::getListForAdministracion(
+                $this->userSessionAuditLimitStart,
+                $this->userSessionAuditLimit,
+                [
+                    'user_id'   => $this->userSessionAuditFilterUserId,
+                    'ip'        => $this->userSessionAuditFilterIp,
+                    'date_from' => $this->userSessionAuditFilterDateFrom,
+                    'date_to'   => $this->userSessionAuditFilterDateTo,
+                ]
+            );
+            $this->userSessionAuditRows  = $pack['rows'];
+            $this->userSessionAuditTotal = $pack['total'];
+
+            if ($this->userSessionAuditTableAvailable && $this->userSessionAuditTotal > 0) {
+                $this->userSessionAuditPagination = new \Joomla\CMS\Pagination\Pagination(
+                    $this->userSessionAuditTotal,
+                    $this->userSessionAuditLimitStart,
+                    $this->userSessionAuditLimit,
+                    'user_audit_'
+                );
+                $this->userSessionAuditPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                $this->userSessionAuditPagination->setAdditionalUrlParam('view', 'administracion');
+                $this->userSessionAuditPagination->setAdditionalUrlParam('tab', 'user_audit');
+                $this->userSessionAuditPagination->setAdditionalUrlParam('user_audit_limit', (string) $this->userSessionAuditLimit);
+                if ($this->userSessionAuditFilterUserId > 0) {
+                    $this->userSessionAuditPagination->setAdditionalUrlParam(
+                        'user_audit_user_id',
+                        (string) $this->userSessionAuditFilterUserId
+                    );
+                }
+                if ($this->userSessionAuditFilterIp !== '') {
+                    $this->userSessionAuditPagination->setAdditionalUrlParam(
+                        'user_audit_ip',
+                        $this->userSessionAuditFilterIp
+                    );
+                }
+                if ($this->userSessionAuditFilterDateFrom !== '') {
+                    $this->userSessionAuditPagination->setAdditionalUrlParam(
+                        'user_audit_date_from',
+                        $this->userSessionAuditFilterDateFrom
+                    );
+                }
+                if ($this->userSessionAuditFilterDateTo !== '') {
+                    $this->userSessionAuditPagination->setAdditionalUrlParam(
+                        'user_audit_date_to',
+                        $this->userSessionAuditFilterDateTo
+                    );
+                }
             }
         }
 

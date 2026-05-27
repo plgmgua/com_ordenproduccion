@@ -35,7 +35,7 @@ if ($activeTab === 'workorders') {
 if (!$canSeeAdminTabs && in_array($activeTab, ['invoices', 'herramientas'], true)) {
     $activeTab = 'resumen';
 }
-if (!AccessHelper::isSuperUser() && $activeTab === 'email_log') {
+if (!AccessHelper::isSuperUser() && in_array($activeTab, ['email_log', 'user_audit'], true)) {
     $activeTab = 'resumen';
 }
 if (!AccessHelper::isSuperUser() && $activeTab === 'financiero') {
@@ -175,6 +175,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-envelope"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_EMAIL_LOG'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=user_audit'); ?>"
+       class="admin-tab <?php echo $activeTab === 'user_audit' ? 'active' : ''; ?>">
+        <i class="fas fa-user-shield"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_USER_AUDIT'); ?>
+    </a>
     <?php endif; ?>
     <?php endif; ?>
 
@@ -207,6 +212,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('financiero'); ?>
     <?php elseif ($activeTab === 'email_log'): ?>
         <?php echo $this->loadTemplate('email_log'); ?>
+    <?php elseif ($activeTab === 'user_audit'): ?>
+        <?php echo $this->loadTemplate('user_audit'); ?>
     <?php elseif ($activeTab === 'herramientas'): ?>
         <?php echo $this->loadTemplate('herramientas'); ?>
     <?php elseif ($activeTab === 'ajustes'): ?>
