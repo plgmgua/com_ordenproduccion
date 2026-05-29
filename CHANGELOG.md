@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.120-STABLE] - 2026-05-29
+
+### Changed
+- **Comprobante de pago (Super User):** Monto del Pago is read-only until **Editar** is clicked; save/cancel toggles edit mode per line.
+
 ## [3.119.119-STABLE] - 2026-05-29
 
 ### Added

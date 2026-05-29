@@ -490,6 +490,19 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                 <?php
                                 $proofModel = $this->getModel();
                                 $totalMonto = 0.0;
+                                $saveLineAmountUrl = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateLineAmount');
+                                $labelLineAmountEdit = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_EDIT');
+                                if (strpos((string) $labelLineAmountEdit, 'COM_ORDENPRODUCCION') === 0) {
+                                    $labelLineAmountEdit = 'Editar';
+                                }
+                                $labelLineAmountCancel = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_CANCEL');
+                                if (strpos((string) $labelLineAmountCancel, 'COM_ORDENPRODUCCION') === 0) {
+                                    $labelLineAmountCancel = 'Cancelar';
+                                }
+                                $labelLineAmountSave = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE');
+                                if (strpos((string) $labelLineAmountSave, 'COM_ORDENPRODUCCION') === 0) {
+                                    $labelLineAmountSave = 'Guardar monto';
+                                }
                                 foreach ($existingPayments as $proof):
                                     $isMerged = !empty($proof->_merged);
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
@@ -527,20 +540,44 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php
                                         $lineAmount = (float) ($line->amount ?? 0);
                                         if (!empty($this->canSuperUserEditLineAmount) && $lineId > 0) :
-                                            $saveLineAmountUrl = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateLineAmount');
-                                            $saveLineTitle = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE');
-                                            if (strpos((string) $saveLineTitle, 'COM_ORDENPRODUCCION') === 0) {
-                                                $saveLineTitle = 'Guardar monto';
-                                            }
                                             ?>
-                                        <form method="post" action="<?php echo htmlspecialchars($saveLineAmountUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline-flex align-items-center gap-1 payment-proof-line-amount-form">
-                                            <?php echo HTMLHelper::_('form.token'); ?>
-                                            <input type="hidden" name="line_id" value="<?php echo $lineId; ?>" />
-                                            <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
-                                            <span class="text-nowrap">Q</span>
-                                            <input type="number" name="line_amount" step="0.01" min="0.01" class="form-control form-control-sm payment-proof-line-amount-input" style="width: 5.5rem;" value="<?php echo htmlspecialchars(number_format($lineAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" required />
-                                            <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-1" title="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-save" aria-hidden="true"></i></button>
-                                        </form>
+                                        <div class="payment-proof-line-amount-cell d-inline-flex align-items-center flex-wrap gap-1">
+                                            <span class="payment-proof-line-amount-display text-nowrap">Q <?php echo number_format($lineAmount, 2); ?></span>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary py-0 px-1 toggle-edit-line-amount payment-proof-action-btn"
+                                                    title="<?php echo htmlspecialchars($labelLineAmountEdit, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    aria-label="<?php echo htmlspecialchars($labelLineAmountEdit, ENT_QUOTES, 'UTF-8'); ?>">
+                                                <i class="fas fa-edit" aria-hidden="true"></i>
+                                            </button>
+                                            <form method="post"
+                                                  action="<?php echo htmlspecialchars($saveLineAmountUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                                  class="d-none align-items-center gap-1 payment-proof-line-amount-form">
+                                                <?php echo HTMLHelper::_('form.token'); ?>
+                                                <input type="hidden" name="line_id" value="<?php echo $lineId; ?>" />
+                                                <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
+                                                <span class="text-nowrap">Q</span>
+                                                <input type="number"
+                                                       name="line_amount"
+                                                       step="0.01"
+                                                       min="0.01"
+                                                       class="form-control form-control-sm payment-proof-line-amount-input"
+                                                       style="width: 5.5rem;"
+                                                       value="<?php echo htmlspecialchars(number_format($lineAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                       required />
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-outline-primary py-0 px-1"
+                                                        title="<?php echo htmlspecialchars($labelLineAmountSave, ENT_QUOTES, 'UTF-8'); ?>"
+                                                        aria-label="<?php echo htmlspecialchars($labelLineAmountSave, ENT_QUOTES, 'UTF-8'); ?>">
+                                                    <i class="fas fa-save" aria-hidden="true"></i>
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary py-0 px-1 cancel-edit-line-amount"
+                                                        title="<?php echo htmlspecialchars($labelLineAmountCancel, ENT_QUOTES, 'UTF-8'); ?>"
+                                                        aria-label="<?php echo htmlspecialchars($labelLineAmountCancel, ENT_QUOTES, 'UTF-8'); ?>">
+                                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                         <?php else : ?>
                                         Q <?php echo number_format($lineAmount, 2); ?>
                                         <?php endif; ?>
@@ -643,20 +680,44 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td><?php
                                         $legacyAmount = (float) ($proof->payment_amount ?? 0);
                                         if (!empty($this->canSuperUserEditLineAmount)) :
-                                            $saveLineAmountUrl = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateLineAmount');
-                                            $saveLineTitle = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE');
-                                            if (strpos((string) $saveLineTitle, 'COM_ORDENPRODUCCION') === 0) {
-                                                $saveLineTitle = 'Guardar monto';
-                                            }
                                             ?>
-                                        <form method="post" action="<?php echo htmlspecialchars($saveLineAmountUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline-flex align-items-center gap-1 payment-proof-line-amount-form">
-                                            <?php echo HTMLHelper::_('form.token'); ?>
-                                            <input type="hidden" name="proof_id" value="<?php echo (int) ($proof->id ?? 0); ?>" />
-                                            <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
-                                            <span class="text-nowrap">Q</span>
-                                            <input type="number" name="line_amount" step="0.01" min="0.01" class="form-control form-control-sm payment-proof-line-amount-input" style="width: 5.5rem;" value="<?php echo htmlspecialchars(number_format($legacyAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" required />
-                                            <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-1" title="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-save" aria-hidden="true"></i></button>
-                                        </form>
+                                        <div class="payment-proof-line-amount-cell d-inline-flex align-items-center flex-wrap gap-1">
+                                            <span class="payment-proof-line-amount-display text-nowrap">Q <?php echo number_format($legacyAmount, 2); ?></span>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary py-0 px-1 toggle-edit-line-amount payment-proof-action-btn"
+                                                    title="<?php echo htmlspecialchars($labelLineAmountEdit, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    aria-label="<?php echo htmlspecialchars($labelLineAmountEdit, ENT_QUOTES, 'UTF-8'); ?>">
+                                                <i class="fas fa-edit" aria-hidden="true"></i>
+                                            </button>
+                                            <form method="post"
+                                                  action="<?php echo htmlspecialchars($saveLineAmountUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                                  class="d-none align-items-center gap-1 payment-proof-line-amount-form">
+                                                <?php echo HTMLHelper::_('form.token'); ?>
+                                                <input type="hidden" name="proof_id" value="<?php echo (int) ($proof->id ?? 0); ?>" />
+                                                <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
+                                                <span class="text-nowrap">Q</span>
+                                                <input type="number"
+                                                       name="line_amount"
+                                                       step="0.01"
+                                                       min="0.01"
+                                                       class="form-control form-control-sm payment-proof-line-amount-input"
+                                                       style="width: 5.5rem;"
+                                                       value="<?php echo htmlspecialchars(number_format($legacyAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                                       required />
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-outline-primary py-0 px-1"
+                                                        title="<?php echo htmlspecialchars($labelLineAmountSave, ENT_QUOTES, 'UTF-8'); ?>"
+                                                        aria-label="<?php echo htmlspecialchars($labelLineAmountSave, ENT_QUOTES, 'UTF-8'); ?>">
+                                                    <i class="fas fa-save" aria-hidden="true"></i>
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary py-0 px-1 cancel-edit-line-amount"
+                                                        title="<?php echo htmlspecialchars($labelLineAmountCancel, ENT_QUOTES, 'UTF-8'); ?>"
+                                                        aria-label="<?php echo htmlspecialchars($labelLineAmountCancel, ENT_QUOTES, 'UTF-8'); ?>">
+                                                    <i class="fas fa-times" aria-hidden="true"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                         <?php else : ?>
                                         Q <?php echo number_format($legacyAmount, 2); ?>
                                         <?php endif; ?>
@@ -1739,6 +1800,58 @@ document.addEventListener('DOMContentLoaded', function () {
             if (row) {
                 row.style.display = (row.style.display === 'none' || row.style.display === '') ? 'table-row' : 'none';
             }
+        });
+    });
+    function showPaymentProofLineAmountDisplay(cell) {
+        if (!cell) {
+            return;
+        }
+        var display = cell.querySelector('.payment-proof-line-amount-display');
+        var editBtn = cell.querySelector('.toggle-edit-line-amount');
+        var form = cell.querySelector('.payment-proof-line-amount-form');
+        if (display) {
+            display.classList.remove('d-none');
+        }
+        if (editBtn) {
+            editBtn.classList.remove('d-none');
+        }
+        if (form) {
+            form.classList.add('d-none');
+            form.classList.remove('d-inline-flex');
+        }
+    }
+    function showPaymentProofLineAmountEdit(cell) {
+        if (!cell) {
+            return;
+        }
+        document.querySelectorAll('.payment-proof-line-amount-cell').forEach(showPaymentProofLineAmountDisplay);
+        var display = cell.querySelector('.payment-proof-line-amount-display');
+        var editBtn = cell.querySelector('.toggle-edit-line-amount');
+        var form = cell.querySelector('.payment-proof-line-amount-form');
+        if (display) {
+            display.classList.add('d-none');
+        }
+        if (editBtn) {
+            editBtn.classList.add('d-none');
+        }
+        if (form) {
+            form.classList.remove('d-none');
+            form.classList.add('d-inline-flex');
+            var input = form.querySelector('.payment-proof-line-amount-input');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }
+    }
+    document.querySelectorAll('.toggle-edit-line-amount').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            showPaymentProofLineAmountEdit(this.closest('.payment-proof-line-amount-cell'));
+        });
+    });
+    document.querySelectorAll('.cancel-edit-line-amount').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            showPaymentProofLineAmountDisplay(this.closest('.payment-proof-line-amount-cell'));
         });
     });
     document.querySelectorAll('.toggle-add-order-form').forEach(function (btn) {
