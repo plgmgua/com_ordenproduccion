@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.113-STABLE] - 2026-05-29
+
+### Fixed
+- **Confirmar Cotización / Digifact NIT preview:** NIT lookup no longer strips the Guatemala check letter `K` before calling Digifact SHARED GETINFONIT, which caused wrong client names (e.g. `1332716K` resolving as a different taxpayer than `1332716`).
+
 ## [3.119.112-STABLE] - 2026-05-29
 
 ### Fixed

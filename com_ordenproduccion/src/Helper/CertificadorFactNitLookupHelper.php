@@ -53,6 +53,25 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
+     * After a successful Digifact NIT lookup, choose the value to store/display (keeps trailing K from input when API returns digits-only).
+     *
+     * @since  3.119.113
+     */
+    public static function resolveNitForStorageAfterDigifactLookup(string $vatRaw, string $nitFromApi): string
+    {
+        $inputNorm = self::normalizeNitForDigifactNuc($vatRaw);
+        $apiNorm   = self::normalizeNitForDigifactNuc($nitFromApi !== '' ? $nitFromApi : $vatRaw);
+        if (
+            str_ends_with($inputNorm, 'K')
+            && self::digitsOnlyBillingId($inputNorm) === self::digitsOnlyBillingId($apiNorm)
+        ) {
+            return $inputNorm;
+        }
+
+        return $apiNorm !== '' ? $apiNorm : $inputNorm;
+    }
+
+    /**
      * True when the client billing field explicitly indicates consumidor final (CF or C/F), case-insensitive.
      *
      * @since  3.119.36
@@ -154,8 +173,15 @@ class CertificadorFactNitLookupHelper
             return $out;
         }
 
+        $nitForLookup = self::normalizeNitForDigifactNuc($vatRaw);
+        if ($nitForLookup === '') {
+            $out['force_manual_facturacion'] = true;
+
+            return $out;
+        }
+
         $rNit = self::fetchNitInfo(
-            $digits,
+            $nitForLookup,
             $urlNit,
             $emissorTaxId,
             $apiUsername,
@@ -168,7 +194,10 @@ class CertificadorFactNitLookupHelper
             $out['verified']        = true;
             $out['nit_kind_out']    = 'nit';
             $out['verified_name']   = (string) ($rNit['name'] ?? '');
-            $out['nit_for_storage'] = (string) ($rNit['nit'] ?? $digits);
+            $out['nit_for_storage'] = self::resolveNitForStorageAfterDigifactLookup(
+                $vatRaw,
+                (string) ($rNit['nit'] ?? '')
+            );
 
             return $out;
         }
