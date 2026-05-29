@@ -29,6 +29,30 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
+     * Guatemala NIT for Digifact NUC {@see Buyer.TaxID}: preserve trailing check letter K; strip spaces/hyphens/dots only.
+     * Do not use {@see digitsOnlyBillingId()} here — SAT rejects NITs missing K (FEL_RCP309).
+     *
+     * @since  3.119.112
+     */
+    public static function normalizeNitForDigifactNuc(string $raw): string
+    {
+        $t = strtoupper(trim($raw));
+        if ($t === '') {
+            return '';
+        }
+        if (self::billingIdIndicatesConsumidorFinal($t)) {
+            return $t;
+        }
+
+        $compact = preg_replace('/[\s.\-]/', '', $t) ?? $t;
+        if (preg_match('/^(\d{1,12})K?$/', $compact, $m)) {
+            return $m[1] . (str_ends_with($compact, 'K') ? 'K' : '');
+        }
+
+        return self::digitsOnlyBillingId($raw);
+    }
+
+    /**
      * True when the client billing field explicitly indicates consumidor final (CF or C/F), case-insensitive.
      *
      * @since  3.119.36
@@ -123,7 +147,7 @@ class CertificadorFactNitLookupHelper
             return $out;
         }
         $bearerJwt = trim($bearerJwt);
-        $out['nit_for_storage'] = $digits;
+        $out['nit_for_storage'] = self::normalizeNitForDigifactNuc($vatRaw);
         if ($bearerJwt === '') {
             $out['force_manual_facturacion'] = true;
 

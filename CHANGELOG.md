@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.112-STABLE] - 2026-05-29
+
+### Fixed
+- **FEL / Digifact NUC:** preserve Guatemala NIT check letter `K` in `Buyer.TaxID` (e.g. `774515K`). Previously digits-only normalization sent `774515`, causing SAT error FEL_RCP309.
+
 ## [3.119.111-STABLE] - 2026-05-19
 
 ### Added

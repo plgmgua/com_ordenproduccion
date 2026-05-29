@@ -1768,10 +1768,7 @@ class FelInvoiceIssuanceService
         } elseif ($isCfBuyer) {
             $buyerNit = 'CF';
         } elseif ($buyerNit !== '') {
-            $dig = CertificadorFactNitLookupHelper::digitsOnlyBillingId($buyerNit);
-            if ($dig !== '') {
-                $buyerNit = $dig;
-            }
+            $buyerNit = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc($buyerNit);
         }
         $buyerName = trim((string) ($buyerNameOverride ?? ''));
         if ($buyerName === '') {
@@ -2207,9 +2204,9 @@ class FelInvoiceIssuanceService
         if ($isCf) {
             return 'CF';
         }
-        $dig = CertificadorFactNitLookupHelper::digitsOnlyBillingId($buyerNitRaw);
+        $normalized = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc($buyerNitRaw);
 
-        return $dig !== '' ? $dig : trim($buyerNitRaw);
+        return $normalized !== '' ? $normalized : trim($buyerNitRaw);
     }
 
     /**
@@ -2963,13 +2960,13 @@ class FelInvoiceIssuanceService
         $modoNorm = ($certificadorModo === 'prod') ? 'prod' : 'test';
         $felExtraOut = $this->injectCertificadorAmbienteIntoFelExtraJson($felExtraMerged, $modoNorm);
         $otLabelsJoined = implode(', ', $this->collectOrdenDisplayLabelsForQuotation($quotationId));
-        $receptorDigits = $this->digitsOnly($quotation->client_nit ?? '');
+        $receptorDigits = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc((string) ($quotation->client_nit ?? ''));
         $buyerTaxFromPayload = '';
         if (isset($nucPayload['Buyer']) && \is_array($nucPayload['Buyer'])) {
             $buyerTaxFromPayload = trim((string) ($nucPayload['Buyer']['TaxID'] ?? ''));
         }
         if ($buyerTaxFromPayload !== '' && strtoupper($buyerTaxFromPayload) !== 'CF') {
-            $receptorDigits = $this->digitsOnly($buyerTaxFromPayload);
+            $receptorDigits = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc($buyerTaxFromPayload);
         }
         $receptorNombre = (string) ($quotation->client_name ?? '');
         $buyerNameFromPayload = '';
