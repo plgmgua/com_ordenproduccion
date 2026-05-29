@@ -321,6 +321,32 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
     max-width: 6.5rem;
     word-break: break-word;
 }
+.invoice-fel-queue-table td.invoice-envio-ot-list {
+    max-width: 9rem;
+    line-height: 1.25;
+    word-break: break-word;
+}
+.invoice-envio-ot-link,
+.invoice-envio-ot-done,
+.invoice-envio-ot-pending {
+    text-decoration: none;
+    white-space: nowrap;
+}
+.invoice-envio-ot-link.invoice-envio-ot-done,
+.invoice-envio-ot-done {
+    color: #1e6f4a;
+}
+.invoice-envio-ot-link.invoice-envio-ot-pending,
+.invoice-envio-ot-pending {
+    color: #b35900;
+    font-weight: 600;
+}
+.invoice-envio-ot-link:hover {
+    text-decoration: underline;
+}
+.invoice-envio-ot-sep {
+    color: #888;
+}
 .invoice-fel-queue-table .btn {
     font-size: 0.55rem;
     padding: 0.12rem 0.35rem;
@@ -412,6 +438,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_CLIENT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_NIT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_AMOUNT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_COL_ORDENES'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_COL_OT'); ?></th>
                         <th></th>
                     </tr>
@@ -424,6 +451,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         }
                         $otTot = (int) ($er->ordenes_total ?? 0);
                         $otDone = (int) ($er->ordenes_envio_completo ?? 0);
+                        $ordenesNumbers = isset($er->ordenes_numbers) && is_array($er->ordenes_numbers) ? $er->ordenes_numbers : [];
                         $eqQuoteDate = !empty($er->quote_date) ? HTMLHelper::_('date', $er->quote_date, $invoiceQueueQuoteDateFormat) : '—';
                         $eqQueuedAt = !empty($er->quotation_created) ? HTMLHelper::_('date', $er->quotation_created, $invoiceQueueDateTimeFormat) : '—';
                         ?>
@@ -434,6 +462,34 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <td><?php echo htmlspecialchars((string) ($er->client_name ?? '')); ?></td>
                         <td><?php echo htmlspecialchars((string) ($er->client_nit ?? '')); ?></td>
                         <td><?php echo htmlspecialchars(number_format((float) ($er->total_amount ?? 0), 2)); ?></td>
+                        <td class="invoice-envio-ot-list">
+                            <?php if ($ordenesNumbers === []) : ?>
+                                <span class="text-muted">—</span>
+                            <?php else : ?>
+                                <?php foreach ($ordenesNumbers as $otIdx => $otRow) :
+                                    $otId = (int) ($otRow->id ?? 0);
+                                    $otNum = trim((string) ($otRow->number ?? ''));
+                                    if ($otNum === '' && $otId > 0) {
+                                        $otNum = 'ORD-' . str_pad((string) $otId, 6, '0', STR_PAD_LEFT);
+                                    }
+                                    $otComplete = !empty($otRow->envio_completo);
+                                    $otClass = $otComplete ? 'invoice-envio-ot-done' : 'invoice-envio-ot-pending';
+                                    $otTitle = $otComplete
+                                        ? Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_ORDEN_ENVIO_OK')
+                                        : Text::_('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_ORDEN_ENVIO_PENDING');
+                                    if ($otIdx > 0) {
+                                        echo '<span class="invoice-envio-ot-sep">,</span> ';
+                                    }
+                                    if ($otId > 0) : ?>
+                                <a class="invoice-envio-ot-link <?php echo $otClass; ?>"
+                                   href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . $otId); ?>"
+                                   title="<?php echo htmlspecialchars($otTitle, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($otNum); ?></a>
+                                    <?php else : ?>
+                                <span class="<?php echo $otClass; ?>" title="<?php echo htmlspecialchars($otTitle, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($otNum); ?></span>
+                                    <?php endif;
+                                endforeach; ?>
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_INVOICE_ENVIO_PENDING_OT_PROGRESS_FMT', $otDone, $otTot)); ?></td>
                         <td class="text-nowrap">
                             <div class="d-inline-flex flex-wrap align-items-center gap-1">

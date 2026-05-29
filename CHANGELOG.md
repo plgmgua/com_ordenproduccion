@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.118-STABLE] - 2026-05-29
+
+### Added
+- **Cola envío pendiente:** new column lists linked work order numbers (ORD-…) with color for complete vs pending shipment (Facturas New and Control de Ventas cola).
+
 ## [3.119.117-STABLE] - 2026-05-29
 
 ### Changed

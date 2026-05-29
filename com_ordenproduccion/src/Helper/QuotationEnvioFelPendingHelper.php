@@ -225,6 +225,7 @@ final class QuotationEnvioFelPendingHelper
         $ordenIds             = QuotationEnvioFelHelper::getOrdenIdsForQuotation($quotationId, $db);
         $ordenesTotal         = \count($ordenIds);
         $ordenesEnvioCompleto = 0;
+        $ordenesNumbers       = self::buildOrdenNumberList($ordenIds, $db);
 
         foreach ($ordenIds as $oid) {
             if (QuotationEnvioFelHelper::ordenHasEnvioCompletoHistorial((int) $oid, $db)) {
@@ -242,6 +243,78 @@ final class QuotationEnvioFelPendingHelper
             'quotation_created'       => $q->created ?? null,
             'ordenes_total'           => $ordenesTotal,
             'ordenes_envio_completo'  => $ordenesEnvioCompleto,
+            'ordenes_numbers'         => $ordenesNumbers,
         ];
+    }
+
+    /**
+     * Linked work orders with display number and envío-completo flag.
+     *
+     * @param   array<int, int>  $ordenIds
+     *
+     * @return  array<int, object{id: int, number: string, envio_completo: bool}>
+     */
+    private static function buildOrdenNumberList(array $ordenIds, DatabaseInterface $db): array
+    {
+        $ordenIds = array_values(array_unique(array_filter(array_map('intval', $ordenIds))));
+        if ($ordenIds === []) {
+            return [];
+        }
+
+        $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $oCols = \is_array($oCols) ? array_change_key_case($oCols, CASE_LOWER) : [];
+
+        $select = [$db->quoteName('id')];
+        if (isset($oCols['orden_de_trabajo'])) {
+            $select[] = $db->quoteName('orden_de_trabajo');
+        }
+        if (isset($oCols['numero_de_orden'])) {
+            $select[] = $db->quoteName('numero_de_orden');
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($select)
+                ->from($db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($db->quoteName('id') . ' IN (' . implode(',', $ordenIds) . ')')
+                ->where($db->quoteName('state') . ' = 1')
+                ->order($db->quoteName('id') . ' ASC')
+        );
+        $rows = $db->loadObjectList() ?: [];
+        $out  = [];
+
+        foreach ($rows as $row) {
+            $oid = (int) ($row->id ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            $stored = '';
+            if (isset($row->orden_de_trabajo) && trim((string) $row->orden_de_trabajo) !== '') {
+                $stored = trim((string) $row->orden_de_trabajo);
+            } elseif (isset($row->numero_de_orden) && trim((string) $row->numero_de_orden) !== '') {
+                $stored = trim((string) $row->numero_de_orden);
+            }
+            $out[] = (object) [
+                'id'               => $oid,
+                'number'           => self::formatOrdenNumber($oid, $stored),
+                'envio_completo'   => QuotationEnvioFelHelper::ordenHasEnvioCompletoHistorial($oid, $db),
+            ];
+        }
+
+        return $out;
+    }
+
+    private static function formatOrdenNumber(int $ordenId, string $stored): string
+    {
+        $stored = trim($stored);
+        if ($stored !== '') {
+            if (preg_match('/^\d+$/', $stored)) {
+                return 'ORD-' . str_pad($stored, 6, '0', STR_PAD_LEFT);
+            }
+
+            return $stored;
+        }
+
+        return 'ORD-' . str_pad((string) $ordenId, 6, '0', STR_PAD_LEFT);
     }
 }
