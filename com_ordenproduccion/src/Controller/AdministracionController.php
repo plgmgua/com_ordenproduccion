@@ -297,7 +297,7 @@ class AdministracionController extends BaseController
         $user       = Factory::getUser();
         $redirectUrl = $this->getInvoiceFelQueueRedirectUrl();
 
-        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if ($user->guest || !AccessHelper::canManageInvoiceFelQueue()) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $app->redirect($redirectUrl);
 
@@ -366,7 +366,7 @@ class AdministracionController extends BaseController
         $user       = Factory::getUser();
         $redirectUrl = $this->getInvoiceFelQueueRedirectUrl();
 
-        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if ($user->guest || !AccessHelper::canManageInvoiceFelQueue()) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $app->redirect($redirectUrl);
 

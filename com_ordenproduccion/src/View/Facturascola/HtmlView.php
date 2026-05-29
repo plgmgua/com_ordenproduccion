@@ -62,9 +62,9 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
-            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'warning');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+        if (!AccessHelper::canViewFacturascola()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURASCOLA_ACCESS_DENIED'), 'warning');
+            $app->redirect(Route::_('index.php', false));
             return;
         }
 

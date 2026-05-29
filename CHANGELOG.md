@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.115-STABLE] - 2026-05-29
+
+### Changed
+- **Facturas New (facturascola):** page access restricted to **Facturación** user group (Super User bypass). Queue actions (Emitir ahora, cancel) also allowed for Administración / Admon.
+
 ## [3.119.114-STABLE] - 2026-05-29
 
 ### Added

@@ -91,6 +91,80 @@ class AccessHelper
     }
 
     /**
+     * Joomla user group id for "Facturacion" (invoice queue / FEL cola).
+     */
+    public const GROUP_ID_FACTURACION = 17;
+
+    /**
+     * Whether the user is in the Facturacion group (child of Produccion on typical installs).
+     *
+     * @return  bool
+     *
+     * @since   3.119.115
+     */
+    public static function isInFacturacionGroup(): bool
+    {
+        $userGroups = Factory::getUser()->getAuthorisedGroups();
+        if (!is_array($userGroups) || $userGroups === []) {
+            return false;
+        }
+
+        $ids = array_map('intval', $userGroups);
+        if (in_array(self::GROUP_ID_FACTURACION, $ids, true)) {
+            return true;
+        }
+
+        $db = Factory::getDbo();
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('title'))
+            ->from($db->quoteName('#__usergroups'))
+            ->where($db->quoteName('id') . ' IN (' . implode(',', $ids) . ')');
+        $db->setQuery($query);
+        $titles = $db->loadColumn() ?: [];
+
+        foreach ($titles as $title) {
+            $trim = trim((string) $title);
+            if ($trim === '') {
+                continue;
+            }
+            if (
+                strcasecmp($trim, 'Facturacion') === 0
+                || strcasecmp($trim, 'Facturación') === 0
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Standalone Cola de facturas (view=facturascola): Facturacion group only (+ Super User).
+     *
+     * @return  bool
+     *
+     * @since   3.119.115
+     */
+    public static function canViewFacturascola(): bool
+    {
+        return self::isSuperUser() || self::isInFacturacionGroup();
+    }
+
+    /**
+     * FEL invoice queue actions (emit now, cancel from cola): Administración / Admon, Facturacion, or Super User.
+     *
+     * @return  bool
+     *
+     * @since   3.119.115
+     */
+    public static function canManageInvoiceFelQueue(): bool
+    {
+        return self::isSuperUser()
+            || self::isInAdministracionOrAdmonGroup()
+            || self::isInFacturacionGroup();
+    }
+
+    /**
      * Check if user is in Administracion group
      *
      * @return  boolean
