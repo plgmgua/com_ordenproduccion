@@ -147,6 +147,7 @@ class HtmlView extends BaseHtmlView
         $this->params = $app->getParams('com_ordenproduccion');
         $this->user = $user;
         $this->canEditNoteOrAssociateOrder = AccessHelper::isInAdministracionOrAdmonGroup();
+        $this->canSuperUserEditLineAmount  = AccessHelper::isSuperUser();
 
         // Initialize empty item for new payment proof
         $this->item = new \stdClass();

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.119-STABLE] - 2026-05-29
+
+### Added
+- **Comprobante de pago (Super User):** edit **Monto del Pago** on saved proof lines; on save recalculates proof total, junction amount (single-order proofs), page totals, and stored mismatch difference.
+
 ## [3.119.118-STABLE] - 2026-05-29
 
 ### Added

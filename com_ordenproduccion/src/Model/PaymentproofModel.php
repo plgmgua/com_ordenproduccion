@@ -968,6 +968,245 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Super User: update one payment line amount and recalculate proof totals / mismatch.
+     *
+     * @param   int    $lineId     payment_proof_lines.id
+     * @param   float  $newAmount  New line amount (> 0)
+     *
+     * @return  bool
+     *
+     * @since   3.119.119
+     */
+    public function updatePaymentProofLineAmountSuperUser(int $lineId, float $newAmount): bool
+    {
+        $lineId = (int) $lineId;
+        $newAmount = round((float) $newAmount, 2);
+
+        if ($lineId < 1 || $newAmount <= 0) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_INVALID'));
+            return false;
+        }
+
+        if (!$this->hasPaymentProofLinesTable()) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_NO_LINES'));
+            return false;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $db->transactionStart();
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                    ->where($db->quoteName('id') . ' = ' . $lineId)
+            );
+            $line = $db->loadObject();
+            if (!$line) {
+                throw new \RuntimeException('line');
+            }
+
+            $proofId = (int) ($line->payment_proof_id ?? 0);
+            if ($proofId < 1 || !$this->getItem($proofId)) {
+                throw new \RuntimeException('proof');
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                    ->set($db->quoteName('amount') . ' = ' . $newAmount)
+                    ->where($db->quoteName('id') . ' = ' . $lineId)
+            );
+            $db->execute();
+
+            if (!$this->recalculateProofAmountAndMismatch($proofId)) {
+                throw new \RuntimeException('recalc');
+            }
+
+            $db->transactionCommit();
+            $this->refreshClientBalancesAfterProofChange();
+
+            return true;
+        } catch (\Throwable $e) {
+            try {
+                $db->transactionRollback();
+            } catch (\Throwable $ignored) {
+            }
+            if (!$this->getError()) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE_FAILED'));
+            }
+
+            return false;
+        }
+    }
+
+    /**
+     * Super User: update legacy proof amount (no payment_proof_lines).
+     *
+     * @param   int    $proofId
+     * @param   float  $newAmount
+     *
+     * @return  bool
+     *
+     * @since   3.119.119
+     */
+    public function updatePaymentProofAmountSuperUser(int $proofId, float $newAmount): bool
+    {
+        $proofId = (int) $proofId;
+        $newAmount = round((float) $newAmount, 2);
+
+        if ($proofId < 1 || $newAmount <= 0 || !$this->getItem($proofId)) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_INVALID'));
+            return false;
+        }
+
+        if ($this->hasPaymentProofLinesTable()) {
+            $lines = $this->getPaymentProofLines($proofId);
+            if (!empty($lines)) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_USE_LINES'));
+                return false;
+            }
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $db->transactionStart();
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                    ->set($db->quoteName('payment_amount') . ' = ' . $newAmount)
+                    ->where($db->quoteName('id') . ' = ' . $proofId)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $db->execute();
+
+            if (!$this->recalculateProofAmountAndMismatch($proofId, $newAmount)) {
+                throw new \RuntimeException('recalc');
+            }
+
+            $db->transactionCommit();
+            $this->refreshClientBalancesAfterProofChange();
+
+            return true;
+        } catch (\Throwable $e) {
+            try {
+                $db->transactionRollback();
+            } catch (\Throwable $ignored) {
+            }
+            if (!$this->getError()) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE_FAILED'));
+            }
+
+            return false;
+        }
+    }
+
+    /**
+     * Sync payment_amount, junction amount_applied (single-order proofs), mismatch_difference.
+     *
+     * @param   int         $proofId
+     * @param   float|null  $paymentAmount  When set, skip summing lines.
+     *
+     * @return  bool
+     */
+    protected function recalculateProofAmountAndMismatch(int $proofId, ?float $paymentAmount = null): bool
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+
+        if ($paymentAmount === null) {
+            $paymentAmount = 0.0;
+            if ($this->hasPaymentProofLinesTable()) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('COALESCE(SUM(' . $db->quoteName('amount') . '), 0)')
+                        ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                        ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId)
+                );
+                $paymentAmount = round((float) $db->loadResult(), 2);
+            } else {
+                $proof = $this->getItem($proofId);
+                $paymentAmount = round((float) ($proof->payment_amount ?? 0), 2);
+            }
+        } else {
+            $paymentAmount = round((float) $paymentAmount, 2);
+        }
+
+        if ($paymentAmount <= 0) {
+            return false;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->set($db->quoteName('payment_amount') . ' = ' . $paymentAmount)
+                ->where($db->quoteName('id') . ' = ' . $proofId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $db->execute();
+
+        if ($this->hasPaymentOrdersTable()) {
+            $linked = $this->getOrdersByPaymentProofId($proofId);
+            if (\count($linked) === 1) {
+                $orderId = (int) ($linked[0]->order_id ?? 0);
+                if ($orderId > 0) {
+                    $db->setQuery(
+                        $db->getQuery(true)
+                            ->update($db->quoteName('#__ordenproduccion_payment_orders'))
+                            ->set($db->quoteName('amount_applied') . ' = ' . $paymentAmount)
+                            ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId)
+                            ->where($db->quoteName('order_id') . ' = ' . $orderId)
+                    );
+                    $db->execute();
+                }
+            }
+        }
+
+        $ordersTotal = 0.0;
+        foreach ($this->getOrdersByPaymentProofId($proofId) as $orderRow) {
+            $ordersTotal += (float) ($orderRow->invoice_value ?? 0);
+        }
+        $ordersTotal = round($ordersTotal, 2);
+        $diff        = round($paymentAmount - $ordersTotal, 2);
+
+        $ppCols = $db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $ppCols = \is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+        if (isset($ppCols['mismatch_difference'])) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_payment_proofs'))
+                    ->set($db->quoteName('mismatch_difference') . ' = ' . $db->quote(number_format($diff, 2, '.', '')))
+                    ->where($db->quoteName('id') . ' = ' . $proofId)
+            );
+            $db->execute();
+        }
+
+        return true;
+    }
+
+    /**
+     * @return  void
+     */
+    protected function refreshClientBalancesAfterProofChange(): void
+    {
+        try {
+            $adminModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+            if ($adminModel && method_exists($adminModel, 'refreshClientBalances')) {
+                $adminModel->refreshClientBalances();
+            }
+        } catch (\Throwable $e) {
+            // Non-fatal
+        }
+    }
+
+    /**
      * Associate another order to an existing payment proof (add row to payment_orders).
      *
      * @param   integer  $proofId       Payment proof ID

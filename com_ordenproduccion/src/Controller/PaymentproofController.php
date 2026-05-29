@@ -689,6 +689,66 @@ class PaymentproofController extends BaseController
     }
 
     /**
+     * Super User: update Monto del Pago on an existing payment proof line.
+     * POST: line_id, line_amount, order_id, proof_id (optional, legacy)
+     *
+     * @return  bool
+     *
+     * @since   3.119.119
+     */
+    public function updateLineAmount()
+    {
+        if (!Session::checkToken('post')) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+            return false;
+        }
+
+        if (!AccessHelper::isSuperUser()) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
+            return false;
+        }
+
+        $orderId   = $this->input->getInt('order_id', 0);
+        $lineId    = $this->input->getInt('line_id', 0);
+        $proofId   = $this->input->getInt('proof_id', 0);
+        $amount    = $this->input->getFloat('line_amount', 0);
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
+        $model = $this->getModel('Paymentproof');
+        $ok    = false;
+
+        if ($lineId > 0) {
+            $ok = $model->updatePaymentProofLineAmountSuperUser($lineId, $amount);
+        } elseif ($proofId > 0) {
+            $ok = $model->updatePaymentProofAmountSuperUser($proofId, $amount);
+        } else {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_INVALID'), 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        if ($ok) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_UPDATED'), 'success');
+        } else {
+            $errors = $model->getErrors();
+            $msg    = !empty($errors) ? implode(' ', $errors) : Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE_FAILED');
+            $this->app->enqueueMessage($msg, 'error');
+        }
+
+        $this->setRedirect($redirectUrl);
+        return true;
+    }
+
+    /**
      * Associate another order to an existing payment proof (positive balance / overpayment).
      * POST: proof_id, order_id (for redirect), add_order_id, add_amount_applied
      */

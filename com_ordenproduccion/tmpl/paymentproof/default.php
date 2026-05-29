@@ -461,7 +461,15 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                         <?php endif; ?>
                     </div>
                     <div class="card-body">
-                        <p class="small text-muted mb-2"><?php echo htmlspecialchars($this->labelPaymentProofNoEdit ?? 'Los comprobantes guardados no se pueden modificar, solo eliminar (desde Control de Pagos).'); ?></p>
+                        <p class="small text-muted mb-2"><?php
+                        echo htmlspecialchars($this->labelPaymentProofNoEdit ?? 'Los comprobantes guardados no se pueden modificar, solo eliminar (desde Control de Pagos).');
+                        if (!empty($this->canSuperUserEditLineAmount)) {
+                            $suHint = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_SUPERUSER_EDIT_AMOUNT_HINT');
+                            if (strpos((string) $suHint, 'COM_ORDENPRODUCCION') !== 0) {
+                                echo ' ' . htmlspecialchars($suHint);
+                            }
+                        }
+                        ?></p>
                         <div class="table-responsive payment-proof-list-table-wrap">
                         <table class="table table-sm payment-proof-list-table">
                             <thead>
@@ -516,7 +524,27 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                             ? htmlspecialchars($bankAccountNameByIdForLabel[$lineBaId] ?? '—')
                                             : '—';
                                     ?></td>
-                                    <td>Q <?php echo number_format((float)($line->amount ?? 0), 2); ?></td>
+                                    <td><?php
+                                        $lineAmount = (float) ($line->amount ?? 0);
+                                        if (!empty($this->canSuperUserEditLineAmount) && $lineId > 0) :
+                                            $saveLineAmountUrl = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateLineAmount');
+                                            $saveLineTitle = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE');
+                                            if (strpos((string) $saveLineTitle, 'COM_ORDENPRODUCCION') === 0) {
+                                                $saveLineTitle = 'Guardar monto';
+                                            }
+                                            ?>
+                                        <form method="post" action="<?php echo htmlspecialchars($saveLineAmountUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline-flex align-items-center gap-1 payment-proof-line-amount-form">
+                                            <?php echo HTMLHelper::_('form.token'); ?>
+                                            <input type="hidden" name="line_id" value="<?php echo $lineId; ?>" />
+                                            <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
+                                            <span class="text-nowrap">Q</span>
+                                            <input type="number" name="line_amount" step="0.01" min="0.01" class="form-control form-control-sm payment-proof-line-amount-input" style="width: 5.5rem;" value="<?php echo htmlspecialchars(number_format($lineAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" required />
+                                            <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-1" title="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-save" aria-hidden="true"></i></button>
+                                        </form>
+                                        <?php else : ?>
+                                        Q <?php echo number_format($lineAmount, 2); ?>
+                                        <?php endif; ?>
+                                    ?></td>
                                     <td class="text-nowrap"><?php
                                         if ($isFirstLine) {
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
@@ -612,7 +640,27 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                     <td class="text-nowrap">—</td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
                                     <td>—</td>
-                                    <td>Q <?php echo number_format((float)($proof->payment_amount ?? 0), 2); ?></td>
+                                    <td><?php
+                                        $legacyAmount = (float) ($proof->payment_amount ?? 0);
+                                        if (!empty($this->canSuperUserEditLineAmount)) :
+                                            $saveLineAmountUrl = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateLineAmount');
+                                            $saveLineTitle = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE');
+                                            if (strpos((string) $saveLineTitle, 'COM_ORDENPRODUCCION') === 0) {
+                                                $saveLineTitle = 'Guardar monto';
+                                            }
+                                            ?>
+                                        <form method="post" action="<?php echo htmlspecialchars($saveLineAmountUrl, ENT_QUOTES, 'UTF-8'); ?>" class="d-inline-flex align-items-center gap-1 payment-proof-line-amount-form">
+                                            <?php echo HTMLHelper::_('form.token'); ?>
+                                            <input type="hidden" name="proof_id" value="<?php echo (int) ($proof->id ?? 0); ?>" />
+                                            <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
+                                            <span class="text-nowrap">Q</span>
+                                            <input type="number" name="line_amount" step="0.01" min="0.01" class="form-control form-control-sm payment-proof-line-amount-input" style="width: 5.5rem;" value="<?php echo htmlspecialchars(number_format($legacyAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" required />
+                                            <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-1" title="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>" aria-label="<?php echo htmlspecialchars($saveLineTitle, ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-save" aria-hidden="true"></i></button>
+                                        </form>
+                                        <?php else : ?>
+                                        Q <?php echo number_format($legacyAmount, 2); ?>
+                                        <?php endif; ?>
+                                    ?></td>
                                     <td class="text-nowrap"><?php
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
