@@ -295,7 +295,7 @@ class AdministracionController extends BaseController
     {
         $app        = Factory::getApplication();
         $user       = Factory::getUser();
-        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=cola', false);
+        $redirectUrl = $this->getInvoiceFelQueueRedirectUrl();
 
         if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
@@ -364,7 +364,7 @@ class AdministracionController extends BaseController
     {
         $app        = Factory::getApplication();
         $user       = Factory::getUser();
-        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=cola', false);
+        $redirectUrl = $this->getInvoiceFelQueueRedirectUrl();
 
         if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
             $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
@@ -2750,5 +2750,23 @@ class AdministracionController extends BaseController
             'data'    => $data,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         $app->close();
+    }
+
+    /**
+     * Redirect target after invoice queue cancel actions.
+     *
+     * @return  string
+     *
+     * @since   3.119.114
+     */
+    private function getInvoiceFelQueueRedirectUrl(): string
+    {
+        $returnView = Factory::getApplication()->input->post->getCmd('return_view', '');
+
+        if ($returnView === 'facturascola') {
+            return Route::_('index.php?option=com_ordenproduccion&view=facturascola', false);
+        }
+
+        return Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=cola', false);
     }
 }

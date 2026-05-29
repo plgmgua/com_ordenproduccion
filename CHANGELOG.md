@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.114-STABLE] - 2026-05-29
+
+### Added
+- **Cola de facturas (standalone view):** new site view `facturascola` with menu item type **Facturas New**, outside Control de Ventas. Same queue tables and actions (emit now, cancel) as the Facturas → Cola sub-tab.
+
 ## [3.119.113-STABLE] - 2026-05-29
 
 ### Fixed
