@@ -687,7 +687,7 @@ class InvoiceController extends BaseController
             $app->close();
         }
 
-        if (!AccessHelper::canManageInvoiceFelQueue()) {
+        if (!AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
             $app->close();
         }

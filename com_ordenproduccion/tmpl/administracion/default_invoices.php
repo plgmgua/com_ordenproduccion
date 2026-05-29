@@ -15,6 +15,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
@@ -514,7 +515,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         if (!empty($qr->fel_scheduled_at)) {
                             $sched = HTMLHelper::_('date', $qr->fel_scheduled_at, Text::_('DATE_FORMAT_LC2'));
                         }
-                        $canProcessNow = ($st === 'scheduled' || $st === 'pending');
+                        $canProcessNow = ($st === 'scheduled' || $st === 'pending') && AccessHelper::isSuperUser();
                         $qqd = !empty($qr->quotation_quote_date) ? HTMLHelper::_('date', $qr->quotation_quote_date, $invoiceQueueQuoteDateFormat) : '—';
                         $invQueuedAt = !empty($qr->created) ? HTMLHelper::_('date', $qr->created, $invoiceQueueDateTimeFormat) : '—';
                         ?>

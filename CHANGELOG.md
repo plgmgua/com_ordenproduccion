@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.117-STABLE] - 2026-05-29
+
+### Changed
+- **Cola de facturas — Emitir ahora:** button and `invoice.processFelIssuance` restricted to Super Users only (Facturas New and Control de Ventas cola).
+
+## [3.119.116-STABLE] - 2026-05-29
+
+### Changed
+- **Facturas New (facturascola):** smaller, denser queue tables and section typography (matches Control de Ventas cola styling).
+
 ## [3.119.115-STABLE] - 2026-05-29
 
 ### Changed

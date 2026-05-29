@@ -173,7 +173,7 @@ $invoiceFelQueuePagination = $this->get('invoiceFelQueuePagination');
                             if (!empty($qr->fel_scheduled_at)) {
                                 $sched = HTMLHelper::_('date', $qr->fel_scheduled_at, Text::_('DATE_FORMAT_LC2'));
                             }
-                            $canProcessNow = ($st === 'scheduled' || $st === 'pending');
+                            $canProcessNow = ($st === 'scheduled' || $st === 'pending') && AccessHelper::isSuperUser();
                             $qqd = !empty($qr->quotation_quote_date) ? HTMLHelper::_('date', $qr->quotation_quote_date, $invoiceQueueQuoteDateFormat) : '—';
                             $invQueuedAt = !empty($qr->created) ? HTMLHelper::_('date', $qr->created, $invoiceQueueDateTimeFormat) : '—';
                             ?>
