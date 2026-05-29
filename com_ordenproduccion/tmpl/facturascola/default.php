@@ -60,7 +60,7 @@ $invoiceFelQueuePagination = $this->get('invoiceFelQueuePagination');
             </div>
         <?php else : ?>
             <div class="table-responsive mb-4">
-                <table class="table table-striped table-hover align-middle invoice-fel-queue-table">
+                <table class="table table-sm table-striped table-hover align-middle invoice-fel-queue-table">
                     <thead>
                         <tr>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_QUOTATION'); ?></th>
@@ -139,7 +139,7 @@ $invoiceFelQueuePagination = $this->get('invoiceFelQueuePagination');
         <?php else : ?>
             <form id="fel-queue-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
             <div class="table-responsive">
-                <table class="table table-striped table-hover align-middle invoice-fel-queue-table">
+                <table class="table table-sm table-striped table-hover align-middle invoice-fel-queue-table">
                     <thead>
                         <tr>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_FEL_QUEUE_COL_QUOTATION'); ?></th>
@@ -280,20 +280,82 @@ $invoiceFelQueuePagination = $this->get('invoiceFelQueuePagination');
 </div>
 
 <style>
-.invoices-section {
+.facturascola-page .invoices-section {
     background: white;
-    padding: 25px;
+    padding: 1rem 1.15rem;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
-.empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: #6c757d;
+.facturascola-page .invoices-header h2 {
+    font-size: 1.1rem;
 }
-.empty-state i {
-    font-size: 2.5rem;
-    margin-bottom: 12px;
+.facturascola-page h3.h5 {
+    font-size: 0.95rem;
+    margin-bottom: 0.35rem;
+}
+.facturascola-page .text-muted.small {
+    font-size: 0.7rem;
+    line-height: 1.3;
+    margin-bottom: 0.65rem !important;
+}
+.facturascola-page hr.my-4 {
+    margin: 0.85rem 0 !important;
+}
+.facturascola-page .empty-state {
+    text-align: center;
+    padding: 1.25rem 0.75rem;
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+.facturascola-page .empty-state i {
+    font-size: 1.5rem;
+    margin-bottom: 0.35rem;
     opacity: 0.5;
+}
+/* Cola tables: compact (aligned with Control de Ventas → Facturas → Cola) */
+.facturascola-page .invoice-fel-queue-table {
+    font-size: 0.55rem;
+    table-layout: auto;
+    margin-bottom: 0;
+}
+.facturascola-page .invoice-fel-queue-table thead th {
+    font-size: 0.55rem;
+    font-weight: 600;
+    padding: 0.28rem 0.35rem;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.facturascola-page .invoice-fel-queue-table tbody td {
+    padding: 0.28rem 0.35rem;
+    vertical-align: middle;
+    line-height: 1.2;
+    font-size: 0.55rem;
+}
+.facturascola-page .invoice-fel-queue-table td.invoice-queue-quote-date {
+    max-width: 6.5rem;
+    word-break: break-word;
+}
+.facturascola-page .invoice-fel-queue-table td:nth-child(4) {
+    max-width: 11rem;
+    line-height: 1.15;
+}
+.facturascola-page .invoice-fel-queue-table .btn {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.3rem;
+    line-height: 1.15;
+    border-radius: 0.2rem;
+}
+.facturascola-page .invoice-fel-queue-table .btn i.fas,
+.facturascola-page .invoice-fel-queue-table .btn i.far {
+    font-size: inherit;
+    line-height: 1;
+    vertical-align: -0.05em;
+}
+.facturascola-page .invoice-fel-queue-table .d-inline-flex.gap-1 {
+    gap: 0.15rem !important;
+}
+.facturascola-page .com-content-pagination {
+    font-size: 0.7rem;
+    margin-top: 0.5rem;
 }
 </style>
