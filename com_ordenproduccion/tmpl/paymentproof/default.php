@@ -581,7 +581,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         <?php else : ?>
                                         Q <?php echo number_format($lineAmount, 2); ?>
                                         <?php endif; ?>
-                                    ?></td>
+                                    </td>
                                     <td class="text-nowrap"><?php
                                         if ($isFirstLine) {
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
@@ -721,7 +721,7 @@ $paymentTypeOptions = $this->getPaymentTypeOptions();
                                         <?php else : ?>
                                         Q <?php echo number_format($legacyAmount, 2); ?>
                                         <?php endif; ?>
-                                    ?></td>
+                                    </td>
                                     <td class="text-nowrap"><?php
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');

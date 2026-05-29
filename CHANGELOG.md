@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.121-STABLE] - 2026-05-29
+
+### Fixed
+- **Comprobante de pago:** remove stray `?>` rendered after Super User Edit button on payment line amounts.
+
 ## [3.119.120-STABLE] - 2026-05-29
 
 ### Changed
