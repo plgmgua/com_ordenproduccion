@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.122-STABLE] - 2026-05-29
+
+### Changed
+- **Cola de facturas (Facturas New):** remove back link to Control de Ventas.
+
 ## [3.119.121-STABLE] - 2026-05-29
 
 ### Fixed

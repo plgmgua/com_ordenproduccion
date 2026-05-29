@@ -13,8 +13,6 @@ use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 
-$adminUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false);
-$showAdminBackLink = AccessHelper::isInAdministracionOrAdmonGroup() || AccessHelper::isSuperUser();
 $felProcessQueueUrl = Route::_('index.php?option=com_ordenproduccion&task=invoice.processFelIssuance&format=json', false);
 $invoiceQueueDateTimeFormat = 'Y-m-d\TH:i';
 $invoiceQueueQuoteDateFormat = 'Y-m-d';
@@ -34,14 +32,6 @@ if (!is_array($invoiceFelQueueRows)) {
 $invoiceFelQueuePagination = $this->get('invoiceFelQueuePagination');
 ?>
 <div class="facturascola-page container py-3">
-    <?php if ($showAdminBackLink) : ?>
-    <p class="mb-3">
-        <a href="<?php echo htmlspecialchars($adminUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PROVEEDORES_BACK_CONTROL_VENTAS'); ?>
-        </a>
-    </p>
-    <?php endif; ?>
-
     <div class="invoices-section">
         <div class="invoices-header mb-4">
             <h2 class="h4 mb-0">
