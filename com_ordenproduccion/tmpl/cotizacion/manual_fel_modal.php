@@ -11,6 +11,9 @@
  * @var string $manualBuyerNitInitial
  * @var array<int, array{descripcion: string, cantidad: float, precio_unitario: float}> $manualFelLinePresets
  * @var array<int, array{id: int, label: string, valor: float}> $manualFelOrdensForClient
+ * @var array<int, array{id: int, label: string, total: float, quote_date: string}> $manualFelOtherQuotations
+ * @var string $manualFelLinesUrl
+ * @var string $manualFelIssueDateDefault
  */
 
 defined('_JEXEC') or die;
@@ -20,6 +23,11 @@ use Joomla\CMS\HTML\HTMLHelper;
 
 $manualFelLinePresets = is_array($manualFelLinePresets ?? null) ? $manualFelLinePresets : [];
 $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manualFelOrdensForClient : [];
+$manualFelOtherQuotations = is_array($manualFelOtherQuotations ?? null) ? $manualFelOtherQuotations : [];
+$manualFelIssueDateDefault = trim((string) ($manualFelIssueDateDefault ?? ''));
+if ($manualFelIssueDateDefault === '') {
+    $manualFelIssueDateDefault = date('Y-m-d');
+}
 ?>
 <div class="modal fade" id="manual-fel-invoice-modal" tabindex="-1" aria-labelledby="manualFelInvoiceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -49,7 +57,41 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
                         <label class="form-label small mb-1" for="manual-fel-buyer-address"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_ADDRESS', 'Address', 'Dirección')); ?></label>
                         <input type="text" class="form-control form-control-sm" id="manual-fel-buyer-address" maxlength="255" value="Ciudad" />
                     </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1" for="manual-fel-issue-date"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE', 'Issue date', 'Fecha de emisión')); ?></label>
+                        <input type="date" class="form-control form-control-sm" id="manual-fel-issue-date" value="<?php echo htmlspecialchars($manualFelIssueDateDefault, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars($manualFelIssueDateDefault, ENT_QUOTES, 'UTF-8'); ?>" />
+                    </div>
                 </div>
+                <?php if ($manualFelOtherQuotations !== []) : ?>
+                <div class="border rounded p-3 mb-3 bg-light">
+                    <h6 class="text-uppercase text-muted small mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_OTHER_QUOTATIONS_HEADING', 'Additional quotations (same client)', 'Cotizaciones adicionales (mismo cliente)')); ?></h6>
+                    <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_OTHER_QUOTATIONS_HELP', 'Select other quotations to merge their lines into this invoice.', 'Seleccione otras cotizaciones para combinar sus líneas en esta factura.')); ?></p>
+                    <div class="row g-2">
+                        <?php foreach ($manualFelOtherQuotations as $otherQuot) :
+                            $oqid = (int) ($otherQuot['id'] ?? 0);
+                            $olab = (string) ($otherQuot['label'] ?? '');
+                            $otot = (float) ($otherQuot['total'] ?? 0);
+                            $odate = (string) ($otherQuot['quote_date'] ?? '');
+                            if ($oqid < 1) {
+                                continue;
+                            }
+                            ?>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input manual-fel-quotation-cb" type="checkbox" value="<?php echo $oqid; ?>" id="manual-fel-quotation-<?php echo $oqid; ?>" data-quotation-label="<?php echo htmlspecialchars($olab, ENT_QUOTES, 'UTF-8'); ?>" />
+                                <label class="form-check-label small" for="manual-fel-quotation-<?php echo $oqid; ?>">
+                                    <?php echo htmlspecialchars($olab, ENT_QUOTES, 'UTF-8'); ?>
+                                    <?php if ($odate !== '') : ?>
+                                        <span class="text-muted">— <?php echo htmlspecialchars($odate); ?></span>
+                                    <?php endif; ?>
+                                    <span class="text-muted">— Q <?php echo number_format($otot, 2); ?></span>
+                                </label>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <?php if (!empty($manualFelBillingIsCf)) : ?>
                 <div id="manual-fel-cf-cui-wrap" class="border rounded p-3 mb-3 bg-light">
                     <p class="small mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_DIGIFACT_CF_CUI_BLOCK_INTRO', 'Billing ID is consumidor final (CF). Enter the buyer\'s CUI and validate with Digifact before generating.', 'El NIT de facturación es consumidor final (CF). Ingrese el CUI del comprador y valídelo con Digifact antes de generar.')); ?></p>
@@ -88,8 +130,9 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
                                 $pq = (float) ($preset['cantidad'] ?? 1);
                                 $pu = (float) ($preset['precio_unitario'] ?? 0);
                                 $ps = round($pq * $pu, 2);
+                                $presetQid = (int) ($preset['quotation_id'] ?? ($quotationId ?? 0));
                                 ?>
-                            <tr class="manual-fel-line-row">
+                            <tr class="manual-fel-line-row" data-quotation-id="<?php echo $presetQid; ?>">
                                 <td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="<?php echo htmlspecialchars((string) $pq, ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="<?php echo htmlspecialchars((string) ($preset['descripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="<?php echo htmlspecialchars((string) $pu, ENT_QUOTES, 'UTF-8'); ?>" /></td>
@@ -146,8 +189,13 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
     var tbody = document.getElementById('manual-fel-lines-tbody');
     var addLineBtn = document.getElementById('manual-fel-add-line-btn');
     var issueUrl = <?php echo json_encode($manualFelIssueUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var linesUrl = <?php echo json_encode($manualFelLinesUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var verifyCuiUrl = <?php echo json_encode($digifactVerifyCuiUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var qid = <?php echo (int) ($quotationId ?? 0); ?>;
+    var issueDateInput = document.getElementById('manual-fel-issue-date');
+    var issueDateDefault = <?php echo json_encode($manualFelIssueDateDefault, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgIssueDateInvalid = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE_INVALID', 'Invalid issue date (cannot be in the future).', 'Fecha de emisión inválida (no puede ser futura).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgQuotLinesLoadFailed = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_QUOTATION_LINES_LOAD_FAILED', 'Could not load quotation lines.', 'No se pudieron cargar las líneas de la cotización.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var needsCfCui = <?php echo !empty($manualFelBillingIsCf) ? 'true' : 'false'; ?>;
     var cuiInput = document.getElementById('manual-fel-cui-input');
     var cuiValidateBtn = document.getElementById('manual-fel-cui-validate-btn');
@@ -242,16 +290,58 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
     }
     tbody.querySelectorAll('.manual-fel-line-row').forEach(bindRow);
 
-    function addEmptyRow() {
+    function addLineFromPreset(preset, quotationIdForRow) {
         var tr = document.createElement('tr');
         tr.className = 'manual-fel-line-row';
-        tr.innerHTML = '<td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="1" /></td>'
-            + '<td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="" /></td>'
-            + '<td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="0" /></td>'
-            + '<td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="0.00" /></td>'
+        tr.setAttribute('data-quotation-id', String(quotationIdForRow || qid));
+        var pq = preset && preset.cantidad != null ? preset.cantidad : 1;
+        var pu = preset && preset.precio_unitario != null ? preset.precio_unitario : 0;
+        var ps = Math.round(parseFloat(pq) * parseFloat(pu) * 100) / 100;
+        var desc = preset && preset.descripcion != null ? String(preset.descripcion) : '';
+        tr.innerHTML = '<td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="' + pq + '" /></td>'
+            + '<td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="' + desc.replace(/"/g, '&quot;') + '" /></td>'
+            + '<td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="' + pu + '" /></td>'
+            + '<td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="' + ps.toFixed(2) + '" /></td>'
             + '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger manual-fel-remove-line py-0 px-1">&times;</button></td>';
         tbody.appendChild(tr);
         bindRow(tr);
+    }
+
+    function removeLinesForQuotation(quotationIdForRow) {
+        tbody.querySelectorAll('.manual-fel-line-row[data-quotation-id="' + String(quotationIdForRow) + '"]').forEach(function(tr) {
+            if (String(quotationIdForRow) !== String(qid)) {
+                tr.remove();
+            }
+        });
+    }
+
+    function loadQuotationLines(quotationIdForRow, done) {
+        if (!tokenForm || !linesUrl || quotationIdForRow < 1) {
+            if (done) done(false);
+            return;
+        }
+        var fd = new FormData(tokenForm);
+        fd.append('primary_quotation_id', String(qid));
+        fd.append('quotation_id', String(quotationIdForRow));
+        fetch(linesUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(j) {
+                if (!j || !j.success || !Array.isArray(j.lines)) {
+                    if (done) done(false, j && j.message ? j.message : msgQuotLinesLoadFailed);
+                    return;
+                }
+                j.lines.forEach(function(line) {
+                    addLineFromPreset(line, quotationIdForRow);
+                });
+                if (done) done(true);
+            })
+            .catch(function() {
+                if (done) done(false, msgNet);
+            });
+    }
+
+    function addEmptyRow() {
+        addLineFromPreset({ descripcion: '', cantidad: 1, precio_unitario: 0 }, qid);
     }
     if (addLineBtn) {
         addLineBtn.addEventListener('click', addEmptyRow);
@@ -285,6 +375,13 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
         modalEl.querySelectorAll('.manual-fel-orden-cb').forEach(function(cb) {
             cb.checked = false;
         });
+        modalEl.querySelectorAll('.manual-fel-quotation-cb').forEach(function(cb) {
+            cb.checked = false;
+        });
+        if (issueDateInput) {
+            issueDateInput.value = issueDateDefault;
+            issueDateInput.max = issueDateDefault;
+        }
         resetCuiGate();
         if (!needsCfCui) {
             generarBtn.disabled = false;
@@ -348,6 +445,50 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
         generarBtn.disabled = true;
     }
 
+    modalEl.querySelectorAll('.manual-fel-quotation-cb').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            var targetQid = parseInt(cb.value, 10);
+            if (targetQid < 1) {
+                return;
+            }
+            if (cb.checked) {
+                cb.disabled = true;
+                loadQuotationLines(targetQid, function(ok, errMsg) {
+                    cb.disabled = false;
+                    if (!ok) {
+                        cb.checked = false;
+                        showAlert(errMsg || msgQuotLinesLoadFailed);
+                    }
+                });
+            } else {
+                removeLinesForQuotation(targetQid);
+            }
+        });
+    });
+
+    function collectQuotationIds() {
+        var ids = [qid];
+        modalEl.querySelectorAll('.manual-fel-quotation-cb:checked').forEach(function(cb) {
+            var v = parseInt(cb.value, 10);
+            if (v > 0 && ids.indexOf(v) === -1) {
+                ids.push(v);
+            }
+        });
+        return ids;
+    }
+
+    function validateIssueDate() {
+        if (!issueDateInput) {
+            return true;
+        }
+        var val = String(issueDateInput.value || '').trim();
+        if (!val || val > issueDateDefault) {
+            showAlert(msgIssueDateInvalid);
+            return false;
+        }
+        return true;
+    }
+
     function collectLines() {
         var rows = [];
         tbody.querySelectorAll('.manual-fel-line-row').forEach(function(tr) {
@@ -365,7 +506,8 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
             if (d === '' || q < 0.001) {
                 return;
             }
-            rows.push({ descripcion: d, cantidad: q, precio_unitario: u });
+            var lineQid = parseInt(tr.getAttribute('data-quotation-id') || String(qid), 10) || qid;
+            rows.push({ descripcion: d, cantidad: q, precio_unitario: u, quotation_id: lineQid });
         });
         return rows;
     }
@@ -397,6 +539,9 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
             showAlert(msgCuiNotValidated);
             return;
         }
+        if (!validateIssueDate()) {
+            return;
+        }
         if (!tokenForm) {
             return;
         }
@@ -407,6 +552,10 @@ $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manua
         fd.append('manual_buyer_address', addrInput ? String(addrInput.value || 'Ciudad').trim() : 'Ciudad');
         fd.append('manual_lines_json', JSON.stringify(lines));
         fd.append('manual_orden_ids_json', JSON.stringify(collectOrdenIds()));
+        fd.append('manual_quotation_ids_json', JSON.stringify(collectQuotationIds()));
+        if (issueDateInput) {
+            fd.append('manual_issue_date', String(issueDateInput.value || issueDateDefault));
+        }
         if (needsCfCui && cuiInput) {
             fd.append('digifact_buyer_cui', String(cuiInput.value || '').replace(/\D/g, ''));
         }

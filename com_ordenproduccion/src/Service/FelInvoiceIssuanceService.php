@@ -284,14 +284,26 @@ class FelInvoiceIssuanceService
             return [];
         }
 
-        $this->db->setQuery(
-            $this->db->getQuery(true)
-                ->select('*')
-                ->from($this->db->quoteName('#__ordenproduccion_invoices'))
-                ->where($this->db->quoteName('quotation_id') . ' = ' . $quotationId)
-                ->where($this->db->quoteName('state') . ' = 1')
-                ->order($this->db->quoteName('id') . ' DESC')
-        );
+        $q = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_invoices'))
+            ->where($this->db->quoteName('state') . ' = 1')
+            ->order($this->db->quoteName('id') . ' DESC');
+
+        if ($this->hasInvoiceQuotationsTable()) {
+            $sub = $this->db->getQuery(true)
+                ->select($this->db->quoteName('invoice_id'))
+                ->from($this->db->quoteName('#__ordenproduccion_invoice_quotations'))
+                ->where($this->db->quoteName('quotation_id') . ' = ' . $quotationId);
+            $q->where(
+                '(' . $this->db->quoteName('quotation_id') . ' = ' . $quotationId
+                . ' OR ' . $this->db->quoteName('id') . ' IN (' . (string) $sub . '))'
+            );
+        } else {
+            $q->where($this->db->quoteName('quotation_id') . ' = ' . $quotationId);
+        }
+
+        $this->db->setQuery($q);
 
         return $this->db->loadObjectList() ?: [];
     }
@@ -303,12 +315,207 @@ class FelInvoiceIssuanceService
     {
         $sum = 0.0;
         foreach ($this->getInvoicesByQuotationId($quotationId) as $inv) {
-            if ((string) ($inv->fel_issue_status ?? '') === 'completed') {
-                $sum += (float) ($inv->invoice_amount ?? 0);
+            if ((string) ($inv->fel_issue_status ?? '') !== 'completed') {
+                continue;
             }
+            $sum += $this->sumCompletedInvoiceAmountForQuotationFromRow($inv, $quotationId);
         }
 
         return round($sum, 2);
+    }
+
+    /**
+     * Allocated completed amount from one invoice row for a cotización (supports multi-cot line tagging).
+     */
+    public function sumCompletedInvoiceAmountForQuotationFromRow(object $inv, int $quotationId): float
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return 0.0;
+        }
+
+        $tagged = $this->sumTaggedLineSubtotalsForQuotation($inv, $quotationId);
+        if ($tagged !== null) {
+            return round($tagged, 2);
+        }
+
+        if ((int) ($inv->quotation_id ?? 0) === $quotationId) {
+            return round((float) ($inv->invoice_amount ?? 0), 2);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * @return  float|null  Sum when line_items tag quotation_id; null when no tags present.
+     */
+    protected function sumTaggedLineSubtotalsForQuotation(object $inv, int $quotationId): ?float
+    {
+        $raw = trim((string) ($inv->line_items ?? ''));
+        if ($raw === '' || $raw === '[]') {
+            return null;
+        }
+        $decoded = json_decode($raw, true);
+        if (!\is_array($decoded) || $decoded === []) {
+            return null;
+        }
+
+        $hasTags = false;
+        $sum     = 0.0;
+        foreach ($decoded as $line) {
+            if (!\is_array($line) || !isset($line['quotation_id'])) {
+                continue;
+            }
+            $hasTags = true;
+            if ((int) $line['quotation_id'] !== $quotationId) {
+                continue;
+            }
+            if (isset($line['subtotal'])) {
+                $sum += (float) $line['subtotal'];
+            } elseif (isset($line['cantidad'], $line['precio_unitario'])) {
+                $sum += round((float) $line['cantidad'] * (float) $line['precio_unitario'], 2);
+            }
+        }
+
+        return $hasTags ? $sum : null;
+    }
+
+    public function hasInvoiceQuotationsTable(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+        try {
+            $tables = $this->db->getTableList();
+            $needle = $this->db->replacePrefix('#__ordenproduccion_invoice_quotations');
+            $cached = \is_array($tables) && \in_array($needle, $tables, true);
+        } catch (\Throwable $e) {
+            $cached = false;
+        }
+
+        return $cached;
+    }
+
+    /**
+     * @param   int[]  $quotationIds
+     */
+    public function linkInvoiceToQuotations(int $invoiceId, int $primaryQuotationId, array $quotationIds): void
+    {
+        $invoiceId = (int) $invoiceId;
+        $primaryQuotationId = (int) $primaryQuotationId;
+        if ($invoiceId < 1 || !$this->hasInvoiceQuotationsTable()) {
+            return;
+        }
+
+        $seen = [];
+        foreach ($quotationIds as $qid) {
+            $qid = (int) $qid;
+            if ($qid < 1 || isset($seen[$qid])) {
+                continue;
+            }
+            $seen[$qid] = true;
+            try {
+                $this->db->setQuery(
+                    'INSERT IGNORE INTO ' . $this->db->quoteName('#__ordenproduccion_invoice_quotations')
+                    . ' (' . $this->db->quoteName('invoice_id') . ', ' . $this->db->quoteName('quotation_id') . ', ' . $this->db->quoteName('is_primary') . ')'
+                    . ' VALUES (' . $invoiceId . ', ' . $qid . ', ' . ($qid === $primaryQuotationId ? 1 : 0) . ')'
+                );
+                $this->db->execute();
+            } catch (\Throwable $e) {
+            }
+        }
+    }
+
+    /**
+     * @param   int[]  $quotationIds
+     */
+    public function quotationsShareClientNit(array $quotationIds): bool
+    {
+        $quotationIds = array_values(array_unique(array_filter(array_map('intval', $quotationIds))));
+        if ($quotationIds === []) {
+            return false;
+        }
+
+        $digits = null;
+        foreach ($quotationIds as $qid) {
+            $q = $this->loadQuotation($qid);
+            if (!$q) {
+                return false;
+            }
+            $d = CertificadorFactNitLookupHelper::digitsOnlyBillingId((string) ($q->client_nit ?? ''));
+            if ($d === '') {
+                return false;
+            }
+            if ($digits === null) {
+                $digits = $d;
+            } elseif ($digits !== $d) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public function getQuotationDisplayRef(object $quotation): string
+    {
+        $ref = trim((string) ($quotation->quotation_number ?? ''));
+        if ($ref === '') {
+            $ref = 'COT-' . str_pad((string) (int) ($quotation->id ?? 0), 5, '0', STR_PAD_LEFT);
+        }
+
+        return $ref;
+    }
+
+    /**
+     * @return  list<array{descripcion:string, cantidad:float, precio_unitario:float, quotation_id:int}>
+     */
+    public function getManualFelLinePresetsForQuotation(int $quotationId): array
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($this->loadQuotationLines($quotationId) as $row) {
+            $t = $this->getLineTotalsForFelRow($row);
+            $out[] = [
+                'descripcion'       => (string) ($row->descripcion ?? ''),
+                'cantidad'          => (float) $t['qty'],
+                'precio_unitario'   => (float) $t['unit_price'],
+                'quotation_id'      => $quotationId,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Parse manual issue date (Y-m-d). Defaults to today; rejects invalid or future dates.
+     */
+    public function resolveManualIssueDate(?string $dateYmd): ?\DateTimeImmutable
+    {
+        $dateYmd = trim((string) $dateYmd);
+        if ($dateYmd === '') {
+            $dateYmd = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateYmd)) {
+            return null;
+        }
+
+        try {
+            $issued = new \DateTimeImmutable($dateYmd . ' 12:00:00', new \DateTimeZone('America/Guatemala'));
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $today = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
+        if ($dateYmd > $today) {
+            return null;
+        }
+
+        return $issued;
     }
 
     /**
@@ -428,7 +635,7 @@ class FelInvoiceIssuanceService
      *
      * @return  int  New invoice id or 0 on failure
      */
-    public function createNewManualInvoiceFromQuotation(int $quotationId, int $userId): int
+    public function createNewManualInvoiceFromQuotation(int $quotationId, int $userId, ?string $invoiceDateYmd = null, array $allQuotationIds = []): int
     {
         if (!$this->isEngineAvailable() || !$this->hasQuotationIdColumn() || $quotationId < 1) {
             return 0;
@@ -446,20 +653,48 @@ class FelInvoiceIssuanceService
             return 0;
         }
 
+        $issuedAt = $this->resolveManualIssueDate($invoiceDateYmd);
+        if ($issuedAt === null) {
+            return 0;
+        }
+
         $invoiceNumber = $this->generateNextInvoiceNumber();
         $now           = Factory::getDate()->toSql();
-        $otLabels      = $this->collectOrdenDisplayLabelsForQuotation($quotationId);
+        $invoiceDate   = $issuedAt->format('Y-m-d');
+        $quotationIds  = array_values(array_unique(array_filter(array_map('intval', $allQuotationIds))));
+        if ($quotationIds === []) {
+            $quotationIds = [$quotationId];
+        }
+        $otLabels = [];
+        foreach ($quotationIds as $qid) {
+            foreach ($this->collectOrdenDisplayLabelsForQuotation((int) $qid) as $label) {
+                $otLabels[$label] = $label;
+            }
+        }
+        $cotRefs = [$this->getQuotationDisplayRef($quotation)];
+        foreach ($quotationIds as $qid) {
+            if ((int) $qid === $quotationId) {
+                continue;
+            }
+            $qExtra = $this->loadQuotation((int) $qid);
+            if ($qExtra) {
+                $cotRefs[] = $this->getQuotationDisplayRef($qExtra);
+            }
+        }
+        $notes = \count($quotationIds) > 1
+            ? 'FEL manual multi-cotización (' . implode(', ', $cotRefs) . ')'
+            : 'FEL manual adicional (cotización)';
 
         $row = [
             'invoice_number'     => $invoiceNumber,
             'orden_id'           => null,
-            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', $otLabels) : '',
+            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', array_values($otLabels)) : '',
             'client_name'        => $quotation->client_name ?? '',
             'client_nit'         => $quotation->client_nit ?? null,
             'sales_agent'        => $quotation->sales_agent ?? null,
             'request_date'       => !empty($quotation->quote_date) ? $quotation->quote_date : null,
             'delivery_date'      => null,
-            'invoice_date'       => $now,
+            'invoice_date'       => $invoiceDate,
             'invoice_amount'     => 0,
             'currency'           => $quotation->currency ?? 'Q',
             'work_description'   => null,
@@ -470,7 +705,7 @@ class FelInvoiceIssuanceService
             'quotation_file'     => null,
             'extraction_status'  => 'manual',
             'status'             => 'draft',
-            'notes'              => 'FEL manual adicional (cotización)',
+            'notes'              => $notes,
             'state'              => 1,
             'version'            => '3.119.68',
             'created'            => $now,
@@ -1753,7 +1988,9 @@ class FelInvoiceIssuanceService
         array $lines,
         array $creds,
         ?string $nucBuyerTaxIdOverride = null,
-        ?string $buyerNameOverride = null
+        ?string $buyerNameOverride = null,
+        ?\DateTimeInterface $issuedAt = null,
+        array $additionalCotizacionRefs = []
     ): array {
         $buyerTaxIdRaw = trim((string) ($quotation->client_nit ?? ''));
         $isCfBuyer     = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerTaxIdRaw);
@@ -1778,7 +2015,9 @@ class FelInvoiceIssuanceService
             $buyerName = 'Cliente';
         }
 
-        $issued = Factory::getDate('now')->format('c');
+        $issued = $issuedAt instanceof \DateTimeInterface
+            ? $issuedAt->format('c')
+            : Factory::getDate('now')->format('c');
 
         $items   = [];
         $grand   = 0.0;
@@ -1906,6 +2145,16 @@ class FelInvoiceIssuanceService
                 '#text' => $cotRef,
             ],
         ];
+        foreach ($additionalCotizacionRefs as $extraRef) {
+            $extraRef = trim((string) $extraRef);
+            if ($extraRef === '' || $extraRef === $cotRef) {
+                continue;
+            }
+            $additionalInfos[] = [
+                '@Name' => 'Cotizacion',
+                '#text' => $extraRef,
+            ];
+        }
 
         $buyerPayload = [
             'TaxID'       => $buyerNit !== '' ? $buyerNit : 'CF',
@@ -1992,7 +2241,9 @@ class FelInvoiceIssuanceService
         string $buyerName,
         string $buyerNitRaw,
         string $buyerAddress,
-        ?string $nucBuyerTaxIdOverride = null
+        ?string $nucBuyerTaxIdOverride = null,
+        ?\DateTimeInterface $issuedAt = null,
+        array $additionalCotizacionRefs = []
     ): array {
         $lineRows = [];
         foreach ($manualLines as $line) {
@@ -2018,7 +2269,9 @@ class FelInvoiceIssuanceService
             $lineRows,
             $creds,
             $nucBuyerTaxIdOverride,
-            $buyerName !== '' ? $buyerName : null
+            $buyerName !== '' ? $buyerName : null,
+            $issuedAt,
+            $additionalCotizacionRefs
         );
 
         $addr = trim($buyerAddress);
@@ -2063,7 +2316,9 @@ class FelInvoiceIssuanceService
         string $buyerNit,
         string $buyerAddress,
         array $ordenIdsToLink = [],
-        ?string $nucBuyerTaxIdOverride = null
+        ?string $nucBuyerTaxIdOverride = null,
+        array $additionalQuotationIds = [],
+        ?string $issueDateYmd = null
     ): array {
         $quotationId = (int) $quotationId;
         $userId      = (int) $userId;
@@ -2071,9 +2326,33 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Engine unavailable'];
         }
 
+        $issuedAt = $this->resolveManualIssueDate($issueDateYmd);
+        if ($issuedAt === null) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE_INVALID')];
+        }
+
+        $allQuotationIds = array_values(array_unique(array_filter(array_merge(
+            [$quotationId],
+            array_map('intval', $additionalQuotationIds)
+        ))));
+        if (!$this->quotationsShareClientNit($allQuotationIds)) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_QUOTATIONS_SAME_CLIENT')];
+        }
+
         $quotation = $this->loadQuotation($quotationId);
         if (!$quotation) {
             return ['success' => false, 'message' => 'Quotation not found'];
+        }
+
+        $additionalRefs = [];
+        foreach ($allQuotationIds as $qid) {
+            if ((int) $qid === $quotationId) {
+                continue;
+            }
+            $qExtra = $this->loadQuotation((int) $qid);
+            if ($qExtra) {
+                $additionalRefs[] = $this->getQuotationDisplayRef($qExtra);
+            }
         }
 
         $creds = $this->getActiveCertificadorCredentials();
@@ -2097,7 +2376,9 @@ class FelInvoiceIssuanceService
             $buyerName,
             $buyerNit,
             $buyerAddress,
-            $nucBuyerTaxIdOverride
+            $nucBuyerTaxIdOverride,
+            $issuedAt,
+            $additionalRefs
         );
         if (($payload['Items'] ?? []) === []) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')];
@@ -2108,7 +2389,7 @@ class FelInvoiceIssuanceService
             $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
         }
 
-        $invoiceId = $this->createNewManualInvoiceFromQuotation($quotationId, $userId);
+        $invoiceId = $this->createNewManualInvoiceFromQuotation($quotationId, $userId, $issuedAt->format('Y-m-d'), $allQuotationIds);
         if ($invoiceId < 1) {
             $message = $this->hasUniqueQuotationIdIndex()
                 ? Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_MIGRATION_REQUIRED')
@@ -2134,6 +2415,7 @@ class FelInvoiceIssuanceService
                 'descripcion'       => $desc,
                 'precio_unitario'   => $unit,
                 'subtotal'          => $sub,
+                'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
             ];
         }
 
@@ -2142,8 +2424,12 @@ class FelInvoiceIssuanceService
             'client_nit'     => $buyerNit,
             'invoice_amount' => $grand,
             'line_items'     => json_encode($storageLines, JSON_UNESCAPED_UNICODE),
-            'notes'          => 'FEL manual desde cotización',
+            'notes'          => \count($allQuotationIds) > 1
+                ? 'FEL manual multi-cotización (' . implode(', ', array_merge([$this->getQuotationDisplayRef($quotation)], $additionalRefs)) . ')'
+                : 'FEL manual desde cotización',
         ]);
+
+        $this->linkInvoiceToQuotations($invoiceId, $quotationId, $allQuotationIds);
 
         $this->skipAutoLinkOrdensOnFinalize = true;
         $this->setStatus($invoiceId, 'processing');

@@ -155,6 +155,14 @@ class HtmlView extends BaseHtmlView
     protected $manualFelLinePresets = [];
 
     /**
+     * Other cotizaciones for same client (manual FEL multi-cot).
+     *
+     * @var    array<int, array{id: int, label: string, total: float, quote_date: string}>
+     * @since  3.119.123
+     */
+    protected $manualFelOtherQuotations = [];
+
+    /**
      * Confirmar modal: billing instruction fields (one per pre-cot with facturar), or empty if none.
      *
      * @var    array<int, array{id: int, number: string, showSuffix: bool}>
@@ -368,8 +376,10 @@ class HtmlView extends BaseHtmlView
                                 'descripcion'       => (string) ($qiPreset->descripcion ?? ''),
                                 'cantidad'          => (float) $t['qty'],
                                 'precio_unitario'   => (float) $t['unit_price'],
+                                'quotation_id'      => (int) $quotationId,
                             ];
                         }
+                        $this->manualFelOtherQuotations = $this->buildQuotationsForManualFelModal($db, $this->quotation);
                     }
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
                     $this->itemsWithLineDetalles = [];
@@ -896,6 +906,80 @@ class HtmlView extends BaseHtmlView
                 return strcasecmp((string) ($b['label'] ?? ''), (string) ($a['label'] ?? ''));
             }
         );
+
+        return $out;
+    }
+
+    /**
+     * Cotizaciones for same client NIT (manual FEL multi-cot), excluding current quotation.
+     *
+     * @return  array<int, array{id: int, label: string, total: float, quote_date: string}>
+     *
+     * @since   3.119.123
+     */
+    protected function buildQuotationsForManualFelModal($db, object $quotation): array
+    {
+        $currentId = (int) ($quotation->id ?? 0);
+        $clientDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId((string) ($quotation->client_nit ?? ''));
+        if ($currentId < 1 || $clientDigits === '') {
+            return [];
+        }
+
+        $qcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qcols = \is_array($qcols) ? array_change_key_case($qcols, CASE_LOWER) : [];
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('id'),
+                        $db->quoteName('quotation_number'),
+                        $db->quoteName('client_nit'),
+                        $db->quoteName('total_amount'),
+                        $db->quoteName('quote_date'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('id') . ' != ' . $currentId)
+                    ->order($db->quoteName('quote_date') . ' DESC')
+                    ->order($db->quoteName('id') . ' DESC'),
+                0,
+                100
+            );
+            $rows = $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $qid = (int) ($row->id ?? 0);
+            if ($qid < 1) {
+                continue;
+            }
+            $nitDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId((string) ($row->client_nit ?? ''));
+            if ($nitDigits === '' || $nitDigits !== $clientDigits) {
+                continue;
+            }
+            $label = trim((string) ($row->quotation_number ?? ''));
+            if ($label === '') {
+                $label = 'COT-' . str_pad((string) $qid, 5, '0', STR_PAD_LEFT);
+            }
+            $quoteDate = '';
+            if (!empty($row->quote_date)) {
+                try {
+                    $quoteDate = Factory::getDate($row->quote_date)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    $quoteDate = (string) $row->quote_date;
+                }
+            }
+            $out[] = [
+                'id'         => $qid,
+                'label'      => $label,
+                'total'      => (float) ($row->total_amount ?? 0),
+                'quote_date' => $quoteDate,
+            ];
+        }
 
         return $out;
     }

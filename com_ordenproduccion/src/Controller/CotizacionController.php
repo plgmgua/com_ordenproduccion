@@ -1972,6 +1972,76 @@ class CotizacionController extends BaseController
      *
      * @since   3.119.65
      */
+    public function manualFelQuotationLines(): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInStrictAdministracionGroup()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $primaryId = $app->input->getInt('primary_quotation_id', 0);
+        $targetId    = $app->input->getInt('quotation_id', 0);
+        if ($primaryId < 1 || $targetId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $fel = new FelInvoiceIssuanceService();
+        if (!$fel->quotationsShareClientNit([$primaryId, $targetId])) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_QUOTATIONS_SAME_CLIENT')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        foreach ([$primaryId, $targetId] as $qid) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $qid)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $row = $db->loadObject();
+            if (!$row || !AccessHelper::userCanAccessQuotationRow($row)) {
+                echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+        }
+
+        $lines = $fel->getManualFelLinePresetsForQuotation($targetId);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select($db->quoteName('quotation_number'))
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $targetId)
+        );
+        $qNum = trim((string) $db->loadResult());
+        $label = $qNum !== '' ? $qNum : ('COT-' . str_pad((string) $targetId, 5, '0', STR_PAD_LEFT));
+        echo json_encode([
+            'success' => true,
+            'lines'   => $lines,
+            'label'   => $label,
+            'quotation_id' => $targetId,
+        ], JSON_UNESCAPED_UNICODE);
+        $app->close();
+    }
+
+    /**
+     * Manual FEL invoice from cotización modal (JSON).
+     *
+     * @return  void
+     *
+     * @since   3.119.65
+     */
     public function manualFelIssueFromQuotation(): void
     {
         $app = Factory::getApplication();
@@ -2065,11 +2135,55 @@ class CotizacionController extends BaseController
                 'descripcion'       => $desc,
                 'cantidad'          => $qty,
                 'precio_unitario'   => $unit,
+                'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
             ];
         }
         if ($manualLines === []) {
             echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
             $app->close();
+        }
+
+        $issueDateYmd = trim((string) $app->input->post->getString('manual_issue_date', ''));
+
+        $extraIdsRaw = $app->input->post->getString('manual_quotation_ids_json', '[]');
+        $extraIdsDec = \json_decode($extraIdsRaw, true);
+        $additionalQuotationIds = [];
+        if (\is_array($extraIdsDec)) {
+            foreach ($extraIdsDec as $eqid) {
+                $eqid = (int) $eqid;
+                if ($eqid > 0 && $eqid !== $quotationId) {
+                    $additionalQuotationIds[] = $eqid;
+                }
+            }
+        }
+        $allQuotationIds = array_values(array_unique(array_merge([$quotationId], $additionalQuotationIds)));
+
+        foreach ($allQuotationIds as $checkQid) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $checkQid)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $checkRow = $db->loadObject();
+            if (!$checkRow || !AccessHelper::userCanAccessQuotationRow($checkRow)) {
+                echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+            if (isset($qcolsDigifactOc['requiere_orden_compra_para_facturar'])
+                && (int) ($checkRow->requiere_orden_compra_para_facturar ?? 0) === 1
+                && isset($qcolsDigifactOc['orden_compra_path'])) {
+                $ocPathCheck = trim((string) ($checkRow->orden_compra_path ?? ''));
+                $ocExtCheck  = strtolower(pathinfo($ocPathCheck, PATHINFO_EXTENSION));
+                if ($ocPathCheck === '' || $ocExtCheck !== 'pdf') {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_BLOCKED_OC_PDF_REQUIRED'),
+                    ], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+            }
         }
 
         $ordenIdsRaw = $app->input->post->getString('manual_orden_ids_json', '[]');
@@ -2117,7 +2231,9 @@ class CotizacionController extends BaseController
                     $nitRaw,
                     $buyerAddr,
                     $ordenIds,
-                    $cuiDigits
+                    $cuiDigits,
+                    $additionalQuotationIds,
+                    $issueDateYmd
                 );
             } else {
                 $result = $fel->issueDigifactNucManualFromQuotation(
@@ -2128,7 +2244,9 @@ class CotizacionController extends BaseController
                     $nitRaw,
                     $buyerAddr,
                     $ordenIds,
-                    null
+                    null,
+                    $additionalQuotationIds,
+                    $issueDateYmd
                 );
             }
 

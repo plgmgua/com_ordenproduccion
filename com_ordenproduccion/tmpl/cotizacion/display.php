@@ -186,6 +186,9 @@ $manualBuyerNameInitial = $digifactBuyerNameInitial;
 $manualBuyerNitInitial = trim((string) ($quotation->client_nit ?? ''));
 $manualFelLinePresets = isset($this->manualFelLinePresets) && is_array($this->manualFelLinePresets) ? $this->manualFelLinePresets : [];
 $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($this->manualFelOrdensForClient) ? $this->manualFelOrdensForClient : [];
+$manualFelOtherQuotations = isset($this->manualFelOtherQuotations) && is_array($this->manualFelOtherQuotations) ? $this->manualFelOtherQuotations : [];
+$manualFelLinesUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelQuotationLines&format=json', false);
+$manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.123-STABLE] - 2026-05-29
+
+### Added
+- **Factura manual (cotización):** combine lines from multiple cotizaciones of the same client (NIT); set **Fecha de emisión** (today or earlier). Junction table `#__ordenproduccion_invoice_quotations` links one invoice to several cotizaciones; invoiced totals allocate by tagged line `quotation_id`.
+
 ## [3.119.122-STABLE] - 2026-05-29
 
 ### Changed
