@@ -198,7 +198,7 @@ final class InvoiceFacturaTemplateHelper
     /**
      * Resolve invoice issue/creation datetime from row, fel_extra, or certified XML.
      *
-     * Priority: fel_fecha_emision → invoice_date → created → XML emission timestamp.
+     * Priority: certified XML → NUC fel_request_json IssuedDateTime → invoice_date → fel_fecha_emision → created.
      *
      * @since  3.119.110
      */
@@ -212,7 +212,17 @@ final class InvoiceFacturaTemplateHelper
             }
         }
 
-        foreach (['fel_fecha_emision', 'invoice_date', 'created'] as $field) {
+        $requestRaw = trim((string) ($item->fel_request_json ?? ''));
+        if ($requestRaw !== '') {
+            $decoded = json_decode($requestRaw, true);
+            if (\is_array($decoded)
+                && isset($decoded['Header']['IssuedDateTime'])
+                && trim((string) $decoded['Header']['IssuedDateTime']) !== '') {
+                return trim((string) $decoded['Header']['IssuedDateTime']);
+            }
+        }
+
+        foreach (['invoice_date', 'fel_fecha_emision', 'created'] as $field) {
             if (!empty($item->$field)) {
                 $raw = trim((string) $item->$field);
                 if ($raw !== '') {

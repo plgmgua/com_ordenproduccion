@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.125-STABLE] - 2026-06-01
+
+### Fixed
+- **Vista factura:** **Fecha de emisión** now uses the same resolver as the Grimpsa PDF (certified XML / NUC issue date), not only `fel_fecha_emision` (certification timestamp).
+
 ## [3.119.124-STABLE] - 2026-06-01
 
 ### Fixed

@@ -15,6 +15,7 @@ use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFacturaTemplateHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 
@@ -153,8 +154,11 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
                 <?php if (!empty($felExtra['autorizacion_serie']) || !empty($felExtra['autorizacion_numero_dte'])) : ?>
                 <div class="mt-1">Serie: <?php echo htmlspecialchars($felExtra['autorizacion_serie'] ?? '-'); ?> | Numero: <?php echo htmlspecialchars($felExtra['autorizacion_numero_dte'] ?? '-'); ?></div>
                 <?php endif; ?>
-                <?php if (!empty($item->fel_fecha_emision)) : ?>
-                <div class="mt-1">Fecha de Emision: <?php echo $item->fel_fecha_emision ? HTMLHelper::_('date', $item->fel_fecha_emision, 'd-m-Y H:i:s') : '-'; ?></div>
+                <?php
+                $fechaEmisionDisplay = InvoiceFacturaTemplateHelper::formatEmissionDateTimeForDisplay($item);
+                if ($fechaEmisionDisplay !== '') :
+                ?>
+                <div class="mt-1">Fecha de Emision: <?php echo htmlspecialchars($fechaEmisionDisplay, ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
                 <?php
                 $cert = $felExtra['certificacion'] ?? null;
