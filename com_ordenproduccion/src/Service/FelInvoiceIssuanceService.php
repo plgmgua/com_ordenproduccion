@@ -398,6 +398,45 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * All cotización ids linked to an invoice (primary quotation_id + junction rows).
+     *
+     * @return  int[]
+     */
+    public function getQuotationIdsLinkedToInvoice(int $invoiceId): array
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1) {
+            return [];
+        }
+
+        $seen = [];
+        $inv  = $this->loadInvoice($invoiceId);
+        if ($inv) {
+            $primary = (int) ($inv->quotation_id ?? 0);
+            if ($primary > 0) {
+                $seen[$primary] = true;
+            }
+        }
+
+        if ($this->hasInvoiceQuotationsTable()) {
+            $this->db->setQuery(
+                $this->db->getQuery(true)
+                    ->select($this->db->quoteName('quotation_id'))
+                    ->from($this->db->quoteName('#__ordenproduccion_invoice_quotations'))
+                    ->where($this->db->quoteName('invoice_id') . ' = ' . $invoiceId)
+            );
+            foreach ($this->db->loadColumn() ?: [] as $qid) {
+                $qid = (int) $qid;
+                if ($qid > 0) {
+                    $seen[$qid] = true;
+                }
+            }
+        }
+
+        return array_map('intval', array_keys($seen));
+    }
+
+    /**
      * @param   int[]  $quotationIds
      */
     public function linkInvoiceToQuotations(int $invoiceId, int $primaryQuotationId, array $quotationIds): void
@@ -1174,7 +1213,7 @@ class FelInvoiceIssuanceService
             if ($actorId < 1) {
                 $actorId = (int) ($inv->created_by ?? 0);
             }
-            $this->maybeCompleteFacturacionManualApproval($quotationId, $actorId);
+            $this->completeFacturacionManualApprovalsForInvoice($invoiceId, $actorId);
 
             return [
                 'success'    => true,
@@ -3343,7 +3382,7 @@ class FelInvoiceIssuanceService
             $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
         }
 
-        $this->maybeCompleteFacturacionManualApproval($quotationId, $userId);
+        $this->completeFacturacionManualApprovalsForInvoice($invoiceId, $userId);
 
         $outUuid = '';
         if ($felplex !== null && $felplex !== '') {
@@ -3375,6 +3414,40 @@ class FelInvoiceIssuanceService
             );
         } catch (\Throwable $e) {
             // Non-blocking: FEL issuance already succeeded.
+        }
+    }
+
+    /**
+     * Close open Fact.Man. approvals for every cotización linked to a completed invoice (multi-cot manual FEL).
+     */
+    protected function completeFacturacionManualApprovalsForInvoice(int $invoiceId, int $actorUserId): void
+    {
+        $invoiceId   = (int) $invoiceId;
+        $actorUserId = (int) $actorUserId;
+        if ($invoiceId < 1 || $actorUserId < 1) {
+            return;
+        }
+
+        $quotationIds = $this->getQuotationIdsLinkedToInvoice($invoiceId);
+        if ($quotationIds === []) {
+            return;
+        }
+
+        $isMultiCot = \count($quotationIds) > 1;
+        foreach ($quotationIds as $qid) {
+            try {
+                if ($isMultiCot) {
+                    ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalForSharedInvoice(
+                        $this->db,
+                        (int) $qid,
+                        $invoiceId,
+                        $actorUserId
+                    );
+                } else {
+                    $this->maybeCompleteFacturacionManualApproval((int) $qid, $actorUserId);
+                }
+            } catch (\Throwable $e) {
+            }
         }
     }
 

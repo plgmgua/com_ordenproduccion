@@ -464,6 +464,53 @@ class ApprovalWorkflowEntityHelper
     }
 
     /**
+     * Close Fact.Man. when this cotización is on a shared completed invoice (multi-cotización manual FEL).
+     *
+     * @since  3.119.126
+     */
+    public static function tryCompleteFacturacionManualApprovalForSharedInvoice(
+        DatabaseInterface $db,
+        int $quotationId,
+        int $invoiceId,
+        int $actorUserId
+    ): bool {
+        $quotationId = (int) $quotationId;
+        $invoiceId   = (int) $invoiceId;
+        $actorUserId = (int) $actorUserId;
+        if ($quotationId < 1 || $invoiceId < 1 || $actorUserId < 1) {
+            return false;
+        }
+
+        $felSvc = new FelInvoiceIssuanceService($db);
+        $linked = $felSvc->getQuotationIdsLinkedToInvoice($invoiceId);
+        if (!\in_array($quotationId, $linked, true)) {
+            return false;
+        }
+
+        $inv = null;
+        foreach ($felSvc->getInvoicesByQuotationId($quotationId) as $row) {
+            if ((int) ($row->id ?? 0) === $invoiceId) {
+                $inv = $row;
+                break;
+            }
+        }
+        if ($inv === null || (string) ($inv->fel_issue_status ?? '') !== 'completed') {
+            return false;
+        }
+
+        $wfSvc = new ApprovalWorkflowService($db);
+        if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId) === null) {
+            return true;
+        }
+
+        return $wfSvc->completePendingCotizacionFacturacionManualForInvoicedTotal(
+            $quotationId,
+            $actorUserId,
+            'facturacion_manual_multi_cot_invoice_linked'
+        );
+    }
+
+    /**
      * Close open Fact.Man. approvals when completed invoices already cover the billable total.
      * Use when loading Administración → Aprobaciones or mod_ordop_pending_approvals.
      *

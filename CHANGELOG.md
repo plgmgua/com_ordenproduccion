@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.126-STABLE] - 2026-06-01
+
+### Fixed
+- **Factura manual multi-cotización:** after a completed shared FEL invoice, close **Fact.Man.** approval for every linked cotización (not only the primary one on the invoice row).
+
 ## [3.119.125-STABLE] - 2026-06-01
 
 ### Fixed
