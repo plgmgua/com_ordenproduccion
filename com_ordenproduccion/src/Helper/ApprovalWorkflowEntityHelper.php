@@ -511,6 +511,49 @@ class ApprovalWorkflowEntityHelper
     }
 
     /**
+     * Best-effort close Fact.Man. from linked completed invoices (multi-cot or fully invoiced).
+     *
+     * @since  3.119.127
+     */
+    public static function tryCompleteFacturacionManualApprovalFromLinkedInvoices(
+        DatabaseInterface $db,
+        int $quotationId,
+        int $actorUserId
+    ): bool {
+        $quotationId = (int) $quotationId;
+        $actorUserId = (int) $actorUserId;
+        if ($quotationId < 1 || $actorUserId < 1) {
+            return false;
+        }
+
+        $wfSvc = new ApprovalWorkflowService($db);
+        if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId) === null) {
+            return true;
+        }
+
+        $felSvc = new FelInvoiceIssuanceService($db);
+        foreach ($felSvc->getInvoicesByQuotationId($quotationId) as $inv) {
+            if ((string) ($inv->fel_issue_status ?? '') !== 'completed') {
+                continue;
+            }
+            $invoiceId = (int) ($inv->id ?? 0);
+            if ($invoiceId < 1) {
+                continue;
+            }
+            $linked = $felSvc->getQuotationIdsLinkedToInvoice($invoiceId);
+            if (\count($linked) > 1 && \in_array($quotationId, $linked, true)) {
+                if (self::tryCompleteFacturacionManualApprovalForSharedInvoice($db, $quotationId, $invoiceId, $actorUserId)) {
+                    if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId) === null) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return self::tryCompleteFacturacionManualApprovalWhenFullyInvoiced($db, $quotationId, $actorUserId);
+    }
+
+    /**
      * Close open Fact.Man. approvals when completed invoices already cover the billable total.
      * Use when loading Administración → Aprobaciones or mod_ordop_pending_approvals.
      *
@@ -553,7 +596,7 @@ class ApprovalWorkflowEntityHelper
             if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $qid) === null) {
                 continue;
             }
-            if (!self::tryCompleteFacturacionManualApprovalWhenFullyInvoiced($db, $qid, $actorUserId)) {
+            if (!self::tryCompleteFacturacionManualApprovalFromLinkedInvoices($db, $qid, $actorUserId)) {
                 continue;
             }
             if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $qid) === null) {

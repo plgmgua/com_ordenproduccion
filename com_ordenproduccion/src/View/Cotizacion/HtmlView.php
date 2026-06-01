@@ -481,7 +481,7 @@ class HtmlView extends BaseHtmlView
                     if ($this->pendingCotizacionFacturacionManual !== null && $this->quotation) {
                         $actorId = (int) Factory::getUser()->id;
                         $dbWf    = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
-                        if ($actorId > 0 && ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalWhenFullyInvoiced(
+                        if ($actorId > 0 && ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalFromLinkedInvoices(
                             $dbWf,
                             $quotationId,
                             $actorId

@@ -1337,7 +1337,7 @@ class CotizacionController extends BaseController
             return;
         }
 
-        if (ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalWhenFullyInvoiced($db, $quotationId, (int) $user->id)) {
+        if (ApprovalWorkflowEntityHelper::tryCompleteFacturacionManualApprovalFromLinkedInvoices($db, $quotationId, (int) $user->id)) {
             $still = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId);
             if ($still === null) {
                 $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FACTURACION_MANUAL_APPROVAL_AUTO_COMPLETED'), 'success');

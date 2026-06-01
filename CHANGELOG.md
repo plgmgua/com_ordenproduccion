@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.127-STABLE] - 2026-06-01
+
+### Fixed
+- **Fact.Man. auto-cierre:** loading a cotización or Aprobaciones now also closes pending requests when the cotización is on a completed multi-cot shared invoice.
+
 ## [3.119.126-STABLE] - 2026-06-01
 
 ### Fixed
