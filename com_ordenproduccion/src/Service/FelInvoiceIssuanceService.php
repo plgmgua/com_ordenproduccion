@@ -519,6 +519,49 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * SQL datetime for fel_fecha_emision from NUC Header.IssuedDateTime (manual issue date) or invoice row fallback.
+     */
+    protected function resolveFelFechaEmisionSqlFromNucPayload(array $nucPayload, ?object $invoice = null): string
+    {
+        $issuedRaw = '';
+        if (isset($nucPayload['Header']) && \is_array($nucPayload['Header'])) {
+            $issuedRaw = trim((string) ($nucPayload['Header']['IssuedDateTime'] ?? ''));
+        }
+        if ($issuedRaw !== '') {
+            try {
+                return Factory::getDate($issuedRaw)->toSql();
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if ($invoice !== null) {
+            $invDate = trim((string) ($invoice->invoice_date ?? ''));
+            if ($invDate !== '') {
+                try {
+                    return Factory::getDate($invDate . (strpos($invDate, ':') === false ? ' 12:00:00' : ''))->toSql();
+                } catch (\Throwable $e) {
+                }
+            }
+        }
+
+        return Factory::getDate()->toSql();
+    }
+
+    /**
+     * Date-only invoice_date (Y-m-d) aligned with fel_fecha_emision / NUC IssuedDateTime.
+     */
+    protected function resolveInvoiceDateYmdFromNucPayload(array $nucPayload, ?object $invoice = null): string
+    {
+        $sql = $this->resolveFelFechaEmisionSqlFromNucPayload($nucPayload, $invoice);
+
+        try {
+            return Factory::getDate($sql)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return Factory::getDate()->format('Y-m-d');
+        }
+    }
+
+    /**
      * Whether the cotización has at least one linked invoice with fel_issue_status completed.
      *
      * @since  3.119.107
@@ -3237,6 +3280,9 @@ class FelInvoiceIssuanceService
         }
 
         $now = Factory::getDate()->toSql();
+        $invoiceRow = $this->loadInvoice($invoiceId);
+        $felFechaEmision = $this->resolveFelFechaEmisionSqlFromNucPayload($nucPayload, $invoiceRow);
+        $invoiceDateYmd  = $this->resolveInvoiceDateYmdFromNucPayload($nucPayload, $invoiceRow);
         $felplex = $uuid !== '' ? $uuid : null;
         $felAuth = $auth !== '' ? $auth : ($uuid !== '' ? $uuid : null);
         $felExtraMerged = $this->mergeInvoiceFelExtraWithCertificacionMeta(
@@ -3275,7 +3321,8 @@ class FelInvoiceIssuanceService
             'felplex_uuid'           => $felplex,
             'fel_autorizacion_uuid'  => $felAuth,
             'fel_tipo_dte'           => 'FACT',
-            'fel_fecha_emision'      => $now,
+            'fel_fecha_emision'      => $felFechaEmision,
+            'invoice_date'           => $invoiceDateYmd,
             'fel_receptor_id'        => $receptorDigits,
             'fel_receptor_nombre'    => $receptorNombre,
             'fel_receptor_direccion' => $receptorDireccion !== '' ? $receptorDireccion : null,

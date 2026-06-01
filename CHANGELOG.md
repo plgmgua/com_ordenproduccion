@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.124-STABLE] - 2026-06-01
+
+### Fixed
+- **Factura manual:** after Digifact certification, persist **Fecha de emisión** from the user-selected date (NUC `IssuedDateTime` / `invoice_date`) instead of overwriting with the current timestamp.
+
 ## [3.119.123-STABLE] - 2026-05-29
 
 ### Added
