@@ -991,6 +991,7 @@ class InvoiceController extends BaseController
 
     /**
      * Super user only: unlink one work order from this invoice.
+     * Allowed on voided (cancelled) invoices so OT links can be cleared without editing the invoice.
      *
      * POST: invoice_id, orden_id
      *

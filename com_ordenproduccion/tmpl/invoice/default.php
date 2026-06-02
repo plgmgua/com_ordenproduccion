@@ -343,6 +343,9 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
         ?>
         <div class="pt-3 mt-3 border-top invoice-work-orders-footer">
             <div class="fw-bold mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_WORK_ORDERS_SECTION'); ?></div>
+            <?php if ($invoiceCancelled && $canSuperInvoice && !empty($assocLinks)) : ?>
+            <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_CANCELLED_DISSOCIATE_HINT'); ?></p>
+            <?php endif; ?>
             <?php if ($isFel && $matchTbl && AccessHelper::isInAdministracionOrAdmonGroup() && !$invoiceCancelled) : ?>
             <div class="mb-3 p-2 border rounded bg-light">
                 <form method="get" action="<?php echo Route::_('index.php'); ?>" class="row g-2 align-items-end flex-wrap">
@@ -414,7 +417,7 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
                         ?>
                     <li class="d-flex flex-wrap align-items-center gap-2 mb-1">
                         <a href="<?php echo $oUrl; ?>" target="_blank" rel="noopener noreferrer"><?php echo $onum !== '' ? $onum : ('#' . $oid); ?></a>
-                        <?php if ($canSuperInvoice && !$invoiceCancelled && $oid > 0) : ?>
+                        <?php if ($canSuperInvoice && $oid > 0) : ?>
                         <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion'); ?>" class="d-inline"
                               onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_DISSOCIATE_CONFIRM')); ?>);">
                             <?php echo HTMLHelper::_('form.token'); ?>

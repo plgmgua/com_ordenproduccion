@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.128-STABLE] - 2026-05-19
+
+### Fixed
+- **Factura anulada:** Super Users can remove **orden de trabajo** links from the invoice detail view (× on each linked OT); associate/NIT tools remain disabled on voided invoices.
+
 ## [3.119.127-STABLE] - 2026-06-01
 
 ### Fixed
