@@ -28,6 +28,8 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\BlinkQuotationPaymentService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\OrdenFromQuotationService;
@@ -2323,6 +2325,108 @@ class CotizacionController extends BaseController
 
         echo json_encode($result);
         $app->close();
+    }
+
+    /**
+     * Blink gateway: create card payment link for quotation (JSON).
+     *
+     * POST: quotation_id, installments (optional, e.g. VC00 or VC00,VC03)
+     *
+     * @return  void
+     *
+     * @since   3.119.129
+     */
+    public function createBlinkPayment()
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if (!Session::checkToken('request')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')]);
+            $app->close();
+        }
+
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId < 1 || !$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')]);
+            $app->close();
+        }
+
+        $installments = BlinkGatewayConfigHelper::normalizeInstallments(
+            $app->input->post->getString('installments', 'VC00')
+        );
+
+        $svc    = new BlinkQuotationPaymentService();
+        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments);
+
+        echo json_encode($result);
+        $app->close();
+    }
+
+    /**
+     * Blink gateway: create payment link then redirect customer to Pay Bi checkout.
+     *
+     * POST: quotation_id, installments (optional)
+     *
+     * @return  void
+     *
+     * @since   3.119.129
+     */
+    public function redirectBlinkPayment()
+    {
+        $app = Factory::getApplication();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        $quotationId = $app->input->post->getInt('quotation_id', 0);
+        $back        = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false);
+
+        if ($quotationId < 1 || !$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION'), 'error');
+            $app->redirect($back);
+
+            return;
+        }
+
+        $installments = BlinkGatewayConfigHelper::normalizeInstallments(
+            $app->input->post->getString('installments', 'VC00')
+        );
+
+        $svc    = new BlinkQuotationPaymentService();
+        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments);
+
+        if (!empty($result['success']) && !empty($result['payment_url'])) {
+            $app->redirect((string) $result['payment_url']);
+
+            return;
+        }
+
+        $app->enqueueMessage(
+            (string) ($result['message'] ?? Text::_('COM_ORDENPRODUCCION_BLINK_ERROR_UNKNOWN')),
+            'error'
+        );
+        $app->redirect($back);
     }
 
     /**

@@ -22,6 +22,9 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel;
+use Grimpsa\Component\Ordenproduccion\Site\Service\BlinkQuotationPaymentService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
@@ -220,6 +223,30 @@ class HtmlView extends BaseHtmlView
     protected $ebipayMockAvailable = false;
 
     /**
+     * Blink card payment gateway configured and table installed.
+     *
+     * @var    bool
+     * @since  3.119.129
+     */
+    protected $blinkPaymentAvailable = false;
+
+    /**
+     * Recent Blink payment rows for this quotation.
+     *
+     * @var    object[]
+     * @since  3.119.129
+     */
+    protected $blinkPaymentsForQuotation = [];
+
+    /**
+     * Installment options for Blink (cuotas => VC code).
+     *
+     * @var    array<int, string>
+     * @since  3.119.129
+     */
+    protected $blinkInstallmentOptions = [];
+
+    /**
      * True when any active orden de trabajo is linked (via quotation line pre_cotizacion_id) to this quotation.
      *
      * @var    bool
@@ -295,6 +322,12 @@ class HtmlView extends BaseHtmlView
                     $this->facturacionUiAvailable = isset($qcols['facturacion_modo']);
                     $ebipaySvc = new EbiPayLinkService();
                     $this->ebipayMockAvailable = $ebipaySvc->isEngineAvailable();
+                    $blinkSvc = new BlinkQuotationPaymentService();
+                    $this->blinkPaymentAvailable = $blinkSvc->isTableAvailable() && $blinkSvc->isConfigured();
+                    if ($this->blinkPaymentAvailable) {
+                        $this->blinkPaymentsForQuotation = $blinkSvc->getPaymentsForQuotation($quotationId, 8);
+                        $this->blinkInstallmentOptions    = $this->buildBlinkInstallmentOptions();
+                    }
                     $felSvc = new FelInvoiceIssuanceService();
                     $this->felEngineAvailable = $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn();
                     if ($this->felEngineAvailable) {
@@ -1204,6 +1237,34 @@ class HtmlView extends BaseHtmlView
         }
 
         return 0;
+    }
+
+    /**
+     * @return  array<int, string>
+     *
+     * @since   3.119.129
+     */
+    protected function buildBlinkInstallmentOptions(): array
+    {
+        $options = [0 => BlinkGatewayConfigHelper::cuotasToInstallmentCode(0)];
+
+        try {
+            $productosModel = new ProductosModel();
+            if ($productosModel->tarjetaCreditoTableExists()) {
+                foreach ($productosModel->getTarjetaCreditoRates() as $rate) {
+                    $cuotas = (int) ($rate->cuotas ?? 0);
+                    if ($cuotas > 0) {
+                        $options[$cuotas] = BlinkGatewayConfigHelper::cuotasToInstallmentCode($cuotas);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Keep VC00 only.
+        }
+
+        ksort($options);
+
+        return $options;
     }
 }
 

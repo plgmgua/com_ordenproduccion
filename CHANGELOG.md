@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.129-STABLE] - 2026-05-19
+
+### Added
+- **Blink card payments:** server-side integration with Blink gateway (`http://blink.grupoimpre.com:3000`) to create Pay Bi checkout links from a cotización. New table `#__ordenproduccion_blink_payments`, component options (env vars `BLINK_*` / `PAYBI_*` override), cotización UI (pay / copy link / history).
+
 ## [3.119.128-STABLE] - 2026-05-19
 
 ### Fixed
