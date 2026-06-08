@@ -74,6 +74,8 @@ $labelSelectStatus = $t('COM_ORDENPRODUCCION_SELECT_STATUS', 'Seleccionar Estado
 $labelFilterDateFrom = $t('COM_ORDENPRODUCCION_FILTER_DATE_FROM', 'Fecha Desde');
 $labelFilterDateTo = $t('COM_ORDENPRODUCCION_FILTER_DATE_TO', 'Fecha Hasta');
 $labelFilterPaymentStatus = $t('COM_ORDENPRODUCCION_FILTER_PAYMENT_STATUS', 'Estado de Pago');
+$labelFilterNit = $t('COM_ORDENPRODUCCION_ORDENES_FILTER_NIT', 'NIT');
+$labelFilterNitPlaceholder = $t('COM_ORDENPRODUCCION_ORDENES_FILTER_NIT_PLACEHOLDER', 'NIT o parte');
 $labelFilterApply = $t('COM_ORDENPRODUCCION_FILTER_APPLY', 'Aplicar Filtros');
 $labelFilterClear = $t('COM_ORDENPRODUCCION_FILTER_CLEAR', 'Limpiar Filtros');
 $labelViewCotizacion = $t('COM_ORDENPRODUCCION_VIEW_COTIZACION', 'Ver Cotizaci?n');
@@ -81,7 +83,7 @@ $labelNoCotizacion = $t('COM_ORDENPRODUCCION_NO_COTIZACION', 'Sin cotizaci?n');
 $labelCotizacionNoPermission = $t('COM_ORDENPRODUCCION_COTIZACION_NO_PERMISSION', 'Sin permiso para ver la cotizaci?n');
 $labelPickInvoicePdf = $l('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF', 'Select invoice PDF', 'Seleccionar PDF de factura');
 $labelPickInvoicePdfIntro = $l('COM_ORDENPRODUCCION_ORDENES_PICK_INVOICE_PDF_INTRO', 'This work order has more than one linked invoice. Choose which PDF to open.', 'Esta orden tiene más de una factura vinculada. Elija qué PDF abrir.');
-$clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_date_from=&filter_date_to=&filter_sales_agent=');
+$clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&filter_search=&filter_status=&filter_payment_status=&filter_client_name=&filter_nit=&filter_date_from=&filter_date_to=&filter_sales_agent=');
 ?>
                         <form method="get" action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=ordenes'); ?>">
                             <input type="hidden" name="option" value="com_ordenproduccion">
@@ -125,6 +127,15 @@ $clearFiltersUrl = Route::_('index.php?option=com_ordenproduccion&view=ordenes&f
                                            id="filter_date_to" 
                                            class="form-control form-control-sm" 
                                            value="<?php echo htmlspecialchars($this->state->get('filter.date_to')); ?>">
+                                </div>
+                                <div class="ordenes-filter-item">
+                                    <label for="filter_nit" class="form-label"><?php echo htmlspecialchars($labelFilterNit); ?></label>
+                                    <input type="text"
+                                           name="filter_nit"
+                                           id="filter_nit"
+                                           class="form-control form-control-sm"
+                                           value="<?php echo htmlspecialchars($this->state->get('filter.nit')); ?>"
+                                           placeholder="<?php echo htmlspecialchars($labelFilterNitPlaceholder); ?>">
                                 </div>
                                 <div class="ordenes-filter-item">
                                     <label for="filter_payment_status" class="form-label"><?php echo htmlspecialchars($labelFilterPaymentStatus); ?></label>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.132-STABLE] - 2026-05-19
+
+### Added
+- **Órdenes de Trabajo:** NIT filter on the work orders list (partial match on `a.nit`).
+
 ## [3.119.131-STABLE] - 2026-05-19
 
 ### Fixed

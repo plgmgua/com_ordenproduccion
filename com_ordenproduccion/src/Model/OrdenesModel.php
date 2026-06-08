@@ -53,7 +53,7 @@ class OrdenesModel extends ListModel
     {
         if (empty($config['filter_fields'])) {
             $config['filter_fields'] = [
-                'id', 'orden_de_trabajo', 'order_number', 'client_name', 'request_date', 'delivery_date', 'status'
+                'id', 'orden_de_trabajo', 'order_number', 'client_name', 'nit', 'request_date', 'delivery_date', 'status'
             ];
         }
 
@@ -79,6 +79,7 @@ class OrdenesModel extends ListModel
         $id .= ':' . $this->getState('filter.date_from');
         $id .= ':' . $this->getState('filter.date_to');
         $id .= ':' . $this->getState('filter.sales_agent');
+        $id .= ':' . $this->getState('filter.nit');
 
         return parent::getStoreId($id);
     }
@@ -139,6 +140,9 @@ class OrdenesModel extends ListModel
 
         $dateTo = $app->getUserStateFromRequest($this->context . '.filter.date_to', 'filter_date_to', '', 'string');
         $this->setState('filter.date_to', $dateTo);
+
+        $nit = $app->getUserStateFromRequest($this->context . '.filter.nit', 'filter_nit', '', 'string');
+        $this->setState('filter.nit', trim((string) $nit));
 
         if (AccessHelper::isInStrictAdministracionGroup()) {
             $salesAgent = $app->getUserStateFromRequest($this->context . '.filter.sales_agent', 'filter_sales_agent', '', 'string');
@@ -534,6 +538,13 @@ class OrdenesModel extends ListModel
         $clientName = $this->getState('filter.client_name');
         if (!empty($clientName)) {
             $query->where($db->quoteName('a.client_name') . ' LIKE ' . $db->quote('%' . $db->escape($clientName, true) . '%'));
+        }
+
+        // Filter by NIT (partial match)
+        $nit = trim((string) $this->getState('filter.nit', ''));
+        if ($nit !== '') {
+            $nitLike = $db->quote('%' . $db->escape($nit, true) . '%');
+            $query->where($db->quoteName('a.nit') . ' LIKE ' . $nitLike);
         }
 
         // Filter by date range
