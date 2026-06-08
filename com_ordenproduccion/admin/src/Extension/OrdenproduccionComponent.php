@@ -10,6 +10,9 @@ use Joomla\CMS\Language\Language;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
 use Grimpsa\Component\Ordenproduccion\Administrator\Helper\AdminLanguageSync;
+use Grimpsa\Component\Ordenproduccion\Administrator\Helper\BlinkConfigSaveHelper;
+use Joomla\CMS\Event\Extension\BeforeSaveEvent;
+use Joomla\Event\DispatcherInterface;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -40,6 +43,14 @@ class OrdenproduccionComponent extends MVCComponent implements BootableExtension
         // Merge component language files into administrator/language/ whenever they drift (fixes Global Configuration labels).
         if (Factory::getApplication()->isClient('administrator')) {
             AdminLanguageSync::syncFromExtensionFolder();
+
+            $dispatcher = $container->get(DispatcherInterface::class);
+            $dispatcher->addListener(
+                'onExtensionBeforeSave',
+                static function (BeforeSaveEvent $event): void {
+                    BlinkConfigSaveHelper::onExtensionBeforeSave($event);
+                }
+            );
         }
     }
 

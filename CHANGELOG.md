@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.135-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink configuration:** read secrets from fresh `#__extensions` params and `#__ordenproduccion_config` fallback; preserve password fields on Global Configuration save; test UI shows Pay Bi password status separately and allows login test when payments are disabled but credentials exist.
+
 ## [3.119.134-STABLE] - 2026-05-19
 
 ### Added

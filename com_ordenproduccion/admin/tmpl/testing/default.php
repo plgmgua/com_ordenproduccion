@@ -69,7 +69,7 @@ $token = Session::getFormToken();
 
                         <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_CLAVE_LABEL'); ?></dt>
                         <dd class="col-sm-8">
-                            <?php if ($this->blinkConfigured) : ?>
+                            <?php if ($this->blinkHasClave) : ?>
                                 <span class="badge bg-success"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_SET'); ?></span>
                             <?php else : ?>
                                 <span class="badge bg-danger"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_MISSING'); ?></span>
@@ -77,7 +77,7 @@ $token = Session::getFormToken();
                         </dd>
                     </dl>
 
-                    <?php if (!$this->blinkConfigured) : ?>
+                    <?php if (!$this->blinkCredentialsConfigured) : ?>
                         <div class="alert alert-warning">
                             <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED'); ?>
                             <a href="<?php echo $this->blinkConfigUrl; ?>" class="alert-link">
@@ -90,7 +90,7 @@ $token = Session::getFormToken();
                         <button type="button" class="btn btn-outline-primary" id="btn-blink-health" data-url="<?php echo htmlspecialchars($this->blinkHealthUrl); ?>">
                             <?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_HEALTH_BTN'); ?>
                         </button>
-                        <button type="button" class="btn btn-primary" id="btn-blink-test-login" data-url="<?php echo htmlspecialchars($this->blinkTestLoginUrl); ?>" <?php echo $this->blinkConfigured ? '' : 'disabled'; ?>>
+                        <button type="button" class="btn btn-primary" id="btn-blink-test-login" data-url="<?php echo htmlspecialchars($this->blinkTestLoginUrl); ?>" <?php echo $this->blinkCredentialsConfigured ? '' : 'disabled'; ?>>
                             <?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_TEST_LOGIN_BTN'); ?>
                         </button>
                         <a href="<?php echo $this->blinkConfigUrl; ?>" class="btn btn-outline-secondary">

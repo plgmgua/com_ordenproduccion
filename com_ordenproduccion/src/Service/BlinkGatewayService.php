@@ -28,7 +28,7 @@ class BlinkGatewayService
     public function healthCheck(): array
     {
         $cfg = BlinkGatewayConfigHelper::getSnapshot();
-        if (!$cfg['configured']) {
+        if (empty($cfg['credentials_configured'])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
         }
 
@@ -73,14 +73,14 @@ class BlinkGatewayService
     public function testLogin(): array
     {
         $cfg = BlinkGatewayConfigHelper::getSnapshot();
-        if (!$cfg['configured']) {
+        if (empty($cfg['credentials_configured'])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
         }
 
         $payload = [
             'credentials' => [
                 'usuario' => $cfg['usuario'],
-                'clave'   => $cfg['clave'],
+                'clave'   => BlinkGatewayConfigHelper::getPayBiClave(),
             ],
         ];
 
@@ -162,7 +162,7 @@ class BlinkGatewayService
         string $description = ''
     ): array {
         $cfg = BlinkGatewayConfigHelper::getSnapshot();
-        if (!$cfg['configured']) {
+        if (empty($cfg['configured'])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
         }
 
@@ -179,7 +179,7 @@ class BlinkGatewayService
         $payload = [
             'credentials' => [
                 'usuario' => $cfg['usuario'],
-                'clave'   => $cfg['clave'],
+                'clave'   => BlinkGatewayConfigHelper::getPayBiClave(),
             ],
             'amount'       => round($amount, 2),
             'installments' => $installments,

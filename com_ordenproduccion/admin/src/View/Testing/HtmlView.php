@@ -28,7 +28,10 @@ class HtmlView extends BaseHtmlView
     public $blinkEnabled = false;
 
     /** @var bool */
-    public $blinkConfigured = false;
+    public $blinkCredentialsConfigured = false;
+
+    /** @var bool */
+    public $blinkHasClave = false;
 
     /** @var string */
     public $blinkBaseUrl = '';
@@ -60,11 +63,12 @@ class HtmlView extends BaseHtmlView
     public function display($tpl = null)
     {
         $snap = BlinkGatewayConfigHelper::getSnapshot();
-        $this->blinkEnabled     = (bool) ($snap['enabled'] ?? false);
-        $this->blinkConfigured  = (bool) ($snap['configured'] ?? false);
-        $this->blinkBaseUrl     = (string) ($snap['base_url'] ?? '');
-        $this->blinkUsuario     = (string) ($snap['usuario'] ?? '');
-        $this->blinkHasApiKey   = trim((string) ($snap['api_key'] ?? '')) !== '';
+        $this->blinkEnabled               = (bool) ($snap['enabled'] ?? false);
+        $this->blinkCredentialsConfigured = (bool) ($snap['credentials_configured'] ?? false);
+        $this->blinkBaseUrl               = (string) ($snap['base_url'] ?? '');
+        $this->blinkUsuario               = (string) ($snap['usuario'] ?? '');
+        $this->blinkHasApiKey             = (bool) ($snap['api_key_set'] ?? false);
+        $this->blinkHasClave              = (bool) ($snap['clave_set'] ?? false);
         $this->blinkHealthUrl   = Route::_('index.php?option=com_ordenproduccion&task=testing.blinkHealth&format=json');
         $this->blinkTestLoginUrl = Route::_('index.php?option=com_ordenproduccion&task=testing.blinkTestLogin&format=json');
         $this->blinkConfigUrl   = Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion');

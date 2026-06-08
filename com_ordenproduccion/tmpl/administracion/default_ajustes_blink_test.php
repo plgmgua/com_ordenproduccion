@@ -21,11 +21,12 @@ HTMLHelper::_('form.csrf');
 $app = Factory::getApplication();
 $user = Factory::getUser();
 $snap = BlinkGatewayConfigHelper::getSnapshot();
-$blinkEnabled    = (bool) ($snap['enabled'] ?? false);
-$blinkConfigured = (bool) ($snap['configured'] ?? false);
-$blinkBaseUrl    = (string) ($snap['base_url'] ?? '');
-$blinkUsuario    = (string) ($snap['usuario'] ?? '');
-$blinkHasApiKey  = trim((string) ($snap['api_key'] ?? '')) !== '';
+$blinkEnabled              = (bool) ($snap['enabled'] ?? false);
+$blinkCredentialsConfigured = (bool) ($snap['credentials_configured'] ?? false);
+$blinkBaseUrl              = (string) ($snap['base_url'] ?? '');
+$blinkUsuario              = (string) ($snap['usuario'] ?? '');
+$blinkHasApiKey            = (bool) ($snap['api_key_set'] ?? false);
+$blinkHasClave             = (bool) ($snap['clave_set'] ?? false);
 $blinkHealthUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkHealth&format=json', false);
 $blinkLoginUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkTestLogin&format=json', false);
 $blinkConfigUrl  = $user->authorise('core.admin')
@@ -78,7 +79,7 @@ $token = Session::getFormToken();
 
                     <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_CLAVE_LABEL'); ?></dt>
                     <dd class="col-sm-8">
-                        <?php if ($blinkConfigured) : ?>
+                        <?php if ($blinkHasClave) : ?>
                             <span class="badge bg-success"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_SET'); ?></span>
                         <?php else : ?>
                             <span class="badge bg-danger"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_MISSING'); ?></span>
@@ -86,7 +87,7 @@ $token = Session::getFormToken();
                     </dd>
                 </dl>
 
-                <?php if (!$blinkConfigured) : ?>
+                <?php if (!$blinkCredentialsConfigured) : ?>
                     <div class="alert alert-warning">
                         <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED'); ?>
                         <?php if ($blinkConfigUrl !== '') : ?>
@@ -96,6 +97,11 @@ $token = Session::getFormToken();
                         <?php else : ?>
                             <span class="d-block mt-1 small"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_CONFIG_HINT'); ?></span>
                         <?php endif; ?>
+                        <span class="d-block mt-1 small"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_PASSWORD_HINT'); ?></span>
+                    </div>
+                <?php elseif (!$blinkEnabled) : ?>
+                    <div class="alert alert-info">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_DISABLED_NOTICE'); ?>
                     </div>
                 <?php endif; ?>
 
@@ -104,7 +110,7 @@ $token = Session::getFormToken();
                         <i class="fas fa-heartbeat"></i>
                         <?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_HEALTH_BTN'); ?>
                     </button>
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-blink-test-login" data-url="<?php echo htmlspecialchars($blinkLoginUrl); ?>" <?php echo $blinkConfigured ? '' : 'disabled'; ?>>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-blink-test-login" data-url="<?php echo htmlspecialchars($blinkLoginUrl); ?>" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
                         <i class="fas fa-sign-in-alt"></i>
                         <?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_TEST_LOGIN_BTN'); ?>
                     </button>

@@ -12,6 +12,8 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Component\ComponentHelper;
+use Joomla\CMS\Factory;
+use Joomla\Database\DatabaseInterface;
 use Joomla\Registry\Registry;
 
 /**
@@ -22,6 +24,11 @@ use Joomla\Registry\Registry;
 class BlinkGatewayConfigHelper
 {
     public const DEFAULT_BASE_URL = 'http://blink.grupoimpre.com:3000';
+
+    private const SECRET_CONFIG_KEYS = [
+        'blink_api_key',
+        'blink_paybi_clave',
+    ];
 
     /**
      * @return  Registry
@@ -41,7 +48,7 @@ class BlinkGatewayConfigHelper
             return \in_array(strtolower((string) $env), ['1', 'true', 'yes', 'on'], true);
         }
 
-        return (int) self::getParams()->get('blink_enabled', 0) === 1;
+        return (int) self::getFreshParams()->get('blink_enabled', 0) === 1;
     }
 
     /**
@@ -79,7 +86,16 @@ class BlinkGatewayConfigHelper
     }
 
     /**
-     * @return  array{enabled: bool, base_url: string, api_key: string, usuario: string, clave: string, configured: bool}
+     * @return  array{
+     *   enabled: bool,
+     *   base_url: string,
+     *   api_key: string,
+     *   api_key_set: bool,
+     *   usuario: string,
+     *   clave_set: bool,
+     *   credentials_configured: bool,
+     *   configured: bool
+     * }
      */
     public static function getSnapshot(): array
     {
@@ -89,17 +105,20 @@ class BlinkGatewayConfigHelper
         $clave   = self::getPayBiClave();
         $enabled = self::isEnabled();
 
+        $credentialsConfigured = $baseUrl !== ''
+            && $apiKey !== ''
+            && $usuario !== ''
+            && $clave !== '';
+
         return [
-            'enabled'    => $enabled,
-            'base_url'   => $baseUrl,
-            'api_key'    => $apiKey,
-            'usuario'    => $usuario,
-            'clave'      => $clave,
-            'configured' => $enabled
-                && $baseUrl !== ''
-                && $apiKey !== ''
-                && $usuario !== ''
-                && $clave !== '',
+            'enabled'                => $enabled,
+            'base_url'               => $baseUrl,
+            'api_key'                => $apiKey,
+            'api_key_set'            => $apiKey !== '',
+            'usuario'                => $usuario,
+            'clave_set'              => $clave !== '',
+            'credentials_configured' => $credentialsConfigured,
+            'configured'             => $enabled && $credentialsConfigured,
         ];
     }
 
@@ -169,7 +188,7 @@ class BlinkGatewayConfigHelper
             return trim((string) $env);
         }
 
-        $val = trim((string) self::getParams()->get($paramName, $default));
+        $val = trim((string) self::getFreshParams()->get($paramName, $default));
 
         return $val !== '' ? $val : $default;
     }
@@ -187,6 +206,62 @@ class BlinkGatewayConfigHelper
             return (string) $env;
         }
 
-        return trim((string) self::getParams()->get($paramName, ''));
+        $val = trim((string) self::getFreshParams()->get($paramName, ''));
+        if ($val !== '') {
+            return $val;
+        }
+
+        if (\in_array($paramName, self::SECRET_CONFIG_KEYS, true)) {
+            return self::loadConfigTableValue($paramName);
+        }
+
+        return '';
+    }
+
+    /**
+     * Read component params directly from #__extensions (avoids stale ComponentHelper cache).
+     *
+     * @return  Registry
+     */
+    private static function getFreshParams(): Registry
+    {
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('params'))
+                    ->from($db->quoteName('#__extensions'))
+                    ->where($db->quoteName('type') . ' = ' . $db->quote('component'))
+                    ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'))
+            );
+
+            return new Registry((string) $db->loadResult());
+        } catch (\Throwable $e) {
+            return self::getParams();
+        }
+    }
+
+    /**
+     * Fallback for secrets mirrored by BlinkConfigSaveHelper.
+     *
+     * @param   string  $settingKey
+     *
+     * @return  string
+     */
+    private static function loadConfigTableValue(string $settingKey): string
+    {
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('setting_value'))
+                    ->from($db->quoteName('#__ordenproduccion_config'))
+                    ->where($db->quoteName('setting_key') . ' = ' . $db->quote($settingKey))
+            );
+
+            return trim((string) $db->loadResult());
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 }
