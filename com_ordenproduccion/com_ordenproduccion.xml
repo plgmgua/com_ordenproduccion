@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.129-STABLE</version>
+    <version>3.119.130-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -54,6 +54,7 @@
         <files folder="admin">
             <filename>services/provider.php</filename>
             <filename>access.xml</filename>
+            <filename>config.xml</filename>
             <folder>forms</folder>
             <folder>src</folder>
             <folder>tmpl</folder>
@@ -61,6 +62,12 @@
             <folder>sql</folder>
             <folder>bundledplugins</folder>
         </files>
+        <languages folder="admin">
+            <language tag="en-GB">language/en-GB/com_ordenproduccion.ini</language>
+            <language tag="en-GB">language/en-GB/com_ordenproduccion.sys.ini</language>
+            <language tag="es-ES">language/es-ES/com_ordenproduccion.ini</language>
+            <language tag="es-ES">language/es-ES/com_ordenproduccion.sys.ini</language>
+        </languages>
     </administration>
 
     <config>

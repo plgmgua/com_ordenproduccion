@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.130-STABLE] - 2026-05-19
+
+### Fixed
+- **Global Configuration (com_config):** administrator language files now install via manifest `<languages>`; sync always overwrites stale copies; missing tab/field labels (Telegram, Odoo, Blink, Show Title) added to admin `.ini` / `.sys.ini`.
+
 ## [3.119.129-STABLE] - 2026-05-19
 
 ### Added

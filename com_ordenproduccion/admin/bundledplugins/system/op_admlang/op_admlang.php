@@ -66,16 +66,26 @@ final class PlgSystemOpAdmlang extends CMSPlugin
 
     private function runSyncAndReload(): void
     {
-        $syncFile = \JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/Helper/AdminLanguageSync.php';
+        $syncClass = \Grimpsa\Component\Ordenproduccion\Administrator\Helper\AdminLanguageSync::class;
 
-        if (!\is_file($syncFile)) {
+        if (!\class_exists($syncClass)) {
+            foreach ([
+                \JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/src/Helper/AdminLanguageSync.php',
+                \JPATH_ADMINISTRATOR . '/components/com_ordenproduccion/admin/src/Helper/AdminLanguageSync.php',
+            ] as $syncFile) {
+                if (\is_file($syncFile)) {
+                    require_once $syncFile;
+                    break;
+                }
+            }
+        }
+
+        if (!\class_exists($syncClass)) {
             return;
         }
 
-        require_once $syncFile;
-
-        \Grimpsa\Component\Ordenproduccion\Administrator\Helper\AdminLanguageSync::syncFromExtensionFolder();
-        \Grimpsa\Component\Ordenproduccion\Administrator\Helper\AdminLanguageSync::reloadMergedComponentLanguage();
+        $syncClass::syncFromExtensionFolder();
+        $syncClass::reloadMergedComponentLanguage();
 
         self::$completedThisRequest = true;
     }

@@ -395,4 +395,53 @@
             filter="url"
         />
     </fieldset>
+    <fieldset name="blink" label="COM_ORDENPRODUCCION_CONFIG_BLINK_FIELDSET_LABEL">
+        <field
+            name="blink_enabled"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_BLINK_ENABLED_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_BLINK_ENABLED_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="blink_base_url"
+            type="url"
+            label="COM_ORDENPRODUCCION_CONFIG_BLINK_BASE_URL_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_BLINK_BASE_URL_DESC"
+            default="http://blink.grupoimpre.com:3000"
+            size="80"
+            filter="url"
+        />
+        <field
+            name="blink_api_key"
+            type="password"
+            label="COM_ORDENPRODUCCION_CONFIG_BLINK_API_KEY_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_BLINK_API_KEY_DESC"
+            default=""
+            size="50"
+            filter="string"
+        />
+        <field
+            name="blink_paybi_usuario"
+            type="text"
+            label="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_USUARIO_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_USUARIO_DESC"
+            default=""
+            size="60"
+            filter="string"
+        />
+        <field
+            name="blink_paybi_clave"
+            type="password"
+            label="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_CLAVE_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_CLAVE_DESC"
+            default=""
+            size="50"
+            filter="string"
+        />
+    </fieldset>
 </config>

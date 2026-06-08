@@ -74,14 +74,8 @@ final class AdminLanguageSync
                     continue;
                 }
 
-                $needs = !\is_file($dest);
-
-                if (!$needs) {
-                    $destMd5 = @md5_file($dest);
-                    $needs = $destMd5 === false || $destMd5 !== $srcMd5;
-                }
-
-                if ($needs && @copy($src, $dest)) {
+                // Always overwrite: stale administrator/language copies hide new com_config labels.
+                if (@copy($src, $dest)) {
                     ++$updated;
                 }
             }
