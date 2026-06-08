@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.133-STABLE] - 2026-05-19
+
+### Added
+- **Blink gateway:** `POST /api/v1/gateway/test-login` support in `BlinkGatewayService`; admin **Testing** view with Health check and **Test Pay Bi login** buttons (uses configured credentials server-side).
+
 ## [3.119.132-STABLE] - 2026-05-19
 
 ### Added

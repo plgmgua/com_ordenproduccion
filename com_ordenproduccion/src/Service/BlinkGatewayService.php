@@ -16,7 +16,7 @@ use Joomla\CMS\Http\HttpFactory;
 use Joomla\CMS\Language\Text;
 
 /**
- * Blink REST gateway: health + POST /api/v1/gateway/payments.
+ * Blink REST gateway: health, test-login, and POST /api/v1/gateway/payments.
  *
  * @since  3.119.129
  */
@@ -61,6 +61,86 @@ class BlinkGatewayService
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'http_code' => 0];
         }
+    }
+
+    /**
+     * Verify Pay Bi merchant credentials via Blink test-login.
+     *
+     * @return  array{success: bool, message?: string, data?: mixed, http_code?: int}
+     *
+     * @since   3.119.133
+     */
+    public function testLogin(): array
+    {
+        $cfg = BlinkGatewayConfigHelper::getSnapshot();
+        if (!$cfg['configured']) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
+        }
+
+        $payload = [
+            'credentials' => [
+                'usuario' => $cfg['usuario'],
+                'clave'   => $cfg['clave'],
+            ],
+        ];
+
+        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        if ($jsonBody === false) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_REQUEST_ENCODE_FAILED')];
+        }
+
+        try {
+            $http     = HttpFactory::getHttp();
+            $response = $http->post(
+                $cfg['base_url'] . '/api/v1/gateway/test-login',
+                $jsonBody,
+                [
+                    'Content-Type' => 'application/json',
+                    'Accept'       => 'application/json',
+                    'X-API-Key'    => $cfg['api_key'],
+                ],
+                30
+            );
+
+            $code = (int) ($response->code ?? 0);
+            $body = (string) ($response->body ?? '');
+            $json = json_decode($body, true);
+
+            return $this->parseTestLoginResponse($code, $json, $body);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'http_code' => 0];
+        }
+    }
+
+    /**
+     * @param   int    $httpCode
+     * @param   mixed  $json
+     * @param   string $rawBody
+     *
+     * @return  array{success: bool, message?: string, data?: mixed, http_code?: int}
+     */
+    protected function parseTestLoginResponse(int $httpCode, $json, string $rawBody): array
+    {
+        $base = ['http_code' => $httpCode];
+
+        if (($httpCode === 200 || $httpCode === 201) && \is_array($json)) {
+            $explicitFail = isset($json['success']) && $json['success'] === false;
+            $hasError     = !empty($json['error']) && \is_string($json['error']);
+
+            if (!$explicitFail && !$hasError) {
+                return $base + [
+                    'success' => true,
+                    'message' => Text::_('COM_ORDENPRODUCCION_BLINK_TEST_LOGIN_OK'),
+                    'data'    => self::redactResponse($json),
+                ];
+            }
+        }
+
+        return $base + [
+            'success' => false,
+            'message' => $this->extractErrorMessage($httpCode, $json, $rawBody),
+            'data'    => self::redactResponse(\is_array($json) ? $json : ['body' => $rawBody]),
+        ];
     }
 
     /**

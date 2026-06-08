@@ -11,8 +11,10 @@ namespace Grimpsa\Component\Ordenproduccion\Administrator\View\Testing;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use Joomla\CMS\Router\Route;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 
 /**
@@ -22,6 +24,30 @@ use Joomla\CMS\Toolbar\ToolbarHelper;
  */
 class HtmlView extends BaseHtmlView
 {
+    /** @var bool */
+    public $blinkEnabled = false;
+
+    /** @var bool */
+    public $blinkConfigured = false;
+
+    /** @var string */
+    public $blinkBaseUrl = '';
+
+    /** @var string */
+    public $blinkUsuario = '';
+
+    /** @var bool */
+    public $blinkHasApiKey = false;
+
+    /** @var string */
+    public $blinkHealthUrl = '';
+
+    /** @var string */
+    public $blinkTestLoginUrl = '';
+
+    /** @var string */
+    public $blinkConfigUrl = '';
+
     /**
      * Display the view
      *
@@ -33,6 +59,16 @@ class HtmlView extends BaseHtmlView
      */
     public function display($tpl = null)
     {
+        $snap = BlinkGatewayConfigHelper::getSnapshot();
+        $this->blinkEnabled     = (bool) ($snap['enabled'] ?? false);
+        $this->blinkConfigured  = (bool) ($snap['configured'] ?? false);
+        $this->blinkBaseUrl     = (string) ($snap['base_url'] ?? '');
+        $this->blinkUsuario     = (string) ($snap['usuario'] ?? '');
+        $this->blinkHasApiKey   = trim((string) ($snap['api_key'] ?? '')) !== '';
+        $this->blinkHealthUrl   = Route::_('index.php?option=com_ordenproduccion&task=testing.blinkHealth&format=json');
+        $this->blinkTestLoginUrl = Route::_('index.php?option=com_ordenproduccion&task=testing.blinkTestLogin&format=json');
+        $this->blinkConfigUrl   = Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion');
+
         $this->addToolbar();
         parent::display($tpl);
     }
