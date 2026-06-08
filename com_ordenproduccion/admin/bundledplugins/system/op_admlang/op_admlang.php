@@ -64,6 +64,35 @@ final class PlgSystemOpAdmlang extends CMSPlugin
         $this->runSyncAndReload();
     }
 
+    /**
+     * Last chance before the component config form is rendered.
+     *
+     * @param   \Joomla\CMS\Form\Form  $form
+     * @param   mixed                  $data
+     *
+     * @return  void
+     */
+    public function onContentPrepareForm($form, $data): void
+    {
+        if (self::$completedThisRequest || !\is_object($form) || !\method_exists($form, 'getName')) {
+            return;
+        }
+
+        $name = (string) $form->getName();
+
+        if ($name !== 'com_config.component' && $name !== 'config') {
+            return;
+        }
+
+        $component = Factory::getApplication()->input->getCmd('component', '');
+
+        if ($component !== 'com_ordenproduccion') {
+            return;
+        }
+
+        $this->runSyncAndReload();
+    }
+
     private function runSyncAndReload(): void
     {
         $syncClass = \Grimpsa\Component\Ordenproduccion\Administrator\Helper\AdminLanguageSync::class;

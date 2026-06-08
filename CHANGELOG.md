@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.131-STABLE] - 2026-05-19
+
+### Fixed
+- **Global Configuration:** `admin/config.xml` now uses human-readable English tab and field labels (Telegram, Odoo, Blink, etc.) so they display correctly without relying on administrator language file sync.
+
 ## [3.119.130-STABLE] - 2026-05-19
 
 ### Fixed

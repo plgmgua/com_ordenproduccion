@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config>
-    <fieldset name="component" label="COM_ORDENPRODUCCION_CONFIGURATION">
+    <fieldset name="component" label="Configuration">
         <field
             name="show_title"
             type="radio"
-            label="COM_ORDENPRODUCCION_SHOW_TITLE_LABEL"
-            description="COM_ORDENPRODUCCION_SHOW_TITLE_DESC"
+            label="Show Title"
+            description="Show the component title on the frontend"
             default="1"
             class="btn-group btn-group-yesno"
         >
@@ -15,8 +15,8 @@
         <field
             name="items_per_page"
             type="number"
-            label="COM_ORDENPRODUCCION_ITEMS_PER_PAGE_LABEL"
-            description="COM_ORDENPRODUCCION_ITEMS_PER_PAGE_DESC"
+            label="Items Per Page"
+            description="Number of items to display per page in lists"
             default="20"
             min="5"
             max="100"
@@ -24,20 +24,20 @@
         <field
             name="default_order_status"
             type="list"
-            label="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_LABEL"
-            description="COM_ORDENPRODUCCION_DEFAULT_ORDER_STATUS_DESC"
+            label="Default Order Status"
+            description="Default status for new orders"
             default="nueva"
         >
-            <option value="nueva">COM_ORDENPRODUCCION_STATUS_NUEVA</option>
-            <option value="en_proceso">COM_ORDENPRODUCCION_STATUS_EN_PROCESO</option>
-            <option value="terminada">COM_ORDENPRODUCCION_STATUS_TERMINADA</option>
-            <option value="cerrada">COM_ORDENPRODUCCION_STATUS_CERRADA</option>
+            <option value="nueva">New</option>
+            <option value="en_proceso">In Process</option>
+            <option value="terminada">Finished</option>
+            <option value="cerrada">Closed</option>
         </field>
         <field
             name="auto_assign_technicians"
             type="radio"
-            label="COM_ORDENPRODUCCION_AUTO_ASSIGN_TECHNICIANS_LABEL"
-            description="COM_ORDENPRODUCCION_AUTO_ASSIGN_TECHNICIANS_DESC"
+            label="Auto Assign Technicians"
+            description="Automatically assign technicians to new orders"
             default="1"
             class="btn-group btn-group-yesno"
         >
@@ -47,8 +47,8 @@
         <field
             name="enable_calendar_view"
             type="radio"
-            label="COM_ORDENPRODUCCION_ENABLE_CALENDAR_VIEW_LABEL"
-            description="COM_ORDENPRODUCCION_ENABLE_CALENDAR_VIEW_DESC"
+            label="Enable Calendar View"
+            description="Enable calendar view in the dashboard"
             default="1"
             class="btn-group btn-group-yesno"
         >
@@ -56,23 +56,23 @@
             <option value="1">JYES</option>
         </field>
     </fieldset>
-    <fieldset name="integraciones" label="COM_ORDENPRODUCCION_CONFIG_INTEGRACIONES_LABEL">
+    <fieldset name="integraciones" label="Integrations">
         <field
             name="anulacion_url"
             type="url"
-            label="COM_ORDENPRODUCCION_CONFIG_ANULACION_URL_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_ANULACION_URL_DESC"
+            label="Order Cancellation URL"
+            description="External form URL for order cancellation requests. Parameters user_id, orden_id and requester are appended automatically."
             default="https://grimpsa_webserver.grantsolutions.cc/index.php/anulacion-de-orden"
             size="80"
             filter="url"
         />
     </fieldset>
-    <fieldset name="telegram" label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_FIELDSET_LABEL">
+    <fieldset name="telegram" label="Telegram (Grimpsa bot)">
         <field
             name="telegram_enabled"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_ENABLED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_ENABLED_DESC"
+            label="Enable Telegram notifications"
+            description="Master switch for sending alerts via the Telegram Bot API."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -82,8 +82,8 @@
         <field
             name="telegram_bot_token"
             type="password"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BOT_TOKEN_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BOT_TOKEN_DESC"
+            label="Bot API token"
+            description="Token from @BotFather. Leave blank when saving to keep the existing token."
             default=""
             size="60"
             filter="string"
@@ -91,8 +91,8 @@
         <field
             name="telegram_notify_invoice"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_INVOICE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_INVOICE_DESC"
+            label="Notify: new invoice"
+            description="Notify the work-order owner when a new invoice is created or imported."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -102,8 +102,8 @@
         <field
             name="telegram_notify_envio"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ENVIO_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_ENVIO_DESC"
+            label="Notify: envío issued"
+            description="Notify the work-order owner when a shipping slip (envío) is generated."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -113,8 +113,8 @@
         <field
             name="telegram_notify_payment_proof_entered"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_ENTERED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_ENTERED_DESC"
+            label="Notify: payment proof entered"
+            description="Notify the work-order owner when a new payment proof is registered."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -124,8 +124,8 @@
         <field
             name="telegram_notify_payment_proof_verified"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_VERIFIED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_NOTIFY_PAYMENT_PROOF_VERIFIED_DESC"
+            label="Notify: payment proof verified"
+            description="Notify the work-order owner when a payment proof is marked as verified."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -135,8 +135,8 @@
         <field
             name="telegram_message_invoice"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_INVOICE_DESC"
+            label="Invoice notification message"
+            description="Optional custom DM text for invoice alerts. Leave empty for the default template."
             rows="3"
             cols="80"
             filter="raw"
@@ -145,8 +145,8 @@
         <field
             name="telegram_message_envio"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_ENVIO_DESC"
+            label="Envío notification message"
+            description="Optional custom DM text for envío alerts. Leave empty for the default template."
             rows="3"
             cols="80"
             filter="raw"
@@ -155,8 +155,8 @@
         <field
             name="telegram_message_payment_proof_entered"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_ENTERED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_ENTERED_DESC"
+            label="Payment proof entered (DM) message"
+            description="Optional custom DM text when a payment proof is entered."
             rows="3"
             cols="80"
             filter="raw"
@@ -165,20 +165,20 @@
         <field
             name="telegram_message_payment_proof_verified"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
+            label="Payment proof verified (DM) message"
+            description="Optional custom DM text when a payment proof is verified."
             rows="3"
             cols="80"
             filter="raw"
             default=""
         />
     </fieldset>
-    <fieldset name="broadcast" label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_FIELDSET_LABEL">
+    <fieldset name="broadcast" label="Administración channel and queue">
         <field
             name="telegram_broadcast_chat_id"
             type="text"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_CHAT_ID_DESC"
+            label="Channel chat ID (Administración feed)"
+            description="Numeric chat ID for the Administración Telegram channel (usually starts with -100). Add the bot as channel admin before testing."
             default=""
             size="50"
             filter="string"
@@ -186,8 +186,8 @@
         <field
             name="telegram_broadcast_invoice"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_INVOICE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_INVOICE_DESC"
+            label="Broadcast invoice alerts to this channel"
+            description="If Yes, new-invoice notifications are also queued for the Administración channel."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -197,8 +197,8 @@
         <field
             name="telegram_broadcast_envio"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ENVIO_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_ENVIO_DESC"
+            label="Broadcast envío alerts to this channel"
+            description="If Yes, envío notifications are also queued for the Administración channel."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -208,8 +208,8 @@
         <field
             name="telegram_broadcast_payment_proof_entered"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_ENTERED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_ENTERED_DESC"
+            label="Broadcast payment proof entered to this channel"
+            description="If Yes, new payment proof notifications are queued for the Administración channel."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -219,8 +219,8 @@
         <field
             name="telegram_broadcast_payment_proof_verified"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_VERIFIED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_EVENT_PAYMENT_PROOF_VERIFIED_DESC"
+            label="Broadcast payment proof verified to this channel"
+            description="If Yes, verified payment proof notifications are queued for the Administración channel."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -230,8 +230,8 @@
         <field
             name="telegram_broadcast_message_invoice"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_INVOICE_DESC"
+            label="Channel invoice message"
+            description="Optional text used only for the Administración channel invoice notification."
             rows="3"
             cols="80"
             filter="raw"
@@ -240,8 +240,8 @@
         <field
             name="telegram_broadcast_message_envio"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_ENVIO_DESC"
+            label="Channel envío message"
+            description="Optional text used only for the Administración channel envío notification."
             rows="3"
             cols="80"
             filter="raw"
@@ -250,8 +250,8 @@
         <field
             name="telegram_broadcast_message_payment_proof_entered"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_ENTERED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_ENTERED_DESC"
+            label="Channel: payment proof entered message"
+            description="Optional channel-only text for payment proof entered notifications."
             rows="3"
             cols="80"
             filter="raw"
@@ -260,8 +260,8 @@
         <field
             name="telegram_broadcast_message_payment_proof_verified"
             type="textarea"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_BROADCAST_MESSAGE_PAYMENT_PROOF_VERIFIED_DESC"
+            label="Channel: payment proof verified message"
+            description="Optional channel-only text for payment proof verified notifications."
             rows="3"
             cols="80"
             filter="raw"
@@ -270,8 +270,8 @@
         <field
             name="telegram_queue_cron_key"
             type="password"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_QUEUE_CRON_KEY_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_QUEUE_CRON_KEY_DESC"
+            label="Cron secret key"
+            description="Secret for the Telegram queue URL (?cron_key=…). Leave blank when saving to keep the current key."
             default=""
             size="50"
             filter="string"
@@ -279,8 +279,8 @@
         <field
             name="telegram_mismatch_anchor_enabled"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MISMATCH_ANCHOR_ENABLED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_MISMATCH_ANCHOR_ENABLED_DESC"
+            label="Mismatch ticket: Telegram anchor DMs"
+            description="When a payment proof has a totals mismatch, send anchor DMs to linked order owners with Telegram linked."
             default="1"
             class="btn-group btn-group-yesno"
         >
@@ -290,8 +290,8 @@
         <field
             name="telegram_webhook_public_base"
             type="text"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_WEBHOOK_PUBLIC_BASE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_WEBHOOK_PUBLIC_BASE_DESC"
+            label="Webhook public base URL (optional)"
+            description="HTTPS origin where Telegram POSTs updates (e.g. https://telegram.grantsolutions.cc). No trailing slash."
             hint="https://telegram.grantsolutions.cc"
             default="https://telegram.grantsolutions.cc"
             size="60"
@@ -300,8 +300,8 @@
         <field
             name="telegram_webhook_secret"
             type="password"
-            label="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_WEBHOOK_SECRET_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_TELEGRAM_WEBHOOK_SECRET_DESC"
+            label="Bot webhook secret"
+            description="Must match secret_token in Telegram setWebhook. Leave empty to reject all webhook calls."
             default=""
             size="60"
             filter="string"
@@ -309,14 +309,14 @@
     </fieldset>
     <fieldset
         name="clientes_odoo"
-        label="COM_ORDENPRODUCCION_CONFIG_ODOO_CONNECTION"
-        description="COM_ORDENPRODUCCION_CONFIG_ODOO_CONNECTION_DESC"
+        label="Odoo connection"
+        description="Configure the connection to your Odoo instance for Mis Clientes."
     >
         <field
             name="odoo_url"
             type="url"
-            label="COM_ORDENPRODUCCION_CONFIG_ODOO_URL_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_ODOO_URL_DESC"
+            label="Odoo URL"
+            description="Full URL to your Odoo XML-RPC endpoint."
             default=""
             size="80"
             filter="url"
@@ -324,8 +324,8 @@
         <field
             name="odoo_db"
             type="text"
-            label="COM_ORDENPRODUCCION_CONFIG_ODOO_DB_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_ODOO_DB_DESC"
+            label="Database name"
+            description="Your Odoo database name."
             default=""
             size="40"
             filter="string"
@@ -333,16 +333,16 @@
         <field
             name="odoo_user_id"
             type="number"
-            label="COM_ORDENPRODUCCION_CONFIG_ODOO_USER_ID_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_ODOO_USER_ID_DESC"
+            label="User ID"
+            description="Odoo user ID (numeric)."
             default="2"
             min="1"
         />
         <field
             name="odoo_api_key"
             type="password"
-            label="COM_ORDENPRODUCCION_CONFIG_ODOO_API_KEY_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_ODOO_API_KEY_DESC"
+            label="API key"
+            description="Odoo API key for authentication."
             default=""
             size="60"
             filter="string"
@@ -350,8 +350,8 @@
         <field
             name="contacts_per_page"
             type="number"
-            label="COM_ORDENPRODUCCION_CONFIG_CONTACTS_PER_PAGE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_CONTACTS_PER_PAGE_DESC"
+            label="Contacts per page"
+            description="Number of contacts to display per page in Mis Clientes."
             default="20"
             min="5"
             max="100"
@@ -359,8 +359,8 @@
         <field
             name="cotizacion_destination_url"
             type="url"
-            label="COM_ORDENPRODUCCION_CONFIG_COTIZACION_DESTINATION_URL_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_COTIZACION_DESTINATION_URL_DESC"
+            label="Quotation destination URL"
+            description="URL where quotation data is sent (opens in a new tab)."
             default=""
             size="80"
             filter="url"
@@ -368,8 +368,8 @@
         <field
             name="ote_destination_url"
             type="url"
-            label="COM_ORDENPRODUCCION_CONFIG_OTE_DESTINATION_URL_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_OTE_DESTINATION_URL_DESC"
+            label="External work order destination URL"
+            description="URL where external work order data is sent."
             default=""
             size="80"
             filter="url"
@@ -377,8 +377,8 @@
         <field
             name="clientes_list_show_ote"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_CLIENTES_LIST_SHOW_OTE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_CLIENTES_LIST_SHOW_OTE_DESC"
+            label="Show external work order on client list"
+            description="When enabled, Mis Clientes shows the external work order wizard button."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -388,19 +388,19 @@
         <field
             name="ot_destination_url"
             type="url"
-            label="COM_ORDENPRODUCCION_CONFIG_OT_DESTINATION_URL_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_OT_DESTINATION_URL_DESC"
+            label="Work order destination URL"
+            description="URL where work order data is sent."
             default=""
             size="80"
             filter="url"
         />
     </fieldset>
-    <fieldset name="blink" label="COM_ORDENPRODUCCION_CONFIG_BLINK_FIELDSET_LABEL">
+    <fieldset name="blink" label="Blink — card payment">
         <field
             name="blink_enabled"
             type="radio"
-            label="COM_ORDENPRODUCCION_CONFIG_BLINK_ENABLED_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_BLINK_ENABLED_DESC"
+            label="Enable Blink payments"
+            description="When Yes, the quotation view can create Pay Bi checkout links via the Blink gateway (server-side only)."
             default="0"
             class="btn-group btn-group-yesno"
         >
@@ -410,8 +410,8 @@
         <field
             name="blink_base_url"
             type="url"
-            label="COM_ORDENPRODUCCION_CONFIG_BLINK_BASE_URL_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_BLINK_BASE_URL_DESC"
+            label="Blink base URL"
+            description="Gateway server URL, e.g. http://blink.grupoimpre.com:3000. BLINK_BASE_URL env var overrides this."
             default="http://blink.grupoimpre.com:3000"
             size="80"
             filter="url"
@@ -419,8 +419,8 @@
         <field
             name="blink_api_key"
             type="password"
-            label="COM_ORDENPRODUCCION_CONFIG_BLINK_API_KEY_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_BLINK_API_KEY_DESC"
+            label="Blink API key (X-API-Key)"
+            description="Shared secret with the Blink server. BLINK_API_KEY env var overrides this."
             default=""
             size="50"
             filter="string"
@@ -428,8 +428,8 @@
         <field
             name="blink_paybi_usuario"
             type="text"
-            label="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_USUARIO_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_USUARIO_DESC"
+            label="Pay Bi — merchant email"
+            description="EBI Pay Bi merchant usuario (email). PAYBI_USUARIO env var overrides this."
             default=""
             size="60"
             filter="string"
@@ -437,8 +437,8 @@
         <field
             name="blink_paybi_clave"
             type="password"
-            label="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_CLAVE_LABEL"
-            description="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_CLAVE_DESC"
+            label="Pay Bi — password"
+            description="EBI Pay Bi merchant password. PAYBI_CLAVE env var overrides this. Never logged."
             default=""
             size="50"
             filter="string"
