@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.134-STABLE] - 2026-05-19
+
+### Added
+- **Control de Ventas → Ajustes:** new **Blink payment test** subtab (health check + Pay Bi test-login) using configured gateway credentials.
+
 ## [3.119.133-STABLE] - 2026-05-19
 
 ### Added

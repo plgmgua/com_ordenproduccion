@@ -27,6 +27,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\BlinkGatewayService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Joomla\Database\DatabaseInterface;
 
@@ -2768,5 +2769,74 @@ class AdministracionController extends BaseController
         }
 
         return Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=cola', false);
+    }
+
+    /**
+     * Blink gateway health check (JSON; Ajustes → Blink payment test).
+     *
+     * @return  void
+     *
+     * @since   3.119.134
+     */
+    public function blinkHealth(): void
+    {
+        $this->runBlinkGatewayJsonTask(static function () {
+            return (new BlinkGatewayService())->healthCheck();
+        });
+    }
+
+    /**
+     * Blink Pay Bi test-login (JSON; Ajustes → Blink payment test).
+     *
+     * @return  void
+     *
+     * @since   3.119.134
+     */
+    public function blinkTestLogin(): void
+    {
+        $this->runBlinkGatewayJsonTask(static function () {
+            return (new BlinkGatewayService())->testLogin();
+        });
+    }
+
+    /**
+     * @param   callable  $runner  Returns BlinkGatewayService result array
+     *
+     * @return  void
+     *
+     * @since   3.119.134
+     */
+    private function runBlinkGatewayJsonTask(callable $runner): void
+    {
+        $app = Factory::getApplication();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if (!Session::checkToken('request')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        try {
+            $result = $runner();
+            $payload = [
+                'http_code' => (int) ($result['http_code'] ?? 0),
+                'response'  => $result['data'] ?? ($result['raw'] ?? null),
+            ];
+            $this->sendAdministracionJson(
+                !empty($result['success']),
+                (string) ($result['message'] ?? ''),
+                $payload
+            );
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+        }
     }
 }
