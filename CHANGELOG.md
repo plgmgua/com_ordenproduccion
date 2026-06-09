@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.138-STABLE] - 2026-05-19
+
+### Added
+- **Facturas:** Super User can **reactivar** a system-voided invoice (undo in-app annulment); previous status is stored on void and restored when possible.
+
 ## [3.119.137-STABLE] - 2026-05-19
 
 ### Fixed

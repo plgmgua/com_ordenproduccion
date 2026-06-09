@@ -990,6 +990,56 @@ class InvoiceController extends BaseController
     }
 
     /**
+     * Super user only: undo in-app void and restore invoice to active status (does not affect SAT).
+     *
+     * POST: invoice_id
+     *
+     * @since  3.119.138
+     */
+    public function reactivarInvoice()
+    {
+        if (!Session::checkToken('post')) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isSuperUser()) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes', false));
+
+            return;
+        }
+
+        $invoiceId = $this->input->post->getInt('invoice_id', 0);
+        $back      = Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $invoiceId, false);
+
+        if ($invoiceId <= 0) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices', false));
+
+            return;
+        }
+
+        $model = $this->getModel('Invoice');
+        if (!$model || !method_exists($model, 'restoreActiveBySuperUser')) {
+            $this->app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $this->setRedirect($back);
+
+            return;
+        }
+
+        $ok = $model->restoreActiveBySuperUser($invoiceId, (int) Factory::getUser()->id);
+        $this->app->enqueueMessage(
+            $ok ? Text::_('COM_ORDENPRODUCCION_INVOICE_REACTIVAR_SUCCESS') : Text::_('COM_ORDENPRODUCCION_INVOICE_REACTIVAR_NOOP'),
+            $ok ? 'success' : 'notice'
+        );
+
+        $this->setRedirect($back);
+    }
+
+    /**
      * Super user only: unlink one work order from this invoice.
      * Allowed on voided (cancelled) invoices so OT links can be cleared without editing the invoice.
      *

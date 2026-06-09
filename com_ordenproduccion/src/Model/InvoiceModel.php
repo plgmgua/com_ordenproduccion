@@ -318,13 +318,22 @@ class InvoiceModel extends BaseDatabaseModel
 
         $db->setQuery(
             $db->getQuery(true)
-                ->select($db->quoteName('notes'))
+                ->select([
+                    $db->quoteName('notes'),
+                    $db->quoteName('status'),
+                ])
                 ->from($db->quoteName('#__ordenproduccion_invoices'))
                 ->where($db->quoteName('id') . ' = ' . $invoiceId)
         );
-        $prevNotes = (string) $db->loadResult();
+        $row = $db->loadObject();
+        if (!$row) {
+            return false;
+        }
+
+        $prevNotes   = (string) ($row->notes ?? '');
+        $prevStatus  = strtolower(trim((string) ($row->status ?? 'sent')));
         $now         = Factory::getDate()->toSql();
-        $noteAppend  = "\n[Anulada en sistema " . $now . ' por user_id=' . $userId . ']';
+        $noteAppend  = "\n[Anulada en sistema " . $now . ' por user_id=' . $userId . '; previous_status=' . $prevStatus . ']';
         $mergedNotes = trim($prevNotes . $noteAppend);
 
         $db->setQuery(
@@ -341,6 +350,90 @@ class InvoiceModel extends BaseDatabaseModel
         $db->execute();
 
         return $db->getAffectedRows() > 0;
+    }
+
+    /**
+     * Restore a system-voided invoice to active status. Super-user only; does not affect SAT.
+     *
+     * @return  bool  True if a row was updated
+     *
+     * @since   3.119.138
+     */
+    public function restoreActiveBySuperUser(int $invoiceId, int $userId): bool
+    {
+        $invoiceId = (int) $invoiceId;
+        $userId    = (int) $userId;
+        if ($invoiceId < 1 || $userId < 1) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('status') . ' = ' . $db->quote('cancelled'))
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            return false;
+        }
+
+        $restoreStatus = $this->resolveRestoreStatusFromCancelledInvoice($row);
+        $prevNotes     = (string) ($row->notes ?? '');
+        $now           = Factory::getDate()->toSql();
+        $noteAppend    = "\n[Reactivada en sistema " . $now . ' por user_id=' . $userId . '; restored_status=' . $restoreStatus . ']';
+        $mergedNotes   = trim($prevNotes . $noteAppend);
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_invoices'))
+                ->set($db->quoteName('status') . ' = ' . $db->quote($restoreStatus))
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . $userId)
+                ->set($db->quoteName('notes') . ' = ' . $db->quote($mergedNotes))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+                ->where($db->quoteName('status') . ' = ' . $db->quote('cancelled'))
+        );
+        $db->execute();
+
+        return $db->getAffectedRows() > 0;
+    }
+
+    /**
+     * Status to apply when undoing an in-app void.
+     *
+     * @param   object  $invoice  Row from #__ordenproduccion_invoices
+     *
+     * @return  string
+     *
+     * @since   3.119.138
+     */
+    private function resolveRestoreStatusFromCancelledInvoice(object $invoice): string
+    {
+        $allowed = ['draft', 'created', 'sent', 'paid'];
+        $notes   = (string) ($invoice->notes ?? '');
+
+        if (preg_match('/previous_status=([a-z]+)/i', $notes, $m)) {
+            $fromNote = strtolower(trim($m[1]));
+            if (in_array($fromNote, $allowed, true)) {
+                return $fromNote;
+            }
+        }
+
+        $source = strtolower(trim((string) ($invoice->invoice_source ?? '')));
+        if (in_array($source, ['fel_import', 'mockup', 'cotizacion_fel'], true)) {
+            return 'created';
+        }
+
+        if (!empty($invoice->fel_local_xml_path) || !empty($invoice->fel_response_json) || !empty($invoice->fel_receptor_nombre)) {
+            return 'created';
+        }
+
+        return 'sent';
     }
 }
 

@@ -92,6 +92,14 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
             <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
             <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_BUTTON'); ?></button>
         </form>
+        <?php elseif ($canSuperInvoice && $invoiceCancelled) : ?>
+        <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion'); ?>" class="d-inline"
+              onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_REACTIVAR_CONFIRM')); ?>);">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="task" value="invoice.reactivarInvoice" />
+            <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
+            <button type="submit" class="btn btn-outline-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_REACTIVAR_BUTTON'); ?></button>
+        </form>
         <?php endif; ?>
         <?php if (InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable()) : ?>
         <a href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl((int) ($item->id ?? 0)), ENT_QUOTES, 'UTF-8'); ?>"
