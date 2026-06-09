@@ -420,7 +420,7 @@
             name="blink_api_key"
             type="password"
             label="Blink API key (X-API-Key)"
-            description="Shared secret with the Blink server. BLINK_API_KEY env var overrides this."
+            description="Shared secret with the Blink server. Must match GATEWAY_API_KEY in the Blink server .env. BLINK_API_KEY or GATEWAY_API_KEY env var overrides this."
             default=""
             size="50"
             filter="string"

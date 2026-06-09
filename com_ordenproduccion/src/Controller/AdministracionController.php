@@ -2809,7 +2809,7 @@ class AdministracionController extends BaseController
     private function runBlinkGatewayJsonTask(callable $runner): void
     {
         $app = Factory::getApplication();
-        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+        \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper::loadLanguage();
 
         if (!Session::checkToken('request')) {
             $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
@@ -2826,13 +2826,22 @@ class AdministracionController extends BaseController
 
         try {
             $result = $runner();
+            $message = (string) ($result['message'] ?? '');
+            if ($message !== '' && strpos($message, 'COM_ORDENPRODUCCION_') === 0) {
+                $message = Text::_($message);
+            }
+
             $payload = [
                 'http_code' => (int) ($result['http_code'] ?? 0),
                 'response'  => $result['data'] ?? ($result['raw'] ?? null),
             ];
+            if (!empty($result['api_key_hint']) && \is_array($result['api_key_hint'])) {
+                $payload['api_key_hint'] = $result['api_key_hint'];
+            }
+
             $this->sendAdministracionJson(
                 !empty($result['success']),
-                (string) ($result['message'] ?? ''),
+                $message,
                 $payload
             );
         } catch (\Throwable $e) {

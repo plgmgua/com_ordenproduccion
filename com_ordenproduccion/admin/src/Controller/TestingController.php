@@ -84,8 +84,7 @@ class TestingController extends BaseController
     {
         $app = Factory::getApplication();
         $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
-        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
-        $app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR);
+        \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper::loadLanguage();
 
         if (!Session::checkToken('request')) {
             echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);

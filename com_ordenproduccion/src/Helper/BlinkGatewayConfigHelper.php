@@ -66,7 +66,37 @@ class BlinkGatewayConfigHelper
      */
     public static function getApiKey(): string
     {
-        return self::resolveSecret('BLINK_API_KEY', 'blink_api_key');
+        return self::resolveSecret(['BLINK_API_KEY', 'GATEWAY_API_KEY'], 'blink_api_key');
+    }
+
+    /**
+     * Safe diagnostics for troubleshooting 401 (no full secret exposed).
+     *
+     * @return  array{configured: bool, length: int, suffix: string}
+     */
+    public static function getApiKeyDiagnostics(): array
+    {
+        $key = self::getApiKey();
+
+        return [
+            'configured' => $key !== '',
+            'length'     => \strlen($key),
+            'suffix'     => $key !== '' ? \substr($key, -4) : '',
+        ];
+    }
+
+    /**
+     * Load component language strings (site + admin paths).
+     *
+     * @return  void
+     */
+    public static function loadLanguage(): void
+    {
+        $lang = Factory::getApplication()->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
+        $lang->load('com_ordenproduccion', JPATH_SITE);
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR);
     }
 
     /**
@@ -74,7 +104,7 @@ class BlinkGatewayConfigHelper
      */
     public static function getPayBiUsuario(): string
     {
-        return self::resolveSecret('PAYBI_USUARIO', 'blink_paybi_usuario');
+        return self::resolveSecret(['PAYBI_USUARIO'], 'blink_paybi_usuario');
     }
 
     /**
@@ -82,7 +112,7 @@ class BlinkGatewayConfigHelper
      */
     public static function getPayBiClave(): string
     {
-        return self::resolveSecret('PAYBI_CLAVE', 'blink_paybi_clave');
+        return self::resolveSecret(['PAYBI_CLAVE'], 'blink_paybi_clave');
     }
 
     /**
@@ -194,16 +224,18 @@ class BlinkGatewayConfigHelper
     }
 
     /**
-     * @param   string  $envName
-     * @param   string  $paramName
+     * @param   string|array<int, string>  $envNames
+     * @param   string                     $paramName
      *
      * @return  string
      */
-    private static function resolveSecret(string $envName, string $paramName): string
+    private static function resolveSecret($envNames, string $paramName): string
     {
-        $env = getenv($envName);
-        if ($env !== false && (string) $env !== '') {
-            return (string) $env;
+        foreach ((array) $envNames as $envName) {
+            $env = getenv($envName);
+            if ($env !== false && trim((string) $env) !== '') {
+                return trim((string) $env);
+            }
         }
 
         $val = trim((string) self::getFreshParams()->get($paramName, ''));

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.137-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink test-login 401:** clearer message (X-API-Key must match Blink `GATEWAY_API_KEY`), fixed untranslated error strings in JSON, `GATEWAY_API_KEY` env alias, trimmed secrets, optional `api_key_hint` (length + last 4 chars) in error payload.
+
 ## [3.119.136-STABLE] - 2026-05-19
 
 ### Fixed

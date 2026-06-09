@@ -27,6 +27,7 @@ class BlinkGatewayService
      */
     public function healthCheck(): array
     {
+        BlinkGatewayConfigHelper::loadLanguage();
         $baseUrl = BlinkGatewayConfigHelper::getBaseUrl();
         if ($baseUrl === '') {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_BASE_URL_MISSING')];
@@ -69,6 +70,7 @@ class BlinkGatewayService
      */
     public function testLogin(): array
     {
+        BlinkGatewayConfigHelper::loadLanguage();
         $cfg = BlinkGatewayConfigHelper::getSnapshot();
         if (empty($cfg['credentials_configured'])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
@@ -133,11 +135,17 @@ class BlinkGatewayService
             ];
         }
 
-        return $base + [
+        $fail = $base + [
             'success' => false,
             'message' => $this->extractErrorMessage($httpCode, $json, $rawBody),
             'data'    => self::redactResponse(\is_array($json) ? $json : ['body' => $rawBody]),
         ];
+
+        if ($httpCode === 401) {
+            $fail['api_key_hint'] = BlinkGatewayConfigHelper::getApiKeyDiagnostics();
+        }
+
+        return $fail;
     }
 
     /**
@@ -158,6 +166,7 @@ class BlinkGatewayService
         string $title = '',
         string $description = ''
     ): array {
+        BlinkGatewayConfigHelper::loadLanguage();
         $cfg = BlinkGatewayConfigHelper::getSnapshot();
         if (empty($cfg['configured'])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
@@ -276,7 +285,7 @@ class BlinkGatewayService
     protected function extractErrorMessage(int $httpCode, $json, string $rawBody): string
     {
         if ($httpCode === 401) {
-            return Text::_('COM_ORDENPRODUCCION_BLINK_ERROR_UNAUTHORIZED');
+            return Text::_('COM_ORDENPRODUCCION_BLINK_ERROR_UNAUTHORIZED_GATEWAY_KEY');
         }
         if ($httpCode === 429) {
             return Text::_('COM_ORDENPRODUCCION_BLINK_ERROR_RATE_LIMIT');
