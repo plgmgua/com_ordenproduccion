@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.139-STABLE] - 2026-05-19
+
+### Fixed
+- **Órdenes — selector PDF factura:** facturas anuladas en el sistema (`cancelled`) ya no aparecen en el diálogo ni en el botón «Ver factura».
+
 ## [3.119.138-STABLE] - 2026-05-19
 
 ### Added

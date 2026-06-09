@@ -304,6 +304,7 @@ class OrdenesModel extends ListModel
                     ])
                     ->from($db->quoteName('#__ordenproduccion_invoices'))
                     ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('status') . ' != ' . $db->quote('cancelled'))
                     ->where($db->quoteName('orden_id') . ' IN (' . $ids . ')')
                     ->where($db->quoteName('orden_id') . ' > 0')
                     ->order($db->quoteName('id') . ' DESC')
@@ -356,10 +357,44 @@ class OrdenesModel extends ListModel
         foreach ($lists as $oid => $invoiceIds) {
             $invoiceIds = array_values(array_unique(array_filter(array_map('intval', $invoiceIds), static fn ($id) => $id > 0)));
             rsort($invoiceIds, SORT_NUMERIC);
-            $lists[$oid] = $invoiceIds;
+            $lists[$oid] = $this->filterActiveLinkedInvoiceIds($invoiceIds);
         }
 
         return $lists;
+    }
+
+    /**
+     * Drop system-voided (cancelled) invoices from linked-invoice lists.
+     *
+     * @param   list<int>  $invoiceIds
+     *
+     * @return  list<int>
+     *
+     * @since   3.119.139
+     */
+    protected function filterActiveLinkedInvoiceIds(array $invoiceIds): array
+    {
+        $invoiceIds = array_values(array_unique(array_filter(array_map('intval', $invoiceIds), static fn ($id) => $id > 0)));
+        if ($invoiceIds === []) {
+            return [];
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__ordenproduccion_invoices'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where($db->quoteName('status') . ' != ' . $db->quote('cancelled'))
+                    ->where($db->quoteName('id') . ' IN (' . implode(',', $invoiceIds) . ')')
+            );
+            $activeSet = array_flip(array_map('intval', $db->loadColumn() ?: []));
+
+            return array_values(array_filter($invoiceIds, static fn ($id) => isset($activeSet[$id])));
+        } catch (\Throwable $e) {
+            return $invoiceIds;
+        }
     }
 
     /**
