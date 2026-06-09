@@ -27,18 +27,15 @@ class BlinkGatewayService
      */
     public function healthCheck(): array
     {
-        $cfg = BlinkGatewayConfigHelper::getSnapshot();
-        if (empty($cfg['credentials_configured'])) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
+        $baseUrl = BlinkGatewayConfigHelper::getBaseUrl();
+        if ($baseUrl === '') {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_BASE_URL_MISSING')];
         }
 
         try {
             $http     = HttpFactory::getHttp();
-            $response = $http->get(
-                $cfg['base_url'] . '/health',
-                ['X-API-Key' => $cfg['api_key']],
-                15
-            );
+            // GET /health — no X-API-Key required (Blink gateway spec).
+            $response = $http->get($baseUrl . '/health', [], 15);
             $code = (int) ($response->code ?? 0);
             $body = (string) ($response->body ?? '');
             $json = json_decode($body, true);
@@ -123,17 +120,17 @@ class BlinkGatewayService
     {
         $base = ['http_code' => $httpCode];
 
-        if (($httpCode === 200 || $httpCode === 201) && \is_array($json)) {
-            $explicitFail = isset($json['success']) && $json['success'] === false;
-            $hasError     = !empty($json['error']) && \is_string($json['error']);
-
-            if (!$explicitFail && !$hasError) {
-                return $base + [
-                    'success' => true,
-                    'message' => Text::_('COM_ORDENPRODUCCION_BLINK_TEST_LOGIN_OK'),
-                    'data'    => self::redactResponse($json),
-                ];
+        if ($httpCode === 200 && \is_array($json) && !empty($json['success'])) {
+            $message = Text::_('COM_ORDENPRODUCCION_BLINK_TEST_LOGIN_OK');
+            if (!empty($json['message']) && \is_string($json['message'])) {
+                $message = $json['message'];
             }
+
+            return $base + [
+                'success' => true,
+                'message' => $message,
+                'data'    => self::redactResponse($json),
+            ];
         }
 
         return $base + [
@@ -334,7 +331,11 @@ class BlinkGatewayService
             $out['credentials'] = [
                 'usuario' => isset($out['credentials']['usuario']) ? '***' : '',
                 'clave'   => '***',
+                'key'     => '***',
             ];
+        }
+        if (isset($out['data']) && \is_array($out['data']) && isset($out['data']['tokenPreview'])) {
+            $out['data']['tokenPreview'] = '***';
         }
 
         return $out;

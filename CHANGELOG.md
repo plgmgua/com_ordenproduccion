@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.136-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink gateway:** `GET /health` no longer sends `X-API-Key` or requires Pay Bi credentials; test-login success parsing matches API (`success: true` on HTTP 200).
+
 ## [3.119.135-STABLE] - 2026-05-19
 
 ### Fixed
