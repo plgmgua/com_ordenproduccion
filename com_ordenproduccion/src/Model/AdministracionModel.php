@@ -323,10 +323,10 @@ class AdministracionModel extends BaseDatabaseModel
      *
      * @since   3.6.0
      */
-    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $limit = 0, $offset = 0, $paymentStatus = '')
+    public function getReportWorkOrders($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $limit = 0, $offset = 0, $paymentStatus = '', $hideZeroDiferencia = false)
     {
         $db = Factory::getDbo();
-        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus);
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus, $hideZeroDiferencia);
         $totalPaidSub = $this->getReportTotalPaidSubquery($db, 'o.id');
         $paymentNumbersSub = $this->getReportPaymentRecordNumbersSubquery($db, 'o.id');
         $query->select([
@@ -360,10 +360,10 @@ class AdministracionModel extends BaseDatabaseModel
      * @return  int
      * @since   3.78.0
      */
-    public function getReportWorkOrdersTotal($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '')
+    public function getReportWorkOrdersTotal($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '', $hideZeroDiferencia = false)
     {
         $db = Factory::getDbo();
-        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus);
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus, $hideZeroDiferencia);
         $query->select('COUNT(*)');
         $db->setQuery($query);
         return (int) $db->loadResult();
@@ -381,10 +381,10 @@ class AdministracionModel extends BaseDatabaseModel
      * @return  float
      * @since   3.78.0
      */
-    public function getReportWorkOrdersTotalValue($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '')
+    public function getReportWorkOrdersTotalValue($dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '', $hideZeroDiferencia = false)
     {
         $db = Factory::getDbo();
-        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus);
+        $query = $this->buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName, $nit, $salesAgent, $paymentStatus, $hideZeroDiferencia);
         $query->select('COALESCE(SUM(CAST(' . $db->quoteName('o.invoice_value') . ' AS DECIMAL(15,2))), 0)');
         $db->setQuery($query);
         return (float) $db->loadResult();
@@ -399,12 +399,13 @@ class AdministracionModel extends BaseDatabaseModel
      * @param   string  $clientName
      * @param   string  $nit
      * @param   string  $salesAgent
-     * @param   string  $paymentStatus  '' = all, 'paid' = fully paid, 'unpaid' = no payment, 'balance_due' = has payment but balance remaining
+     * @param   string  $paymentStatus       '' = all, 'paid' = fully paid, 'unpaid' = no payment, 'balance_due' = has payment but balance remaining
+     * @param   bool    $hideZeroDiferencia  When true, exclude rows where paid amount matches invoice value (diferencia = 0)
      *
      * @return  \Joomla\Database\DatabaseQuery
      * @since   3.78.0
      */
-    protected function buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '')
+    protected function buildReportWorkOrdersQuery($db, $dateFrom, $dateTo, $clientName = '', $nit = '', $salesAgent = '', $paymentStatus = '', $hideZeroDiferencia = false)
     {
         $query = $db->getQuery(true)
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
@@ -435,6 +436,12 @@ class AdministracionModel extends BaseDatabaseModel
         } elseif ($paymentStatus === 'balance_due') {
             $query->where('(' . $totalPaidSub . ') > 0');
             $query->where('(' . $totalPaidSub . ') < CAST(' . $invoiceCol . ' AS DECIMAL(15,2)) - 0.01');
+        }
+
+        if ($hideZeroDiferencia) {
+            $query->where(
+                'ABS((' . $totalPaidSub . ') - CAST(' . $invoiceCol . ' AS DECIMAL(15,2))) >= 0.01'
+            );
         }
 
         return $query;

@@ -226,6 +226,15 @@ class HtmlView extends BaseHtmlView
     protected $reportPaymentStatus = '';
 
     /**
+     * Report: hide rows where diferencia (paid - invoice) is zero.
+     *
+     * @var bool
+     *
+     * @since 3.119.143
+     */
+    protected $reportHideZeroDiferencia = false;
+
+    /**
      * Report pagination (total, limit, limitstart)
      *
      * @var    \Joomla\CMS\Pagination\Pagination|null
@@ -1307,6 +1316,7 @@ class HtmlView extends BaseHtmlView
         $this->reportNit = '';
         $this->reportSalesAgent = '';
         $this->reportPaymentStatus = '';
+        $this->reportHideZeroDiferencia = false;
         $this->reportSalesAgents = [];
         $this->reportSubTab = 'ordenes';
         $this->envios = [];
@@ -1749,6 +1759,7 @@ class HtmlView extends BaseHtmlView
                 // Ventas: force filter to own agent; Administracion: use request filter
                 $this->reportSalesAgent = $salesAgentFilter !== null ? $salesAgentFilter : $input->getString('filter_report_sales_agent', '');
                 $this->reportPaymentStatus = $input->getString('filter_report_payment_status', '');
+                $this->reportHideZeroDiferencia = $input->getInt('filter_report_hide_zero_diferencia', 0) === 1;
                 $this->reportLimit = max(5, min(100, (int) $input->getInt('report_limit', 20)));
                 $this->reportLimitStart = max(0, (int) $input->getInt('report_limitstart', 0));
                 $this->reportTotal = $statsModel->getReportWorkOrdersTotal(
@@ -1757,7 +1768,8 @@ class HtmlView extends BaseHtmlView
                     $this->reportClient,
                     $this->reportNit,
                     $this->reportSalesAgent,
-                    $this->reportPaymentStatus
+                    $this->reportPaymentStatus,
+                    $this->reportHideZeroDiferencia
                 );
                 $this->reportTotalValue = $statsModel->getReportWorkOrdersTotalValue(
                     $this->reportDateFrom,
@@ -1765,7 +1777,8 @@ class HtmlView extends BaseHtmlView
                     $this->reportClient,
                     $this->reportNit,
                     $this->reportSalesAgent,
-                    $this->reportPaymentStatus
+                    $this->reportPaymentStatus,
+                    $this->reportHideZeroDiferencia
                 );
                 $this->reportWorkOrders = $statsModel->getReportWorkOrders(
                     $this->reportDateFrom,
@@ -1775,7 +1788,8 @@ class HtmlView extends BaseHtmlView
                     $this->reportSalesAgent,
                     $this->reportLimit,
                     $this->reportLimitStart,
-                    $this->reportPaymentStatus
+                    $this->reportPaymentStatus,
+                    $this->reportHideZeroDiferencia
                 );
                 $this->reportPagination = new \Joomla\CMS\Pagination\Pagination(
                     $this->reportTotal,
@@ -1792,6 +1806,9 @@ class HtmlView extends BaseHtmlView
                 $this->reportPagination->setAdditionalUrlParam('filter_report_nit', $this->reportNit);
                 $this->reportPagination->setAdditionalUrlParam('filter_report_sales_agent', $this->reportSalesAgent);
                 $this->reportPagination->setAdditionalUrlParam('filter_report_payment_status', $this->reportPaymentStatus);
+                if ($this->reportHideZeroDiferencia) {
+                    $this->reportPagination->setAdditionalUrlParam('filter_report_hide_zero_diferencia', '1');
+                }
             } catch (\Exception $e) {
                 $app->enqueueMessage('Error loading report: ' . $e->getMessage(), 'error');
                 $this->reportWorkOrders = [];

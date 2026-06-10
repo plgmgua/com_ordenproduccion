@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.143-STABLE] - 2026-05-19
+
+### Added
+- **Reportes → Órdenes:** checkbox to hide rows where **Diferencia** is zero (applies to on-screen list and Excel export).
+
 ## [3.119.142-STABLE] - 2026-05-19
 
 ### Fixed

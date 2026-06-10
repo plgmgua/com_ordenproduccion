@@ -26,6 +26,7 @@ $reportClient = $this->reportClient ?? '';
 $reportNit = $this->reportNit ?? '';
 $reportSalesAgent = $this->reportSalesAgent ?? '';
 $reportPaymentStatus = $this->reportPaymentStatus ?? '';
+$reportHideZeroDiferencia = !empty($this->reportHideZeroDiferencia);
 $reportSalesAgents = $this->reportSalesAgents ?? [];
 $reportPagination = $this->reportPagination ?? null;
 $reportTotal = (int) ($this->reportTotal ?? 0);
@@ -60,7 +61,8 @@ $exportReportUrl = Route::_(
     '&filter_report_client=' . rawurlencode($reportClient) .
     '&filter_report_nit=' . rawurlencode($reportNit) .
     '&filter_report_sales_agent=' . rawurlencode($reportSalesAgent) .
-    '&filter_report_payment_status=' . rawurlencode($reportPaymentStatus),
+    '&filter_report_payment_status=' . rawurlencode($reportPaymentStatus) .
+    ($reportHideZeroDiferencia ? '&filter_report_hide_zero_diferencia=1' : ''),
     false
 );
 
@@ -487,6 +489,14 @@ function safeEscape($value, $default = '')
                            placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_ALL_CLIENTS'); ?>"
                            aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" />
                     <ul id="reportes-suggestions" class="reportes-suggestions" role="listbox" aria-label="<?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_CLIENT'); ?>" hidden></ul>
+                </label>
+                <label class="reportes-hide-zero-diferencia-wrap d-flex flex-row align-items-center gap-2 mb-0">
+                    <input type="checkbox"
+                           name="filter_report_hide_zero_diferencia"
+                           id="filter_report_hide_zero_diferencia"
+                           value="1"
+                           <?php echo $reportHideZeroDiferencia ? 'checked="checked"' : ''; ?> />
+                    <span><?php echo Text::_('COM_ORDENPRODUCCION_REPORTES_HIDE_ZERO_DIFERENCIA'); ?></span>
                 </label>
             </div>
             <div class="reportes-buttons-row">

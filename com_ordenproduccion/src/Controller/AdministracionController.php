@@ -62,6 +62,7 @@ class AdministracionController extends BaseController
         $nit = $app->input->getString('filter_report_nit', '');
         $salesAgent = $app->input->getString('filter_report_sales_agent', '');
         $paymentStatus = $app->input->getString('filter_report_payment_status', '');
+        $hideZeroDiferencia = $app->input->getInt('filter_report_hide_zero_diferencia', 0) === 1;
         // Ventas: only export own data
         $salesAgentFilter = AccessHelper::getSalesAgentFilter();
         if ($salesAgentFilter !== null) {
@@ -70,7 +71,7 @@ class AdministracionController extends BaseController
 
         try {
             $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
-            $rows = $model->getReportWorkOrders($dateFrom, $dateTo, $client, $nit, $salesAgent, 0, 0, $paymentStatus);
+            $rows = $model->getReportWorkOrders($dateFrom, $dateTo, $client, $nit, $salesAgent, 0, 0, $paymentStatus, $hideZeroDiferencia);
         } catch (\Exception $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_REPORTES_EXPORT_ERROR'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=reportes', false));
