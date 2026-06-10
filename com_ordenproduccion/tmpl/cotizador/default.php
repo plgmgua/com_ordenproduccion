@@ -54,6 +54,8 @@ if (strpos($labelProveedorExterno, 'COM_ORDENPRODUCCION_') === 0) {
     $labelProveedorExterno = 'Proveedor Externo';
 }
 $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
+$imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this->imprentaParametrosConfigured);
+$parametrosAdminUrl = Route::_('index.php?option=com_ordenproduccion&view=productos&section=parametros', false);
 ?>
 
 <div class="com-ordenproduccion-precotizacion-list container py-4">
@@ -61,10 +63,19 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
 
     <p class="lead"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_DESC'); ?></p>
 
+    <?php if (!$imprentaParamsOk) : ?>
+    <div class="alert alert-warning" role="alert">
+        <?php echo htmlspecialchars(\Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper::getPreCotizacionBlockedMessage()); ?>
+        <a href="<?php echo htmlspecialchars($parametrosAdminUrl, ENT_QUOTES, 'UTF-8'); ?>" class="alert-link ms-1">
+            <?php echo Text::_('COM_ORDENPRODUCCION_PARAMETROS_GO_CONFIGURE'); ?>
+        </a>
+    </div>
+    <?php endif; ?>
+
     <div class="mb-3">
         <form action="<?php echo htmlspecialchars($addFromTemplateUrl); ?>" method="post" class="d-flex flex-nowrap align-items-center gap-2">
             <?php echo HTMLHelper::_('form.token'); ?>
-            <select name="template_id" id="new-precotizacion-template" class="form-select" style="width: auto; max-width: 360px;">
+            <select name="template_id" id="new-precotizacion-template" class="form-select" style="width: auto; max-width: 360px;"<?php echo $imprentaParamsOk ? '' : ' disabled'; ?>>
                 <option value="0"><?php echo htmlspecialchars($labelNewBlank); ?></option>
                 <option value="-1"><?php echo htmlspecialchars($labelProveedorExterno); ?></option>
                 <?php
@@ -87,7 +98,7 @@ $salesAgentOpts = $this->salesAgentFilterOptions ?? [];
                 <option value="<?php echo (int) $tpl->id; ?>"><?php echo htmlspecialchars($optLabel); ?></option>
                 <?php endforeach; ?>
             </select>
-            <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NEW'); ?></button>
+            <button type="submit" class="btn btn-primary"<?php echo $imprentaParamsOk ? '' : ' disabled'; ?>><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NEW'); ?></button>
         </form>
     </div>
 

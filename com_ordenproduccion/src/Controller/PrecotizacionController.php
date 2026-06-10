@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\OrdencompraModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
@@ -274,6 +275,12 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
+        if (!ImprentaParametrosHelper::areConfiguredForPreCotizacion()) {
+            $this->setMessage(ImprentaParametrosHelper::getPreCotizacionBlockedMessage(), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
         $model = $this->getModel('Precotizacion', 'Site');
         $id = $model->create();
 
@@ -309,6 +316,12 @@ class PrecotizacionController extends BaseController
             $this->setRedirect(Route::_('index.php?option=com_users&view=login', false));
             return false;
         }
+        if (!ImprentaParametrosHelper::areConfiguredForPreCotizacion()) {
+            $this->setMessage(ImprentaParametrosHelper::getPreCotizacionBlockedMessage(), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador', false));
+            return false;
+        }
+
         // Read as string first so template_id=-1 is not lost if the input filter treats it as unsigned.
         $templateId = (int) $app->input->post->get('template_id', '0', 'string');
         $model = $this->getModel('Precotizacion', 'Site');

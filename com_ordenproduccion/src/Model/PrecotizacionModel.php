@@ -2502,6 +2502,10 @@ class PrecotizacionModel extends ListModel
             return false;
         }
 
+        if (!\Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper::areConfiguredForPreCotizacion()) {
+            return false;
+        }
+
         $number = $this->getNextNumber();
         $db     = $this->getDatabase();
         $data   = (object) [
@@ -2537,6 +2541,10 @@ class PrecotizacionModel extends ListModel
     {
         $user = Factory::getUser();
         if ($user->guest) {
+            return false;
+        }
+
+        if (!\Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper::areConfiguredForPreCotizacion()) {
             return false;
         }
 
@@ -2633,6 +2641,11 @@ class PrecotizacionModel extends ListModel
         if ($user->guest) {
             return false;
         }
+
+        if (!\Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper::areConfiguredForPreCotizacion()) {
+            return false;
+        }
+
         $db = $this->getDatabase();
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
         $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];

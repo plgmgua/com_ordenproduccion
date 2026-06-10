@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -558,7 +559,11 @@ class ProductosController extends BaseController
         if ($msg === 'COM_ORDENPRODUCCION_PARAMETROS_SAVED') {
             $msg = 'Parámetros guardados correctamente.';
         }
-        $this->setRedirectParametros($msg, 'success');
+        Factory::getApplication()->enqueueMessage($msg, 'success');
+        if (!ImprentaParametrosHelper::areConfiguredForPreCotizacion($params)) {
+            Factory::getApplication()->enqueueMessage(ImprentaParametrosHelper::getAdminWarningMessage($params), 'warning');
+        }
+        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=parametros', false));
     }
 
     /**

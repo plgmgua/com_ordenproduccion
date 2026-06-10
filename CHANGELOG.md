@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.140-STABLE] - 2026-05-19
+
+### Added
+- **Imprenta → Parámetros:** fail-safe blocks new pre-cotizaciones when Margen local, IVA, ISR, Comisión de venta, or Comisión de margen adicional is 0; admin warning on Parámetros screen and pre-cotización list.
+
 ## [3.119.139-STABLE] - 2026-05-19
 
 ### Fixed

@@ -34,6 +34,7 @@ $iva = isset($this->iva) ? (float) $this->iva : 0;
 $isr = isset($this->isr) ? (float) $this->isr : 0;
 $comisionVenta = isset($this->comisionVenta) ? (float) $this->comisionVenta : 0;
 $comisionMargenAdicional = isset($this->comisionMargenAdicional) ? (float) $this->comisionMargenAdicional : 0;
+$imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this->imprentaParametrosConfigured);
 ?>
 <div class="com-ordenproduccion-productos">
     <div class="container-fluid">
@@ -76,6 +77,12 @@ $comisionMargenAdicional = isset($this->comisionMargenAdicional) ? (float) $this
                 </a>
             </li>
         </ul>
+
+        <?php if (!$imprentaParamsOk) : ?>
+        <div class="alert alert-danger mb-3" role="alert">
+            <?php echo htmlspecialchars(\Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper::getAdminWarningMessage()); ?>
+        </div>
+        <?php endif; ?>
 
         <div class="parametros-form-wrap">
             <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&view=productos&section=parametros'); ?>"

@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Cotizador;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
@@ -614,6 +615,8 @@ class HtmlView extends BaseHtmlView
             $this->hasOfertaColumn   = isset($pcColsLc['oferta']);
             $this->showSalesAgentColumn = AccessHelper::canViewAllPrecotizaciones();
             $this->templates = $precotModel->getTemplates();
+            $this->imprentaParametrosConfigured   = ImprentaParametrosHelper::areConfiguredForPreCotizacion();
+            $this->imprentaParametrosMissingLabels = ImprentaParametrosHelper::getMissingParamLabels();
             $ids = [];
             foreach ($this->items as $it) {
                 $ids[] = (int) $it->id;
