@@ -130,13 +130,18 @@ class AdministracionController extends BaseController
         $out = fopen('php://output', 'w');
         fprintf($out, "\xEF\xBB\xBF");
         fputcsv($out, $cols);
+        $sumInvoice = 0.0;
+        $sumPaid = 0.0;
+        $sumDiferencia = 0.0;
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
             $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
-            $diferencia = $totalPaid - $invoiceVal;
-            $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
+            $diferencia = round($totalPaid - $invoiceVal, 2);
+            $sumInvoice += $invoiceVal;
+            $sumPaid += $totalPaid;
+            $sumDiferencia += $diferencia;
             fputcsv($out, [
                 $row->orden_de_trabajo ?? '',
                 $row->client_name ?? '',
@@ -144,8 +149,20 @@ class AdministracionController extends BaseController
                 $deliveryDate,
                 $row->work_description ?? '',
                 number_format($invoiceVal, 2, '.', ''),
-                $paymentCol,
+                number_format($totalPaid, 2, '.', ''),
                 number_format($diferencia, 2, '.', ''),
+            ]);
+        }
+        if ($rows !== []) {
+            fputcsv($out, [
+                'Total',
+                '',
+                '',
+                '',
+                '',
+                number_format($sumInvoice, 2, '.', ''),
+                number_format($sumPaid, 2, '.', ''),
+                number_format($sumDiferencia, 2, '.', ''),
             ]);
         }
         fclose($out);
@@ -170,35 +187,58 @@ class AdministracionController extends BaseController
         $sheet->setTitle('Reporte órdenes');
 
         $sheet->fromArray($cols, null, 'A1');
-        $headerStyle = $sheet->getStyle('A1:H1');
-        $headerStyle->getFont()->setBold(true);
-        $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-        $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
 
         $rowIndex = 2;
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
-            $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0;
-            $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0;
-            $diferencia = $totalPaid - $invoiceVal;
-            $paymentCol = !empty($row->payment_record_numbers) ? $row->payment_record_numbers : '—';
+            $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0.0;
+            $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0.0;
+            $diferencia = round($totalPaid - $invoiceVal, 2);
+
             $sheet->fromArray([
                 $row->orden_de_trabajo ?? '',
                 $row->client_name ?? '',
                 $requestDate,
                 $deliveryDate,
                 $row->work_description ?? '',
-                number_format($invoiceVal, 2, '.', ''),
-                $paymentCol,
-                number_format($diferencia, 2, '.', ''),
+                $invoiceVal,
+                $totalPaid,
+                $diferencia,
             ], null, 'A' . $rowIndex);
             $rowIndex++;
         }
 
-        foreach (range('A', 'H') as $col) {
+        $lastDataRow = max(1, $rowIndex - 1);
+        $totalsRow   = $lastDataRow + 1;
+        $tableName   = 'ReporteOrdenes';
+        $tableRange  = 'A1:H' . $totalsRow;
+
+        $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table($tableRange, $tableName);
+        $table->setShowHeaderRow(true);
+        $table->setShowTotalsRow(true);
+        $table->getColumn('A')->setTotalsRowLabel('Total');
+        $table->getColumn('F')->setTotalsRowFunction('sum');
+        $table->getColumn('G')->setTotalsRowFunction('sum');
+        $table->getColumn('H')->setTotalsRowFunction('sum');
+
+        $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
+        $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
+        $tableStyle->setShowRowStripes(true);
+        $table->setStyle($tableStyle);
+        $sheet->addTable($table);
+
+        $numFormat = '#,##0.00';
+        if ($lastDataRow >= 2) {
+            $sheet->getStyle('F2:H' . $totalsRow)->getNumberFormat()->setFormatCode($numFormat);
+        }
+
+        $defaultColWidth = 8.43;
+        foreach (['A', 'B', 'C', 'D', 'F', 'G', 'H'] as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
+        $sheet->getColumnDimension('E')->setAutoSize(false);
+        $sheet->getColumnDimension('E')->setWidth($defaultColWidth * 2);
 
         $filename = 'reporte-ordenes-' . date('Y-m-d-His') . '.xlsx';
         @ob_clean();

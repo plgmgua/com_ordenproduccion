@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.141-STABLE] - 2026-05-19
+
+### Changed
+- **Reportes → Órdenes — Exportar Excel:** formatted Excel table with totals row (Q., Pagado, Diferencia); column E (descripción) fixed at double standard width.
+
 ## [3.119.140-STABLE] - 2026-05-19
 
 ### Added
