@@ -188,13 +188,20 @@ class AdministracionController extends BaseController
 
         $sheet->fromArray($cols, null, 'A1');
 
-        $rowIndex = 2;
+        $rowIndex      = 2;
+        $sumInvoice    = 0.0;
+        $sumPaid       = 0.0;
+        $sumDiferencia = 0.0;
+
         foreach ($rows as $row) {
             $requestDate = !empty($row->request_date) ? Factory::getDate($row->request_date)->format('Y-m-d') : '';
             $deliveryDate = !empty($row->delivery_date) ? Factory::getDate($row->delivery_date)->format('Y-m-d') : '';
             $invoiceVal = isset($row->invoice_value) ? (float) $row->invoice_value : 0.0;
             $totalPaid = isset($row->total_paid) ? (float) $row->total_paid : 0.0;
             $diferencia = round($totalPaid - $invoiceVal, 2);
+            $sumInvoice += $invoiceVal;
+            $sumPaid += $totalPaid;
+            $sumDiferencia += $diferencia;
 
             $sheet->fromArray([
                 $row->orden_de_trabajo ?? '',
@@ -210,17 +217,30 @@ class AdministracionController extends BaseController
         }
 
         $lastDataRow = max(1, $rowIndex - 1);
-        $totalsRow   = $lastDataRow + 1;
+        $totalsRow   = $rowIndex;
         $tableName   = 'ReporteOrdenes';
-        $tableRange  = 'A1:H' . $totalsRow;
 
+        if ($rows !== []) {
+            // PhpSpreadsheet does not always emit totals formulas; write the footer row explicitly.
+            $sheet->setCellValue('A' . $totalsRow, 'Total');
+            $sheet->setCellValue('F' . $totalsRow, round($sumInvoice, 2));
+            $sheet->setCellValue('G' . $totalsRow, round($sumPaid, 2));
+            $sheet->setCellValue('H' . $totalsRow, round($sumDiferencia, 2));
+            $sheet->getStyle('A' . $totalsRow . ':H' . $totalsRow)->getFont()->setBold(true);
+        } else {
+            $totalsRow = $lastDataRow;
+        }
+
+        $tableRange = 'A1:H' . $totalsRow;
         $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table($tableRange, $tableName);
         $table->setShowHeaderRow(true);
-        $table->setShowTotalsRow(true);
-        $table->getColumn('A')->setTotalsRowLabel('Total');
-        $table->getColumn('F')->setTotalsRowFunction('sum');
-        $table->getColumn('G')->setTotalsRowFunction('sum');
-        $table->getColumn('H')->setTotalsRowFunction('sum');
+        $table->setShowTotalsRow($rows !== []);
+        if ($rows !== []) {
+            $table->getColumn('A')->setTotalsRowLabel('Total');
+            $table->getColumn('F')->setTotalsRowFunction('sum');
+            $table->getColumn('G')->setTotalsRowFunction('sum');
+            $table->getColumn('H')->setTotalsRowFunction('sum');
+        }
 
         $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
         $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
@@ -229,7 +249,7 @@ class AdministracionController extends BaseController
         $sheet->addTable($table);
 
         $numFormat = '#,##0.00';
-        if ($lastDataRow >= 2) {
+        if ($rows !== []) {
             $sheet->getStyle('F2:H' . $totalsRow)->getNumberFormat()->setFormatCode($numFormat);
         }
 

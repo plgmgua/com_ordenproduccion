@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.142-STABLE] - 2026-05-19
+
+### Fixed
+- **Reportes → Órdenes Excel:** totals row (Q., Pagado, Diferencia) is now written explicitly at the bottom of the table.
+
 ## [3.119.141-STABLE] - 2026-05-19
 
 ### Changed
