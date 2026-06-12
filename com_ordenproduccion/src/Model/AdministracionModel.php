@@ -5929,7 +5929,7 @@ class AdministracionModel extends BaseDatabaseModel
     /**
      * MT-940 mailbox / IMAP settings (stored in #__ordenproduccion_config as mt940_*).
      *
-     * @return  array<string, string|int>
+     * @return  array<string, mixed>
      *
      * @since   3.119.146
      */
@@ -5944,19 +5944,18 @@ class AdministracionModel extends BaseDatabaseModel
             'imap_username'   => 'mt940_imap_username',
             'imap_password'   => 'mt940_imap_password',
             'sender_email'    => 'mt940_sender_email',
-            'bank_account_id' => 'mt940_bank_account_id',
         ];
 
         $out = [
-            'enabled'         => '0',
-            'mailbox_email'   => '',
-            'imap_host'       => '',
-            'imap_port'       => '993',
-            'imap_encryption' => 'ssl',
-            'imap_username'   => '',
-            'imap_password'   => '',
-            'sender_email'    => Mt940ImapHelper::DEFAULT_SENDER_EMAIL,
-            'bank_account_id' => '0',
+            'enabled'           => '0',
+            'mailbox_email'     => '',
+            'imap_host'         => '',
+            'imap_port'         => '993',
+            'imap_encryption'   => 'ssl',
+            'imap_username'     => '',
+            'imap_password'     => '',
+            'sender_email'      => Mt940ImapHelper::DEFAULT_SENDER_EMAIL,
+            'bank_account_ids'  => [],
         ];
 
         foreach ($keys as $field => $settingKey) {
@@ -5973,7 +5972,80 @@ class AdministracionModel extends BaseDatabaseModel
             $out['sender_email'] = Mt940ImapHelper::DEFAULT_SENDER_EMAIL;
         }
 
+        $out['bank_account_ids'] = $this->parseMt940BankAccountIds(
+            $this->getOrdenproduccionConfigValue('mt940_bank_account_ids'),
+            $this->getOrdenproduccionConfigValue('mt940_bank_account_id')
+        );
+
         return $out;
+    }
+
+    /**
+     * Active bank account ids configured for MT-940 import.
+     *
+     * @return  array<int>
+     *
+     * @since   3.119.148
+     */
+    public function getMt940BankAccountIds(): array
+    {
+        $settings = $this->getMt940Settings();
+        $ids      = $settings['bank_account_ids'] ?? [];
+
+        return \is_array($ids) ? $this->normalizeMt940BankAccountIds($ids) : [];
+    }
+
+    /**
+     * @param   mixed  $raw  Posted bank_account_ids
+     *
+     * @return  array<int>
+     *
+     * @since   3.119.148
+     */
+    public function normalizeMt940BankAccountIds($raw): array
+    {
+        if (!\is_array($raw)) {
+            if (\is_string($raw) && $raw !== '') {
+                $raw = \array_map('trim', \explode(',', $raw));
+            } else {
+                $raw = [];
+            }
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            $id = (int) $value;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+
+        \sort($ids);
+
+        return \array_values(\array_unique($ids));
+    }
+
+    /**
+     * @param   string  $jsonRaw       mt940_bank_account_ids config value
+     * @param   string  $legacySingle  mt940_bank_account_id config value
+     *
+     * @return  array<int>
+     *
+     * @since   3.119.148
+     */
+    private function parseMt940BankAccountIds(string $jsonRaw, string $legacySingle): array
+    {
+        $jsonRaw = \trim($jsonRaw);
+        if ($jsonRaw !== '') {
+            $decoded = \json_decode($jsonRaw, true);
+            if (\is_array($decoded)) {
+                return $this->normalizeMt940BankAccountIds($decoded);
+            }
+        }
+
+        $legacy = (int) $legacySingle;
+
+        return $legacy > 0 ? [$legacy] : [];
     }
 
     /**
@@ -6012,7 +6084,10 @@ class AdministracionModel extends BaseDatabaseModel
             $sender = Mt940ImapHelper::DEFAULT_SENDER_EMAIL;
         }
         $this->upsertOrdenproduccionConfigValue('mt940_sender_email', $sender);
-        $this->upsertOrdenproduccionConfigValue('mt940_bank_account_id', (string) max(0, (int) ($data['bank_account_id'] ?? 0)));
+
+        $bankAccountIds = $this->normalizeMt940BankAccountIds($data['bank_account_ids'] ?? []);
+        $this->upsertOrdenproduccionConfigValue('mt940_bank_account_ids', \json_encode($bankAccountIds));
+        $this->upsertOrdenproduccionConfigValue('mt940_bank_account_id', (string) ($bankAccountIds[0] ?? 0));
 
         return true;
     }

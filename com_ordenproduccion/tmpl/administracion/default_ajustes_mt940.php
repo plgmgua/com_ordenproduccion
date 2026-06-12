@@ -34,7 +34,15 @@ $imapPort        = (string) ($settings['imap_port'] ?? '993');
 $imapEncryption  = (string) ($settings['imap_encryption'] ?? 'ssl');
 $imapUsername    = (string) ($settings['imap_username'] ?? '');
 $senderEmail     = (string) ($settings['sender_email'] ?? Mt940ImapHelper::DEFAULT_SENDER_EMAIL);
-$bankAccountId   = (int) ($settings['bank_account_id'] ?? 0);
+$selectedBankAccountIds = [];
+if (isset($settings['bank_account_ids']) && \is_array($settings['bank_account_ids'])) {
+    foreach ($settings['bank_account_ids'] as $id) {
+        $id = (int) $id;
+        if ($id > 0) {
+            $selectedBankAccountIds[$id] = true;
+        }
+    }
+}
 
 $saveUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveMt940Settings', false);
 $testUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.testMt940Imap&format=json', false);
@@ -118,26 +126,42 @@ $token    = Session::getFormToken();
                     <?php endif; ?>
                 </div>
 
-                <div class="col-md-6">
-                    <label class="form-label" for="mt940_bank_account_id"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_BANK_ACCOUNT_LABEL'); ?></label>
-                    <select class="form-select" name="jform[mt940][bank_account_id]" id="mt940_bank_account_id">
-                        <option value="0"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_BANK_ACCOUNT_SELECT'); ?></option>
-                        <?php foreach ($bankAccounts as $account) :
-                            $accId = (int) ($account->id ?? 0);
-                            if ($accId < 1) {
-                                continue;
-                            }
-                            $accState = (int) ($account->state ?? 1);
-                            if ($accState !== 1) {
-                                continue;
-                            }
-                            $accName = trim((string) ($account->name ?? ''));
-                            ?>
-                            <option value="<?php echo $accId; ?>" <?php echo $bankAccountId === $accId ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($accName !== '' ? $accName : ('#' . $accId), ENT_QUOTES, 'UTF-8'); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="col-12">
+                    <label class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_BANK_ACCOUNT_LABEL'); ?></label>
+                    <?php
+                    $activeBankAccounts = [];
+                    foreach ($bankAccounts as $account) {
+                        $accId = (int) ($account->id ?? 0);
+                        if ($accId < 1 || (int) ($account->state ?? 1) !== 1) {
+                            continue;
+                        }
+                        $activeBankAccounts[] = $account;
+                    }
+                    ?>
+                    <?php if ($activeBankAccounts === []) : ?>
+                        <div class="alert alert-warning mb-0 py-2">
+                            <?php echo Text::_('COM_ORDENPRODUCCION_MT940_BANK_ACCOUNT_EMPTY'); ?>
+                        </div>
+                    <?php else : ?>
+                        <div class="border rounded p-3 bg-light">
+                            <?php foreach ($activeBankAccounts as $account) :
+                                $accId   = (int) ($account->id ?? 0);
+                                $accName = trim((string) ($account->name ?? ''));
+                                $checked = !empty($selectedBankAccountIds[$accId]);
+                                ?>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox"
+                                           name="jform[mt940][bank_account_ids][]"
+                                           id="mt940_bank_account_<?php echo $accId; ?>"
+                                           value="<?php echo $accId; ?>"
+                                           <?php echo $checked ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="mt940_bank_account_<?php echo $accId; ?>">
+                                        <?php echo htmlspecialchars($accName !== '' ? $accName : ('#' . $accId), ENT_QUOTES, 'UTF-8'); ?>
+                                    </label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                     <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_BANK_ACCOUNT_DESC'); ?></div>
                 </div>
             </div>

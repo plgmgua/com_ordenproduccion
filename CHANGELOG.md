@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.148-STABLE] - 2026-05-19
+
+### Changed
+- **Ajustes → MT940:** bank account association is now multi-select (checkboxes); settings stored as `mt940_bank_account_ids` JSON with backward compatibility for the legacy single `mt940_bank_account_id` value.
+
 ## [3.119.147-STABLE] - 2026-05-19
 
 ### Fixed
