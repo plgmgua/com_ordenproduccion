@@ -129,6 +129,110 @@ class Mt940SocketImapClient
     /**
      * @param   string  $sender
      *
+     * @return  array<int>
+     *
+     * @since   3.119.150
+     */
+    public function uidSearchFromSender(string $sender): array
+    {
+        $sender = \trim($sender);
+        if ($sender === '') {
+            return [];
+        }
+
+        $resp = $this->command('UID SEARCH FROM ' . self::quote($sender));
+        if (\preg_match('/^\*\s+SEARCH\s*(.*)$/im', $resp, $m)) {
+            $ids = \trim((string) ($m[1] ?? ''));
+            if ($ids === '') {
+                return [];
+            }
+
+            return \array_values(\array_filter(\array_map('intval', \preg_split('/\s+/', $ids, -1, \PREG_SPLIT_NO_EMPTY))));
+        }
+
+        return [];
+    }
+
+    /**
+     * @param   int  $uid
+     *
+     * @return  string
+     *
+     * @since   3.119.150
+     */
+    public function fetchUidRfc822(int $uid): string
+    {
+        if ($uid < 1 || !$this->socket) {
+            return '';
+        }
+
+        $tag = $this->nextTag();
+        \fwrite($this->socket, $tag . ' UID FETCH ' . $uid . ' (BODY.PEEK[])' . "\r\n");
+
+        return $this->readFetchBody($tag);
+    }
+
+    /**
+     * @param   string  $tag
+     *
+     * @return  string
+     *
+     * @since   3.119.150
+     */
+    private function readFetchBody(string $tag): string
+    {
+        $body = '';
+        while (!\feof($this->socket)) {
+            $line = $this->readLine();
+            if ($line === '') {
+                break;
+            }
+
+            if (\preg_match('/\{(\d+)\}\s*$/', $line, $m)) {
+                $size = (int) $m[1];
+                if ($size > 0) {
+                    $body .= $this->readBytes($size);
+                    $this->readLine();
+                }
+                continue;
+            }
+
+            if (\strpos($line, $tag . ' ') === 0) {
+                break;
+            }
+        }
+
+        return $body;
+    }
+
+    /**
+     * @param   int  $bytes
+     *
+     * @return  string
+     *
+     * @since   3.119.150
+     */
+    private function readBytes(int $bytes): string
+    {
+        if (!$this->socket || $bytes < 1) {
+            return '';
+        }
+
+        $buf = '';
+        while (\strlen($buf) < $bytes && !\feof($this->socket)) {
+            $chunk = @\fread($this->socket, $bytes - \strlen($buf));
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $buf .= $chunk;
+        }
+
+        return $buf;
+    }
+
+    /**
+     * @param   string  $sender
+     *
      * @return  int
      *
      * @since   3.119.147

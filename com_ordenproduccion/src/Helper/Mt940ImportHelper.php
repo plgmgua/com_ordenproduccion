@@ -29,7 +29,7 @@ class Mt940ImportHelper
      * @param   string       $sender          Optional email sender
      * @param   string       $subject         Optional email subject
      *
-     * @return  array{success: bool, message: string, import_log_id?: int, transactions_count?: int, bank_account_id?: int, skipped?: bool}
+     * @return  array{success: bool, message: string, import_log_id?: int, transactions_count?: int, bank_account_id?: int, skipped?: bool, duplicate_reason?: string}
      *
      * @since   3.119.149
      */
@@ -41,13 +41,26 @@ class Mt940ImportHelper
         string $sender = '',
         string $subject = ''
     ): array {
-        $filename = \trim($filename);
+        $filename    = self::normalizeFilename($filename);
+        $contentHash = self::contentHash($content);
+        $emailUid    = \trim($emailUid);
+
         if ($filename === '') {
             return ['success' => false, 'message' => 'COM_ORDENPRODUCCION_MT940_IMPORT_MISSING_FILENAME'];
         }
 
         if (!self::tablesAvailable()) {
             return ['success' => false, 'message' => 'COM_ORDENPRODUCCION_MT940_SCHEMA_MISSING'];
+        }
+
+        $dup = self::findDuplicateImport($filename, $emailUid, $contentHash);
+        if ($dup !== null) {
+            return [
+                'success'           => true,
+                'message'           => 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
+                'skipped'           => true,
+                'duplicate_reason'  => $dup,
+            ];
         }
 
         $parsed = Mt940ParserHelper::parse($content);
@@ -67,67 +80,152 @@ class Mt940ImportHelper
         $db  = Factory::getContainer()->get(DatabaseInterface::class);
         $now = Factory::getDate()->toSql();
 
-        if (self::importLogExists($filename)) {
-            return [
-                'success'  => true,
-                'message'  => 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
-                'skipped'  => true,
-            ];
-        }
+        try {
+            $db->transactionStart();
 
-        $importLogId = self::insertImportLog([
-            'email_uid'           => $emailUid,
-            'sender'              => $sender,
-            'subject'             => $subject,
-            'filename'            => $filename,
-            'bank_account_id'     => $bankAccountId,
-            'account_number'      => $acctNo,
-            'status'              => 'imported',
-            'transactions_count'  => 0,
-            'message'             => '',
-            'imported_at'         => $now,
-        ]);
+            $dup = self::findDuplicateImport($filename, $emailUid, $contentHash);
+            if ($dup !== null) {
+                $db->transactionRollback();
 
-        $statementDate = $parsed['statement_date'] ?? null;
-        $currency      = (string) ($parsed['currency'] ?? 'GTQ');
-        $inserted      = 0;
-
-        foreach ($parsed['transactions'] as $tx) {
-            if (self::transactionExists($bankAccountId, $filename, $tx)) {
-                continue;
+                return [
+                    'success'          => true,
+                    'message'          => 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
+                    'skipped'          => true,
+                    'duplicate_reason' => $dup,
+                ];
             }
 
-            $row = (object) [
-                'bank_account_id'   => $bankAccountId,
-                'account_number'    => $acctNo,
-                'source_email_uid'  => $emailUid !== '' ? $emailUid : null,
-                'source_filename'   => $filename,
-                'import_log_id'     => $importLogId,
-                'statement_date'    => $statementDate,
-                'transaction_date'  => $tx['transaction_date'] ?? null,
-                'value_date'        => $tx['value_date'] ?? null,
-                'reference'         => $tx['reference'] ?? '',
-                'amount'            => (float) ($tx['amount'] ?? 0),
-                'currency'          => $tx['currency'] ?? $currency,
-                'debit_credit'      => $tx['debit_credit'] ?? '',
-                'description'       => $tx['description'] ?? '',
-                'raw_line'          => $tx['raw_line'] ?? '',
-                'imported_at'       => $now,
+            $importLogId = self::insertImportLog([
+                'email_uid'          => $emailUid !== '' ? $emailUid : null,
+                'sender'             => $sender,
+                'subject'            => $subject,
+                'filename'           => $filename,
+                'content_hash'       => $contentHash,
+                'bank_account_id'    => $bankAccountId,
+                'account_number'     => $acctNo,
+                'status'             => 'imported',
+                'transactions_count' => 0,
+                'message'            => '',
+                'imported_at'        => $now,
+            ]);
+
+            $statementDate = $parsed['statement_date'] ?? null;
+            $currency      = (string) ($parsed['currency'] ?? 'GTQ');
+            $inserted      = 0;
+
+            foreach ($parsed['transactions'] as $tx) {
+                $fingerprint = self::buildTxFingerprint($bankAccountId, $acctNo, $tx);
+                if (self::txFingerprintExists($fingerprint)) {
+                    continue;
+                }
+
+                $row = (object) [
+                    'bank_account_id'   => $bankAccountId,
+                    'account_number'    => $acctNo,
+                    'source_email_uid'  => $emailUid !== '' ? $emailUid : null,
+                    'source_filename'   => $filename,
+                    'import_log_id'     => $importLogId,
+                    'statement_date'    => $statementDate,
+                    'transaction_date'  => $tx['transaction_date'] ?? null,
+                    'value_date'        => $tx['value_date'] ?? null,
+                    'reference'         => $tx['reference'] ?? '',
+                    'amount'            => (float) ($tx['amount'] ?? 0),
+                    'currency'          => $tx['currency'] ?? $currency,
+                    'debit_credit'      => $tx['debit_credit'] ?? '',
+                    'description'       => $tx['description'] ?? '',
+                    'raw_line'          => $tx['raw_line'] ?? '',
+                    'tx_fingerprint'    => $fingerprint,
+                    'imported_at'       => $now,
+                ];
+
+                try {
+                    $db->insertObject('#__ordenproduccion_mt940_transactions', $row, 'id');
+                    $inserted++;
+                } catch (\Throwable $e) {
+                    if (self::isDuplicateKeyError($e)) {
+                        continue;
+                    }
+                    throw $e;
+                }
+            }
+
+            self::updateImportLogCount($importLogId, $inserted);
+            $db->transactionCommit();
+
+            return [
+                'success'            => true,
+                'message'            => 'COM_ORDENPRODUCCION_MT940_IMPORT_OK',
+                'import_log_id'      => $importLogId,
+                'transactions_count' => $inserted,
+                'bank_account_id'    => $bankAccountId,
             ];
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
 
-            $db->insertObject('#__ordenproduccion_mt940_transactions', $row, 'id');
-            $inserted++;
+            if (self::isDuplicateKeyError($e)) {
+                return [
+                    'success'          => true,
+                    'message'          => 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
+                    'skipped'          => true,
+                    'duplicate_reason' => 'duplicate_key',
+                ];
+            }
+
+            throw $e;
         }
+    }
 
-        self::updateImportLogCount($importLogId, $inserted);
+    /**
+     * @param   string  $filename
+     *
+     * @return  string
+     *
+     * @since   3.119.150
+     */
+    public static function normalizeFilename(string $filename): string
+    {
+        $filename = \trim(\str_replace('\\', '/', $filename));
+        $base     = \basename($filename);
 
-        return [
-            'success'             => true,
-            'message'             => 'COM_ORDENPRODUCCION_MT940_IMPORT_OK',
-            'import_log_id'       => $importLogId,
-            'transactions_count'  => $inserted,
-            'bank_account_id'     => $bankAccountId,
+        return $base !== '' ? $base : $filename;
+    }
+
+    /**
+     * @param   string  $content
+     *
+     * @return  string
+     *
+     * @since   3.119.150
+     */
+    public static function contentHash(string $content): string
+    {
+        $normalized = \str_replace(["\r\n", "\r"], "\n", $content);
+
+        return \hash('sha256', $normalized);
+    }
+
+    /**
+     * @param   int                  $bankAccountId
+     * @param   string               $accountNumber
+     * @param   array<string, mixed>  $tx
+     *
+     * @return  string
+     *
+     * @since   3.119.150
+     */
+    public static function buildTxFingerprint(int $bankAccountId, string $accountNumber, array $tx): string
+    {
+        $parts = [
+            (string) $bankAccountId,
+            Mt940ParserHelper::normalizeAccountNumber($accountNumber),
+            (string) ($tx['transaction_date'] ?? ''),
+            (string) ($tx['reference'] ?? ''),
+            \number_format((float) ($tx['amount'] ?? 0), 2, '.', ''),
+            (string) ($tx['debit_credit'] ?? ''),
+            \trim((string) ($tx['description'] ?? '')),
         ];
+
+        return \hash('sha256', \implode('|', $parts));
     }
 
     /**
@@ -191,17 +289,41 @@ class Mt940ImportHelper
     }
 
     /**
+     * @param   string  $filename
+     * @param   string  $emailUid
+     * @param   string  $contentHash
+     *
+     * @return  ?string  duplicate reason code
+     *
+     * @since   3.119.150
+     */
+    private static function findDuplicateImport(string $filename, string $emailUid, string $contentHash): ?string
+    {
+        if (self::importLogExistsByFilename($filename)) {
+            return 'filename';
+        }
+
+        if ($contentHash !== '' && self::importLogExistsByContentHash($contentHash)) {
+            return 'content_hash';
+        }
+
+        return null;
+    }
+
+    /**
      * @param   string  $accountNumber
      *
      * @return  array<int, string>
-     *
-     * @since   3.119.149
      */
     private static function accountNumberMatchCandidates(string $accountNumber): array
     {
-        $norm   = Mt940ParserHelper::normalizeAccountNumber($accountNumber);
-        $strip  = \ltrim($norm, '0');
-        $cands  = \array_unique(\array_filter([$norm, $strip !== '' ? $strip : null, $strip !== '' ? \str_pad($strip, \strlen($norm), '0', \STR_PAD_LEFT) : null]));
+        $norm  = Mt940ParserHelper::normalizeAccountNumber($accountNumber);
+        $strip = \ltrim($norm, '0');
+        $cands = \array_unique(\array_filter([
+            $norm,
+            $strip !== '' ? $strip : null,
+            $strip !== '' && $norm !== '' ? \str_pad($strip, \strlen($norm), '0', \STR_PAD_LEFT) : null,
+        ]));
 
         return \array_values($cands);
     }
@@ -210,8 +332,6 @@ class Mt940ImportHelper
      * @param   DatabaseInterface  $db
      *
      * @return  bool
-     *
-     * @since   3.119.149
      */
     private static function bankAccountsHaveAccountNumberColumn(DatabaseInterface $db): bool
     {
@@ -225,19 +345,17 @@ class Mt940ImportHelper
     }
 
     /**
-     * @param   string  $filename
+     * @param   string  $emailUid
      *
      * @return  bool
-     *
-     * @since   3.119.149
      */
-    private static function importLogExists(string $filename): bool
+    private static function importLogExistsByEmailUid(string $emailUid): bool
     {
         $db    = Factory::getContainer()->get(DatabaseInterface::class);
         $query = $db->getQuery(true)
             ->select('COUNT(*)')
             ->from($db->quoteName('#__ordenproduccion_mt940_import_log'))
-            ->where($db->quoteName('filename') . ' = ' . $db->quote($filename))
+            ->where($db->quoteName('email_uid') . ' = ' . $db->quote($emailUid))
             ->where($db->quoteName('status') . ' = ' . $db->quote('imported'));
 
         $db->setQuery($query);
@@ -246,16 +364,117 @@ class Mt940ImportHelper
     }
 
     /**
+     * @param   string  $filename
+     *
+     * @return  bool
+     */
+    private static function importLogExistsByFilename(string $filename): bool
+    {
+        $db    = Factory::getContainer()->get(DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_mt940_import_log'))
+            ->where('LOWER(' . $db->quoteName('filename') . ') = ' . $db->quote(\strtolower($filename)))
+            ->where($db->quoteName('status') . ' = ' . $db->quote('imported'));
+
+        $db->setQuery($query);
+
+        return (int) $db->loadResult() > 0;
+    }
+
+    /**
+     * @param   string  $contentHash
+     *
+     * @return  bool
+     */
+    private static function importLogExistsByContentHash(string $contentHash): bool
+    {
+        if (!self::importLogHasContentHashColumn()) {
+            return false;
+        }
+
+        $db    = Factory::getContainer()->get(DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select('COUNT(*)')
+            ->from($db->quoteName('#__ordenproduccion_mt940_import_log'))
+            ->where($db->quoteName('content_hash') . ' = ' . $db->quote($contentHash))
+            ->where($db->quoteName('status') . ' = ' . $db->quote('imported'));
+
+        $db->setQuery($query);
+
+        return (int) $db->loadResult() > 0;
+    }
+
+    /**
+     * @param   string  $fingerprint
+     *
+     * @return  bool
+     */
+    private static function txFingerprintExists(string $fingerprint): bool
+    {
+        if ($fingerprint === '') {
+            return false;
+        }
+
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
+
+        if (self::transactionsHaveFingerprintColumn()) {
+            $query = $db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($db->quoteName('#__ordenproduccion_mt940_transactions'))
+                ->where($db->quoteName('tx_fingerprint') . ' = ' . $db->quote($fingerprint));
+            $db->setQuery($query);
+
+            return (int) $db->loadResult() > 0;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return  bool
+     */
+    private static function importLogHasContentHashColumn(): bool
+    {
+        try {
+            $db   = Factory::getContainer()->get(DatabaseInterface::class);
+            $cols = $db->getTableColumns('#__ordenproduccion_mt940_import_log', false);
+
+            return isset($cols['content_hash']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @return  bool
+     */
+    private static function transactionsHaveFingerprintColumn(): bool
+    {
+        try {
+            $db   = Factory::getContainer()->get(DatabaseInterface::class);
+            $cols = $db->getTableColumns('#__ordenproduccion_mt940_transactions', false);
+
+            return isset($cols['tx_fingerprint']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * @param   array<string, mixed>  $data
      *
      * @return  int
-     *
-     * @since   3.119.149
      */
     private static function insertImportLog(array $data): int
     {
         $db  = Factory::getContainer()->get(DatabaseInterface::class);
         $obj = (object) $data;
+
+        if (!self::importLogHasContentHashColumn()) {
+            unset($obj->content_hash);
+        }
+
         $db->insertObject('#__ordenproduccion_mt940_import_log', $obj, 'id');
 
         return (int) ($obj->id ?? 0);
@@ -266,8 +485,6 @@ class Mt940ImportHelper
      * @param   int  $count
      *
      * @return  void
-     *
-     * @since   3.119.149
      */
     private static function updateImportLogCount(int $importLogId, int $count): void
     {
@@ -285,32 +502,16 @@ class Mt940ImportHelper
     }
 
     /**
-     * @param   int                  $bankAccountId
-     * @param   string               $filename
-     * @param   array<string, mixed>  $tx
+     * @param   \Throwable  $e
      *
      * @return  bool
-     *
-     * @since   3.119.149
      */
-    private static function transactionExists(int $bankAccountId, string $filename, array $tx): bool
+    private static function isDuplicateKeyError(\Throwable $e): bool
     {
-        $db    = Factory::getContainer()->get(DatabaseInterface::class);
-        $query = $db->getQuery(true)
-            ->select('COUNT(*)')
-            ->from($db->quoteName('#__ordenproduccion_mt940_transactions'))
-            ->where($db->quoteName('bank_account_id') . ' = ' . $bankAccountId)
-            ->where($db->quoteName('source_filename') . ' = ' . $db->quote($filename))
-            ->where($db->quoteName('reference') . ' = ' . $db->quote((string) ($tx['reference'] ?? '')))
-            ->where($db->quoteName('amount') . ' = ' . (float) ($tx['amount'] ?? 0))
-            ->where($db->quoteName('debit_credit') . ' = ' . $db->quote((string) ($tx['debit_credit'] ?? '')));
+        $msg = \strtolower($e->getMessage());
 
-        if (!empty($tx['transaction_date'])) {
-            $query->where($db->quoteName('transaction_date') . ' = ' . $db->quote((string) $tx['transaction_date']));
-        }
-
-        $db->setQuery($query);
-
-        return (int) $db->loadResult() > 0;
+        return \strpos($msg, 'duplicate') !== false
+            || \strpos($msg, '1062') !== false
+            || \strpos($msg, 'unique') !== false;
     }
 }

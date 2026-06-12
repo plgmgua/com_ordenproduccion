@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.150-STABLE] - 2026-05-19
+
+### Added
+- **Financiero → Cuentas bancarias:** **Importación inicial** button pulls all MT-940 attachments from the configured IMAP mailbox (authorized sender) and imports transactions in one run.
+- **MT-940 mailbox import:** `Mt940MailboxImportHelper` with php-imap and socket/TLS fallback; MIME attachment extraction for `.TXT` / MT-940 bodies.
+
+### Changed
+- **MT-940 deduplication:** import log dedup by filename (case-insensitive) and SHA-256 `content_hash`; transaction dedup by global `tx_fingerprint` with unique DB keys (migration `3.119.150.sql`).
+
 ## [3.119.149-STABLE] - 2026-05-19
 
 ### Added

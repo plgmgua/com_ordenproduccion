@@ -402,6 +402,7 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940DateTo     = (string) ($this->financieroMt940FilterDateTo ?? '');
     $mt940Rows       = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
     $mt940ImportUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
+    $mt940InitialUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.runMt940InitialImport&format=json', false);
     $mt940ActionQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
     $mt940FormAction = Route::_($mt940ActionQs, false);
     $mt940Token      = \Joomla\CMS\Session\Session::getFormToken();
@@ -455,6 +456,21 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
             </div>
         </form>
+
+        <div class="card mb-3 border-primary">
+            <div class="card-body py-3">
+                <h3 class="h6 mb-2"><i class="fas fa-inbox"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_TITLE'); ?></h3>
+                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_DESC'); ?></p>
+                <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_DEDUP_NOTICE'); ?></p>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-initial-import" data-url="<?php echo htmlspecialchars($mt940InitialUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                    <i class="fas fa-cloud-download-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_BTN'); ?>
+                </button>
+                <div id="mt940-initial-result" class="d-none mt-2">
+                    <div id="mt940-initial-alert" class="alert mb-0" role="alert"></div>
+                    <pre id="mt940-initial-json" class="bg-light border rounded p-2 small mb-0 mt-2" style="max-height: 180px; overflow: auto;"></pre>
+                </div>
+            </div>
+        </div>
 
         <div class="card mb-3">
             <div class="card-body py-3">
@@ -528,6 +544,58 @@ $pagoConfirmadoBadge = static function ($r): string {
     <?php endif; ?>
 
     <script>
+    (function () {
+        var token = <?php echo json_encode($mt940Token); ?>;
+        var runningInitial = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_RUNNING')); ?>;
+        var initialBtn = document.getElementById('btn-mt940-initial-import');
+        var initialResult = document.getElementById('mt940-initial-result');
+        var initialAlert = document.getElementById('mt940-initial-alert');
+        var initialJson = document.getElementById('mt940-initial-json');
+
+        if (initialBtn) {
+            initialBtn.addEventListener('click', function () {
+                var url = initialBtn.getAttribute('data-url');
+                if (!url) {
+                    return;
+                }
+                var orig = initialBtn.innerHTML;
+                initialBtn.disabled = true;
+                initialBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + runningInitial;
+                initialResult.classList.remove('d-none');
+                initialAlert.className = 'alert alert-info mb-0';
+                initialAlert.textContent = runningInitial;
+                initialJson.textContent = '';
+
+                var body = new URLSearchParams();
+                body.append(token, '1');
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                    credentials: 'same-origin',
+                    body: body.toString()
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var ok = !!data.success;
+                        initialAlert.className = 'alert mb-0 ' + (ok ? 'alert-success' : 'alert-danger');
+                        initialAlert.textContent = data.message || (ok ? 'OK' : 'Error');
+                        initialJson.textContent = JSON.stringify(data, null, 2);
+                        if (ok && (data.data?.files_imported > 0 || data.data?.transactions_imported > 0)) {
+                            window.setTimeout(function () { window.location.reload(); }, 1500);
+                        }
+                    })
+                    .catch(function (err) {
+                        initialAlert.className = 'alert alert-danger mb-0';
+                        initialAlert.textContent = err && err.message ? err.message : 'Error';
+                    })
+                    .finally(function () {
+                        initialBtn.disabled = false;
+                        initialBtn.innerHTML = orig;
+                    });
+            });
+        }
+    })();
     (function () {
         var token = <?php echo json_encode($mt940Token); ?>;
         var btn = document.getElementById('btn-mt940-import');

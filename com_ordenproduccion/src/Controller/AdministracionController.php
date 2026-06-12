@@ -24,6 +24,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImapHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImportHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940MailboxImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -3102,6 +3103,82 @@ class AdministracionController extends BaseController
             'transactions_count' => (int) ($result['transactions_count'] ?? 0),
             'bank_account_id'    => (int) ($result['bank_account_id'] ?? 0),
             'skipped'            => !empty($result['skipped']),
+            'duplicate_reason'   => (string) ($result['duplicate_reason'] ?? ''),
+        ]);
+    }
+
+    /**
+     * JSON: initial MT-940 import from configured IMAP mailbox (all emails from authorized sender).
+     *
+     * @return  void
+     *
+     * @since   3.119.150
+     */
+    public function runMt940InitialImport(): void
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        try {
+            $model = $this->getModel('Administracion');
+            if (!$model) {
+                $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), []);
+
+                return;
+            }
+
+            $settings   = $model->getMt940Settings();
+            $allowedIds = $model->getMt940BankAccountIds();
+
+            if (($settings['enabled'] ?? '0') !== '1') {
+                $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_DISABLED'), []);
+
+                return;
+            }
+
+            $result = Mt940MailboxImportHelper::runInitialImport($settings, $allowedIds);
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+
+            return;
+        }
+
+        $msgKey = (string) ($result['message'] ?? '');
+        $msg    = $msgKey !== '' && \strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+
+        if (!empty($result['success']) && $msgKey === 'COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_OK') {
+            $msg = Text::sprintf(
+                'COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_OK_DETAIL',
+                (int) ($result['emails_scanned'] ?? 0),
+                (int) ($result['files_imported'] ?? 0),
+                (int) ($result['files_skipped'] ?? 0),
+                (int) ($result['transactions_imported'] ?? 0)
+            );
+        }
+
+        if (!empty($result['imap_error'])) {
+            $msg .= ' ' . (string) $result['imap_error'];
+        }
+
+        $this->sendAdministracionJson(!empty($result['success']), $msg, [
+            'emails_scanned'        => (int) ($result['emails_scanned'] ?? 0),
+            'files_imported'        => (int) ($result['files_imported'] ?? 0),
+            'files_skipped'         => (int) ($result['files_skipped'] ?? 0),
+            'transactions_imported' => (int) ($result['transactions_imported'] ?? 0),
+            'driver'                => (string) ($result['driver'] ?? ''),
+            'details'               => $result['details'] ?? [],
         ]);
     }
 }
