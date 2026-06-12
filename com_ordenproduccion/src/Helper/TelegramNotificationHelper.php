@@ -428,7 +428,7 @@ class TelegramNotificationHelper
     }
 
     /**
-     * After the cotización owner uploads the orden de compra for invoicing: DM the owner (if linked) and optionally the Administración channel.
+     * After orden de compra is uploaded on a cotización: DM owner and uploader (if linked) and optionally the Administración channel.
      *
      * @param   int  $quotationId       #__ordenproduccion_quotations.id
      * @param   int  $uploadedByUserId  Current user who performed the upload
@@ -463,8 +463,13 @@ class TelegramNotificationHelper
             return;
         }
 
+        $path = isset($qRow->orden_compra_path) ? trim((string) $qRow->orden_compra_path) : '';
+        if ($path === '') {
+            return;
+        }
+
         $ownerId = (int) ($qRow->created_by ?? 0);
-        if ($ownerId < 1 || $uploadedByUserId !== $ownerId) {
+        if ($ownerId < 1) {
             return;
         }
 
@@ -491,13 +496,28 @@ class TelegramNotificationHelper
             return;
         }
 
+        $uploader = $owner;
+        if ($uploadedByUserId !== $ownerId) {
+            try {
+                $uploader = $users->loadUserById($uploadedByUserId);
+            } catch (\Throwable $e) {
+                $uploader = $owner;
+            }
+            if ($uploader->guest) {
+                $uploader = $owner;
+            }
+        }
+
         $dmTemplate      = self::getOrdenCompraCotizacionMessageTemplate($params);
         $channelTemplate = self::getOrdenCompraCotizacionChannelMessageTemplate($params);
-        $vars            = self::buildOrdenCompraCotizacionTemplateVars($qRow, $owner, $quotationId);
+        $vars            = self::buildOrdenCompraCotizacionTemplateVars($qRow, $owner, $quotationId, $uploader);
         $text            = self::replaceTemplatePlaceholders($dmTemplate, $vars);
 
-        if (self::getChatIdForUser($ownerId) !== null) {
-            self::sendToUserId($token, $ownerId, $text);
+        $dmRecipientIds = array_values(array_unique(array_filter([$ownerId, $uploadedByUserId], static fn ($id) => (int) $id > 0)));
+        foreach ($dmRecipientIds as $uid) {
+            if (self::getChatIdForUser((int) $uid) !== null) {
+                self::sendToUserId($token, (int) $uid, $text);
+            }
         }
 
         $channelText = self::replaceTemplatePlaceholders($channelTemplate, $vars);
@@ -888,14 +908,16 @@ class TelegramNotificationHelper
      * @param   object  $quotation    Row from #__ordenproduccion_quotations
      * @param   User    $owner        Quotation owner (`created_by`)
      * @param   int     $quotationId  Quotation PK
+     * @param   User|null  $uploader  User who uploaded the file (defaults to owner)
      *
      * @return  array<string,string>
      */
-    public static function buildOrdenCompraCotizacionTemplateVars(object $quotation, User $owner, int $quotationId): array
+    public static function buildOrdenCompraCotizacionTemplateVars(object $quotation, User $owner, int $quotationId, ?User $uploader = null): array
     {
         $quotationId = (int) $quotationId;
         $path        = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
         $fileName    = $path !== '' ? basename(str_replace('\\', '/', $path)) : '—';
+        $uploader    = $uploader ?? $owner;
 
         $site = '';
         try {
@@ -907,14 +929,16 @@ class TelegramNotificationHelper
         $cotUrl = rtrim(Uri::root(), '/') . '/' . ltrim((string) $rel, '/');
 
         return [
-            'username'         => trim((string) $owner->name),
-            'user_login'       => trim((string) $owner->username),
-            'quotation_id'     => (string) $quotationId,
-            'quotation_number' => trim((string) ($quotation->quotation_number ?? '')),
-            'client_name'      => trim((string) ($quotation->client_name ?? '')),
-            'file_name'        => $fileName,
-            'cotizacion_url'   => $cotUrl,
-            'site_name'        => $site,
+            'username'           => trim((string) $owner->name),
+            'user_login'           => trim((string) $owner->username),
+            'uploaded_by'          => trim((string) $uploader->name),
+            'uploaded_by_login'    => trim((string) $uploader->username),
+            'quotation_id'         => (string) $quotationId,
+            'quotation_number'     => trim((string) ($quotation->quotation_number ?? '')),
+            'client_name'          => trim((string) ($quotation->client_name ?? '')),
+            'file_name'            => $fileName,
+            'cotizacion_url'       => $cotUrl,
+            'site_name'            => $site,
         ];
     }
 
@@ -930,9 +954,11 @@ class TelegramNotificationHelper
         self::ensureTelegramLanguageLoaded();
 
         return [
-            'username'         => trim((string) $user->name),
-            'user_login'       => trim((string) $user->username),
-            'quotation_id'     => '999223',
+            'username'           => trim((string) $user->name),
+            'user_login'           => trim((string) $user->username),
+            'uploaded_by'          => trim((string) $user->name),
+            'uploaded_by_login'    => trim((string) $user->username),
+            'quotation_id'         => '999223',
             'quotation_number' => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_QUOTATION_NUMBER'),
             'client_name'      => Text::_('COM_ORDENPRODUCCION_TELEGRAM_SAMPLE_CLIENT_NAME'),
             'file_name'        => 'orden-compra-demo.pdf',

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.145-STABLE] - 2026-05-19
+
+### Fixed
+- **Telegram — orden de compra en cotización:** notification now fires for any authorized upload (not only when the quotation owner uploads); message includes who uploaded; DM to owner and uploader when linked; Administración channel broadcast unchanged.
+
 ## [3.119.144-STABLE] - 2026-05-19
 
 ### Fixed
