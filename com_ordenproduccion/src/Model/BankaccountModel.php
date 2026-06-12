@@ -123,6 +123,10 @@ class BankaccountModel extends BaseDatabaseModel
         }
 
         $obj->name = trim((string) ($data['name'] ?? ''));
+        $acctNo = trim((string) ($data['account_number'] ?? ''));
+        if ($this->hasAccountNumberColumn()) {
+            $obj->account_number = $acctNo !== '' ? $acctNo : null;
+        }
         $obj->state = isset($data['state']) ? (int) $data['state'] : 1;
         if ($obj->state !== 0) {
             $obj->state = 1;
@@ -226,5 +230,53 @@ class BankaccountModel extends BaseDatabaseModel
 
             return false;
         }
+    }
+
+    /**
+     * @return  bool
+     *
+     * @since   3.119.149
+     */
+    public function hasAccountNumberColumn(): bool
+    {
+        try {
+            $cols = $this->getDatabase()->getTableColumns('#__ordenproduccion_bank_accounts', false);
+
+            return isset($cols['account_number']);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @param   array<int>  $ids
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.119.149
+     */
+    public function getBankAccountsByIds(array $ids): array
+    {
+        $ids = \array_values(\array_unique(\array_filter(\array_map('intval', $ids), static function ($v) {
+            return $v > 0;
+        })));
+        if ($ids === []) {
+            return [];
+        }
+
+        $db    = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_bank_accounts'))
+            ->where($db->quoteName('id') . ' IN (' . \implode(',', $ids) . ')')
+            ->order($db->quoteName('name') . ' ASC');
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $out  = [];
+        foreach ($rows as $row) {
+            $out[(int) $row->id] = $row;
+        }
+
+        return $out;
     }
 }

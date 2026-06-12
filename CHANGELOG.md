@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.149-STABLE] - 2026-05-19
+
+### Added
+- **Financiero → Cuentas bancarias:** new sub-tab listing imported MT-940 transactions with bank-account filter (from Ajustes → MT940), date range, pagination, and manual .TXT import.
+- **MT-940 parser/import:** reads Banco Industrial SWIFT MT-940 files (`:25:` account, `:61:`/`:86:` transactions); matches account number to configured bank accounts.
+- **Bank accounts:** `account_number` field on cuentas bancarias (Herramientas) for MT-940 `:25:` matching.
+
 ## [3.119.148-STABLE] - 2026-05-19
 
 ### Changed

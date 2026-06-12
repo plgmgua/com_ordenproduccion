@@ -147,7 +147,12 @@ $token    = Session::getFormToken();
                             <?php foreach ($activeBankAccounts as $account) :
                                 $accId   = (int) ($account->id ?? 0);
                                 $accName = trim((string) ($account->name ?? ''));
+                                $accNo   = trim((string) ($account->account_number ?? ''));
                                 $checked = !empty($selectedBankAccountIds[$accId]);
+                                $label   = $accName !== '' ? $accName : ('#' . $accId);
+                                if ($accNo !== '') {
+                                    $label .= ' — ' . $accNo;
+                                }
                                 ?>
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox"
@@ -156,7 +161,7 @@ $token    = Session::getFormToken();
                                            value="<?php echo $accId; ?>"
                                            <?php echo $checked ? 'checked' : ''; ?>>
                                     <label class="form-check-label" for="mt940_bank_account_<?php echo $accId; ?>">
-                                        <?php echo htmlspecialchars($accName !== '' ? $accName : ('#' . $accId), ENT_QUOTES, 'UTF-8'); ?>
+                                        <?php echo htmlspecialchars($label, ENT_QUOTES, 'UTF-8'); ?>
                                     </label>
                                 </div>
                             <?php endforeach; ?>

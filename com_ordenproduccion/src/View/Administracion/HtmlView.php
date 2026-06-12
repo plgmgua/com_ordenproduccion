@@ -782,6 +782,62 @@ class HtmlView extends BaseHtmlView
     protected $financieroBonosByAgent = [];
 
     /**
+     * MT-940 imported transactions (Financiero → Cuentas bancarias).
+     *
+     * @var    array<int, object>
+     * @since  3.119.149
+     */
+    protected $financieroMt940Rows = [];
+
+    /**
+     * @var    int
+     * @since  3.119.149
+     */
+    protected $financieroMt940Total = 0;
+
+    /**
+     * @var    \Joomla\CMS\Pagination\Pagination|null
+     * @since  3.119.149
+     */
+    protected $financieroMt940Pagination = null;
+
+    /**
+     * @var    bool
+     * @since  3.119.149
+     */
+    protected $financieroMt940SchemaOk = false;
+
+    /**
+     * @var    int
+     * @since  3.119.149
+     */
+    protected $financieroMt940FilterBankAccountId = 0;
+
+    /**
+     * @var    string
+     * @since  3.119.149
+     */
+    protected $financieroMt940FilterDateFrom = '';
+
+    /**
+     * @var    string
+     * @since  3.119.149
+     */
+    protected $financieroMt940FilterDateTo = '';
+
+    /**
+     * @var    array<int, string>
+     * @since  3.119.149
+     */
+    protected $financieroMt940BankAccountOptions = [];
+
+    /**
+     * @var    int
+     * @since  3.119.149
+     */
+    protected $financieroMt940ListLimit = 25;
+
+    /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
      *
      * @var    string
@@ -1400,6 +1456,15 @@ class HtmlView extends BaseHtmlView
         $this->financieroListLimit                  = 15;
         $this->financieroResolvedItemId            = 0;
         $this->financieroBonosByAgent               = [];
+        $this->financieroMt940Rows                  = [];
+        $this->financieroMt940Total                 = 0;
+        $this->financieroMt940Pagination            = null;
+        $this->financieroMt940SchemaOk              = false;
+        $this->financieroMt940FilterBankAccountId   = 0;
+        $this->financieroMt940FilterDateFrom        = '';
+        $this->financieroMt940FilterDateTo          = '';
+        $this->financieroMt940BankAccountOptions    = [];
+        $this->financieroMt940ListLimit             = 25;
 
         // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -1939,7 +2004,7 @@ class HtmlView extends BaseHtmlView
                 $fst = 'listado';
             }
 
-            if (!in_array($fst, ['listado', 'bonos'], true)) {
+            if (!in_array($fst, ['listado', 'bonos', 'cuentas_bancarias'], true)) {
                 $fst = 'listado';
             }
             $this->financieroSubtab = $fst;
@@ -1992,6 +2057,46 @@ class HtmlView extends BaseHtmlView
                     }
                     if ($fst === 'bonos') {
                         $this->financieroBonosByAgent = $admFin->getFinancieroBonosByAgentSummary();
+                    }
+                    if ($fst === 'cuentas_bancarias') {
+                        $this->financieroMt940SchemaOk           = $admFin->isMt940TransactionsTableAvailable();
+                        $this->financieroMt940BankAccountOptions = $admFin->getMt940ConfiguredBankAccountOptions();
+                        $this->financieroMt940FilterBankAccountId = max(0, (int) $input->getInt('mt940_bank_account_id', 0));
+                        $this->financieroMt940FilterDateFrom      = trim((string) $input->getString('mt940_filter_date_from', ''));
+                        $this->financieroMt940FilterDateTo        = trim((string) $input->getString('mt940_filter_date_to', ''));
+                        $limit      = max(10, min(200, (int) $input->getInt('mt940_limit', 25)));
+                        $limitStart = max(0, (int) $input->getInt('mt940_limitstart', 0));
+                        $this->financieroMt940ListLimit = $limit;
+
+                        if ($this->financieroMt940SchemaOk) {
+                            $pack = $admFin->getMt940TransactionsList($limit, $limitStart, [
+                                'bank_account_id' => $this->financieroMt940FilterBankAccountId,
+                                'date_from'       => $this->financieroMt940FilterDateFrom,
+                                'date_to'         => $this->financieroMt940FilterDateTo,
+                            ]);
+                            $this->financieroMt940Rows  = $pack['rows'] ?? [];
+                            $this->financieroMt940Total = (int) ($pack['total'] ?? 0);
+
+                            if ($this->financieroMt940Total > 0) {
+                                $this->financieroMt940Pagination = new \Joomla\CMS\Pagination\Pagination(
+                                    $this->financieroMt940Total,
+                                    $limitStart,
+                                    $limit,
+                                    'mt940_'
+                                );
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('view', 'administracion');
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('tab', 'financiero');
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('financiero_subtab', 'cuentas_bancarias');
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_limit', (string) $limit);
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_bank_account_id', (string) $this->financieroMt940FilterBankAccountId);
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_filter_date_from', $this->financieroMt940FilterDateFrom);
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_filter_date_to', $this->financieroMt940FilterDateTo);
+                                if ($this->financieroResolvedItemId > 0) {
+                                    $this->financieroMt940Pagination->setAdditionalUrlParam('Itemid', (string) $this->financieroResolvedItemId);
+                                }
+                            }
+                        }
                     }
                 }
             } catch (\Throwable $e) {

@@ -149,6 +149,10 @@ $pagoConfirmadoBadge = static function ($r): string {
        class="financiero-subtab <?php echo $fst === 'bonos' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-gift"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_SUBTAB_BONOS'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix); ?>"
+       class="financiero-subtab <?php echo $fst === 'cuentas_bancarias' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-university"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_SUBTAB_CUENTAS_BANCARIAS'); ?>
+    </a>
 </div>
 
 <?php if ($fst === 'listado') : ?>
@@ -386,4 +390,181 @@ $pagoConfirmadoBadge = static function ($r): string {
             </table>
         </div>
     <?php endif; ?>
+<?php elseif ($fst === 'cuentas_bancarias') : ?>
+    <?php
+    HTMLHelper::_('bootstrap.framework');
+    HTMLHelper::_('form.csrf');
+    $mt940SchemaOk   = !empty($this->financieroMt940SchemaOk);
+    $mt940Accounts   = isset($this->financieroMt940BankAccountOptions) && \is_array($this->financieroMt940BankAccountOptions)
+        ? $this->financieroMt940BankAccountOptions : [];
+    $mt940BankFilter = (int) ($this->financieroMt940FilterBankAccountId ?? 0);
+    $mt940DateFrom   = (string) ($this->financieroMt940FilterDateFrom ?? '');
+    $mt940DateTo     = (string) ($this->financieroMt940FilterDateTo ?? '');
+    $mt940Rows       = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
+    $mt940ImportUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
+    $mt940ActionQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
+    $mt940FormAction = Route::_($mt940ActionQs, false);
+    $mt940Token      = \Joomla\CMS\Session\Session::getFormToken();
+
+    $fmtMt940Amount = static function ($amount, string $dc, string $currency): string {
+        $n = round((float) $amount, 2);
+        $sign = $dc === 'D' ? '-' : '';
+        $sym  = $currency === 'USD' ? 'USD ' : 'Q ';
+
+        return $sign . $sym . number_format(abs($n), 2, '.', ',');
+    };
+    ?>
+    <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INTRO'); ?></p>
+
+    <?php if (!$mt940SchemaOk) : ?>
+        <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_SCHEMA_MISSING'); ?></div>
+    <?php elseif ($mt940Accounts === []) : ?>
+        <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_NO_ACCOUNTS'); ?></div>
+    <?php else : ?>
+        <form method="get" action="<?php echo htmlspecialchars((string) $mt940FormAction, ENT_QUOTES, 'UTF-8'); ?>" class="d-flex flex-wrap gap-2 align-items-end mb-3 search-filter-bar">
+            <input type="hidden" name="option" value="com_ordenproduccion" />
+            <input type="hidden" name="view" value="administracion" />
+            <input type="hidden" name="tab" value="financiero" />
+            <input type="hidden" name="financiero_subtab" value="cuentas_bancarias" />
+            <input type="hidden" name="mt940_limit" value="<?php echo (int) ($this->financieroMt940ListLimit ?? 25); ?>" />
+            <input type="hidden" name="mt940_limitstart" value="0" />
+            <?php if ($finItemId > 0) : ?>
+                <input type="hidden" name="Itemid" value="<?php echo (int) $finItemId; ?>" />
+            <?php endif; ?>
+            <div>
+                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_ACCOUNT'); ?></label>
+                <select class="form-select form-select-sm" name="mt940_bank_account_id" style="min-width: 14rem;">
+                    <option value="0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_ALL_ACCOUNTS'); ?></option>
+                    <?php foreach ($mt940Accounts as $accId => $accLabel) : ?>
+                        <option value="<?php echo (int) $accId; ?>"<?php echo $mt940BankFilter === (int) $accId ? ' selected' : ''; ?>>
+                            <?php echo htmlspecialchars((string) $accLabel, ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_DATE_FROM'); ?></label>
+                <input type="date" class="form-control form-control-sm" name="mt940_filter_date_from" value="<?php echo htmlspecialchars($mt940DateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
+            </div>
+            <div>
+                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_DATE_TO'); ?></label>
+                <input type="date" class="form-control form-control-sm" name="mt940_filter_date_to" value="<?php echo htmlspecialchars($mt940DateTo, ENT_QUOTES, 'UTF-8'); ?>" />
+            </div>
+            <div>
+                <label class="form-label small mb-0">&nbsp;</label>
+                <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
+            </div>
+        </form>
+
+        <div class="card mb-3">
+            <div class="card-body py-3">
+                <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_TITLE'); ?></h3>
+                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_DESC'); ?></p>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <input type="file" class="form-control form-control-sm" id="mt940-import-file" accept=".txt,.TXT,text/plain" style="max-width: 320px;">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-import" data-url="<?php echo htmlspecialchars($mt940ImportUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                        <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_BTN'); ?>
+                    </button>
+                </div>
+                <div id="mt940-import-result" class="d-none mt-2">
+                    <div id="mt940-import-alert" class="alert mb-0" role="alert"></div>
+                </div>
+            </div>
+        </div>
+
+        <?php if ($mt940Rows === []) : ?>
+            <p><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EMPTY'); ?></p>
+        <?php else : ?>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-financiero align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DATE'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_REFERENCE'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DESCRIPTION'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_TYPE'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_AMOUNT'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_SOURCE'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_IMPORTED'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($mt940Rows as $row) :
+                            $dc       = (string) ($row->debit_credit ?? '');
+                            $currency = (string) ($row->currency ?? 'GTQ');
+                            $acctLbl  = trim((string) ($row->bank_account_name ?? ''));
+                            $acctNo   = trim((string) ($row->account_number ?? ''));
+                            if ($acctLbl === '' && $acctNo !== '') {
+                                $acctLbl = $acctNo;
+                            } elseif ($acctNo !== '' && $acctLbl !== '') {
+                                $acctLbl .= ' (' . $acctNo . ')';
+                            }
+                            $typeLbl = $dc === 'D'
+                                ? Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TYPE_DEBIT')
+                                : ($dc === 'C' ? Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TYPE_CREDIT') : '—');
+                            ?>
+                        <tr>
+                            <td><?php echo !empty($row->transaction_date) ? htmlspecialchars((string) $row->transaction_date) : '—'; ?></td>
+                            <td><?php echo $acctLbl !== '' ? htmlspecialchars($acctLbl) : '—'; ?></td>
+                            <td><?php echo !empty($row->reference) ? htmlspecialchars((string) $row->reference) : '—'; ?></td>
+                            <td><?php echo !empty($row->description) ? htmlspecialchars((string) $row->description) : '—'; ?></td>
+                            <td><?php echo htmlspecialchars($typeLbl); ?></td>
+                            <td class="text-end <?php echo $dc === 'D' ? 'text-danger' : 'text-success'; ?>">
+                                <?php echo htmlspecialchars($fmtMt940Amount($row->amount ?? 0, $dc, $currency)); ?>
+                            </td>
+                            <td><code class="small"><?php echo !empty($row->source_filename) ? htmlspecialchars((string) $row->source_filename) : '—'; ?></code></td>
+                            <td><?php echo !empty($row->imported_at) ? htmlspecialchars(HTMLHelper::_('date', $row->imported_at, Text::_('COM_ORDENPRODUCCION_FINANCIERO_VERIFIED_DATETIME_FMT'))) : '—'; ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php $mt940Pag = $this->financieroMt940Pagination ?? null; ?>
+            <?php if ($mt940Pag && (int) ($this->financieroMt940Total ?? 0) > 0) : ?>
+                <div class="com-content-pagination mt-3 small"><?php echo $mt940Pag->getListFooter(); ?></div>
+            <?php endif; ?>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <script>
+    (function () {
+        var token = <?php echo json_encode($mt940Token); ?>;
+        var btn = document.getElementById('btn-mt940-import');
+        var fileInput = document.getElementById('mt940-import-file');
+        var resultBox = document.getElementById('mt940-import-result');
+        var alertBox = document.getElementById('mt940-import-alert');
+        if (!btn || !fileInput) {
+            return;
+        }
+        btn.addEventListener('click', function () {
+            var url = btn.getAttribute('data-url');
+            if (!url || !fileInput.files || !fileInput.files[0]) {
+                return;
+            }
+            var fd = new FormData();
+            fd.append('mt940_file', fileInput.files[0]);
+            fd.append(token, '1');
+            btn.disabled = true;
+            resultBox.classList.remove('d-none');
+            alertBox.className = 'alert alert-info mb-0';
+            alertBox.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_RUNNING')); ?>;
+            fetch(url, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var ok = !!data.success;
+                    alertBox.className = 'alert mb-0 ' + (ok ? 'alert-success' : 'alert-danger');
+                    alertBox.textContent = data.message || (ok ? 'OK' : 'Error');
+                    if (ok && !data.data?.skipped) {
+                        window.setTimeout(function () { window.location.reload(); }, 1200);
+                    }
+                })
+                .catch(function (err) {
+                    alertBox.className = 'alert alert-danger mb-0';
+                    alertBox.textContent = err && err.message ? err.message : 'Error';
+                })
+                .finally(function () { btn.disabled = false; });
+        });
+    })();
+    </script>
 <?php endif; ?>

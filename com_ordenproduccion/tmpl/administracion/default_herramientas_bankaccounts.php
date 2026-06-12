@@ -90,6 +90,7 @@ $tokenName = Session::getFormToken();
                     <tr>
                         <th scope="col" style="width:90px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_ID'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_NAME'); ?></th>
+                        <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_NUMBER'); ?></th>
                         <th scope="col" style="width:180px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_DEFAULT'); ?></th>
                         <th scope="col" style="width:140px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_STATE'); ?></th>
                         <th scope="col" style="width:260px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_ACTIONS'); ?></th>
@@ -100,12 +101,14 @@ $tokenName = Session::getFormToken();
                         <?php
                         $rid = (int) ($r->id ?? 0);
                         $rname = (string) ($r->name ?? '');
+                        $rnum = (string) ($r->account_number ?? '');
                         $active = !isset($r->state) || (int) $r->state === 1;
                         $isDef = !empty($r->is_default) && (int) $r->is_default === 1;
                         ?>
                         <tr>
                             <td><?php echo $rid; ?></td>
                             <td><?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo $rnum !== '' ? '<code>' . htmlspecialchars($rnum, ENT_QUOTES, 'UTF-8') . '</code>' : '—'; ?></td>
                             <td>
                                 <?php if ($isDef) : ?>
                                     <span class="ba-default-badge"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_DEFAULT'); ?></span>
@@ -123,7 +126,7 @@ $tokenName = Session::getFormToken();
                                 <?php endif; ?>
                             </td>
                             <td class="ba-actions">
-                                <button type="button" class="btn-edit-ba" onclick="editBa(<?php echo $rid; ?>, <?php echo json_encode($rname); ?>, <?php echo $active ? '1' : '0'; ?>, <?php echo $isDef ? '1' : '0'; ?>)">
+                                <button type="button" class="btn-edit-ba" onclick="editBa(<?php echo $rid; ?>, <?php echo json_encode($rname); ?>, <?php echo json_encode($rnum); ?>, <?php echo $active ? '1' : '0'; ?>, <?php echo $isDef ? '1' : '0'; ?>)">
                                     <i class="fas fa-edit"></i> <?php echo Text::_('JEDIT'); ?>
                                 </button>
                                 <button type="button" class="btn-del-ba" onclick="deleteBa(<?php echo $rid; ?>)">
@@ -150,6 +153,11 @@ $tokenName = Session::getFormToken();
             <div class="ba-form-group">
                 <label for="ba-name"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_NAME'); ?> *</label>
                 <input type="text" id="ba-name" name="name" required maxlength="255" autocomplete="off">
+            </div>
+            <div class="ba-form-group">
+                <label for="ba-account-number"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_NUMBER'); ?></label>
+                <input type="text" id="ba-account-number" name="account_number" maxlength="32" autocomplete="off" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_NUMBER_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="form-text small"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_NUMBER_DESC'); ?></div>
             </div>
             <div class="ba-form-group">
                 <label for="ba-state"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_STATE'); ?></label>
@@ -181,17 +189,19 @@ $tokenName = Session::getFormToken();
         document.getElementById('ba-id').value = '0';
         document.getElementById('ba-state').value = '1';
         document.getElementById('ba-is-default').checked = false;
+        document.getElementById('ba-account-number').value = '';
         document.getElementById('ba-modal').style.display = 'block';
     };
 
     window.closeBaModal = function() { document.getElementById('ba-modal').style.display = 'none'; };
 
-    window.editBa = function(id, name, state1, isDef) {
+    window.editBa = function(id, name, accountNumber, state1, isDef) {
         document.getElementById('ba-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_EDIT')); ?>';
         document.getElementById('ba-id').value = id;
         document.getElementById('ba-name').value = name || '';
-        document.getElementById('ba-state').value = state1 ? '1' : '0';
-        document.getElementById('ba-is-default').checked = !!isDef;
+        document.getElementById('ba-account-number').value = accountNumber || '';
+        document.getElementById('ba-state').value = (state1 === true || state1 === 1 || state1 === '1') ? '1' : '0';
+        document.getElementById('ba-is-default').checked = (isDef === true || isDef === 1 || isDef === '1');
         document.getElementById('ba-modal').style.display = 'block';
     };
 
@@ -200,6 +210,7 @@ $tokenName = Session::getFormToken();
         const fd = new FormData();
         fd.append('id', document.getElementById('ba-id').value || '0');
         fd.append('name', (document.getElementById('ba-name').value || '').trim());
+        fd.append('account_number', (document.getElementById('ba-account-number').value || '').trim());
         fd.append('state', document.getElementById('ba-state').value);
         fd.append('is_default', document.getElementById('ba-is-default').checked ? '1' : '0');
         fd.append(tokenName, '1');

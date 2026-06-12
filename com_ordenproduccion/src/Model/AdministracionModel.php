@@ -16,6 +16,7 @@ use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImapHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 
 /**
@@ -6120,6 +6121,120 @@ class AdministracionModel extends BaseDatabaseModel
             'imap_password'   => $password,
             'sender_email'    => $sender,
         ];
+    }
+
+    /**
+     * @return  bool
+     *
+     * @since   3.119.149
+     */
+    public function isMt940TransactionsTableAvailable(): bool
+    {
+        return Mt940ImportHelper::tablesAvailable();
+    }
+
+    /**
+     * Bank accounts selected in Ajustes → MT940 (id => display label).
+     *
+     * @return  array<int, string>
+     *
+     * @since   3.119.149
+     */
+    public function getMt940ConfiguredBankAccountOptions(): array
+    {
+        $ids = $this->getMt940BankAccountIds();
+        if ($ids === []) {
+            return [];
+        }
+
+        try {
+            $component  = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $model      = $mvcFactory->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+            if (!$model || !method_exists($model, 'getBankAccountsByIds')) {
+                return [];
+            }
+            $rows = $model->getBankAccountsByIds($ids);
+            $out  = [];
+            foreach ($rows as $id => $row) {
+                $name   = trim((string) ($row->name ?? ''));
+                $acctNo = trim((string) ($row->account_number ?? ''));
+                $label  = $name !== '' ? $name : ('#' . $id);
+                if ($acctNo !== '') {
+                    $label .= ' (' . $acctNo . ')';
+                }
+                $out[(int) $id] = $label;
+            }
+            \asort($out);
+
+            return $out;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * @param   int     $limit
+     * @param   int     $start
+     * @param   array   $filters  bank_account_id (0=all configured), date_from, date_to
+     *
+     * @return  array{rows: array<int, object>, total: int}
+     *
+     * @since   3.119.149
+     */
+    public function getMt940TransactionsList(int $limit, int $start, array $filters = []): array
+    {
+        if (!$this->isMt940TransactionsTableAvailable()) {
+            return ['rows' => [], 'total' => 0];
+        }
+
+        $db              = $this->getDatabase();
+        $bankAccountId   = max(0, (int) ($filters['bank_account_id'] ?? 0));
+        $configuredIds   = $this->getMt940BankAccountIds();
+        $dateFrom        = trim((string) ($filters['date_from'] ?? ''));
+        $dateTo          = trim((string) ($filters['date_to'] ?? ''));
+
+        if ($configuredIds === []) {
+            return ['rows' => [], 'total' => 0];
+        }
+
+        $base = $db->getQuery(true)
+            ->from($db->quoteName('#__ordenproduccion_mt940_transactions', 't'))
+            ->join(
+                'LEFT',
+                $db->quoteName('#__ordenproduccion_bank_accounts', 'ba'),
+                $db->quoteName('ba') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('t') . '.' . $db->quoteName('bank_account_id')
+            );
+
+        if ($bankAccountId > 0 && \in_array($bankAccountId, $configuredIds, true)) {
+            $base->where($db->quoteName('t') . '.' . $db->quoteName('bank_account_id') . ' = ' . $bankAccountId);
+        } else {
+            $base->where($db->quoteName('t') . '.' . $db->quoteName('bank_account_id') . ' IN (' . \implode(',', $configuredIds) . ')');
+        }
+
+        if ($dateFrom !== '' && \preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
+            $base->where($db->quoteName('t') . '.' . $db->quoteName('transaction_date') . ' >= ' . $db->quote($dateFrom));
+        }
+        if ($dateTo !== '' && \preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
+            $base->where($db->quoteName('t') . '.' . $db->quoteName('transaction_date') . ' <= ' . $db->quote($dateTo));
+        }
+
+        $countQ = clone $base;
+        $countQ->select('COUNT(*)');
+        $db->setQuery($countQ);
+        $total = (int) $db->loadResult();
+
+        $listQ = clone $base;
+        $listQ->select([
+            $db->quoteName('t') . '.*',
+            $db->quoteName('ba') . '.' . $db->quoteName('name', 'bank_account_name'),
+        ])
+            ->order($db->quoteName('t') . '.' . $db->quoteName('transaction_date') . ' DESC')
+            ->order($db->quoteName('t') . '.' . $db->quoteName('id') . ' DESC');
+        $db->setQuery($listQ, max(0, $start), max(1, min(200, $limit)));
+        $rows = $db->loadObjectList() ?: [];
+
+        return ['rows' => $rows, 'total' => $total];
     }
 }
 

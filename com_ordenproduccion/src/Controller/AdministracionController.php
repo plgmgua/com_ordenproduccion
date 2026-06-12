@@ -23,6 +23,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHe
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImapHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -3029,5 +3030,78 @@ class AdministracionController extends BaseController
         }
 
         $this->sendAdministracionJson(!empty($result['success']), trim($msg), $payload);
+    }
+
+    /**
+     * Import uploaded MT-940 .txt file (JSON; Financiero → Cuentas bancarias).
+     *
+     * @return  void
+     *
+     * @since   3.119.149
+     */
+    public function importMt940File(): void
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        $files = $app->input->files->get('mt940_file', null, 'array');
+        if (!\is_array($files) || empty($files['tmp_name']) || !\is_uploaded_file($files['tmp_name'])) {
+            $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_MT940_IMPORT_NO_FILE'), []);
+
+            return;
+        }
+
+        $filename = \trim((string) ($files['name'] ?? ''));
+        $content  = (string) @\file_get_contents($files['tmp_name']);
+        if ($content === '') {
+            $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_MT940_IMPORT_EMPTY_FILE'), []);
+
+            return;
+        }
+
+        try {
+            $model      = $this->getModel('Administracion');
+            $allowedIds = $model ? $model->getMt940BankAccountIds() : [];
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+
+            return;
+        }
+
+        if ($allowedIds === []) {
+            $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_MT940_IMPORT_NO_ACCOUNTS_CONFIGURED'), []);
+
+            return;
+        }
+
+        $result = Mt940ImportHelper::importFileContent($content, $filename, $allowedIds);
+        $msgKey = (string) ($result['message'] ?? '');
+        $msg    = $msgKey !== '' && \strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+
+        if (!empty($result['success']) && empty($result['skipped'])) {
+            $msg = Text::sprintf(
+                'COM_ORDENPRODUCCION_MT940_IMPORT_OK_DETAIL',
+                (int) ($result['transactions_count'] ?? 0),
+                $filename
+            );
+        }
+
+        $this->sendAdministracionJson(!empty($result['success']), $msg, [
+            'transactions_count' => (int) ($result['transactions_count'] ?? 0),
+            'bank_account_id'    => (int) ($result['bank_account_id'] ?? 0),
+            'skipped'            => !empty($result['skipped']),
+        ]);
     }
 }
