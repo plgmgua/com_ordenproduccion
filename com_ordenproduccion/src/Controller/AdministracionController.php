@@ -3181,4 +3181,51 @@ class AdministracionController extends BaseController
             'details'               => $result['details'] ?? [],
         ]);
     }
+
+    /**
+     * JSON: delete all imported MT-940 transactions and import log entries.
+     *
+     * @return  void
+     *
+     * @since   3.119.153
+     */
+    public function clearMt940ImportedData(): void
+    {
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        try {
+            $result = Mt940ImportHelper::clearAllImportedData();
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+
+            return;
+        }
+
+        $msgKey = (string) ($result['message'] ?? '');
+        $msg    = $msgKey !== '' && \strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+
+        if (!empty($result['success']) && $msgKey === 'COM_ORDENPRODUCCION_MT940_CLEAR_OK') {
+            $msg = Text::sprintf(
+                'COM_ORDENPRODUCCION_MT940_CLEAR_OK_DETAIL',
+                (int) ($result['import_logs_deleted'] ?? 0),
+                (int) ($result['transactions_deleted'] ?? 0)
+            );
+        }
+
+        $this->sendAdministracionJson(!empty($result['success']), $msg, [
+            'import_logs_deleted'  => (int) ($result['import_logs_deleted'] ?? 0),
+            'transactions_deleted' => (int) ($result['transactions_deleted'] ?? 0),
+        ]);
+    }
 }

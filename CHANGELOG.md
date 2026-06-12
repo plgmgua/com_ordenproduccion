@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.153-STABLE] - 2026-05-19
+
+### Added
+- **Financiero → Cuentas bancarias:** **Borrar datos importados** button clears all MT-940 import log entries and transactions (with confirmation) so a fresh mailbox initial import can be run.
+
 ## [3.119.152-STABLE] - 2026-05-19
 
 ### Fixed

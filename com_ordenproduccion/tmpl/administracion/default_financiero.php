@@ -404,6 +404,7 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940ImportRows = isset($this->financieroMt940ImportRows) && \is_array($this->financieroMt940ImportRows) ? $this->financieroMt940ImportRows : [];
     $mt940ImportUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
     $mt940InitialUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.runMt940InitialImport&format=json', false);
+    $mt940ClearUrl     = Route::_('index.php?option=com_ordenproduccion&task=administracion.clearMt940ImportedData&format=json', false);
     $mt940ActionQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
     $mt940FormAction = Route::_($mt940ActionQs, false);
     $mt940Token      = \Joomla\CMS\Session\Session::getFormToken();
@@ -478,9 +479,16 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <h3 class="h6 mb-2"><i class="fas fa-inbox"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_TITLE'); ?></h3>
                 <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_DESC'); ?></p>
                 <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_DEDUP_NOTICE'); ?></p>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-initial-import" data-url="<?php echo htmlspecialchars($mt940InitialUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                    <i class="fas fa-cloud-download-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_BTN'); ?>
-                </button>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-initial-import" data-url="<?php echo htmlspecialchars($mt940InitialUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                        <i class="fas fa-cloud-download-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_BTN'); ?>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="btn-mt940-clear-imported"
+                            data-url="<?php echo htmlspecialchars($mt940ClearUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                            data-confirm="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_CONFIRM'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <i class="fas fa-trash-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_BTN'); ?>
+                    </button>
+                </div>
                 <div id="mt940-initial-result" class="d-none mt-2">
                     <div id="mt940-initial-alert" class="alert mb-0" role="alert"></div>
                     <pre id="mt940-initial-json" class="bg-light border rounded p-2 small mb-0 mt-2" style="max-height: 180px; overflow: auto;"></pre>
@@ -623,7 +631,9 @@ $pagoConfirmadoBadge = static function ($r): string {
     (function () {
         var token = <?php echo json_encode($mt940Token); ?>;
         var runningInitial = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_RUNNING')); ?>;
+        var clearingLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_RUNNING')); ?>;
         var initialBtn = document.getElementById('btn-mt940-initial-import');
+        var clearBtn = document.getElementById('btn-mt940-clear-imported');
         var initialResult = document.getElementById('mt940-initial-result');
         var initialAlert = document.getElementById('mt940-initial-alert');
         var initialJson = document.getElementById('mt940-initial-json');
@@ -668,6 +678,57 @@ $pagoConfirmadoBadge = static function ($r): string {
                     .finally(function () {
                         initialBtn.disabled = false;
                         initialBtn.innerHTML = orig;
+                    });
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                var url = clearBtn.getAttribute('data-url');
+                var confirmMsg = clearBtn.getAttribute('data-confirm') || 'Clear all imported MT-940 data?';
+                if (!url || !window.confirm(confirmMsg)) {
+                    return;
+                }
+                var orig = clearBtn.innerHTML;
+                clearBtn.disabled = true;
+                if (initialBtn) {
+                    initialBtn.disabled = true;
+                }
+                clearBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + clearingLabel;
+                initialResult.classList.remove('d-none');
+                initialAlert.className = 'alert alert-info mb-0';
+                initialAlert.textContent = clearingLabel;
+                initialJson.textContent = '';
+
+                var body = new URLSearchParams();
+                body.append(token, '1');
+
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                    credentials: 'same-origin',
+                    body: body.toString()
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        var ok = !!data.success;
+                        initialAlert.className = 'alert mb-0 ' + (ok ? 'alert-success' : 'alert-danger');
+                        initialAlert.textContent = data.message || (ok ? 'OK' : 'Error');
+                        initialJson.textContent = JSON.stringify(data, null, 2);
+                        if (ok) {
+                            window.setTimeout(function () { window.location.reload(); }, 1200);
+                        }
+                    })
+                    .catch(function (err) {
+                        initialAlert.className = 'alert alert-danger mb-0';
+                        initialAlert.textContent = err && err.message ? err.message : 'Error';
+                    })
+                    .finally(function () {
+                        clearBtn.disabled = false;
+                        clearBtn.innerHTML = orig;
+                        if (initialBtn) {
+                            initialBtn.disabled = false;
+                        }
                     });
             });
         }

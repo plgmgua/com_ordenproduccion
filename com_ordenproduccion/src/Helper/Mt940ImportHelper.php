@@ -273,6 +273,56 @@ class Mt940ImportHelper
     }
 
     /**
+     * Delete all MT-940 transactions and import log rows (for a fresh mailbox re-import).
+     *
+     * @return  array{
+     *   success: bool,
+     *   message: string,
+     *   transactions_deleted?: int,
+     *   import_logs_deleted?: int
+     * }
+     *
+     * @since   3.119.153
+     */
+    public static function clearAllImportedData(): array
+    {
+        if (!self::tablesAvailable()) {
+            return ['success' => false, 'message' => 'COM_ORDENPRODUCCION_MT940_SCHEMA_MISSING'];
+        }
+
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $db->transactionStart();
+
+            $query = $db->getQuery(true)
+                ->delete($db->quoteName('#__ordenproduccion_mt940_transactions'));
+            $db->setQuery($query);
+            $db->execute();
+            $txDeleted = (int) $db->getAffectedRows();
+
+            $query = $db->getQuery(true)
+                ->delete($db->quoteName('#__ordenproduccion_mt940_import_log'));
+            $db->setQuery($query);
+            $db->execute();
+            $logDeleted = (int) $db->getAffectedRows();
+
+            $db->transactionCommit();
+
+            return [
+                'success'              => true,
+                'message'              => 'COM_ORDENPRODUCCION_MT940_CLEAR_OK',
+                'transactions_deleted' => $txDeleted,
+                'import_logs_deleted'  => $logDeleted,
+            ];
+        } catch (\Throwable $e) {
+            $db->transactionRollback();
+
+            throw $e;
+        }
+    }
+
+    /**
      * @param   string       $accountNumber
      * @param   array<int>   $allowedBankIds
      *
