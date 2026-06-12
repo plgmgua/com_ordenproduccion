@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.155-STABLE] - 2026-05-19
+
+### Changed
+- **Financiero → Cuentas bancarias → Movimientos:** removed Código, Archivo, and Importado columns; reduced table font size.
+
 ## [3.119.154-STABLE] - 2026-05-19
 
 ### Changed

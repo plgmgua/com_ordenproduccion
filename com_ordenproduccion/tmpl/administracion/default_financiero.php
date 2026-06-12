@@ -136,6 +136,8 @@ $pagoConfirmadoBadge = static function ($r): string {
 .financiero-subtab.subtab-active { color: #667eea; border-bottom-color: #667eea; font-weight: 600; }
 .table-financiero { font-size: 12px; }
 .table-financiero th { white-space: nowrap; }
+.table-mt940 { font-size: 10px; }
+.table-mt940 th { white-space: nowrap; }
 .bg-margen-total-row { background: rgba(144, 238, 144, 0.25); }
 .bg-bono-ma-row { background: rgba(173, 216, 230, 0.35); }
 </style>
@@ -508,7 +510,7 @@ $pagoConfirmadoBadge = static function ($r): string {
             <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_EMPTY'); ?></p>
         <?php else : ?>
             <div class="table-responsive mb-4">
-                <table class="table table-sm table-striped align-middle">
+                <table class="table table-sm table-striped table-mt940 align-middle">
                     <thead class="table-light">
                         <tr>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_STATEMENT_DATE'); ?></th>
@@ -558,19 +560,16 @@ $pagoConfirmadoBadge = static function ($r): string {
             <p><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EMPTY'); ?></p>
         <?php else : ?>
             <div class="table-responsive">
-                <table class="table table-sm table-striped table-financiero align-middle">
+                <table class="table table-sm table-striped table-mt940 align-middle">
                     <thead class="table-light">
                         <tr>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DATE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_VALUE_DATE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_CODE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_REFERENCE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DESCRIPTION'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_TYPE'); ?></th>
                             <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_AMOUNT'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_SOURCE'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_IMPORTED'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -596,15 +595,12 @@ $pagoConfirmadoBadge = static function ($r): string {
                             <td><?php echo !empty($row->transaction_date) ? htmlspecialchars((string) $row->transaction_date) : '—'; ?></td>
                             <td><?php echo !empty($row->value_date) ? htmlspecialchars((string) $row->value_date) : '—'; ?></td>
                             <td><?php echo $acctLbl !== '' ? htmlspecialchars($acctLbl) : '—'; ?></td>
-                            <td><?php echo !empty($row->transaction_code) ? htmlspecialchars((string) $row->transaction_code) : '—'; ?></td>
                             <td><?php echo !empty($row->reference) ? htmlspecialchars((string) $row->reference) : '—'; ?></td>
                             <td><?php echo !empty($row->description) ? htmlspecialchars((string) $row->description) : '—'; ?></td>
                             <td><?php echo htmlspecialchars($typeLbl); ?></td>
                             <td class="text-end <?php echo $dc === 'D' ? 'text-danger' : 'text-success'; ?>">
                                 <?php echo htmlspecialchars($fmtMt940Amount($row->amount ?? 0, $dc, $currency)); ?>
                             </td>
-                            <td><code class="small"><?php echo !empty($row->source_filename) ? htmlspecialchars((string) $row->source_filename) : '—'; ?></code></td>
-                            <td><?php echo !empty($row->imported_at) ? htmlspecialchars(HTMLHelper::_('date', $row->imported_at, Text::_('COM_ORDENPRODUCCION_FINANCIERO_VERIFIED_DATETIME_FMT'))) : '—'; ?></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
