@@ -25,15 +25,18 @@ class Mt940ParserHelper
      *   account_number: string,
      *   statement_reference: string,
      *   statement_date: ?string,
+     *   statement_sequence: string,
      *   currency: string,
      *   opening_balance: ?float,
      *   closing_balance: ?float,
+     *   closing_available_balance: ?float,
      *   transactions: array<int, array{
      *     transaction_date: ?string,
      *     value_date: ?string,
      *     debit_credit: string,
      *     amount: float,
      *     currency: string,
+     *     transaction_code: string,
      *     reference: string,
      *     description: string,
      *     raw_line: string
@@ -45,13 +48,15 @@ class Mt940ParserHelper
     public static function parse(string $content): array
     {
         $out = [
-            'account_number'      => '',
-            'statement_reference' => '',
-            'statement_date'      => null,
-            'currency'            => 'GTQ',
-            'opening_balance'     => null,
-            'closing_balance'     => null,
-            'transactions'        => [],
+            'account_number'              => '',
+            'statement_reference'         => '',
+            'statement_date'              => null,
+            'statement_sequence'          => '',
+            'currency'                    => 'GTQ',
+            'opening_balance'             => null,
+            'closing_balance'             => null,
+            'closing_available_balance'   => null,
+            'transactions'                => [],
         ];
 
         $lines = \preg_split('/\R/', $content) ?: [];
@@ -76,6 +81,12 @@ class Mt940ParserHelper
                 continue;
             }
 
+            if (\strpos($line, ':28C:') === 0) {
+                $out['statement_sequence'] = \trim(\substr($line, 5));
+
+                continue;
+            }
+
             if (\strpos($line, ':60F:') === 0) {
                 $bal = self::parseBalanceLine(\substr($line, 5));
                 if ($bal !== null) {
@@ -93,6 +104,18 @@ class Mt940ParserHelper
                 if ($bal !== null) {
                     $out['closing_balance'] = $bal['amount'];
                     if ($bal['currency'] !== '') {
+                        $out['currency'] = $bal['currency'];
+                    }
+                }
+
+                continue;
+            }
+
+            if (\strpos($line, ':64:') === 0) {
+                $bal = self::parseBalanceLine(\substr($line, 4));
+                if ($bal !== null) {
+                    $out['closing_available_balance'] = $bal['amount'];
+                    if ($bal['currency'] !== '' && $out['currency'] === 'GTQ') {
                         $out['currency'] = $bal['currency'];
                     }
                 }
@@ -192,12 +215,13 @@ class Mt940ParserHelper
             'debit_credit'     => '',
             'amount'           => 0.0,
             'currency'         => $currency !== '' ? $currency : 'GTQ',
+            'transaction_code' => '',
             'reference'        => '',
             'description'      => '',
             'raw_line'         => ':61:' . $raw,
         ];
 
-        if (!\preg_match('/^(\d{6})([CD])([\d,]+)([A-Z]{0,3})?(.*)$/i', $raw, $m)) {
+        if (!\preg_match('/^(\d{6})([CD])([\d,]+)(.*)$/i', $raw, $m)) {
             return $tx;
         }
 
@@ -205,13 +229,16 @@ class Mt940ParserHelper
         $tx['value_date']       = $tx['transaction_date'];
         $tx['debit_credit']     = \strtoupper($m[2]) === 'D' ? 'D' : 'C';
         $tx['amount']           = \round(self::parseEuropeanAmount($m[3]), 2);
-        if (!empty($m[4])) {
-            $tx['currency'] = \strtoupper($m[4]);
-        }
 
-        $tail = \trim((string) ($m[5] ?? ''));
+        $tail = \trim((string) ($m[4] ?? ''));
         if ($tail !== '') {
-            if (\preg_match('/(\d{5,})$/', $tail, $rm)) {
+            if (\preg_match('/^([A-Z]{4})(\d+)$/i', $tail, $tm)) {
+                $tx['transaction_code'] = \strtoupper($tm[1]);
+                $tx['reference']        = $tm[2];
+            } elseif (\preg_match('/^([A-Z]{3})(\d+)$/i', $tail, $tm)) {
+                $tx['transaction_code'] = \strtoupper($tm[1]);
+                $tx['reference']        = $tm[2];
+            } elseif (\preg_match('/(\d{5,})$/', $tail, $rm)) {
                 $tx['reference'] = $rm[1];
             } else {
                 $tx['reference'] = $tail;

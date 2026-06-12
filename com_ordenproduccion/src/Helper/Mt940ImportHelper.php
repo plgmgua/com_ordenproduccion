@@ -96,17 +96,24 @@ class Mt940ImportHelper
             }
 
             $importLogId = self::insertImportLog([
-                'email_uid'          => $emailUid !== '' ? $emailUid : null,
-                'sender'             => $sender,
-                'subject'            => $subject,
-                'filename'           => $filename,
-                'content_hash'       => $contentHash,
-                'bank_account_id'    => $bankAccountId,
-                'account_number'     => $acctNo,
-                'status'             => 'imported',
-                'transactions_count' => 0,
-                'message'            => '',
-                'imported_at'        => $now,
+                'email_uid'                  => $emailUid !== '' ? $emailUid : null,
+                'sender'                     => $sender,
+                'subject'                    => $subject,
+                'filename'                   => $filename,
+                'content_hash'               => $contentHash,
+                'bank_account_id'            => $bankAccountId,
+                'account_number'             => $acctNo,
+                'statement_reference'        => (string) ($parsed['statement_reference'] ?? ''),
+                'statement_date'             => $parsed['statement_date'] ?? null,
+                'statement_sequence'         => (string) ($parsed['statement_sequence'] ?? ''),
+                'currency'                   => $currency,
+                'opening_balance'            => $parsed['opening_balance'] ?? null,
+                'closing_balance'            => $parsed['closing_balance'] ?? null,
+                'closing_available_balance'  => $parsed['closing_available_balance'] ?? null,
+                'status'                     => 'imported',
+                'transactions_count'         => 0,
+                'message'                    => '',
+                'imported_at'                => $now,
             ]);
 
             $statementDate = $parsed['statement_date'] ?? null;
@@ -119,6 +126,11 @@ class Mt940ImportHelper
                     continue;
                 }
 
+                $txCurrency = (string) ($tx['currency'] ?? $currency);
+                if ($txCurrency === '' || \strlen($txCurrency) !== 3 || !\preg_match('/^[A-Z]{3}$/', $txCurrency)) {
+                    $txCurrency = $currency !== '' ? $currency : 'GTQ';
+                }
+
                 $row = (object) [
                     'bank_account_id'   => $bankAccountId,
                     'account_number'    => $acctNo,
@@ -129,14 +141,19 @@ class Mt940ImportHelper
                     'transaction_date'  => $tx['transaction_date'] ?? null,
                     'value_date'        => $tx['value_date'] ?? null,
                     'reference'         => $tx['reference'] ?? '',
+                    'transaction_code'  => $tx['transaction_code'] ?? '',
                     'amount'            => (float) ($tx['amount'] ?? 0),
-                    'currency'          => $tx['currency'] ?? $currency,
+                    'currency'          => $txCurrency,
                     'debit_credit'      => $tx['debit_credit'] ?? '',
                     'description'       => $tx['description'] ?? '',
                     'raw_line'          => $tx['raw_line'] ?? '',
                     'tx_fingerprint'    => $fingerprint,
                     'imported_at'       => $now,
                 ];
+
+                if (!self::transactionsHaveTransactionCodeColumn()) {
+                    unset($row->transaction_code);
+                }
 
                 try {
                     $db->insertObject('#__ordenproduccion_mt940_transactions', $row, 'id');
@@ -462,6 +479,36 @@ class Mt940ImportHelper
     }
 
     /**
+     * @return  bool
+     */
+    private static function importLogHasStatementMetadataColumns(): bool
+    {
+        try {
+            $db   = Factory::getContainer()->get(DatabaseInterface::class);
+            $cols = $db->getTableColumns('#__ordenproduccion_mt940_import_log', false);
+
+            return isset($cols['statement_reference']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @return  bool
+     */
+    private static function transactionsHaveTransactionCodeColumn(): bool
+    {
+        try {
+            $db   = Factory::getContainer()->get(DatabaseInterface::class);
+            $cols = $db->getTableColumns('#__ordenproduccion_mt940_transactions', false);
+
+            return isset($cols['transaction_code']);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * @param   array<string, mixed>  $data
      *
      * @return  int
@@ -473,6 +520,20 @@ class Mt940ImportHelper
 
         if (!self::importLogHasContentHashColumn()) {
             unset($obj->content_hash);
+        }
+
+        if (!self::importLogHasStatementMetadataColumns()) {
+            foreach ([
+                'statement_reference',
+                'statement_date',
+                'statement_sequence',
+                'currency',
+                'opening_balance',
+                'closing_balance',
+                'closing_available_balance',
+            ] as $col) {
+                unset($obj->$col);
+            }
         }
 
         $db->insertObject('#__ordenproduccion_mt940_import_log', $obj, 'id');

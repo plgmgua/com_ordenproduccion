@@ -6228,9 +6228,84 @@ class AdministracionModel extends BaseDatabaseModel
         $listQ->select([
             $db->quoteName('t') . '.*',
             $db->quoteName('ba') . '.' . $db->quoteName('name', 'bank_account_name'),
+            $db->quoteName('l') . '.' . $db->quoteName('currency', 'statement_currency'),
         ])
+            ->join(
+                'LEFT',
+                $db->quoteName('#__ordenproduccion_mt940_import_log', 'l'),
+                $db->quoteName('l') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('t') . '.' . $db->quoteName('import_log_id')
+            )
             ->order($db->quoteName('t') . '.' . $db->quoteName('transaction_date') . ' DESC')
             ->order($db->quoteName('t') . '.' . $db->quoteName('id') . ' DESC');
+        $db->setQuery($listQ, max(0, $start), max(1, min(200, $limit)));
+        $rows = $db->loadObjectList() ?: [];
+
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    /**
+     * Imported MT-940 statement files (import log), including zero-transaction statements.
+     *
+     * @param   int                $limit
+     * @param   int                $start
+     * @param   array<string,mixed>  $filters
+     *
+     * @return  array{rows: array<int, object>, total: int}
+     *
+     * @since   3.119.151
+     */
+    public function getMt940ImportLogList(int $limit, int $start, array $filters = []): array
+    {
+        if (!$this->isMt940TransactionsTableAvailable()) {
+            return ['rows' => [], 'total' => 0];
+        }
+
+        $db            = $this->getDatabase();
+        $bankAccountId = max(0, (int) ($filters['bank_account_id'] ?? 0));
+        $configuredIds = $this->getMt940BankAccountIds();
+        $dateFrom      = trim((string) ($filters['date_from'] ?? ''));
+        $dateTo        = trim((string) ($filters['date_to'] ?? ''));
+
+        if ($configuredIds === []) {
+            return ['rows' => [], 'total' => 0];
+        }
+
+        $base = $db->getQuery(true)
+            ->from($db->quoteName('#__ordenproduccion_mt940_import_log', 'l'))
+            ->join(
+                'LEFT',
+                $db->quoteName('#__ordenproduccion_bank_accounts', 'ba'),
+                $db->quoteName('ba') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('l') . '.' . $db->quoteName('bank_account_id')
+            )
+            ->where($db->quoteName('l') . '.' . $db->quoteName('status') . ' = ' . $db->quote('imported'));
+
+        if ($bankAccountId > 0 && \in_array($bankAccountId, $configuredIds, true)) {
+            $base->where($db->quoteName('l') . '.' . $db->quoteName('bank_account_id') . ' = ' . $bankAccountId);
+        } else {
+            $base->where($db->quoteName('l') . '.' . $db->quoteName('bank_account_id') . ' IN (' . \implode(',', $configuredIds) . ')');
+        }
+
+        if ($dateFrom !== '' && \preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
+            $base->where('(' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ' >= ' . $db->quote($dateFrom)
+                . ' OR (' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ' IS NULL AND ' . $db->quoteName('l') . '.' . $db->quoteName('imported_at') . ' >= ' . $db->quote($dateFrom . ' 00:00:00') . '))');
+        }
+        if ($dateTo !== '' && \preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
+            $base->where('(' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ' <= ' . $db->quote($dateTo)
+                . ' OR (' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ' IS NULL AND ' . $db->quoteName('l') . '.' . $db->quoteName('imported_at') . ' <= ' . $db->quote($dateTo . ' 23:59:59') . '))');
+        }
+
+        $countQ = clone $base;
+        $countQ->select('COUNT(*)');
+        $db->setQuery($countQ);
+        $total = (int) $db->loadResult();
+
+        $listQ = clone $base;
+        $listQ->select([
+            $db->quoteName('l') . '.*',
+            $db->quoteName('ba') . '.' . $db->quoteName('name', 'bank_account_name'),
+        ])
+            ->order($db->quoteName('l') . '.' . $db->quoteName('imported_at') . ' DESC')
+            ->order($db->quoteName('l') . '.' . $db->quoteName('id') . ' DESC');
         $db->setQuery($listQ, max(0, $start), max(1, min(200, $limit)));
         $rows = $db->loadObjectList() ?: [];
 

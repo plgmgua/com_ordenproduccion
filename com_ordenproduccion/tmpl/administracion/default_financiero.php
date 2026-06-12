@@ -401,6 +401,7 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940DateFrom   = (string) ($this->financieroMt940FilterDateFrom ?? '');
     $mt940DateTo     = (string) ($this->financieroMt940FilterDateTo ?? '');
     $mt940Rows       = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
+    $mt940ImportRows = isset($this->financieroMt940ImportRows) && \is_array($this->financieroMt940ImportRows) ? $this->financieroMt940ImportRows : [];
     $mt940ImportUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
     $mt940InitialUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.runMt940InitialImport&format=json', false);
     $mt940ActionQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
@@ -410,9 +411,24 @@ $pagoConfirmadoBadge = static function ($r): string {
     $fmtMt940Amount = static function ($amount, string $dc, string $currency): string {
         $n = round((float) $amount, 2);
         $sign = $dc === 'D' ? '-' : '';
+        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+            $currency = 'GTQ';
+        }
         $sym  = $currency === 'USD' ? 'USD ' : 'Q ';
 
         return $sign . $sym . number_format(abs($n), 2, '.', ',');
+    };
+
+    $fmtMt940Balance = static function ($amount, string $currency): string {
+        if ($amount === null || $amount === '') {
+            return '—';
+        }
+        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+            $currency = 'GTQ';
+        }
+        $sym = $currency === 'USD' ? 'USD ' : 'Q ';
+
+        return $sym . number_format((float) $amount, 2, '.', ',');
     };
     ?>
     <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INTRO'); ?></p>
@@ -488,6 +504,58 @@ $pagoConfirmadoBadge = static function ($r): string {
             </div>
         </div>
 
+        <h3 class="h6 mt-4 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_TITLE'); ?></h3>
+        <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_INTRO'); ?></p>
+        <?php if ($mt940ImportRows === []) : ?>
+            <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_EMPTY'); ?></p>
+        <?php else : ?>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm table-striped align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_STATEMENT_DATE'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_STATEMENT_REF'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_SEQUENCE'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_OPENING'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_CLOSING'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_AVAILABLE'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_TX_COUNT'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_SOURCE'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_IMPORTED'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($mt940ImportRows as $imp) :
+                            $impCur   = (string) ($imp->currency ?? 'GTQ');
+                            $impAcct  = trim((string) ($imp->bank_account_name ?? ''));
+                            $impNo    = trim((string) ($imp->account_number ?? ''));
+                            if ($impAcct === '' && $impNo !== '') {
+                                $impAcct = $impNo;
+                            } elseif ($impNo !== '' && $impAcct !== '') {
+                                $impAcct .= ' (' . $impNo . ')';
+                            }
+                            ?>
+                        <tr>
+                            <td><?php echo !empty($imp->statement_date) ? htmlspecialchars((string) $imp->statement_date) : '—'; ?></td>
+                            <td><?php echo $impAcct !== '' ? htmlspecialchars($impAcct) : '—'; ?></td>
+                            <td><?php echo !empty($imp->statement_reference) ? htmlspecialchars((string) $imp->statement_reference) : '—'; ?></td>
+                            <td><?php echo !empty($imp->statement_sequence) ? htmlspecialchars((string) $imp->statement_sequence) : '—'; ?></td>
+                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($imp->opening_balance ?? null, $impCur)); ?></td>
+                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($imp->closing_balance ?? null, $impCur)); ?></td>
+                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($imp->closing_available_balance ?? null, $impCur)); ?></td>
+                            <td><?php echo (int) ($imp->transactions_count ?? 0); ?></td>
+                            <td><code class="small"><?php echo !empty($imp->filename) ? htmlspecialchars((string) $imp->filename) : '—'; ?></code></td>
+                            <td><?php echo !empty($imp->imported_at) ? htmlspecialchars(HTMLHelper::_('date', $imp->imported_at, Text::_('COM_ORDENPRODUCCION_FINANCIERO_VERIFIED_DATETIME_FMT'))) : '—'; ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+
+        <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TRANSACTIONS_TITLE'); ?></h3>
+
         <?php if ($mt940Rows === []) : ?>
             <p><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EMPTY'); ?></p>
         <?php else : ?>
@@ -496,7 +564,9 @@ $pagoConfirmadoBadge = static function ($r): string {
                     <thead class="table-light">
                         <tr>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DATE'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_VALUE_DATE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_CODE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_REFERENCE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DESCRIPTION'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_TYPE'); ?></th>
@@ -509,6 +579,10 @@ $pagoConfirmadoBadge = static function ($r): string {
                         <?php foreach ($mt940Rows as $row) :
                             $dc       = (string) ($row->debit_credit ?? '');
                             $currency = (string) ($row->currency ?? 'GTQ');
+                            if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+                                $stmtCur = (string) ($row->statement_currency ?? '');
+                                $currency = \in_array($stmtCur, ['GTQ', 'USD'], true) ? $stmtCur : 'GTQ';
+                            }
                             $acctLbl  = trim((string) ($row->bank_account_name ?? ''));
                             $acctNo   = trim((string) ($row->account_number ?? ''));
                             if ($acctLbl === '' && $acctNo !== '') {
@@ -522,7 +596,9 @@ $pagoConfirmadoBadge = static function ($r): string {
                             ?>
                         <tr>
                             <td><?php echo !empty($row->transaction_date) ? htmlspecialchars((string) $row->transaction_date) : '—'; ?></td>
+                            <td><?php echo !empty($row->value_date) ? htmlspecialchars((string) $row->value_date) : '—'; ?></td>
                             <td><?php echo $acctLbl !== '' ? htmlspecialchars($acctLbl) : '—'; ?></td>
+                            <td><?php echo !empty($row->transaction_code) ? htmlspecialchars((string) $row->transaction_code) : '—'; ?></td>
                             <td><?php echo !empty($row->reference) ? htmlspecialchars((string) $row->reference) : '—'; ?></td>
                             <td><?php echo !empty($row->description) ? htmlspecialchars((string) $row->description) : '—'; ?></td>
                             <td><?php echo htmlspecialchars($typeLbl); ?></td>

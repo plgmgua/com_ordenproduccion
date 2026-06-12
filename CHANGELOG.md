@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.151-STABLE] - 2026-05-19
+
+### Fixed
+- **MT-940 parser:** `:61:` lines no longer misread transaction codes (e.g. `NMSC`) as currency; amounts use statement currency (`GTQ`/`USD`).
+- **MT-940 parser:** now reads `:28C:` statement sequence and `:64:` available balance.
+
+### Added
+- **Import log statement metadata:** stores `:20:` reference, statement date, `:28C:` sequence, opening/closing/available balances per imported file.
+- **Transactions:** `transaction_code` field (e.g. `NMSC`).
+- **Financiero → Cuentas bancarias:** new **Imported statements** table (shows zero-transaction files with balances); transaction table adds value date and code columns.
+
 ## [3.119.150-STABLE] - 2026-05-19
 
 ### Added

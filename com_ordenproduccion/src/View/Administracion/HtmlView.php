@@ -838,6 +838,20 @@ class HtmlView extends BaseHtmlView
     protected $financieroMt940ListLimit = 25;
 
     /**
+     * @var  array<int, object>
+     *
+     * @since  3.119.151
+     */
+    protected $financieroMt940ImportRows = [];
+
+    /**
+     * @var  int
+     *
+     * @since  3.119.151
+     */
+    protected $financieroMt940ImportTotal = 0;
+
+    /**
      * Facturas tab subtab: lista (default) | match (conciliar facturas con órdenes)
      *
      * @var    string
@@ -1465,6 +1479,8 @@ class HtmlView extends BaseHtmlView
         $this->financieroMt940FilterDateTo          = '';
         $this->financieroMt940BankAccountOptions    = [];
         $this->financieroMt940ListLimit             = 25;
+        $this->financieroMt940ImportRows            = [];
+        $this->financieroMt940ImportTotal           = 0;
 
         // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -2076,6 +2092,14 @@ class HtmlView extends BaseHtmlView
                             ]);
                             $this->financieroMt940Rows  = $pack['rows'] ?? [];
                             $this->financieroMt940Total = (int) ($pack['total'] ?? 0);
+
+                            $importPack = $admFin->getMt940ImportLogList($limit, $limitStart, [
+                                'bank_account_id' => $this->financieroMt940FilterBankAccountId,
+                                'date_from'       => $this->financieroMt940FilterDateFrom,
+                                'date_to'         => $this->financieroMt940FilterDateTo,
+                            ]);
+                            $this->financieroMt940ImportRows  = $importPack['rows'] ?? [];
+                            $this->financieroMt940ImportTotal = (int) ($importPack['total'] ?? 0);
 
                             if ($this->financieroMt940Total > 0) {
                                 $this->financieroMt940Pagination = new \Joomla\CMS\Pagination\Pagination(
