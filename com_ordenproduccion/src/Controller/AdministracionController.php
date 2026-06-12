@@ -3022,6 +3022,7 @@ class AdministracionController extends BaseController
             'mailbox_total' => (int) ($result['mailbox_total'] ?? 0),
             'sender_total'  => (int) ($result['sender_total'] ?? 0),
             'mailbox'       => (string) ($result['mailbox'] ?? ''),
+            'driver'        => (string) ($result['driver'] ?? ''),
         ];
         if (!empty($result['imap_error'])) {
             $payload['imap_error'] = (string) $result['imap_error'];

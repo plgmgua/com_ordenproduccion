@@ -26,25 +26,18 @@ class Mt940ImapHelper
     /**
      * @param   array<string, mixed>  $settings
      *
-     * @return  array{success: bool, message: string, mailbox_total?: int, sender_total?: int, mailbox?: string}
+     * @return  array{success: bool, message: string, mailbox_total?: int, sender_total?: int, mailbox?: string, driver?: string, imap_error?: string}
      *
      * @since   3.119.146
      */
     public static function testConnection(array $settings): array
     {
-        if (!\function_exists('imap_open')) {
-            return [
-                'success' => false,
-                'message' => 'COM_ORDENPRODUCCION_MT940_IMAP_EXTENSION_MISSING',
-            ];
-        }
-
-        $host       = trim((string) ($settings['imap_host'] ?? ''));
-        $port       = max(1, (int) ($settings['imap_port'] ?? 993));
+        $host       = \trim((string) ($settings['imap_host'] ?? ''));
+        $port       = \max(1, (int) ($settings['imap_port'] ?? 993));
         $encryption = self::normalizeEncryption((string) ($settings['imap_encryption'] ?? 'ssl'));
-        $username   = trim((string) ($settings['imap_username'] ?? ''));
+        $username   = \trim((string) ($settings['imap_username'] ?? ''));
         $password   = (string) ($settings['imap_password'] ?? '');
-        $sender     = trim((string) ($settings['sender_email'] ?? self::DEFAULT_SENDER_EMAIL));
+        $sender     = \trim((string) ($settings['sender_email'] ?? self::DEFAULT_SENDER_EMAIL));
 
         if ($host === '' || $username === '' || $password === '') {
             return [
@@ -53,6 +46,33 @@ class Mt940ImapHelper
             ];
         }
 
+        if (\function_exists('imap_open')) {
+            return self::testConnectionWithExtension($host, $port, $encryption, $username, $password, $sender);
+        }
+
+        return Mt940SocketImapClient::testConnection($settings);
+    }
+
+    /**
+     * @param   string  $host
+     * @param   int     $port
+     * @param   string  $encryption
+     * @param   string  $username
+     * @param   string  $password
+     * @param   string  $sender
+     *
+     * @return  array{success: bool, message: string, mailbox_total?: int, sender_total?: int, mailbox?: string, driver?: string, imap_error?: string}
+     *
+     * @since   3.119.147
+     */
+    private static function testConnectionWithExtension(
+        string $host,
+        int $port,
+        string $encryption,
+        string $username,
+        string $password,
+        string $sender
+    ): array {
         $mailbox = self::buildMailboxString($host, $port, $encryption);
         $imap    = @\imap_open($mailbox, $username, $password, \OP_READONLY, 1);
 
@@ -60,10 +80,11 @@ class Mt940ImapHelper
             $err = \trim((string) \imap_last_error());
 
             return [
-                'success'  => false,
-                'message'  => 'COM_ORDENPRODUCCION_MT940_IMAP_CONNECT_FAIL',
+                'success'    => false,
+                'message'    => 'COM_ORDENPRODUCCION_MT940_IMAP_CONNECT_FAIL',
                 'imap_error' => $err,
-                'mailbox'  => $mailbox,
+                'mailbox'    => $mailbox,
+                'driver'     => 'imap',
             ];
         }
 
@@ -90,6 +111,7 @@ class Mt940ImapHelper
             'mailbox_total' => $total,
             'sender_total'  => $senderTotal,
             'mailbox'       => $mailbox,
+            'driver'        => 'imap',
         ];
     }
 

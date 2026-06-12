@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.147-STABLE] - 2026-05-19
+
+### Fixed
+- **MT940 IMAP test:** when PHP `ext-imap` is missing, use a built-in socket/TLS IMAP client (OpenSSL) so mailbox tests work on hosts without `php-imap`.
+
 ## [3.119.146-STABLE] - 2026-05-19
 
 ### Added
