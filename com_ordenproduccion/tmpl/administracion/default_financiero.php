@@ -437,6 +437,19 @@ $pagoConfirmadoBadge = static function ($r): string {
 
         return $sym . number_format((float) $amount, 2, '.', ',');
     };
+
+    $mt940AccountNumberDisplay = static function (object $row): string {
+        $acctNo = \trim((string) ($row->account_number ?? ''));
+        if ($acctNo !== '') {
+            return $acctNo;
+        }
+        $name = \trim((string) ($row->bank_account_name ?? ''));
+        if ($name !== '' && \preg_match('/\(([^)]+)\)\s*$/', $name, $m)) {
+            return \trim((string) ($m[1] ?? ''));
+        }
+
+        return $name;
+    };
     ?>
 
     <div class="financiero-subtabs mb-3" style="border-bottom-width: 1px;">
@@ -563,9 +576,9 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <table class="table table-sm table-striped table-mt940 align-middle">
                     <thead class="table-light">
                         <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DATE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_VALUE_DATE'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_REFERENCE'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DESCRIPTION'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_TYPE'); ?></th>
@@ -580,21 +593,15 @@ $pagoConfirmadoBadge = static function ($r): string {
                                 $stmtCur = (string) ($row->statement_currency ?? '');
                                 $currency = \in_array($stmtCur, ['GTQ', 'USD'], true) ? $stmtCur : 'GTQ';
                             }
-                            $acctLbl  = trim((string) ($row->bank_account_name ?? ''));
-                            $acctNo   = trim((string) ($row->account_number ?? ''));
-                            if ($acctLbl === '' && $acctNo !== '') {
-                                $acctLbl = $acctNo;
-                            } elseif ($acctNo !== '' && $acctLbl !== '') {
-                                $acctLbl .= ' (' . $acctNo . ')';
-                            }
                             $typeLbl = $dc === 'D'
                                 ? Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TYPE_DEBIT')
                                 : ($dc === 'C' ? Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TYPE_CREDIT') : '—');
+                            $acctDisplay = $mt940AccountNumberDisplay($row);
                             ?>
                         <tr>
+                            <td><?php echo $acctDisplay !== '' ? htmlspecialchars($acctDisplay) : '—'; ?></td>
                             <td><?php echo !empty($row->transaction_date) ? htmlspecialchars((string) $row->transaction_date) : '—'; ?></td>
                             <td><?php echo !empty($row->value_date) ? htmlspecialchars((string) $row->value_date) : '—'; ?></td>
-                            <td><?php echo $acctLbl !== '' ? htmlspecialchars($acctLbl) : '—'; ?></td>
                             <td><?php echo !empty($row->reference) ? htmlspecialchars((string) $row->reference) : '—'; ?></td>
                             <td><?php echo !empty($row->description) ? htmlspecialchars((string) $row->description) : '—'; ?></td>
                             <td><?php echo htmlspecialchars($typeLbl); ?></td>

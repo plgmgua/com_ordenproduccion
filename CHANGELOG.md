@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.156-STABLE] - 2026-05-19
+
+### Changed
+- **Financiero → Movimientos:** Cuenta column shows account number only and is the first column.
+
 ## [3.119.155-STABLE] - 2026-05-19
 
 ### Changed
