@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.152-STABLE] - 2026-05-19
+
+### Fixed
+- **MT-940 import:** currency was undefined when saving statement metadata on import log (affected balance display).
+- **MT-940 re-import:** uploading an already-imported file now backfills statement metadata (balances, :20:/:28C:) — fixes zero-transaction files like `R11062026C6500007411.TXT` imported before 3.119.151.
+
 ## [3.119.151-STABLE] - 2026-05-19
 
 ### Fixed

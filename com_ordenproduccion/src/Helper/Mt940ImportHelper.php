@@ -55,11 +55,16 @@ class Mt940ImportHelper
 
         $dup = self::findDuplicateImport($filename, $emailUid, $contentHash);
         if ($dup !== null) {
+            $refreshed = self::refreshDuplicateImportMetadata($content, $filename, $allowedBankIds);
+
             return [
                 'success'           => true,
-                'message'           => 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
+                'message'           => $refreshed
+                    ? 'COM_ORDENPRODUCCION_MT940_IMPORT_METADATA_REFRESHED'
+                    : 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
                 'skipped'           => true,
                 'duplicate_reason'  => $dup,
+                'metadata_refreshed' => $refreshed,
             ];
         }
 
@@ -86,14 +91,20 @@ class Mt940ImportHelper
             $dup = self::findDuplicateImport($filename, $emailUid, $contentHash);
             if ($dup !== null) {
                 $db->transactionRollback();
+                $refreshed = self::refreshDuplicateImportMetadata($content, $filename, $allowedBankIds);
 
                 return [
-                    'success'          => true,
-                    'message'          => 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
-                    'skipped'          => true,
-                    'duplicate_reason' => $dup,
+                    'success'            => true,
+                    'message'            => $refreshed
+                        ? 'COM_ORDENPRODUCCION_MT940_IMPORT_METADATA_REFRESHED'
+                        : 'COM_ORDENPRODUCCION_MT940_IMPORT_ALREADY_IMPORTED',
+                    'skipped'            => true,
+                    'duplicate_reason'   => $dup,
+                    'metadata_refreshed' => $refreshed,
                 ];
             }
+
+            $currency = (string) ($parsed['currency'] ?? 'GTQ');
 
             $importLogId = self::insertImportLog([
                 'email_uid'                  => $emailUid !== '' ? $emailUid : null,
@@ -117,7 +128,6 @@ class Mt940ImportHelper
             ]);
 
             $statementDate = $parsed['statement_date'] ?? null;
-            $currency      = (string) ($parsed['currency'] ?? 'GTQ');
             $inserted      = 0;
 
             foreach ($parsed['transactions'] as $tx) {
@@ -476,6 +486,77 @@ class Mt940ImportHelper
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    /**
+     * When a file was already imported (e.g. before 3.119.151), backfill statement metadata on re-upload.
+     *
+     * @param   string      $content
+     * @param   string      $filename
+     * @param   array<int>  $allowedBankIds
+     *
+     * @return  bool
+     *
+     * @since   3.119.152
+     */
+    private static function refreshDuplicateImportMetadata(string $content, string $filename, array $allowedBankIds): bool
+    {
+        if (!self::importLogHasStatementMetadataColumns()) {
+            return false;
+        }
+
+        $parsed = Mt940ParserHelper::parse($content);
+        $acctNo = (string) ($parsed['account_number'] ?? '');
+        if ($acctNo === '') {
+            return false;
+        }
+
+        $bankAccountId = self::resolveBankAccountId($acctNo, $allowedBankIds);
+        if ($bankAccountId < 1) {
+            return false;
+        }
+
+        $db    = Factory::getContainer()->get(DatabaseInterface::class);
+        $query = $db->getQuery(true)
+            ->select($db->quoteName('id'))
+            ->from($db->quoteName('#__ordenproduccion_mt940_import_log'))
+            ->where('LOWER(' . $db->quoteName('filename') . ') = ' . $db->quote(\strtolower($filename)))
+            ->where($db->quoteName('status') . ' = ' . $db->quote('imported'))
+            ->order($db->quoteName('id') . ' DESC');
+        $db->setQuery($query, 0, 1);
+        $importLogId = (int) $db->loadResult();
+
+        if ($importLogId < 1) {
+            return false;
+        }
+
+        $currency = (string) ($parsed['currency'] ?? 'GTQ');
+        $opening  = $parsed['opening_balance'] ?? null;
+        $closing  = $parsed['closing_balance'] ?? null;
+        $avail    = $parsed['closing_available_balance'] ?? null;
+        $stmtDate = $parsed['statement_date'] ?? null;
+
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_mt940_import_log'))
+            ->set($db->quoteName('bank_account_id') . ' = ' . $bankAccountId)
+            ->set($db->quoteName('account_number') . ' = ' . $db->quote($acctNo))
+            ->set($db->quoteName('statement_reference') . ' = ' . $db->quote((string) ($parsed['statement_reference'] ?? '')))
+            ->set($db->quoteName('statement_date') . ' = ' . ($stmtDate ? $db->quote($stmtDate) : 'NULL'))
+            ->set($db->quoteName('statement_sequence') . ' = ' . $db->quote((string) ($parsed['statement_sequence'] ?? '')))
+            ->set($db->quoteName('currency') . ' = ' . $db->quote($currency))
+            ->set($db->quoteName('opening_balance') . ' = ' . ($opening !== null ? $db->quote((string) (float) $opening) : 'NULL'))
+            ->set($db->quoteName('closing_balance') . ' = ' . ($closing !== null ? $db->quote((string) (float) $closing) : 'NULL'))
+            ->set($db->quoteName('closing_available_balance') . ' = ' . ($avail !== null ? $db->quote((string) (float) $avail) : 'NULL'))
+            ->where($db->quoteName('id') . ' = ' . $importLogId);
+
+        if (self::importLogHasContentHashColumn()) {
+            $query->set($db->quoteName('content_hash') . ' = ' . $db->quote(self::contentHash($content)));
+        }
+
+        $db->setQuery($query);
+        $db->execute();
+
+        return true;
     }
 
     /**
