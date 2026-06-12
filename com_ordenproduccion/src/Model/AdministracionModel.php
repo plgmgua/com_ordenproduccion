@@ -15,6 +15,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImapHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 
 /**
@@ -5923,6 +5924,127 @@ class AdministracionModel extends BaseDatabaseModel
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    /**
+     * MT-940 mailbox / IMAP settings (stored in #__ordenproduccion_config as mt940_*).
+     *
+     * @return  array<string, string|int>
+     *
+     * @since   3.119.146
+     */
+    public function getMt940Settings(): array
+    {
+        $keys = [
+            'enabled'         => 'mt940_enabled',
+            'mailbox_email'   => 'mt940_mailbox_email',
+            'imap_host'       => 'mt940_imap_host',
+            'imap_port'       => 'mt940_imap_port',
+            'imap_encryption' => 'mt940_imap_encryption',
+            'imap_username'   => 'mt940_imap_username',
+            'imap_password'   => 'mt940_imap_password',
+            'sender_email'    => 'mt940_sender_email',
+            'bank_account_id' => 'mt940_bank_account_id',
+        ];
+
+        $out = [
+            'enabled'         => '0',
+            'mailbox_email'   => '',
+            'imap_host'       => '',
+            'imap_port'       => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username'   => '',
+            'imap_password'   => '',
+            'sender_email'    => Mt940ImapHelper::DEFAULT_SENDER_EMAIL,
+            'bank_account_id' => '0',
+        ];
+
+        foreach ($keys as $field => $settingKey) {
+            $out[$field] = $this->getOrdenproduccionConfigValue($settingKey);
+        }
+
+        if (trim((string) $out['imap_port']) === '') {
+            $out['imap_port'] = '993';
+        }
+        if (trim((string) $out['imap_encryption']) === '') {
+            $out['imap_encryption'] = 'ssl';
+        }
+        if (trim((string) $out['sender_email']) === '') {
+            $out['sender_email'] = Mt940ImapHelper::DEFAULT_SENDER_EMAIL;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param   array<string, mixed>  $data  From jform[mt940]
+     *
+     * @return  bool
+     *
+     * @since   3.119.146
+     */
+    public function saveMt940Settings(array $data): bool
+    {
+        $existing = $this->getMt940Settings();
+
+        $enabled = isset($data['enabled']) && ($data['enabled'] === '1' || $data['enabled'] === 1 || $data['enabled'] === true);
+        $this->upsertOrdenproduccionConfigValue('mt940_enabled', $enabled ? '1' : '0');
+        $this->upsertOrdenproduccionConfigValue('mt940_mailbox_email', trim((string) ($data['mailbox_email'] ?? '')));
+        $this->upsertOrdenproduccionConfigValue('mt940_imap_host', trim((string) ($data['imap_host'] ?? '')));
+
+        $port = max(1, (int) ($data['imap_port'] ?? 993));
+        $this->upsertOrdenproduccionConfigValue('mt940_imap_port', (string) $port);
+
+        $encryption = Mt940ImapHelper::normalizeEncryption((string) ($data['imap_encryption'] ?? 'ssl'));
+        $this->upsertOrdenproduccionConfigValue('mt940_imap_encryption', $encryption);
+        $this->upsertOrdenproduccionConfigValue('mt940_imap_username', trim((string) ($data['imap_username'] ?? '')));
+
+        $rawPassword = isset($data['imap_password']) ? trim((string) $data['imap_password']) : '';
+        if ($rawPassword === '') {
+            $password = (string) ($existing['imap_password'] ?? '');
+        } else {
+            $password = $rawPassword;
+        }
+        $this->upsertOrdenproduccionConfigValue('mt940_imap_password', $password);
+
+        $sender = trim((string) ($data['sender_email'] ?? ''));
+        if ($sender === '') {
+            $sender = Mt940ImapHelper::DEFAULT_SENDER_EMAIL;
+        }
+        $this->upsertOrdenproduccionConfigValue('mt940_sender_email', $sender);
+        $this->upsertOrdenproduccionConfigValue('mt940_bank_account_id', (string) max(0, (int) ($data['bank_account_id'] ?? 0)));
+
+        return true;
+    }
+
+    /**
+     * Merge posted MT-940 form values with stored password when blank.
+     *
+     * @param   array<string, mixed>  $posted  jform[mt940]
+     *
+     * @return  array<string, string>
+     *
+     * @since   3.119.146
+     */
+    public function resolveMt940PostedForImapTest(array $posted): array
+    {
+        $saved = $this->getMt940Settings();
+        $rawPassword = isset($posted['imap_password']) ? trim((string) $posted['imap_password']) : '';
+        $password    = $rawPassword !== '' ? $rawPassword : (string) ($saved['imap_password'] ?? '');
+
+        $sender = trim((string) ($posted['sender_email'] ?? ''));
+        if ($sender === '') {
+            $sender = (string) ($saved['sender_email'] ?? Mt940ImapHelper::DEFAULT_SENDER_EMAIL);
+        }
+
+        return [
+            'imap_host'       => trim((string) ($posted['imap_host'] ?? $saved['imap_host'] ?? '')),
+            'imap_port'       => (string) max(1, (int) ($posted['imap_port'] ?? $saved['imap_port'] ?? 993)),
+            'imap_encryption' => Mt940ImapHelper::normalizeEncryption((string) ($posted['imap_encryption'] ?? $saved['imap_encryption'] ?? 'ssl')),
+            'imap_username'   => trim((string) ($posted['imap_username'] ?? $saved['imap_username'] ?? '')),
+            'imap_password'   => $password,
+            'sender_email'    => $sender,
+        ];
     }
 }
 

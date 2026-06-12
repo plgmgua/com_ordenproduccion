@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.146-STABLE] - 2026-05-19
+
+### Added
+- **Ajustes → MT940:** new sub-tab under Control de ventas to configure IMAP mailbox settings (host, port, encryption, credentials), authorized sender filter (default `confirmacionbisf@corporacionbi.gt`), target bank account, enable toggle, and **Test IMAP connection** button.
+- **Database:** `#__ordenproduccion_mt940_transactions` and `#__ordenproduccion_mt940_import_log` tables for upcoming daily import job.
+
 ## [3.119.145-STABLE] - 2026-05-19
 
 ### Fixed

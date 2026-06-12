@@ -401,6 +401,22 @@ class HtmlView extends BaseHtmlView
     protected $certificadorFactModo = 'test';
 
     /**
+     * MT-940 mailbox / IMAP settings (Ajustes > MT940).
+     *
+     * @var    array<string, string|int>
+     * @since  3.119.146
+     */
+    protected $mt940Settings = [];
+
+    /**
+     * Whether MT-940 IMAP password is stored (for placeholder hint).
+     *
+     * @var    bool
+     * @since  3.119.146
+     */
+    protected $mt940PasswordSet = false;
+
+    /**
      * Show Digifact NIT-verify curl debug on Mis Clientes (Ajustes certificador toggle).
      *
      * @var    bool
@@ -2041,6 +2057,20 @@ class HtmlView extends BaseHtmlView
                 $app->enqueueMessage('Error loading bank accounts: ' . $e->getMessage(), 'warning');
                 $this->bankAccounts = [];
             }
+        } elseif ($activeTab === 'ajustes' && $activeSubTab === 'mt940') {
+            try {
+                $component = $app->bootComponent('com_ordenproduccion');
+                $mvcFactory = $component->getMVCFactory();
+                $bankAccountModel = $mvcFactory->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+
+                if ($bankAccountModel && method_exists($bankAccountModel, 'getBankAccounts')) {
+                    $this->bankAccounts = $bankAccountModel->getBankAccounts();
+                } else {
+                    $this->bankAccounts = [];
+                }
+            } catch (\Exception $e) {
+                $this->bankAccounts = [];
+            }
         } else {
             $this->bankAccounts = [];
         }
@@ -2640,6 +2670,20 @@ class HtmlView extends BaseHtmlView
             } catch (\Throwable $e) {
                 $this->otWizardLogEntries     = [];
                 $this->otWizardLogScannedDirs = OtWizardCreationLogHelper::getScannedDirectoryLabels();
+            }
+        }
+
+        $this->mt940Settings    = [];
+        $this->mt940PasswordSet = false;
+        if ($activeTab === 'ajustes' && $activeSubTab === 'mt940') {
+            try {
+                $full = $statsModel->getMt940Settings();
+                $this->mt940PasswordSet = trim((string) ($full['imap_password'] ?? '')) !== '';
+                $full['imap_password']  = '';
+                $this->mt940Settings    = $full;
+            } catch (\Throwable $e) {
+                $this->mt940Settings    = [];
+                $this->mt940PasswordSet = false;
             }
         }
 

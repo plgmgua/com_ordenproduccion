@@ -22,6 +22,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImapHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -2908,5 +2909,124 @@ class AdministracionController extends BaseController
         } catch (\Throwable $e) {
             $this->sendAdministracionJson(false, $e->getMessage(), []);
         }
+    }
+
+    /**
+     * Save Ajustes → MT-940 mailbox and IMAP settings.
+     *
+     * @return  void
+     *
+     * @since   3.119.146
+     */
+    public function saveMt940Settings(): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=mt940', false));
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $block = isset($jform['mt940']) && \is_array($jform['mt940']) ? $jform['mt940'] : [];
+
+        try {
+            $model = $this->getModel('Administracion');
+            if (!$model) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), 'error');
+            } else {
+                $model->saveMt940Settings($block);
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_MT940_SETTINGS_SAVED'), 'success');
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=mt940', false));
+    }
+
+    /**
+     * JSON: test IMAP connection for MT-940 mailbox (uses posted form values + saved password if blank).
+     *
+     * @return  void
+     *
+     * @since   3.119.146
+     */
+    public function testMt940Imap(): void
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        $jform  = $app->input->post->get('jform', [], 'array');
+        $posted = isset($jform['mt940']) && \is_array($jform['mt940']) ? $jform['mt940'] : [];
+
+        try {
+            $model = $this->getModel('Administracion');
+            if (!$model) {
+                $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), []);
+
+                return;
+            }
+            $settings = $model->resolveMt940PostedForImapTest($posted);
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+
+            return;
+        }
+
+        $result = Mt940ImapHelper::testConnection($settings);
+        $msgKey = (string) ($result['message'] ?? '');
+        $msg    = $msgKey !== '' && strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+
+        if (!empty($result['success'])) {
+            $msg = Text::sprintf(
+                'COM_ORDENPRODUCCION_MT940_IMAP_CONNECT_OK_DETAIL',
+                (int) ($result['mailbox_total'] ?? 0),
+                trim((string) ($settings['sender_email'] ?? '')),
+                (int) ($result['sender_total'] ?? 0)
+            );
+        } elseif (!empty($result['imap_error'])) {
+            $msg .= ' ' . (string) $result['imap_error'];
+        }
+
+        $payload = [
+            'mailbox_total' => (int) ($result['mailbox_total'] ?? 0),
+            'sender_total'  => (int) ($result['sender_total'] ?? 0),
+            'mailbox'       => (string) ($result['mailbox'] ?? ''),
+        ];
+        if (!empty($result['imap_error'])) {
+            $payload['imap_error'] = (string) $result['imap_error'];
+        }
+
+        $this->sendAdministracionJson(!empty($result['success']), trim($msg), $payload);
     }
 }
