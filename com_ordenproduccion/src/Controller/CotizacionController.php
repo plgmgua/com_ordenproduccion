@@ -1118,10 +1118,16 @@ class CotizacionController extends BaseController
         }
 
         if ((int) ($row->requiere_orden_compra_para_facturar ?? 0) !== 1) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_NOT_REQUIRED'), 'error');
-            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
+            $wfSvc = new ApprovalWorkflowService($db);
+            $pendingManualFact = $wfSvc->hasSchema()
+                ? $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId)
+                : null;
+            if ($pendingManualFact === null) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_OC_FACTURACION_ERROR_NOT_REQUIRED'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . $quotationId, false));
 
-            return;
+                return;
+            }
         }
 
         $uploadDir = JPATH_ROOT . '/media/com_ordenproduccion/cotizacion_confirmacion';
@@ -1167,13 +1173,22 @@ class CotizacionController extends BaseController
             return;
         }
 
+        $qSets = [
+            $db->quoteName('orden_compra_path') . ' = ' . $db->quote($pathOrden),
+            $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
+            $db->quoteName('modified_by') . ' = ' . (int) $user->id,
+        ];
+        if ((int) ($row->requiere_orden_compra_para_facturar ?? 0) !== 1) {
+            $wfSvcUpload = new ApprovalWorkflowService($db);
+            if ($wfSvcUpload->hasSchema()
+                && $wfSvcUpload->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL, $quotationId) !== null) {
+                $qSets[] = $db->quoteName('requiere_orden_compra_para_facturar') . ' = 1';
+            }
+        }
+
         $q = $db->getQuery(true)
             ->update($db->quoteName('#__ordenproduccion_quotations'))
-            ->set([
-                $db->quoteName('orden_compra_path') . ' = ' . $db->quote($pathOrden),
-                $db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()),
-                $db->quoteName('modified_by') . ' = ' . (int) $user->id,
-            ])
+            ->set($qSets)
             ->where($db->quoteName('id') . ' = ' . $quotationId);
         $db->setQuery($q);
         $db->execute();

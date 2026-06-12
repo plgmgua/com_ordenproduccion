@@ -352,6 +352,7 @@ class ApprovalWorkflowEntityHelper
             'facturacion_fecha'          => isset($row->facturacion_fecha) ? (string) $row->facturacion_fecha : '',
             'instrucciones_facturacion'  => isset($row->instrucciones_facturacion) ? (string) $row->instrucciones_facturacion : '',
             'facturar_cotizacion_exacta' => (int) ($row->facturar_cotizacion_exacta ?? 0),
+            'requiere_orden_compra_para_facturar' => (int) ($row->requiere_orden_compra_para_facturar ?? 0),
             'submitter_user_id'          => $submitterUserId,
             'nit_verify_failed'          => $nitVerifyFailed,
             'cf_gtq2499_manual_required' => $cfGtqExclusiveLimitManual,

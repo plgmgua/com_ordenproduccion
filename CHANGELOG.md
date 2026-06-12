@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.144-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización — facturación manual pendiente:** muestra de nuevo el formulario para adjuntar orden de compra en el banner de aprobación; la subida también se permite mientras la solicitud manual esté abierta.
+
 ## [3.119.143-STABLE] - 2026-05-19
 
 ### Added

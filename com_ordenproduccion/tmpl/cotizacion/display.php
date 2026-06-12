@@ -80,6 +80,8 @@ if ($facturarCotizacionExacta !== 0) {
 
 $requiereOcParaFacturarView = isset($quotation->requiere_orden_compra_para_facturar)
     && (int) $quotation->requiere_orden_compra_para_facturar === 1;
+$pendingFactManualView = $this->pendingCotizacionFacturacionManual ?? null;
+$showOcUploadOnCotizacionView = $requiereOcParaFacturarView || $pendingFactManualView !== null;
 $pathOrdenCompraView = isset($quotation->orden_compra_path) ? trim((string) $quotation->orden_compra_path) : '';
 $ocFilePublicUrl     = '';
 $ocFileViewKind      = 'pdf';
@@ -281,14 +283,14 @@ $manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->forma
                     <div class="border rounded bg-white p-2 small text-break"><?php echo nl2br(htmlspecialchars($pmInstr, ENT_QUOTES, 'UTF-8')); ?></div>
                 </div>
                 <?php endif; ?>
-                <?php if ($digifactDirectBlockedByOcPdf) : ?>
+                <?php if ($digifactDirectBlockedByOcPdf || ($showOcUploadOnCotizacionView && $pathOrdenCompraView === '')) : ?>
                 <p class="mb-0 mt-2 text-danger" style="font-size: calc(16px + 2pt);"><?php echo htmlspecialchars($l(
                     'COM_ORDENPRODUCCION_OC_PDF_PENDING_LABEL',
                     'Purchase order PDF pending attachment',
                     'Orden de compra pendiente de adjuntar'
                 )); ?></p>
                 <?php endif; ?>
-                <?php if ($requiereOcParaFacturarView) : ?>
+                <?php if ($showOcUploadOnCotizacionView) : ?>
                 <div class="mt-3 pt-2 border-top">
                     <div class="fw-semibold small text-uppercase text-muted mb-1"><?php echo htmlspecialchars($l(
                         'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_UPLOAD_LABEL',
@@ -329,7 +331,7 @@ $manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->forma
                                     'Purchase order file',
                                     'Archivo de orden de compra'
                                 )); ?></label>
-                                <input type="file" name="orden_compra" id="orden_compra_facturacion_file_banner" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required>
+                                <input type="file" name="orden_compra" id="orden_compra_facturacion_file_banner" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"<?php echo $pathOrdenCompraView === '' ? ' required' : ''; ?>>
                             </div>
                             <button type="submit" class="btn btn-primary btn-sm flex-shrink-0"><?php echo htmlspecialchars($l(
                                 'COM_ORDENPRODUCCION_OC_FACTURACION_VIEW_SAVE',
