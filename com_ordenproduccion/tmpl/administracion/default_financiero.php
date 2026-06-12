@@ -150,7 +150,7 @@ $pagoConfirmadoBadge = static function ($r): string {
         <i class="fas fa-gift"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_SUBTAB_BONOS'); ?>
     </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix); ?>"
-       class="financiero-subtab <?php echo $fst === 'cuentas_bancarias' ? 'subtab-active' : ''; ?>">
+       class="financiero-subtab <?php echo \in_array($fst, ['cuentas_bancarias', 'cuentas_bancarias_importar'], true) ? 'subtab-active' : ''; ?>">
         <i class="fas fa-university"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_SUBTAB_CUENTAS_BANCARIAS'); ?>
     </a>
 </div>
@@ -390,24 +390,28 @@ $pagoConfirmadoBadge = static function ($r): string {
             </table>
         </div>
     <?php endif; ?>
-<?php elseif ($fst === 'cuentas_bancarias') : ?>
+<?php elseif (\in_array($fst, ['cuentas_bancarias', 'cuentas_bancarias_importar'], true)) : ?>
     <?php
     HTMLHelper::_('bootstrap.framework');
     HTMLHelper::_('form.csrf');
-    $mt940SchemaOk   = !empty($this->financieroMt940SchemaOk);
-    $mt940Accounts   = isset($this->financieroMt940BankAccountOptions) && \is_array($this->financieroMt940BankAccountOptions)
+    $mt940SchemaOk     = !empty($this->financieroMt940SchemaOk);
+    $mt940Accounts     = isset($this->financieroMt940BankAccountOptions) && \is_array($this->financieroMt940BankAccountOptions)
         ? $this->financieroMt940BankAccountOptions : [];
-    $mt940BankFilter = (int) ($this->financieroMt940FilterBankAccountId ?? 0);
-    $mt940DateFrom   = (string) ($this->financieroMt940FilterDateFrom ?? '');
-    $mt940DateTo     = (string) ($this->financieroMt940FilterDateTo ?? '');
-    $mt940Rows       = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
-    $mt940ImportRows = isset($this->financieroMt940ImportRows) && \is_array($this->financieroMt940ImportRows) ? $this->financieroMt940ImportRows : [];
-    $mt940ImportUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
+    $mt940BankFilter   = (int) ($this->financieroMt940FilterBankAccountId ?? 0);
+    $mt940FilterMonth  = max(1, min(12, (int) ($this->financieroMt940FilterMonth ?? (int) \date('n'))));
+    $mt940FilterYear   = max(2000, min(2100, (int) ($this->financieroMt940FilterYear ?? (int) \date('Y'))));
+    $mt940Rows         = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
+    $mt940ImportRows   = isset($this->financieroMt940ImportRows) && \is_array($this->financieroMt940ImportRows) ? $this->financieroMt940ImportRows : [];
+    $mt940ImportUrl    = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
     $mt940InitialUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.runMt940InitialImport&format=json', false);
     $mt940ClearUrl     = Route::_('index.php?option=com_ordenproduccion&task=administracion.clearMt940ImportedData&format=json', false);
-    $mt940ActionQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
-    $mt940FormAction = Route::_($mt940ActionQs, false);
-    $mt940Token      = \Joomla\CMS\Session\Session::getFormToken();
+    $mt940DatosQs      = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias'
+        . '&mt940_filter_month=' . $mt940FilterMonth . '&mt940_filter_year=' . $mt940FilterYear . $finItemSuffix;
+    $mt940ImportQs     = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias_importar' . $finItemSuffix;
+    $mt940FormAction   = Route::_($mt940DatosQs, false);
+    $mt940Token        = \Joomla\CMS\Session\Session::getFormToken();
+    $mt940YearMin      = (int) \date('Y') - 5;
+    $mt940YearMax      = (int) \date('Y') + 1;
 
     $fmtMt940Amount = static function ($amount, string $dc, string $currency): string {
         $n = round((float) $amount, 2);
@@ -432,6 +436,19 @@ $pagoConfirmadoBadge = static function ($r): string {
         return $sym . number_format((float) $amount, 2, '.', ',');
     };
     ?>
+
+    <div class="financiero-subtabs mb-3" style="border-bottom-width: 1px;">
+        <a href="<?php echo Route::_($mt940DatosQs, false); ?>"
+           class="financiero-subtab <?php echo $fst === 'cuentas_bancarias' ? 'subtab-active' : ''; ?>">
+            <i class="fas fa-table"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_SUBTAB_DATOS'); ?>
+        </a>
+        <a href="<?php echo Route::_($mt940ImportQs, false); ?>"
+           class="financiero-subtab <?php echo $fst === 'cuentas_bancarias_importar' ? 'subtab-active' : ''; ?>">
+            <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_SUBTAB_IMPORTAR'); ?>
+        </a>
+    </div>
+
+    <?php if ($fst === 'cuentas_bancarias') : ?>
     <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INTRO'); ?></p>
 
     <?php if (!$mt940SchemaOk) : ?>
@@ -450,6 +467,25 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <input type="hidden" name="Itemid" value="<?php echo (int) $finItemId; ?>" />
             <?php endif; ?>
             <div>
+                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_MONTH'); ?></label>
+                <select class="form-select form-select-sm" name="mt940_filter_month" style="min-width: 9rem;">
+                    <?php for ($m = 1; $m <= 12; $m++) :
+                        $monthLabel = HTMLHelper::_('date', \sprintf('2020-%02d-01', $m), 'F'); ?>
+                        <option value="<?php echo $m; ?>"<?php echo $mt940FilterMonth === $m ? ' selected' : ''; ?>>
+                            <?php echo htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+            <div>
+                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_YEAR'); ?></label>
+                <select class="form-select form-select-sm" name="mt940_filter_year" style="min-width: 6rem;">
+                    <?php for ($y = $mt940YearMax; $y >= $mt940YearMin; $y--) : ?>
+                        <option value="<?php echo $y; ?>"<?php echo $mt940FilterYear === $y ? ' selected' : ''; ?>><?php echo $y; ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+            <div>
                 <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_ACCOUNT'); ?></label>
                 <select class="form-select form-select-sm" name="mt940_bank_account_id" style="min-width: 14rem;">
                     <option value="0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_ALL_ACCOUNTS'); ?></option>
@@ -461,58 +497,12 @@ $pagoConfirmadoBadge = static function ($r): string {
                 </select>
             </div>
             <div>
-                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_DATE_FROM'); ?></label>
-                <input type="date" class="form-control form-control-sm" name="mt940_filter_date_from" value="<?php echo htmlspecialchars($mt940DateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
-            </div>
-            <div>
-                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_DATE_TO'); ?></label>
-                <input type="date" class="form-control form-control-sm" name="mt940_filter_date_to" value="<?php echo htmlspecialchars($mt940DateTo, ENT_QUOTES, 'UTF-8'); ?>" />
-            </div>
-            <div>
                 <label class="form-label small mb-0">&nbsp;</label>
                 <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
             </div>
         </form>
 
-        <div class="card mb-3 border-primary">
-            <div class="card-body py-3">
-                <h3 class="h6 mb-2"><i class="fas fa-inbox"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_TITLE'); ?></h3>
-                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_DESC'); ?></p>
-                <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_DEDUP_NOTICE'); ?></p>
-                <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-initial-import" data-url="<?php echo htmlspecialchars($mt940InitialUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                        <i class="fas fa-cloud-download-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_BTN'); ?>
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-sm" id="btn-mt940-clear-imported"
-                            data-url="<?php echo htmlspecialchars($mt940ClearUrl, ENT_QUOTES, 'UTF-8'); ?>"
-                            data-confirm="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_CONFIRM'), ENT_QUOTES, 'UTF-8'); ?>">
-                        <i class="fas fa-trash-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_BTN'); ?>
-                    </button>
-                </div>
-                <div id="mt940-initial-result" class="d-none mt-2">
-                    <div id="mt940-initial-alert" class="alert mb-0" role="alert"></div>
-                    <pre id="mt940-initial-json" class="bg-light border rounded p-2 small mb-0 mt-2" style="max-height: 180px; overflow: auto;"></pre>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-body py-3">
-                <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_TITLE'); ?></h3>
-                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_DESC'); ?></p>
-                <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <input type="file" class="form-control form-control-sm" id="mt940-import-file" accept=".txt,.TXT,text/plain" style="max-width: 320px;">
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-import" data-url="<?php echo htmlspecialchars($mt940ImportUrl, ENT_QUOTES, 'UTF-8'); ?>">
-                        <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_BTN'); ?>
-                    </button>
-                </div>
-                <div id="mt940-import-result" class="d-none mt-2">
-                    <div id="mt940-import-alert" class="alert mb-0" role="alert"></div>
-                </div>
-            </div>
-        </div>
-
-        <h3 class="h6 mt-4 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_TITLE'); ?></h3>
+        <h3 class="h6 mt-2 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_TITLE'); ?></h3>
         <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_INTRO'); ?></p>
         <?php if ($mt940ImportRows === []) : ?>
             <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_EMPTY'); ?></p>
@@ -621,12 +611,62 @@ $pagoConfirmadoBadge = static function ($r): string {
                 </table>
             </div>
             <?php $mt940Pag = $this->financieroMt940Pagination ?? null; ?>
-            <?php if ($mt940Pag && (int) ($this->financieroMt940Total ?? 0) > 0) : ?>
+            <?php if ($mt940Pag && ((int) ($this->financieroMt940Total ?? 0) > 0 || (int) ($this->financieroMt940ImportTotal ?? 0) > 0)) : ?>
                 <div class="com-content-pagination mt-3 small"><?php echo $mt940Pag->getListFooter(); ?></div>
             <?php endif; ?>
         <?php endif; ?>
     <?php endif; ?>
 
+    <?php elseif ($fst === 'cuentas_bancarias_importar') : ?>
+    <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_SUBTAB_INTRO'); ?></p>
+
+    <?php if (!$mt940SchemaOk) : ?>
+        <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_SCHEMA_MISSING'); ?></div>
+    <?php elseif ($mt940Accounts === []) : ?>
+        <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_NO_ACCOUNTS'); ?></div>
+    <?php else : ?>
+        <div class="card mb-3 border-primary">
+            <div class="card-body py-3">
+                <h3 class="h6 mb-2"><i class="fas fa-inbox"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_TITLE'); ?></h3>
+                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_DESC'); ?></p>
+                <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_DEDUP_NOTICE'); ?></p>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-initial-import" data-url="<?php echo htmlspecialchars($mt940InitialUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                        <i class="fas fa-cloud-download-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_BTN'); ?>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="btn-mt940-clear-imported"
+                            data-url="<?php echo htmlspecialchars($mt940ClearUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                            data-confirm="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_CONFIRM'), ENT_QUOTES, 'UTF-8'); ?>">
+                        <i class="fas fa-trash-alt"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_BTN'); ?>
+                    </button>
+                </div>
+                <div id="mt940-initial-result" class="d-none mt-2">
+                    <div id="mt940-initial-alert" class="alert mb-0" role="alert"></div>
+                    <pre id="mt940-initial-json" class="bg-light border rounded p-2 small mb-0 mt-2" style="max-height: 180px; overflow: auto;"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body py-3">
+                <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_TITLE'); ?></h3>
+                <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_DESC'); ?></p>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <input type="file" class="form-control form-control-sm" id="mt940-import-file" accept=".txt,.TXT,text/plain" style="max-width: 320px;">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-mt940-import" data-url="<?php echo htmlspecialchars($mt940ImportUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                        <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_BTN'); ?>
+                    </button>
+                </div>
+                <div id="mt940-import-result" class="d-none mt-2">
+                    <div id="mt940-import-alert" class="alert mb-0" role="alert"></div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php endif; ?>
+
+    <?php if ($fst === 'cuentas_bancarias_importar') : ?>
     <script>
     (function () {
         var token = <?php echo json_encode($mt940Token); ?>;
@@ -772,4 +812,5 @@ $pagoConfirmadoBadge = static function ($r): string {
         });
     })();
     </script>
+    <?php endif; ?>
 <?php endif; ?>

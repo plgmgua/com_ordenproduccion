@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.154-STABLE] - 2026-05-19
+
+### Changed
+- **Financiero → Cuentas bancarias:** filter by **month and year** (defaults to current month/year); import tools moved to sub-tab **Importar datos**.
+
 ## [3.119.153-STABLE] - 2026-05-19
 
 ### Added

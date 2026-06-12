@@ -826,6 +826,18 @@ class HtmlView extends BaseHtmlView
     protected $financieroMt940FilterDateTo = '';
 
     /**
+     * @var    int
+     * @since  3.119.154
+     */
+    protected $financieroMt940FilterMonth = 0;
+
+    /**
+     * @var    int
+     * @since  3.119.154
+     */
+    protected $financieroMt940FilterYear = 0;
+
+    /**
      * @var    array<int, string>
      * @since  3.119.149
      */
@@ -1477,6 +1489,8 @@ class HtmlView extends BaseHtmlView
         $this->financieroMt940FilterBankAccountId   = 0;
         $this->financieroMt940FilterDateFrom        = '';
         $this->financieroMt940FilterDateTo          = '';
+        $this->financieroMt940FilterMonth           = 0;
+        $this->financieroMt940FilterYear            = 0;
         $this->financieroMt940BankAccountOptions    = [];
         $this->financieroMt940ListLimit             = 25;
         $this->financieroMt940ImportRows            = [];
@@ -2020,7 +2034,7 @@ class HtmlView extends BaseHtmlView
                 $fst = 'listado';
             }
 
-            if (!in_array($fst, ['listado', 'bonos', 'cuentas_bancarias'], true)) {
+            if (!in_array($fst, ['listado', 'bonos', 'cuentas_bancarias', 'cuentas_bancarias_importar'], true)) {
                 $fst = 'listado';
             }
             $this->financieroSubtab = $fst;
@@ -2074,36 +2088,52 @@ class HtmlView extends BaseHtmlView
                     if ($fst === 'bonos') {
                         $this->financieroBonosByAgent = $admFin->getFinancieroBonosByAgentSummary();
                     }
-                    if ($fst === 'cuentas_bancarias') {
+                    if ($fst === 'cuentas_bancarias' || $fst === 'cuentas_bancarias_importar') {
                         $this->financieroMt940SchemaOk           = $admFin->isMt940TransactionsTableAvailable();
                         $this->financieroMt940BankAccountOptions = $admFin->getMt940ConfiguredBankAccountOptions();
                         $this->financieroMt940FilterBankAccountId = max(0, (int) $input->getInt('mt940_bank_account_id', 0));
-                        $this->financieroMt940FilterDateFrom      = trim((string) $input->getString('mt940_filter_date_from', ''));
-                        $this->financieroMt940FilterDateTo        = trim((string) $input->getString('mt940_filter_date_to', ''));
-                        $limit      = max(10, min(200, (int) $input->getInt('mt940_limit', 25)));
-                        $limitStart = max(0, (int) $input->getInt('mt940_limitstart', 0));
-                        $this->financieroMt940ListLimit = $limit;
 
-                        if ($this->financieroMt940SchemaOk) {
-                            $pack = $admFin->getMt940TransactionsList($limit, $limitStart, [
+                        $now       = Factory::getDate();
+                        $curMonth  = (int) $now->format('n');
+                        $curYear   = (int) $now->format('Y');
+                        $hasPeriod = $input->get('mt940_filter_month', null) !== null
+                            || $input->get('mt940_filter_year', null) !== null;
+                        $filterMonth = $hasPeriod
+                            ? max(1, min(12, (int) $input->getInt('mt940_filter_month', $curMonth)))
+                            : $curMonth;
+                        $filterYear  = $hasPeriod
+                            ? max(2000, min(2100, (int) $input->getInt('mt940_filter_year', $curYear)))
+                            : $curYear;
+
+                        $this->financieroMt940FilterMonth = $filterMonth;
+                        $this->financieroMt940FilterYear  = $filterYear;
+                        $periodFrom                       = \sprintf('%04d-%02d-01', $filterYear, $filterMonth);
+                        $this->financieroMt940FilterDateFrom = $periodFrom;
+                        $this->financieroMt940FilterDateTo   = \date('Y-m-t', \strtotime($periodFrom));
+
+                        if ($fst === 'cuentas_bancarias' && $this->financieroMt940SchemaOk) {
+                            $limit      = max(10, min(200, (int) $input->getInt('mt940_limit', 25)));
+                            $limitStart = max(0, (int) $input->getInt('mt940_limitstart', 0));
+                            $this->financieroMt940ListLimit = $limit;
+
+                            $dateFilters = [
                                 'bank_account_id' => $this->financieroMt940FilterBankAccountId,
                                 'date_from'       => $this->financieroMt940FilterDateFrom,
                                 'date_to'         => $this->financieroMt940FilterDateTo,
-                            ]);
+                            ];
+
+                            $pack = $admFin->getMt940TransactionsList($limit, $limitStart, $dateFilters);
                             $this->financieroMt940Rows  = $pack['rows'] ?? [];
                             $this->financieroMt940Total = (int) ($pack['total'] ?? 0);
 
-                            $importPack = $admFin->getMt940ImportLogList($limit, $limitStart, [
-                                'bank_account_id' => $this->financieroMt940FilterBankAccountId,
-                                'date_from'       => $this->financieroMt940FilterDateFrom,
-                                'date_to'         => $this->financieroMt940FilterDateTo,
-                            ]);
+                            $importPack = $admFin->getMt940ImportLogList($limit, $limitStart, $dateFilters);
                             $this->financieroMt940ImportRows  = $importPack['rows'] ?? [];
                             $this->financieroMt940ImportTotal = (int) ($importPack['total'] ?? 0);
 
-                            if ($this->financieroMt940Total > 0) {
+                            if ($this->financieroMt940Total > 0 || $this->financieroMt940ImportTotal > 0) {
+                                $pagTotal = max($this->financieroMt940Total, $this->financieroMt940ImportTotal);
                                 $this->financieroMt940Pagination = new \Joomla\CMS\Pagination\Pagination(
-                                    $this->financieroMt940Total,
+                                    $pagTotal,
                                     $limitStart,
                                     $limit,
                                     'mt940_'
@@ -2114,8 +2144,8 @@ class HtmlView extends BaseHtmlView
                                 $this->financieroMt940Pagination->setAdditionalUrlParam('financiero_subtab', 'cuentas_bancarias');
                                 $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_limit', (string) $limit);
                                 $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_bank_account_id', (string) $this->financieroMt940FilterBankAccountId);
-                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_filter_date_from', $this->financieroMt940FilterDateFrom);
-                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_filter_date_to', $this->financieroMt940FilterDateTo);
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_filter_month', (string) $this->financieroMt940FilterMonth);
+                                $this->financieroMt940Pagination->setAdditionalUrlParam('mt940_filter_year', (string) $this->financieroMt940FilterYear);
                                 if ($this->financieroResolvedItemId > 0) {
                                     $this->financieroMt940Pagination->setAdditionalUrlParam('Itemid', (string) $this->financieroResolvedItemId);
                                 }
