@@ -417,6 +417,20 @@ class HtmlView extends BaseHtmlView
     protected $mt940PasswordSet = false;
 
     /**
+     * MT-940 import panel (Ajustes → MT-940 → Importar datos).
+     *
+     * @var    bool
+     * @since  3.119.157
+     */
+    protected $ajustesMt940SchemaOk = false;
+
+    /**
+     * @var    array<int, string>
+     * @since  3.119.157
+     */
+    protected $ajustesMt940BankAccountOptions = [];
+
+    /**
      * Show Digifact NIT-verify curl debug on Mis Clientes (Ajustes certificador toggle).
      *
      * @var    bool
@@ -1495,6 +1509,8 @@ class HtmlView extends BaseHtmlView
         $this->financieroMt940ListLimit             = 25;
         $this->financieroMt940ImportRows            = [];
         $this->financieroMt940ImportTotal           = 0;
+        $this->ajustesMt940SchemaOk                 = false;
+        $this->ajustesMt940BankAccountOptions       = [];
 
         // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -2034,7 +2050,11 @@ class HtmlView extends BaseHtmlView
                 $fst = 'listado';
             }
 
-            if (!in_array($fst, ['listado', 'bonos', 'cuentas_bancarias', 'cuentas_bancarias_importar'], true)) {
+            if ($fst === 'cuentas_bancarias_importar') {
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=mt940_importar', false));
+            }
+
+            if (!in_array($fst, ['listado', 'bonos', 'cuentas_bancarias'], true)) {
                 $fst = 'listado';
             }
             $this->financieroSubtab = $fst;
@@ -2088,7 +2108,7 @@ class HtmlView extends BaseHtmlView
                     if ($fst === 'bonos') {
                         $this->financieroBonosByAgent = $admFin->getFinancieroBonosByAgentSummary();
                     }
-                    if ($fst === 'cuentas_bancarias' || $fst === 'cuentas_bancarias_importar') {
+                    if ($fst === 'cuentas_bancarias') {
                         $this->financieroMt940SchemaOk           = $admFin->isMt940TransactionsTableAvailable();
                         $this->financieroMt940BankAccountOptions = $admFin->getMt940ConfiguredBankAccountOptions();
                         $this->financieroMt940FilterBankAccountId = max(0, (int) $input->getInt('mt940_bank_account_id', 0));
@@ -2216,7 +2236,7 @@ class HtmlView extends BaseHtmlView
                 $app->enqueueMessage('Error loading bank accounts: ' . $e->getMessage(), 'warning');
                 $this->bankAccounts = [];
             }
-        } elseif ($activeTab === 'ajustes' && $activeSubTab === 'mt940') {
+        } elseif ($activeTab === 'ajustes' && \in_array($activeSubTab, ['mt940', 'mt940_importar'], true)) {
             try {
                 $component = $app->bootComponent('com_ordenproduccion');
                 $mvcFactory = $component->getMVCFactory();
@@ -2834,6 +2854,8 @@ class HtmlView extends BaseHtmlView
 
         $this->mt940Settings    = [];
         $this->mt940PasswordSet = false;
+        $this->ajustesMt940SchemaOk           = false;
+        $this->ajustesMt940BankAccountOptions = [];
         if ($activeTab === 'ajustes' && $activeSubTab === 'mt940') {
             try {
                 $full = $statsModel->getMt940Settings();
@@ -2843,6 +2865,23 @@ class HtmlView extends BaseHtmlView
             } catch (\Throwable $e) {
                 $this->mt940Settings    = [];
                 $this->mt940PasswordSet = false;
+            }
+        }
+
+        if ($activeTab === 'ajustes' && $activeSubTab === 'mt940_importar') {
+            try {
+                $admMt940 = $this->getModel('Administracion');
+                if (!$admMt940 && class_exists(AdministracionModel::class)) {
+                    $admMt940 = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                        ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+                }
+                if ($admMt940) {
+                    $this->ajustesMt940SchemaOk           = $admMt940->isMt940TransactionsTableAvailable();
+                    $this->ajustesMt940BankAccountOptions = $admMt940->getMt940ConfiguredBankAccountOptions();
+                }
+            } catch (\Throwable $e) {
+                $this->ajustesMt940SchemaOk           = false;
+                $this->ajustesMt940BankAccountOptions = [];
             }
         }
 

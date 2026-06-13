@@ -128,7 +128,7 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_BLINK_TEST'); ?>
     </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=mt940'); ?>"
-       class="ajustes-subtab <?php echo $activeSubTab === 'mt940' ? 'subtab-active' : ''; ?>">
+       class="ajustes-subtab <?php echo \in_array($activeSubTab, ['mt940', 'mt940_importar'], true) ? 'subtab-active' : ''; ?>">
         <i class="fas fa-university"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_MT940'); ?>
     </a>
@@ -158,8 +158,13 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php include __DIR__ . '/default_ajustes_anular_orden.php'; ?>
     <?php elseif ($activeSubTab === 'blink_test'): ?>
         <?php include __DIR__ . '/default_ajustes_blink_test.php'; ?>
-    <?php elseif ($activeSubTab === 'mt940'): ?>
-        <?php include __DIR__ . '/default_ajustes_mt940.php'; ?>
+    <?php elseif (\in_array($activeSubTab, ['mt940', 'mt940_importar'], true)): ?>
+        <?php include __DIR__ . '/default_ajustes_mt940_nav.php'; ?>
+        <?php if ($activeSubTab === 'mt940_importar'): ?>
+            <?php include __DIR__ . '/default_ajustes_mt940_importar.php'; ?>
+        <?php else: ?>
+            <?php include __DIR__ . '/default_ajustes_mt940.php'; ?>
+        <?php endif; ?>
     <?php else: ?>
         <?php include __DIR__ . '/default_ajustes_ajustes_cotizacion.php'; ?>
     <?php endif; ?>

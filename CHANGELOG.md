@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.157-STABLE] - 2026-05-19
+
+### Changed
+- **MT-940 import tools** moved from Financiero → Cuentas bancarias to **Ajustes → MT940 → Importar datos**; Financiero Cuentas bancarias now shows imported data only.
+
 ## [3.119.156-STABLE] - 2026-05-19
 
 ### Changed
