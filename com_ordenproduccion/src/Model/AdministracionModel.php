@@ -5982,6 +5982,44 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Cron secret for unattended MT-940 mailbox import URL.
+     *
+     * @return  string
+     *
+     * @since   3.119.158
+     */
+    public function getMt940CronKey(): string
+    {
+        return \trim((string) $this->getOrdenproduccionConfigValue('mt940_cron_key'));
+    }
+
+    /**
+     * Save or generate the MT-940 cron secret. Blank input keeps the existing key; generates one if none exists.
+     *
+     * @param   string  $raw  Posted cron key (optional)
+     *
+     * @return  string  Stored key
+     *
+     * @since   3.119.158
+     */
+    public function saveMt940CronKey(string $raw): string
+    {
+        $existing = $this->getMt940CronKey();
+        $key      = \trim($raw);
+
+        if ($key === '') {
+            if ($existing !== '') {
+                return $existing;
+            }
+            $key = \bin2hex(\random_bytes(16));
+        }
+
+        $this->upsertOrdenproduccionConfigValue('mt940_cron_key', $key);
+
+        return $key;
+    }
+
+    /**
      * Active bank account ids configured for MT-940 import.
      *
      * @return  array<int>

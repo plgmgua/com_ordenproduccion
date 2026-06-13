@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.158-STABLE] - 2026-05-19
+
+### Added
+- **MT-940 daily cron:** public endpoint `controller=mt940&task=runScheduledImport` secured by cron secret; **Ajustes → MT940 → Importar datos** shows copy-paste crontab line (`0 8 * * *` daily at 8:00 server time).
+
 ## [3.119.157-STABLE] - 2026-05-19
 
 ### Changed

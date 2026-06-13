@@ -431,6 +431,20 @@ class HtmlView extends BaseHtmlView
     protected $ajustesMt940BankAccountOptions = [];
 
     /**
+     * Copy-paste crontab line for daily MT-940 import (Ajustes → Importar datos).
+     *
+     * @var    string
+     * @since  3.119.158
+     */
+    protected $mt940CronCrontabLine = '';
+
+    /**
+     * @var    bool
+     * @since  3.119.158
+     */
+    protected $mt940CronKeyConfigured = false;
+
+    /**
      * Show Digifact NIT-verify curl debug on Mis Clientes (Ajustes certificador toggle).
      *
      * @var    bool
@@ -1511,6 +1525,8 @@ class HtmlView extends BaseHtmlView
         $this->financieroMt940ImportTotal           = 0;
         $this->ajustesMt940SchemaOk                 = false;
         $this->ajustesMt940BankAccountOptions       = [];
+        $this->mt940CronCrontabLine                 = '';
+        $this->mt940CronKeyConfigured               = false;
 
         // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -2878,6 +2894,16 @@ class HtmlView extends BaseHtmlView
                 if ($admMt940) {
                     $this->ajustesMt940SchemaOk           = $admMt940->isMt940TransactionsTableAvailable();
                     $this->ajustesMt940BankAccountOptions = $admMt940->getMt940ConfiguredBankAccountOptions();
+
+                    $cronKey = $admMt940->getMt940CronKey();
+                    $base    = \rtrim(\Joomla\CMS\Uri\Uri::root(), '/')
+                        . '/index.php?option=com_ordenproduccion&controller=mt940&task=runScheduledImport&format=raw&cron_key=';
+                    if ($cronKey !== '') {
+                        $this->mt940CronCrontabLine       = '0 8 * * * wget -q -O - ' . \escapeshellarg($base . $cronKey);
+                        $this->mt940CronKeyConfigured     = true;
+                    } else {
+                        $this->mt940CronCrontabLine = '0 8 * * * wget -q -O - ' . \escapeshellarg($base . 'YOUR_SECRET');
+                    }
                 }
             } catch (\Throwable $e) {
                 $this->ajustesMt940SchemaOk           = false;

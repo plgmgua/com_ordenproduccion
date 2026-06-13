@@ -27,9 +27,45 @@ $mt940Accounts  = isset($this->ajustesMt940BankAccountOptions) && \is_array($thi
 $mt940ImportUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
 $mt940InitialUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.runMt940InitialImport&format=json', false);
 $mt940ClearUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.clearMt940ImportedData&format=json', false);
+$mt940CronSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveMt940CronSettings', false);
 $mt940Token      = Session::getFormToken();
+$mt940CronLine   = isset($this->mt940CronCrontabLine) ? (string) $this->mt940CronCrontabLine : '';
+$mt940CronKeyOk  = !empty($this->mt940CronKeyConfigured);
 ?>
 <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_SUBTAB_INTRO'); ?></p>
+
+<div class="card mb-3 border-secondary">
+    <div class="card-body py-3">
+        <h3 class="h6 mb-2"><i class="fas fa-clock"></i> <?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_TITLE'); ?></h3>
+        <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_HELP'); ?></p>
+        <form action="<?php echo htmlspecialchars($mt940CronSaveUrl, ENT_QUOTES, 'UTF-8'); ?>" method="post" class="mb-3">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label small mb-0" for="mt940_cron_key"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_KEY_LABEL'); ?></label>
+                    <input type="password" class="form-control form-control-sm" name="mt940_cron_key" id="mt940_cron_key" value=""
+                           autocomplete="new-password"
+                           placeholder="<?php echo htmlspecialchars($mt940CronKeyOk ? Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_CLAVE_PLACEHOLDER_KEEP') : Text::_('COM_ORDENPRODUCCION_MT940_CRON_KEY_PLACEHOLDER_NEW'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <?php if ($mt940CronKeyOk) : ?>
+                        <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_CLAVE_KEEP_HINT'); ?></div>
+                    <?php endif; ?>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-save"></i> <?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_SAVE_BTN'); ?>
+                    </button>
+                </div>
+            </div>
+        </form>
+        <?php if ($mt940CronLine !== '') : ?>
+            <p class="small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_LINE_HELP'); ?></p>
+            <pre class="small mb-0 font-monospace bg-light p-2 rounded border" style="white-space: pre-wrap; word-break: break-all;"><?php echo htmlspecialchars($mt940CronLine, ENT_QUOTES, 'UTF-8'); ?></pre>
+            <?php if (!$mt940CronKeyOk) : ?>
+                <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_SAVE_KEY_FIRST'); ?></p>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+</div>
 
 <?php if (!$mt940SchemaOk) : ?>
     <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_SCHEMA_MISSING'); ?></div>

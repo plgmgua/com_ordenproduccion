@@ -2965,6 +2965,56 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Save MT-940 cron secret (Ajustes → MT940 → Importar datos).
+     *
+     * @return  void
+     *
+     * @since   3.119.158
+     */
+    public function saveMt940CronSettings(): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=mt940_importar', false));
+
+            return;
+        }
+
+        $rawKey = $app->input->post->getString('mt940_cron_key', '');
+
+        try {
+            $model = $this->getModel('Administracion');
+            if (!$model) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), 'error');
+            } else {
+                $model->saveMt940CronKey($rawKey);
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_MT940_CRON_SETTINGS_SAVED'), 'success');
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=mt940_importar', false));
+    }
+
+    /**
      * JSON: test IMAP connection for MT-940 mailbox (uses posted form values + saved password if blank).
      *
      * @return  void
