@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.159-STABLE] - 2026-05-19
+
+### Changed
+- **MT-940 cron URL** uses public site `https://grimpsa_webserver.grantsolutions.cc/` in the crontab line shown under Ajustes → MT940 → Importar datos.
+
 ## [3.119.158-STABLE] - 2026-05-19
 
 ### Added

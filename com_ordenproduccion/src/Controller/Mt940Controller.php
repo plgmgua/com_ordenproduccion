@@ -25,7 +25,7 @@ class Mt940Controller extends BaseController
     /**
      * Poll the configured IMAP mailbox and import new MT-940 files.
      * Call daily via server cron (e.g. 8:00) with GET:
-     * index.php?option=com_ordenproduccion&controller=mt940&task=runScheduledImport&format=raw&cron_key=SECRET
+     * https://grimpsa_webserver.grantsolutions.cc/index.php?option=com_ordenproduccion&controller=mt940&task=runScheduledImport&format=raw&cron_key=SECRET
      *
      * @return  void
      */
