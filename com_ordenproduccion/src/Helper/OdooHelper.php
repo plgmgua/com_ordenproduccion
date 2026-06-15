@@ -98,9 +98,8 @@ class OdooHelper
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_POSTFIELDS => $xmlPayload,
-            CURLOPT_HTTPHEADER => [
+            CURLOPT_HTTPHEADER     => [
                 'Content-Type: text/xml',
-                'X-Openerp-Session-Id: ' . $apiKey,
             ],
         ]);
 
@@ -148,14 +147,18 @@ class OdooHelper
     public function getContactsByAgent($agentName, $page = 1, $limit = 20, $search = '')
     {
         $offset = max(0, ((int) $page - 1) * (int) $limit);
-        $xmlPayload = $this->buildPartnerSearchReadXml(
-            $this->buildAgentParentDomain($agentName, $search),
+        $xmlPayload = $this->buildExecuteKwXml(
+            'res.partner',
+            'search_read',
+            [$this->buildAgentParentDomain($agentName, $search)],
             [
-                'id', 'name', 'x_studio_agente_de_ventas', 'type', 'complete_name', 'vat',
-                'street', 'city', 'email', 'phone', 'mobile', 'display_name', 'child_ids', 'parent_id',
-            ],
-            (int) $limit,
-            $offset
+                'fields' => [
+                    'id', 'name', 'x_studio_agente_de_ventas', 'type', 'complete_name', 'vat',
+                    'street', 'city', 'email', 'phone', 'mobile', 'display_name', 'child_ids', 'parent_id',
+                ],
+                'limit'  => max(1, (int) $limit),
+                'offset' => $offset,
+            ]
         );
 
         $result = $this->executeOdooCall($xmlPayload);
@@ -215,18 +218,20 @@ class OdooHelper
      */
     public function getContactsCountByAgent($agentName, $search = '')
     {
-        $xmlPayload = $this->buildPartnerSearchCountXml($this->buildAgentParentDomain($agentName, $search));
+        $xmlPayload = $this->buildExecuteKwXml(
+            'res.partner',
+            'search_count',
+            [$this->buildAgentParentDomain($agentName, $search)]
+        );
         $result = $this->executeOdooCall($xmlPayload);
 
         if (!$result || $this->hasXmlRpcFault($result)) {
             return 0;
         }
 
-        if (isset($result['params']['param']['value']['int'])) {
-            return (int) $result['params']['param']['value']['int'];
-        }
+        $count = OdooDiagnosticHelper::extractIntParam($result);
 
-        return 0;
+        return $count === false ? 0 : $count;
     }
 
     /**
@@ -249,8 +254,28 @@ class OdooHelper
     }
 
     /**
+     * Build execute_kw XML using the same encoder as the diagnostic tool (Odoo 19 compatible).
+     *
+     * @param   array<int, mixed>        $args
+     * @param   array<string, mixed>     $kwargs
+     */
+    private function buildExecuteKwXml(string $model, string $method, array $args, array $kwargs = []): string
+    {
+        return OdooDiagnosticHelper::buildExecuteKwXml(
+            (string) $this->config->get('odoo_db', ''),
+            (int) $this->config->get('odoo_user_id', 2),
+            (string) $this->config->get('odoo_api_key', ''),
+            $model,
+            $method,
+            json_encode($args, JSON_UNESCAPED_UNICODE) ?: '[]',
+            $kwargs !== [] ? (json_encode($kwargs, JSON_UNESCAPED_UNICODE) ?: '') : ''
+        );
+    }
+
+    /**
      * @param   array<int, array<int, mixed>>  $domain
      * @param   array<int, string>             $fields
+     * @deprecated Use buildExecuteKwXml()
      */
     private function buildPartnerSearchReadXml(array $domain, array $fields, int $limit, int $offset): string
     {
@@ -1726,34 +1751,9 @@ class OdooHelper
             ];
         }
         
-        // Test with a simple search_count on res.partner (compatible with Odoo 19)
-        $testXmlPayload = '<?xml version="1.0"?>
-<methodCall>
-   <methodName>execute_kw</methodName>
-   <params>
-      <param>
-         <value><string>' . htmlspecialchars($odooDb, ENT_XML1, 'UTF-8') . '</string></value>
-      </param>
-      <param>
-         <value><int>' . (int)$odooUserId . '</int></value>
-      </param>
-      <param>
-         <value><string>' . htmlspecialchars($odooApiKey, ENT_XML1, 'UTF-8') . '</string></value>
-      </param>
-      <param>
-         <value><string>res.partner</string></value>
-      </param>
-      <param>
-         <value><string>search_count</string></value>
-      </param>
-      <param>
-         <value><array><data>
-            <value><array><data></data></array>
-         </data></array></value>
-      </param>
-   </params>
-</methodCall>';
-        
+        // Test with search_count on res.partner (Odoo 19 requires domain argument)
+        $testXmlPayload = $this->buildExecuteKwXml('res.partner', 'search_count', [[]]);
+
         $result = $this->executeOdooCall($testXmlPayload);
 
         if ($result === false || $this->hasXmlRpcFault($result)) {
@@ -1763,7 +1763,8 @@ class OdooHelper
             ];
         }
 
-        if (!isset($result['params']['param']['value']['int'])) {
+        $count = OdooDiagnosticHelper::extractIntParam($result);
+        if ($count === false) {
             return [
                 'success' => false,
                 'message' => 'Odoo responded but partner search_count failed (check API user permissions).',
@@ -1772,7 +1773,7 @@ class OdooHelper
 
         return [
             'success' => true,
-            'message' => 'Successfully connected to Odoo ' . $odooDb . ' database (' . (int) $result['params']['param']['value']['int'] . ' partners)',
+            'message' => 'Successfully connected to Odoo ' . $odooDb . ' database (' . $count . ' partners)',
         ];
     }
 }
