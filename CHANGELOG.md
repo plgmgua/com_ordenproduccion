@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.160-STABLE] - 2026-05-19
+
+### Added
+- **Ajustes → MT940 → Registro de importación:** new sub-tab listing cron and manual import runs (emails/files/transactions/message), including successful runs with no new data.
+
 ## [3.119.159-STABLE] - 2026-05-19
 
 ### Changed

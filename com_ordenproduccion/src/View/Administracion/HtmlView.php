@@ -445,6 +445,36 @@ class HtmlView extends BaseHtmlView
     protected $mt940CronKeyConfigured = false;
 
     /**
+     * @var    array<int, object>
+     * @since  3.119.160
+     */
+    protected $mt940RunLogRows = [];
+
+    /**
+     * @var    int
+     * @since  3.119.160
+     */
+    protected $mt940RunLogTotal = 0;
+
+    /**
+     * @var    \Joomla\CMS\Pagination\Pagination|null
+     * @since  3.119.160
+     */
+    protected $mt940RunLogPagination = null;
+
+    /**
+     * @var    bool
+     * @since  3.119.160
+     */
+    protected $mt940RunLogTableOk = false;
+
+    /**
+     * @var    int
+     * @since  3.119.160
+     */
+    protected $mt940RunLogListLimit = 25;
+
+    /**
      * Show Digifact NIT-verify curl debug on Mis Clientes (Ajustes certificador toggle).
      *
      * @var    bool
@@ -1527,6 +1557,11 @@ class HtmlView extends BaseHtmlView
         $this->ajustesMt940BankAccountOptions       = [];
         $this->mt940CronCrontabLine                 = '';
         $this->mt940CronKeyConfigured               = false;
+        $this->mt940RunLogRows                      = [];
+        $this->mt940RunLogTotal                     = 0;
+        $this->mt940RunLogPagination                = null;
+        $this->mt940RunLogTableOk                  = false;
+        $this->mt940RunLogListLimit                 = 25;
 
         // Ensure banks is always an array
         if (!isset($this->banks) || !is_array($this->banks)) {
@@ -2907,6 +2942,45 @@ class HtmlView extends BaseHtmlView
             } catch (\Throwable $e) {
                 $this->ajustesMt940SchemaOk           = false;
                 $this->ajustesMt940BankAccountOptions = [];
+            }
+        }
+
+        if ($activeTab === 'ajustes' && $activeSubTab === 'mt940_registro') {
+            try {
+                $admMt940 = $this->getModel('Administracion');
+                if (!$admMt940 && class_exists(AdministracionModel::class)) {
+                    $admMt940 = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                        ->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
+                }
+                if ($admMt940) {
+                    $this->mt940RunLogTableOk = $admMt940->isMt940RunLogTableAvailable();
+                    if ($this->mt940RunLogTableOk) {
+                        $limit      = max(10, min(200, (int) $input->getInt('mt940_run_limit', 25)));
+                        $limitStart = max(0, (int) $input->getInt('mt940_run_limitstart', 0));
+                        $this->mt940RunLogListLimit = $limit;
+                        $pack                       = $admMt940->getMt940RunLogList($limit, $limitStart);
+                        $this->mt940RunLogRows      = $pack['rows'] ?? [];
+                        $this->mt940RunLogTotal     = (int) ($pack['total'] ?? 0);
+                        if ($this->mt940RunLogTotal > 0) {
+                            $this->mt940RunLogPagination = new \Joomla\CMS\Pagination\Pagination(
+                                $this->mt940RunLogTotal,
+                                $limitStart,
+                                $limit,
+                                'mt940_run_'
+                            );
+                            $this->mt940RunLogPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                            $this->mt940RunLogPagination->setAdditionalUrlParam('view', 'administracion');
+                            $this->mt940RunLogPagination->setAdditionalUrlParam('tab', 'ajustes');
+                            $this->mt940RunLogPagination->setAdditionalUrlParam('subtab', 'mt940_registro');
+                            $this->mt940RunLogPagination->setAdditionalUrlParam('mt940_run_limit', (string) $limit);
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->mt940RunLogTableOk  = false;
+                $this->mt940RunLogRows     = [];
+                $this->mt940RunLogTotal    = 0;
+                $this->mt940RunLogPagination = null;
             }
         }
 

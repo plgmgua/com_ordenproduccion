@@ -25,6 +25,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImapHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940MailboxImportHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -3149,6 +3150,8 @@ class AdministracionController extends BaseController
             );
         }
 
+        Mt940RunLogHelper::recordFileImport($result, $filename, $msg, (int) Factory::getUser()->id);
+
         $this->sendAdministracionJson(!empty($result['success']), $msg, [
             'transactions_count' => (int) ($result['transactions_count'] ?? 0),
             'bank_account_id'    => (int) ($result['bank_account_id'] ?? 0),
@@ -3200,6 +3203,14 @@ class AdministracionController extends BaseController
 
             $result = Mt940MailboxImportHelper::runInitialImport($settings, $allowedIds);
         } catch (\Throwable $e) {
+            Mt940RunLogHelper::recordRun(
+                Mt940RunLogHelper::TRIGGER_MANUAL_MAILBOX,
+                Mt940RunLogHelper::STATUS_FAIL,
+                [],
+                $e->getMessage(),
+                500,
+                (int) Factory::getUser()->id
+            );
             $this->sendAdministracionJson(false, $e->getMessage(), []);
 
             return;
@@ -3221,6 +3232,14 @@ class AdministracionController extends BaseController
         if (!empty($result['imap_error'])) {
             $msg .= ' ' . (string) $result['imap_error'];
         }
+
+        Mt940RunLogHelper::recordMailboxImport(
+            Mt940RunLogHelper::TRIGGER_MANUAL_MAILBOX,
+            $result,
+            $msg,
+            !empty($result['success']) ? 200 : 500,
+            (int) Factory::getUser()->id
+        );
 
         $this->sendAdministracionJson(!empty($result['success']), $msg, [
             'emails_scanned'        => (int) ($result['emails_scanned'] ?? 0),

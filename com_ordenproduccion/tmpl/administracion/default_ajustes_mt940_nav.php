@@ -24,4 +24,9 @@ $mt940ActiveSubTab = isset($this->activeSubTab) ? (string) $this->activeSubTab :
         <i class="fas fa-file-import"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_SUBTAB_IMPORTAR'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=mt940_registro'); ?>"
+       class="ajustes-subtab <?php echo $mt940ActiveSubTab === 'mt940_registro' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-clipboard-list"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_MT940_SUBTAB_REGISTRO'); ?>
+    </a>
 </div>

@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940MailboxImportHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
@@ -63,7 +64,15 @@ class Mt940Controller extends BaseController
         }
 
         if (($settings['enabled'] ?? '0') !== '1') {
-            $this->emitPlainResponse(200, 'SKIPPED MT-940 import is disabled in Ajustes → MT940.');
+            $skipMsg = Text::_('COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_DISABLED');
+            Mt940RunLogHelper::recordRun(
+                Mt940RunLogHelper::TRIGGER_CRON,
+                Mt940RunLogHelper::STATUS_SKIPPED,
+                [],
+                $skipMsg,
+                200
+            );
+            $this->emitPlainResponse(200, 'SKIPPED ' . $skipMsg);
 
             return;
         }
@@ -71,6 +80,13 @@ class Mt940Controller extends BaseController
         try {
             $result = Mt940MailboxImportHelper::runInitialImport($settings, $allowedIds);
         } catch (\Throwable $e) {
+            Mt940RunLogHelper::recordRun(
+                Mt940RunLogHelper::TRIGGER_CRON,
+                Mt940RunLogHelper::STATUS_FAIL,
+                [],
+                $e->getMessage(),
+                500
+            );
             $this->emitPlainResponse(500, "Error\n\n" . $e->getMessage());
 
             return;
@@ -95,6 +111,13 @@ class Mt940Controller extends BaseController
 
         $status = !empty($result['success']) ? 200 : 500;
         $prefix = !empty($result['success']) ? 'OK' : 'FAIL';
+
+        Mt940RunLogHelper::recordMailboxImport(
+            Mt940RunLogHelper::TRIGGER_CRON,
+            $result,
+            $msg,
+            $status
+        );
 
         $this->emitPlainResponse(
             $status,

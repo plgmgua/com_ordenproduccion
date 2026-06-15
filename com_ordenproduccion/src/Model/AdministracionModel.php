@@ -6349,5 +6349,28 @@ class AdministracionModel extends BaseDatabaseModel
 
         return ['rows' => $rows, 'total' => $total];
     }
+
+    /**
+     * @return  bool
+     *
+     * @since   3.119.160
+     */
+    public function isMt940RunLogTableAvailable(): bool
+    {
+        return \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper::tableAvailable();
+    }
+
+    /**
+     * @param   int  $limit
+     * @param   int  $start
+     *
+     * @return  array{rows: array<int, object>, total: int}
+     *
+     * @since   3.119.160
+     */
+    public function getMt940RunLogList(int $limit, int $start): array
+    {
+        return \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper::getRunLogList($limit, $start);
+    }
 }
 
