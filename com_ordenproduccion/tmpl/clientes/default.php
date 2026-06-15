@@ -93,7 +93,7 @@ function safeGet($array, $key, $default = '') {
                         <input type="text" name="filter_search" id="filter_search" 
                                value="<?php echo htmlspecialchars($this->state->get('filter.search', '')); ?>" 
                                class="form-control" 
-                               placeholder="Buscar clientes..." />
+                               placeholder="Buscar por nombre, NIT, email, teléfono, ciudad..." />
                         <button class="btn btn-outline-secondary" type="submit">
                             Buscar
                         </button>

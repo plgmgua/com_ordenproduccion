@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.165-STABLE] - 2026-05-19
+
+### Fixed
+- **Mis Clientes search:** load all agent contacts before filtering (not only the current Odoo page); match NIT/vat, city, street, and phone; UTF-8 aware text compare.
+
 ## [3.119.164-STABLE] - 2026-05-19
 
 ### Added

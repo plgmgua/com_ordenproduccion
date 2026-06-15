@@ -22,6 +22,9 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
  */
 class ClientesModel extends ListModel
 {
+    /** Max contacts loaded from Odoo when filtering search client-side. */
+    private const SEARCH_FETCH_LIMIT = 1000;
+
     /**
      * Constructor.
      *
@@ -31,7 +34,7 @@ class ClientesModel extends ListModel
     {
         if (empty($config['filter_fields'])) {
             $config['filter_fields'] = [
-                'id', 'name', 'email', 'phone', 'mobile', 'city'
+                'id', 'name', 'email', 'phone', 'mobile', 'city', 'vat', 'street',
             ];
         }
 
@@ -46,81 +49,31 @@ class ClientesModel extends ListModel
     public function getItems()
     {
         $user = Factory::getUser();
-        
+
         if ($user->guest) {
             return [];
         }
 
         try {
-            $helper = new OdooHelper();
-            
-            // Get pagination and search parameters
+            $helper     = new OdooHelper();
             $limitstart = $this->getStart();
-            $limit = $this->getState('list.limit', 15);
-            $search = $this->getState('filter.search', '');
-            
-            $page = floor($limitstart / $limit) + 1;
-            
+            $limit      = (int) $this->getState('list.limit', 15);
+            $search     = trim((string) $this->getState('filter.search', ''));
+
+            if ($search !== '') {
+                $allContacts = $helper->getContactsByAgent($user->name, 1, self::SEARCH_FETCH_LIMIT, '');
+                $filtered    = $this->normalizeAndFilterContacts(is_array($allContacts) ? $allContacts : [], $search);
+
+                return \array_slice($filtered, $limitstart, $limit > 0 ? $limit : null);
+            }
+
+            $page     = (int) floor($limitstart / max(1, $limit)) + 1;
             $contacts = $helper->getContactsByAgent($user->name, $page, $limit, '');
-            
-            // Ensure we return a proper array
-            if (!is_array($contacts)) {
-                return [];
-            }
-            
-            // Validate and normalize each contact
-            $validContacts = [];
-            $seenIds = []; // Track seen contact IDs to prevent duplicates
-            foreach ($contacts as $contact) {
-                if (is_array($contact)) {
-                    $contactId = isset($contact['id']) ? (string)$contact['id'] : '0';
-                    
-                    // Skip duplicates - if we've already seen this contact ID, skip it
-                    if (isset($seenIds[$contactId]) && $contactId !== '0') {
-                        continue;
-                    }
-                    $seenIds[$contactId] = true;
-                    
-                    // Ensure all expected fields exist as strings
-                    $normalizedContact = [
-                        'id' => $contactId,
-                        'name' => isset($contact['name']) && is_string($contact['name']) ? $contact['name'] : '',
-                        'email' => isset($contact['email']) && is_string($contact['email']) ? $contact['email'] : '',
-                        'phone' => isset($contact['phone']) && is_string($contact['phone']) ? $contact['phone'] : '',
-                        'mobile' => isset($contact['mobile']) && is_string($contact['mobile']) ? $contact['mobile'] : '',
-                        'street' => isset($contact['street']) && is_string($contact['street']) ? $contact['street'] : '',
-                        'city' => isset($contact['city']) && is_string($contact['city']) ? $contact['city'] : '',
-                        'vat' => isset($contact['vat']) && is_string($contact['vat']) ? $contact['vat'] : '',
-                        'type' => isset($contact['type']) && is_string($contact['type']) ? $contact['type'] : 'contact'
-                    ];
-                    
-                    // Apply search filter on server side
-                    if (!empty($search)) {
-                        $searchLower = strtolower($search);
-                        // Ensure all fields are strings before strtolower()
-                        $name = is_string($normalizedContact['name']) ? $normalizedContact['name'] : '';
-                        $email = is_string($normalizedContact['email']) ? $normalizedContact['email'] : '';
-                        $phone = is_string($normalizedContact['phone']) ? $normalizedContact['phone'] : '';
-                        $mobile = is_string($normalizedContact['mobile']) ? $normalizedContact['mobile'] : '';
-                        
-                        $nameMatch = strpos(strtolower($name), $searchLower) !== false;
-                        $emailMatch = strpos(strtolower($email), $searchLower) !== false;
-                        $phoneMatch = strpos(strtolower($phone), $searchLower) !== false;
-                        $mobileMatch = strpos(strtolower($mobile), $searchLower) !== false;
-                        
-                        if ($nameMatch || $emailMatch || $phoneMatch || $mobileMatch) {
-                            $validContacts[] = $normalizedContact;
-                        }
-                    } else {
-                        $validContacts[] = $normalizedContact;
-                    }
-                }
-            }
-            
-            return $validContacts;
-            
+
+            return $this->normalizeAndFilterContacts(is_array($contacts) ? $contacts : [], '');
         } catch (\Exception $e) {
             Factory::getApplication()->enqueueMessage('Error connecting to Odoo: ' . $e->getMessage(), 'error');
+
             return [];
         }
     }
@@ -133,49 +86,28 @@ class ClientesModel extends ListModel
     public function getTotal()
     {
         $user = Factory::getUser();
-        
+
         if ($user->guest) {
             return 0;
         }
 
         try {
             $helper = new OdooHelper();
-            $search = $this->getState('filter.search', '');
-            
-            // Get all contacts and filter on server side for accurate count
-            $allContacts = $helper->getContactsByAgent($user->name, 1, 1000, '');
-            
+            $search = trim((string) $this->getState('filter.search', ''));
+
+            $allContacts = $helper->getContactsByAgent($user->name, 1, self::SEARCH_FETCH_LIMIT, '');
+
             if (!is_array($allContacts)) {
                 return 0;
             }
-            
-            // Apply search filter to get accurate count
-            if (!empty($search)) {
-                $filteredCount = 0;
-                foreach ($allContacts as $contact) {
-                    if (is_array($contact)) {
-                        $searchLower = strtolower($search);
-                        // Ensure all fields are strings before strtolower()
-                        $name = (isset($contact['name']) && is_string($contact['name'])) ? strtolower($contact['name']) : '';
-                        $email = (isset($contact['email']) && is_string($contact['email'])) ? strtolower($contact['email']) : '';
-                        $phone = (isset($contact['phone']) && is_string($contact['phone'])) ? strtolower($contact['phone']) : '';
-                        $mobile = (isset($contact['mobile']) && is_string($contact['mobile'])) ? strtolower($contact['mobile']) : '';
-                        
-                        if (strpos($name, $searchLower) !== false || 
-                            strpos($email, $searchLower) !== false || 
-                            strpos($phone, $searchLower) !== false || 
-                            strpos($mobile, $searchLower) !== false) {
-                            $filteredCount++;
-                        }
-                    }
-                }
-                return $filteredCount;
-            } else {
-                return count($allContacts);
+
+            if ($search !== '') {
+                return \count($this->normalizeAndFilterContacts($allContacts, $search));
             }
+
+            return \count($this->normalizeAndFilterContacts($allContacts, ''));
         } catch (\Exception $e) {
-            // Fallback to a reasonable number if count fails
-            return 50;
+            return 0;
         }
     }
 
@@ -186,14 +118,10 @@ class ClientesModel extends ListModel
      */
     public function getPagination()
     {
-        // Get the pagination request variables
-        $limit = $this->getState('list.limit', 15);
-        $limitstart = $this->getState('list.start', 0);
+        $limit      = (int) $this->getState('list.limit', 15);
+        $limitstart = (int) $this->getState('list.start', 0);
+        $total      = $this->getTotal();
 
-        // Get the total number of contacts
-        $total = $this->getTotal();
-
-        // Create the pagination object
         return new Pagination($total, $limitstart, $limit);
     }
 
@@ -207,7 +135,7 @@ class ClientesModel extends ListModel
      */
     protected function populateState($ordering = 'name', $direction = 'asc')
     {
-        $app = Factory::getApplication();
+        $app    = Factory::getApplication();
         $params = ComponentHelper::getParams('com_ordenproduccion');
         $defaultLimit = (int) $params->get('contacts_per_page', 20);
         if ($defaultLimit < 5) {
@@ -217,19 +145,94 @@ class ClientesModel extends ListModel
             $defaultLimit = 100;
         }
 
-        // Get the pagination request variables
         $limit = $app->getUserStateFromRequest('global.list.limit', 'limit', $defaultLimit, 'uint');
         $this->setState('list.limit', $limit);
 
         $limitstart = $app->input->get('limitstart', 0, 'uint');
         $this->setState('list.start', $limitstart);
 
-        // Get the search filter
         $search = $app->getUserStateFromRequest($this->context . '.filter.search', 'filter_search', '', 'string');
-        $this->setState('filter.search', $search);
+        $this->setState('filter.search', trim((string) $search));
 
-        // Set the ordering
         $this->setState('list.ordering', $ordering);
         $this->setState('list.direction', $direction);
+    }
+
+    /**
+     * Normalize Odoo rows and optionally filter by Mis Clientes search box.
+     *
+     * @param   array<int, mixed>  $contacts
+     * @return  array<int, array<string, string>>
+     */
+    private function normalizeAndFilterContacts(array $contacts, string $search): array
+    {
+        $validContacts = [];
+        $seenIds       = [];
+        $search        = trim($search);
+
+        foreach ($contacts as $contact) {
+            if (!\is_array($contact)) {
+                continue;
+            }
+
+            $contactId = isset($contact['id']) ? (string) $contact['id'] : '0';
+
+            if (isset($seenIds[$contactId]) && $contactId !== '0') {
+                continue;
+            }
+            $seenIds[$contactId] = true;
+
+            $normalizedContact = [
+                'id'     => $contactId,
+                'name'   => isset($contact['name']) && \is_string($contact['name']) ? $contact['name'] : '',
+                'email'  => isset($contact['email']) && \is_string($contact['email']) ? $contact['email'] : '',
+                'phone'  => isset($contact['phone']) && \is_string($contact['phone']) ? $contact['phone'] : '',
+                'mobile' => isset($contact['mobile']) && \is_string($contact['mobile']) ? $contact['mobile'] : '',
+                'street' => isset($contact['street']) && \is_string($contact['street']) ? $contact['street'] : '',
+                'city'   => isset($contact['city']) && \is_string($contact['city']) ? $contact['city'] : '',
+                'vat'    => isset($contact['vat']) && \is_string($contact['vat']) ? $contact['vat'] : '',
+                'type'   => isset($contact['type']) && \is_string($contact['type']) ? $contact['type'] : 'contact',
+            ];
+
+            if ($search === '' || $this->contactMatchesSearch($normalizedContact, $search)) {
+                $validContacts[] = $normalizedContact;
+            }
+        }
+
+        return $validContacts;
+    }
+
+    /**
+     * @param   array<string, string>  $contact
+     */
+    private function contactMatchesSearch(array $contact, string $search): bool
+    {
+        $needle = $this->normalizeSearchText($search);
+        if ($needle === '') {
+            return true;
+        }
+
+        foreach (['name', 'email', 'phone', 'mobile', 'vat', 'city', 'street'] as $field) {
+            $value = $this->normalizeSearchText($contact[$field] ?? '');
+            if ($value !== '' && strpos($value, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeSearchText(string $text): string
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return '';
+        }
+
+        if (\function_exists('mb_strtolower')) {
+            return mb_strtolower($text, 'UTF-8');
+        }
+
+        return strtolower($text);
     }
 }
