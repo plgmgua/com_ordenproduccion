@@ -812,92 +812,90 @@ class OdooHelper
     }
 
     /**
-     * Create new contact - using exact same structure as registrar_contacto.php
+     * Fields used by Nuevo Cliente form mapped to res.partner.
      *
-     * @param   array  $contactData  The contact data
+     * @return array<int, string>
+     */
+    public function getPartnerFormFieldNames(): array
+    {
+        return [
+            'name', 'type', 'email', 'phone', 'mobile', 'street', 'city', 'vat',
+            'x_studio_agente_de_ventas', 'parent_id',
+        ];
+    }
+
+    /**
+     * Form/Odoo fields missing on this database (e.g. mobile on Odoo 19).
      *
-     * @return  mixed  The contact ID on success, false on failure
+     * @return array<int, string>
+     */
+    public function getSkippedPartnerFormFields(): array
+    {
+        $skipped = [];
+        foreach ($this->getPartnerFormFieldNames() as $field) {
+            if (!$this->isPartnerFieldAvailable($field)) {
+                $skipped[] = $field;
+            }
+        }
+
+        return $skipped;
+    }
+
+    /**
+     * Diagnostic: attempt res.partner create with the same field filter as Nuevo Cliente.
+     *
+     * @param   array<string, mixed>  $contactData
+     * @return  array{values: array<string, mixed>, contact_id: int|false, fault: ?string, http_code: int, skipped_fields: array<int, string>}
+     */
+    public function probeCreateContact(array $contactData): array
+    {
+        $vals = $this->buildContactValuesForOdoo($contactData, true);
+        $xml  = $this->buildExecuteKwXml('res.partner', 'create', [$vals]);
+        $rpc  = OdooDiagnosticHelper::postXmlRpc($this->getObjectEndpointUrl(), $xml);
+        $id   = false;
+        if (is_array($rpc['parsed'])) {
+            $id = $this->parseCreateResponse($rpc['parsed']);
+        }
+
+        return [
+            'values'          => $vals,
+            'contact_id'      => $id,
+            'fault'           => $rpc['fault'],
+            'http_code'       => $rpc['http_code'],
+            'skipped_fields'  => $this->getSkippedPartnerFormFields(),
+        ];
+    }
+
+    /**
+     * Create new contact in Odoo (Nuevo Cliente).
+     *
+     * @param   array<string, mixed>  $contactData
+     *
+     * @return  int|false  New partner id on success
      */
     public function createContact($contactData)
     {
-        // Handle parent_id for child contacts
-        $parentIdXml = '';
-        if (isset($contactData['parent_id']) && (int)$contactData['parent_id'] > 0) {
-            $parentIdXml = '<member>
-                <name>parent_id</name>
-                <value><int>' . (int)$contactData['parent_id'] . '</int></value>
-            </member>';
-        }
-        
-        // Use the exact same XML structure as registrar_contacto.php
-        $xmlPayload = '<?xml version="1.0"?>
-    <methodCall>
-        <methodName>execute_kw</methodName>
-        <params>
-' . $this->buildAuthParamsCompact() . '
-            <param>
-                <value>
-                    <string>res.partner</string>
-                </value>
-            </param>
-            <param>
-                <value>
-                    <string>create</string>
-                </value>
-            </param>
-            <param>
-                <value>
-                    <array>
-                        <data>
-                            <value>
-                                <struct>
-                                    <member>
-                                        <name>name</name>
-                                        <value><string>' . htmlspecialchars($contactData['name'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>type</name>
-                                        <value><string>' . htmlspecialchars($contactData['type'] ?? 'contact', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>email</name>
-                                        <value><string>' . htmlspecialchars($contactData['email'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>street</name>
-                                        <value><string>' . htmlspecialchars($contactData['street'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>vat</name>
-                                        <value><string>' . htmlspecialchars($contactData['vat'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>phone</name>
-                                        <value><string>' . htmlspecialchars($contactData['phone'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>mobile</name>
-                                        <value><string>' . htmlspecialchars($contactData['mobile'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>x_studio_agente_de_ventas</name>
-                                        <value><string>' . htmlspecialchars($contactData['x_studio_agente_de_ventas'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    <member>
-                                        <name>city</name>
-                                        <value><string>' . htmlspecialchars($contactData['city'] ?? '', ENT_XML1, 'UTF-8') . '</string></value>
-                                    </member>
-                                    ' . $parentIdXml . '
-                                </struct>
-                            </value>
-                        </data>
-                    </array>
-                </value>
-            </param>
-        </params>
-    </methodCall>';
+        $vals = $this->buildContactValuesForOdoo($contactData, true);
+        if (trim((string) ($vals['name'] ?? '')) === '') {
+            Log::add('createContact: name is required', Log::ERROR, 'com_ordenproduccion.clientes');
 
-        $result = $this->executeOdooCall($xmlPayload);
+            return false;
+        }
+
+        $xmlPayload = $this->buildExecuteKwXml('res.partner', 'create', [$vals]);
+        $result     = $this->executeOdooCall($xmlPayload);
+
+        if (!$result || $this->hasXmlRpcFault($result)) {
+            $fault = OdooDiagnosticHelper::extractFaultString(is_array($result) ? $result : null);
+            Log::add(
+                'createContact XML-RPC fault: ' . ($fault ?? 'unknown'),
+                Log::ERROR,
+                'com_ordenproduccion.clientes'
+            );
+
+            return false;
+        }
+
         return $this->parseCreateResponse($result);
     }
 
@@ -911,38 +909,31 @@ class OdooHelper
      */
     public function updateContact($contactId, $contactData)
     {
-        $xmlPayload = '<?xml version="1.0"?>
-        <methodCall>
-            <methodName>execute_kw</methodName>
-            <params>
-                ' . $this->buildAuthParamsCompact() . '
-                <param><value><string>res.partner</string></value></param>
-                <param><value><string>write</string></value></param>
-                <param>
-                    <value>
-                        <array>
-                            <data>
-                                <value>
-                                    <array>
-                                        <data>
-                                            <value><int>' . $contactId . '</int></value>
-                                        </data>
-                                    </array>
-                                </value>
-                                <value>
-                                    <struct>
-                                        ' . $this->buildContactXmlFields($contactData) . '
-                                    </struct>
-                                </value>
-                            </data>
-                        </array>
-                    </value>
-                </param>
-            </params>
-        </methodCall>';
+        $contactId = (int) $contactId;
+        if ($contactId <= 0) {
+            return false;
+        }
 
-        $result = $this->executeOdooCall($xmlPayload);
-        return $result !== false;
+        $vals = $this->buildContactValuesForOdoo($contactData, false);
+        if ($vals === []) {
+            return true;
+        }
+
+        $xmlPayload = $this->buildExecuteKwXml('res.partner', 'write', [[$contactId], $vals]);
+        $result     = $this->executeOdooCall($xmlPayload);
+
+        if (!$result || $this->hasXmlRpcFault($result)) {
+            $fault = OdooDiagnosticHelper::extractFaultString(is_array($result) ? $result : null);
+            Log::add(
+                'updateContact XML-RPC fault: ' . ($fault ?? 'unknown'),
+                Log::ERROR,
+                'com_ordenproduccion.clientes'
+            );
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -984,38 +975,79 @@ class OdooHelper
     }
 
     /**
+     * Build Odoo values dict for res.partner create/write (skips invalid fields).
+     *
+     * @param   array<string, mixed>  $contactData
+     * @return  array<string, mixed>
+     */
+    private function buildContactValuesForOdoo(array $contactData, bool $forCreate): array
+    {
+        $fieldMap = [
+            'name'                      => 'name',
+            'type'                      => 'type',
+            'email'                     => 'email',
+            'phone'                     => 'phone',
+            'mobile'                    => 'mobile',
+            'street'                    => 'street',
+            'city'                      => 'city',
+            'vat'                       => 'vat',
+            'x_studio_agente_de_ventas' => 'x_studio_agente_de_ventas',
+        ];
+        $requiredOnCreate = ['name', 'type', 'x_studio_agente_de_ventas'];
+        $out              = [];
+
+        foreach ($fieldMap as $odooField => $dataField) {
+            if (!$this->isPartnerFieldAvailable($odooField)) {
+                continue;
+            }
+
+            $value = isset($contactData[$dataField]) ? trim((string) $contactData[$dataField]) : '';
+            if ($forCreate && $odooField === 'type' && $value === '') {
+                $value = 'contact';
+            }
+
+            if ($forCreate && in_array($odooField, $requiredOnCreate, true)) {
+                if ($odooField === 'name' && $value === '') {
+                    continue;
+                }
+                $out[$odooField] = $value;
+            } elseif ($value !== '') {
+                $out[$odooField] = $value;
+            }
+        }
+
+        if (
+            isset($contactData['parent_id'])
+            && (int) $contactData['parent_id'] > 0
+            && $this->isPartnerFieldAvailable('parent_id')
+        ) {
+            $out['parent_id'] = (int) $contactData['parent_id'];
+        }
+
+        return $out;
+    }
+
+    /**
      * Build XML fields for contact data
      *
      * @param   array  $contactData  The contact data
      *
      * @return  string  The XML fields
+     * @deprecated Superseded by buildContactValuesForOdoo() + buildExecuteKwXml()
      */
     private function buildContactXmlFields($contactData)
     {
         $fields = '';
-        $fieldMap = [
-            'name' => 'name',
-            'email' => 'email',
-            'phone' => 'phone',
-            'mobile' => 'mobile',
-            'street' => 'street',
-            'city' => 'city',
-            'vat' => 'vat',
-            'type' => 'type',
-            'x_studio_agente_de_ventas' => 'x_studio_agente_de_ventas'
-        ];
-
-        foreach ($fieldMap as $xmlField => $dataField) {
-            if (!$this->isPartnerFieldAvailable($xmlField)) {
+        $vals   = $this->buildContactValuesForOdoo($contactData, false);
+        foreach ($vals as $xmlField => $value) {
+            if ($xmlField === 'parent_id') {
+                $fields .= '<member><name>parent_id</name><value><int>' . (int) $value . '</int></value></member>';
                 continue;
             }
-            if (isset($contactData[$dataField]) && $contactData[$dataField] !== '') {
-                $value = htmlspecialchars($contactData[$dataField], ENT_XML1, 'UTF-8');
-                $fields .= '<member>
-                    <name>' . $xmlField . '</name>
-                    <value><string>' . $value . '</string></value>
+            $fields .= '<member>
+                    <name>' . htmlspecialchars((string) $xmlField, ENT_XML1, 'UTF-8') . '</name>
+                    <value><string>' . htmlspecialchars((string) $value, ENT_XML1, 'UTF-8') . '</string></value>
                 </member>';
-            }
         }
 
         return $fields;
@@ -1348,11 +1380,29 @@ class OdooHelper
      */
     private function parseCreateResponse($result)
     {
-        if (!$result || !isset($result['params']['param']['value']['int'])) {
+        if (!is_array($result) || $this->hasXmlRpcFault($result)) {
             return false;
         }
 
-        return $result['params']['param']['value']['int'];
+        $param = $result['params']['param'] ?? null;
+        if (!is_array($param)) {
+            return false;
+        }
+        if (isset($param[0]) && is_array($param[0]) && !isset($param['value'])) {
+            $param = $param[0];
+        }
+        $value = $param['value'] ?? null;
+        if (!is_array($value)) {
+            return false;
+        }
+        if (isset($value['int'])) {
+            return (int) $value['int'];
+        }
+        if (isset($value['i4'])) {
+            return (int) $value['i4'];
+        }
+
+        return false;
     }
 
     /**

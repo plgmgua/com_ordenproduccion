@@ -68,6 +68,7 @@ class OdooDiagnosticHelper
         $odooLogin    = trim((string) ($options['odoo_login'] ?? ''));
         $scanUsers    = !array_key_exists('scan_users', $options) || (bool) $options['scan_users'];
         $userLimit    = max(1, min(100, (int) ($options['user_limit'] ?? 30)));
+        $testSave     = !array_key_exists('test_save_contact', $options) || (bool) $options['test_save_contact'];
 
         if ($joomlaUserId > 0 && $agentName === '') {
             $agentName = $this->loadJoomlaUserName($joomlaUserId);
@@ -83,6 +84,10 @@ class OdooDiagnosticHelper
         $this->runHelperTestSection();
         $this->runPartnerCountSection();
         $odooAgentSample = $this->runStudioFieldSection();
+
+        if ($testSave) {
+            $this->runContactSaveTestSection($agentName);
+        }
 
         $agentTests = [];
         if ($agentName !== '') {
@@ -475,6 +480,74 @@ class OdooDiagnosticHelper
     private function runHelperAgentSection(string $agentName): void
     {
         // Section already added in runAgentTest when not compact
+    }
+
+    /**
+     * Create + unlink a test res.partner using the same path as Nuevo Cliente → Guardar.
+     */
+    private function runContactSaveTestSection(string $agentName): void
+    {
+        $checks  = [];
+        $helper  = new OdooHelper();
+        $skipped = $helper->getSkippedPartnerFormFields();
+
+        if ($skipped !== []) {
+            $checks[] = $this->warn(
+                'Nuevo Cliente fields skipped on create',
+                implode(', ', $skipped) . ' — not on res.partner in this Odoo DB'
+            );
+        } else {
+            $checks[] = $this->pass('Nuevo Cliente fields', 'All form fields exist on res.partner');
+        }
+
+        $saveAgent = $agentName !== '' ? $agentName : 'Troubleshooting Test Agent';
+        $testName  = '[Joomla-TS] Mis Clientes save test ' . date('Y-m-d H:i:s');
+        $payload   = [
+            'name'                      => $testName,
+            'type'                      => 'contact',
+            'email'                     => 'joomla-ts-' . time() . '@example.invalid',
+            'phone'                     => '50200000000',
+            'mobile'                    => '50200000001',
+            'street'                    => 'TS test street',
+            'city'                      => 'Guatemala',
+            'vat'                       => 'CF',
+            'x_studio_agente_de_ventas' => $saveAgent,
+        ];
+
+        $probe = $helper->probeCreateContact($payload);
+        $checks[] = $this->pass(
+            'create payload fields',
+            implode(', ', array_keys($probe['values'])) ?: '(none)'
+        );
+
+        $contactId = $probe['contact_id'];
+        if ($contactId === false || (int) $contactId <= 0) {
+            $detail = $probe['fault'] !== null
+                ? self::summarizeFaultString($probe['fault'])
+                : ('HTTP ' . (int) $probe['http_code'] . ' — create returned no partner id');
+            $checks[] = $this->fail('OdooHelper::createContact()', $detail);
+        } else {
+            $checks[] = $this->pass('OdooHelper::createContact()', 'Created test partner id ' . (int) $contactId);
+            if ($helper->deleteContact((int) $contactId)) {
+                $checks[] = $this->pass('cleanup unlink', 'Test contact removed from Odoo');
+            } else {
+                $checks[] = $this->warn(
+                    'cleanup unlink',
+                    'Partner id ' . (int) $contactId . ' (' . $testName . ') — delete manually in Odoo'
+                );
+            }
+        }
+
+        $this->sections[] = [
+            'id'      => 'contact_save',
+            'title'   => '9. Mis Clientes — Nuevo Cliente save test',
+            'checks'  => $checks,
+            'details' => [
+                'test_agent'       => $saveAgent,
+                'skipped_fields'   => $skipped,
+                'payload_sent'     => $probe['values'],
+            ],
+        ];
     }
 
     /**

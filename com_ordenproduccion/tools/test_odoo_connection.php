@@ -8,6 +8,7 @@
  *   php components/com_ordenproduccion/tools/test_odoo_connection.php --login=integration@grimpsa.com
  *   php components/com_ordenproduccion/tools/test_odoo_connection.php --joomla-user-id=15
  *   php components/com_ordenproduccion/tools/test_odoo_connection.php --no-scan
+ *   php components/com_ordenproduccion/tools/test_odoo_connection.php --skip-save-test
  *
  * @package     Joomla.Site
  * @subpackage  com_ordenproduccion
@@ -41,7 +42,7 @@ require_once JPATH_BASE . '/includes/framework.php';
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooDiagnosticHelper;
 use Joomla\CMS\Factory;
 
-$options = getopt('', ['login:', 'agent:', 'joomla-user-id:', 'no-scan', 'help']);
+$options = getopt('', ['login:', 'agent:', 'joomla-user-id:', 'no-scan', 'skip-save-test', 'help']);
 
 if (isset($options['help'])) {
     echo <<<HELP
@@ -52,6 +53,7 @@ Options:
   --agent=NAME           Test one agent name (Mis Clientes filter)
   --joomla-user-id=ID    Test one Joomla user (uses user.name as agent)
   --no-scan              Skip scanning all active Joomla users
+  --skip-save-test       Skip Nuevo Cliente create/unlink test (section 9)
   --help                 Show this help
 
 HELP;
@@ -77,10 +79,11 @@ try {
 }
 
 $runOptions = [
-    'odoo_login'      => isset($options['login']) ? trim((string) $options['login']) : '',
-    'agent'           => isset($options['agent']) ? trim((string) $options['agent']) : '',
-    'joomla_user_id'  => isset($options['joomla-user-id']) ? (int) $options['joomla-user-id'] : 0,
-    'scan_users'      => !isset($options['no-scan']),
+    'odoo_login'         => isset($options['login']) ? trim((string) $options['login']) : '',
+    'agent'              => isset($options['agent']) ? trim((string) $options['agent']) : '',
+    'joomla_user_id'     => isset($options['joomla-user-id']) ? (int) $options['joomla-user-id'] : 0,
+    'scan_users'         => !isset($options['no-scan']),
+    'test_save_contact'  => !isset($options['skip-save-test']),
 ];
 
 $helper = new OdooDiagnosticHelper();

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.164-STABLE] - 2026-05-19
+
+### Added
+- **troubleshooting.php section 9:** Nuevo Cliente save test — creates a temporary Odoo partner (then unlinks) using the same field filter as Guardar; optional “Skip save test” checkbox.
+
+### Fixed
+- **OdooHelper::createContact():** stop sending hardcoded `mobile` and other invalid fields; use `fields_get` + `buildExecuteKwXml` like Mis Clientes list (fixes save on Odoo 19).
+
 ## [3.119.163-STABLE] - 2026-05-19
 
 ### Fixed

@@ -186,8 +186,10 @@ function tsRender(array $vars): void
             <input type="number" id="odoo_user_id" name="odoo_user_id" value="<?php echo (int) $odooUserId > 0 ? (int) $odooUserId : ''; ?>" placeholder="all users" min="1" style="width:90px;" />
             <label for="odoo_login">Odoo login (UID check)</label>
             <input type="text" id="odoo_login" name="odoo_login" value="<?php echo htmlspecialchars((string) $odooLogin); ?>" placeholder="optional email" style="width:220px;" />
+            <label><input type="checkbox" name="skip_save_test" value="1" <?php echo !empty($skipSaveTest) ? 'checked' : ''; ?> /> Skip save test</label>
             <button type="submit" class="btn">Re-run tests</button>
         </form>
+        <p class="subtitle" style="margin-top:0;">Section <strong>9</strong> creates a temporary Odoo contact (then deletes it) to verify <em>Nuevo Cliente → Guardar</em>.</p>
 
         <div class="meta-grid">
             <div class="meta-item"><strong>Odoo URL</strong><?php echo htmlspecialchars((string) ($cfg['odoo_url'] ?? '')); ?></div>
@@ -290,6 +292,7 @@ $odooError = null;
 $odooReport = null;
 $odooUserId = 0;
 $odooLogin = '';
+$skipSaveTest = false;
 $componentVersion = '';
 $formAction = '';
 
@@ -299,6 +302,7 @@ try {
 
     $odooUserId = max(0, $input->getInt('odoo_user_id', 0));
     $odooLogin  = trim($input->getString('odoo_login', '', 'STRING'));
+    $skipSaveTest = $input->getInt('skip_save_test', 0) === 1;
 
     $formAction = tsIsStandalone()
         ? (string) ($_SERVER['SCRIPT_NAME'] ?? '/troubleshooting.php')
@@ -319,10 +323,11 @@ try {
         }
 
         $odooReport = (new $helperClass())->run([
-            'joomla_user_id' => $odooUserId,
-            'odoo_login'     => $odooLogin,
-            'scan_users'     => $odooUserId === 0,
-            'user_limit'     => 30,
+            'joomla_user_id'      => $odooUserId,
+            'odoo_login'          => $odooLogin,
+            'scan_users'          => $odooUserId === 0,
+            'user_limit'          => 30,
+            'test_save_contact'   => !$skipSaveTest,
         ]);
     }
 
@@ -342,6 +347,7 @@ tsRender(compact(
     'odooReport',
     'odooUserId',
     'odooLogin',
+    'skipSaveTest',
     'componentVersion',
     'formAction'
 ));
