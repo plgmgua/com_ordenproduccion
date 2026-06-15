@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.166-STABLE] - 2026-05-19
+
+### Changed
+- **troubleshooting.php:** Mis Clientes simulator shows real **Odoo total** (`search_count`) and **Helper total** instead of capped RPC (5) / Helper (10) sample limits; adds **+ children** count for contacts tagged to agent but not parent companies.
+
 ## [3.119.165-STABLE] - 2026-05-19
 
 ### Fixed

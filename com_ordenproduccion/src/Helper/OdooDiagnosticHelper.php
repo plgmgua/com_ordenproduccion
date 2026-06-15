@@ -344,8 +344,11 @@ class OdooDiagnosticHelper
             'joomla_user_id'   => $joomlaUserId,
             'joomla_user_name' => $agentName,
             'odoo_exact_match' => in_array($agentName, $odooAgentSample, true),
+            'odoo_total'       => 0,
+            'odoo_with_child'  => 0,
             'rpc_count'        => 0,
             'helper_count'     => 0,
+            'helper_total'     => 0,
             'sample_contacts'  => [],
             'status'           => 'warn',
             'message'          => '',
@@ -356,10 +359,17 @@ class OdooDiagnosticHelper
             return $row;
         }
 
-        $domain = json_encode([
+        $domainParents = json_encode([
             ['x_studio_agente_de_ventas', '=', $agentName],
             ['parent_id', '=', false],
         ], JSON_UNESCAPED_UNICODE);
+
+        $domainAllAgents = json_encode([
+            ['x_studio_agente_de_ventas', '=', $agentName],
+        ], JSON_UNESCAPED_UNICODE);
+
+        $row['odoo_total'] = $this->agentPartnerSearchCount($domainParents);
+        $row['odoo_with_child'] = $this->agentPartnerSearchCount($domainAllAgents);
 
         $agentResult = $this->xmlRpcCall(
             $this->objectUrl,
@@ -369,19 +379,19 @@ class OdooDiagnosticHelper
                 $this->odooApiKey,
                 'res.partner',
                 'search_read',
-                '[' . $domain . ']',
+                '[' . $domainParents . ']',
                 '{"fields": ["id", "name"], "limit": 5}'
             )
         );
 
         if ($agentResult['fault'] !== null) {
             $row['status']  = 'fail';
-            $row['message'] = $agentResult['fault'];
+            $row['message'] = self::summarizeFaultString($agentResult['fault']);
             if (!$compact) {
                 $this->sections[] = [
                     'id'     => 'agent_' . $joomlaUserId,
                     'title'  => '7. Mis Clientes filter — ' . $agentName,
-                    'checks' => [$this->fail('search_read (agent filter)', $agentResult['fault'])],
+                    'checks' => [$this->fail('search_read (agent filter)', $row['message'])],
                 ];
             }
             return $row;
@@ -393,15 +403,17 @@ class OdooDiagnosticHelper
 
         try {
             $helper = new OdooHelper();
+            $row['helper_total'] = $helper->getContactsCountByAgent($agentName);
             $contacts = $helper->getContactsByAgent($agentName, 1, 10, '');
             $row['helper_count'] = is_array($contacts) ? count($contacts) : 0;
         } catch (\Throwable $e) {
             $row['helper_count'] = -1;
+            $row['helper_total'] = -1;
             $row['message'] = $e->getMessage();
             $helper = null;
         }
 
-        if ($row['rpc_count'] > 0 && $row['helper_count'] === 0) {
+        if ($row['odoo_total'] > 0 && $row['helper_count'] === 0) {
             $probeFields = $helper instanceof OdooHelper
                 ? $helper->getResolvedPartnerListFields()
                 : ['id', 'name', 'email', 'phone', 'street', 'city', 'vat', 'type'];
@@ -414,7 +426,7 @@ class OdooDiagnosticHelper
                     $this->odooApiKey,
                     'res.partner',
                     'search_read',
-                    '[' . $domain . ']',
+                    '[' . $domainParents . ']',
                     $helperKw
                 )
             );
@@ -436,9 +448,15 @@ class OdooDiagnosticHelper
             }
         }
 
-        if ($row['rpc_count'] > 0) {
+        if ($row['odoo_total'] > 0) {
             $row['status']  = 'pass';
-            $row['message'] = $row['rpc_count'] . ' parent contact(s) in Odoo';
+            $row['message'] = $row['odoo_total'] . ' parent company(ies) in Odoo (Mis Clientes list)';
+            if ($row['odoo_with_child'] > $row['odoo_total']) {
+                $row['message'] .= '; ' . $row['odoo_with_child'] . ' incl. child contacts (not in list)';
+            }
+        } elseif ($row['odoo_with_child'] > 0) {
+            $row['status']  = 'warn';
+            $row['message'] = $row['odoo_with_child'] . ' contact(s) tagged to agent but 0 parent companies — only child/branch rows?';
         } elseif ($row['odoo_exact_match']) {
             $row['status']  = 'warn';
             $row['message'] = 'Agent name exists in Odoo sample but 0 parent contacts';
@@ -456,16 +474,19 @@ class OdooDiagnosticHelper
             } else {
                 $checks[] = $this->warn('Agent filter', $row['message']);
             }
-            if ($row['helper_count'] >= 0) {
-                $helperDetail = $row['helper_count'] > 0
-                    ? $row['helper_count'] . ' contact(s)'
-                    : '0 contacts (same as Mis Clientes view)';
-                if ($row['helper_count'] === 0 && !empty($row['helper_fault'])) {
+            if ($row['helper_total'] >= 0) {
+                $helperDetail = $row['helper_total'] > 0
+                    ? $row['helper_total'] . ' parent company(ies) (search_count via OdooHelper)'
+                    : '0 parent companies (same filter as Mis Clientes)';
+                if ($row['helper_total'] !== $row['odoo_total'] && $row['odoo_total'] > 0 && $row['helper_total'] > 0) {
+                    $helperDetail .= ' — Odoo total ' . $row['odoo_total'];
+                }
+                if ($row['helper_total'] === 0 && !empty($row['helper_fault'])) {
                     $helperDetail .= ' — ' . OdooDiagnosticHelper::summarizeFaultString($row['helper_fault']);
                 }
-                $checks[] = $row['helper_count'] > 0
-                    ? $this->pass('getContactsByAgent()', $helperDetail)
-                    : $this->warn('getContactsByAgent()', $helperDetail);
+                $checks[] = $row['helper_total'] > 0
+                    ? $this->pass('getContactsCountByAgent()', $helperDetail)
+                    : $this->warn('getContactsCountByAgent()', $helperDetail);
             }
             $this->sections[] = [
                 'id'     => 'agent_' . $joomlaUserId,
@@ -475,6 +496,32 @@ class OdooDiagnosticHelper
         }
 
         return $row;
+    }
+
+    /**
+     * res.partner search_count for a JSON-encoded Odoo domain.
+     */
+    private function agentPartnerSearchCount(string $domainJson): int
+    {
+        $result = $this->xmlRpcCall(
+            $this->objectUrl,
+            self::buildExecuteKwXml(
+                $this->odooDb,
+                $this->odooUserId,
+                $this->odooApiKey,
+                'res.partner',
+                'search_count',
+                '[' . $domainJson . ']'
+            )
+        );
+
+        if ($result['fault'] !== null || !is_array($result['parsed'])) {
+            return 0;
+        }
+
+        $count = self::extractIntParam($result['parsed']);
+
+        return $count === false ? 0 : $count;
     }
 
     private function runHelperAgentSection(string $agentName): void
@@ -1207,12 +1254,13 @@ class OdooDiagnosticHelper
             foreach ($tests as $t) {
                 $status = strtoupper((string) ($t['status'] ?? ''));
                 $out[] = sprintf(
-                    '  [%s] user #%d "%s" — RPC:%d Helper:%d — %s',
+                    '  [%s] user #%d "%s" — Odoo:%d (+%d child) Helper:%d — %s',
                     $status,
                     (int) ($t['joomla_user_id'] ?? 0),
                     (string) ($t['joomla_user_name'] ?? ''),
-                    (int) ($t['rpc_count'] ?? 0),
-                    (int) ($t['helper_count'] ?? 0),
+                    (int) ($t['odoo_total'] ?? 0),
+                    max(0, (int) ($t['odoo_with_child'] ?? 0) - (int) ($t['odoo_total'] ?? 0)),
+                    (int) ($t['helper_total'] ?? $t['helper_count'] ?? 0),
                     (string) ($t['message'] ?? '')
                 );
             }

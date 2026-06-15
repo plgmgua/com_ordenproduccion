@@ -228,15 +228,17 @@ function tsRender(array $vars): void
         <?php $agentTests = $odooReport['agent_tests'] ?? []; ?>
         <?php if ($agentTests !== []): ?>
             <h2>Mis Clientes simulation per Joomla user</h2>
+            <p class="subtitle" style="margin-top:0;">Parent companies only (<code>parent_id = false</code>) — same as the Mis Clientes list. <strong>Odoo total</strong> is the real count; Sample is capped at 5 names.</p>
             <table>
                 <thead>
                     <tr>
                         <th>User ID</th>
                         <th>Joomla name</th>
                         <th>Odoo match</th>
-                        <th>RPC</th>
-                        <th>Helper</th>
-                        <th>Probe</th>
+                        <th>Odoo total</th>
+                        <th>+ children</th>
+                        <th>Helper total</th>
+                        <th>Sample</th>
                         <th>Status</th>
                         <th>Message</th>
                     </tr>
@@ -247,9 +249,10 @@ function tsRender(array $vars): void
                         <td><?php echo (int) ($t['joomla_user_id'] ?? 0); ?></td>
                         <td><?php echo htmlspecialchars((string) ($t['joomla_user_name'] ?? '')); ?></td>
                         <td><?php echo !empty($t['odoo_exact_match']) ? 'yes' : 'no'; ?></td>
+                        <td><?php echo (int) ($t['odoo_total'] ?? 0); ?></td>
+                        <td><?php echo (int) ($t['odoo_with_child'] ?? 0); ?></td>
+                        <td><?php echo (int) ($t['helper_total'] ?? $t['helper_count'] ?? 0); ?></td>
                         <td><?php echo (int) ($t['rpc_count'] ?? 0); ?></td>
-                        <td><?php echo (int) ($t['helper_count'] ?? 0); ?></td>
-                        <td><?php echo (int) ($t['helper_probe_count'] ?? 0); ?></td>
                         <td><span class="badge <?php echo htmlspecialchars((string) ($t['status'] ?? 'info')); ?>"><?php echo htmlspecialchars((string) ($t['status'] ?? '')); ?></span></td>
                         <?php
                         $helperFaultMsg = '';
