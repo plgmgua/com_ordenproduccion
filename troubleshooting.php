@@ -234,6 +234,7 @@ function tsRender(array $vars): void
                         <th>Odoo match</th>
                         <th>RPC</th>
                         <th>Helper</th>
+                        <th>Probe</th>
                         <th>Status</th>
                         <th>Message</th>
                     </tr>
@@ -246,6 +247,7 @@ function tsRender(array $vars): void
                         <td><?php echo !empty($t['odoo_exact_match']) ? 'yes' : 'no'; ?></td>
                         <td><?php echo (int) ($t['rpc_count'] ?? 0); ?></td>
                         <td><?php echo (int) ($t['helper_count'] ?? 0); ?></td>
+                        <td><?php echo (int) ($t['helper_probe_count'] ?? 0); ?></td>
                         <td><span class="badge <?php echo htmlspecialchars((string) ($t['status'] ?? 'info')); ?>"><?php echo htmlspecialchars((string) ($t['status'] ?? '')); ?></span></td>
                         <td><?php echo htmlspecialchars((string) (($t['message'] ?? '') . (!empty($t['helper_fault']) ? ' · Helper: ' . $t['helper_fault'] : ''))); ?></td>
                     </tr>

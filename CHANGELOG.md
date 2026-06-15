@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.162-STABLE] - 2026-05-19
+
+### Fixed
+- **OdooHelper::executeOdooCall():** use the same `postXmlRpc()` transport as the diagnostic tool (fixes Helper=0 when RPC succeeds).
+- **troubleshooting.php:** add **Probe** column and explicit helper_fault when Odoo returns rows but `getContactsByAgent()` returns 0.
+
 ## [3.119.161-STABLE] - 2026-05-19
 
 ### Fixed

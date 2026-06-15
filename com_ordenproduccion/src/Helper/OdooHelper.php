@@ -86,52 +86,29 @@ class OdooHelper
             return false;
         }
 
-        $curl = curl_init();
-
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $endpoint,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 60,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $xmlPayload,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: text/xml',
-            ],
-        ]);
-
-        $response = curl_exec($curl);
-        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-        $error = curl_error($curl);
-        curl_close($curl);
+        $rpc = OdooDiagnosticHelper::postXmlRpc($endpoint, $xmlPayload);
 
         if ($this->config->get('enable_debug', 0)) {
-            Log::add('Odoo API Call - HTTP Code: ' . $httpCode, Log::DEBUG, 'com_ordenproduccion.clientes');
-            Log::add('Odoo API Response: ' . substr((string) $response, 0, 2000) . '...', Log::DEBUG, 'com_ordenproduccion.clientes');
-            if ($error) {
-                Log::add('Odoo API Error: ' . $error, Log::ERROR, 'com_ordenproduccion.clientes');
+            Log::add('Odoo API Call - HTTP Code: ' . $rpc['http_code'], Log::DEBUG, 'com_ordenproduccion.clientes');
+            if ($rpc['curl_error'] !== '') {
+                Log::add('Odoo API Error: ' . $rpc['curl_error'], Log::ERROR, 'com_ordenproduccion.clientes');
+            }
+            if ($rpc['fault'] !== null) {
+                Log::add('Odoo API Fault: ' . $rpc['fault'], Log::ERROR, 'com_ordenproduccion.clientes');
             }
         }
 
-        if ($httpCode !== 200 || !$response) {
-            Log::add('Odoo API Failed - HTTP: ' . $httpCode . ', Error: ' . $error, Log::ERROR, 'com_ordenproduccion.clientes');
+        if ($rpc['parsed'] === null) {
+            Log::add(
+                'Odoo API Failed - HTTP: ' . $rpc['http_code'] . ', Error: ' . $rpc['curl_error'],
+                Log::ERROR,
+                'com_ordenproduccion.clientes'
+            );
 
             return false;
         }
 
-        $xml = simplexml_load_string($response);
-        if (!$xml) {
-            Log::add('Failed to parse Odoo XML response', Log::ERROR, 'com_ordenproduccion.clientes');
-
-            return false;
-        }
-
-        $json = json_encode($xml);
-
-        return json_decode($json, true);
+        return $rpc['parsed'];
     }
 
     /**

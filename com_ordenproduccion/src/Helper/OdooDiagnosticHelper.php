@@ -388,6 +388,7 @@ class OdooDiagnosticHelper
         }
 
         if ($row['rpc_count'] > 0 && $row['helper_count'] === 0) {
+            $helperKw = '{"fields": ["id", "name", "email", "phone", "mobile", "street", "city", "vat", "type"], "limit": 10}';
             $helperProbe = $this->xmlRpcCall(
                 $this->objectUrl,
                 self::buildExecuteKwXml(
@@ -397,13 +398,24 @@ class OdooDiagnosticHelper
                     'res.partner',
                     'search_read',
                     '[' . $domain . ']',
-                    '{"fields": ["id", "name", "email", "phone", "mobile", "street", "city", "vat", "type"], "limit": 10}'
+                    $helperKw
                 )
             );
+            $probeCount = count(self::extractSearchReadRecords($helperProbe['parsed']));
+            $row['helper_probe_count'] = $probeCount;
+
             if ($helperProbe['fault'] !== null) {
-                $row['helper_fault'] = $helperProbe['fault'];
-            } elseif (count(self::extractSearchReadRecords($helperProbe['parsed'])) === 0) {
-                $row['helper_fault'] = 'Odoo returned rows but parser found 0 — check XML response shape';
+                $row['helper_fault'] = 'XML-RPC fault: ' . $helperProbe['fault'];
+            } elseif ($probeCount > 0) {
+                $installed = self::readComponentVersion();
+                $row['helper_fault'] = 'Odoo returns ' . $probeCount
+                    . ' row(s) with Mis Clientes fields but OdooHelper returned 0 — redeploy src/Helper/OdooHelper.php'
+                    . ' (installed VERSION: ' . $installed . ') and clear PHP opcache';
+            } elseif ($helperProbe['http_code'] !== 200) {
+                $row['helper_fault'] = 'HTTP ' . $helperProbe['http_code']
+                    . ($helperProbe['curl_error'] !== '' ? ' — ' . $helperProbe['curl_error'] : '');
+            } else {
+                $row['helper_fault'] = 'Parser found 0 rows in Mis Clientes field probe';
             }
         }
 
@@ -601,9 +613,11 @@ class OdooDiagnosticHelper
     }
 
     /**
+     * POST XML-RPC to an Odoo endpoint (shared by diagnostic and OdooHelper).
+     *
      * @return array{http_code: int, curl_error: string, fault: ?string, parsed: ?array}
      */
-    private function xmlRpcCall(string $endpoint, string $xml): array
+    public static function postXmlRpc(string $endpoint, string $xml): array
     {
         $curl = curl_init();
         curl_setopt_array($curl, [
@@ -636,6 +650,34 @@ class OdooDiagnosticHelper
             'fault'      => $fault,
             'parsed'     => $parsed,
         ];
+    }
+
+    /**
+     * Read installed component VERSION file (for deploy / opcache checks).
+     */
+    public static function readComponentVersion(): string
+    {
+        $paths = [
+            JPATH_ROOT . '/components/com_ordenproduccion/VERSION',
+            dirname(__DIR__, 2) . '/VERSION',
+        ];
+        foreach ($paths as $path) {
+            if (is_readable($path)) {
+                $v = trim((string) file_get_contents($path));
+
+                return $v !== '' ? $v : 'unknown';
+            }
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * @return array{http_code: int, curl_error: string, fault: ?string, parsed: ?array}
+     */
+    private function xmlRpcCall(string $endpoint, string $xml): array
+    {
+        return self::postXmlRpc($endpoint, $xml);
     }
 
     public static function extractFaultString(?array $parsed): ?string
