@@ -147,27 +147,59 @@ class OdooHelper
     public function getContactsByAgent($agentName, $page = 1, $limit = 20, $search = '')
     {
         $offset = max(0, ((int) $page - 1) * (int) $limit);
+        $kwargs = [
+            'fields' => ['id', 'name', 'email', 'phone', 'mobile', 'street', 'city', 'vat', 'type'],
+            'limit'  => max(1, (int) $limit),
+        ];
+        if ($offset > 0) {
+            $kwargs['offset'] = $offset;
+        }
+
         $xmlPayload = $this->buildExecuteKwXml(
             'res.partner',
             'search_read',
             [$this->buildAgentParentDomain($agentName, $search)],
-            [
-                'fields' => [
-                    'id', 'name', 'x_studio_agente_de_ventas', 'type', 'complete_name', 'vat',
-                    'street', 'city', 'email', 'phone', 'mobile', 'display_name', 'child_ids', 'parent_id',
-                ],
-                'limit'  => max(1, (int) $limit),
-                'offset' => $offset,
-            ]
+            $kwargs
         );
 
         $result = $this->executeOdooCall($xmlPayload);
 
-        if (!$result || $this->hasXmlRpcFault($result)) {
+        if (!$result) {
             return [];
         }
 
-        return $this->parseContactsFromSearchRead($result);
+        if ($this->hasXmlRpcFault($result)) {
+            $fault = OdooDiagnosticHelper::extractFaultString($result);
+            Log::add(
+                'getContactsByAgent XML-RPC fault for agent "' . $agentName . '": ' . ($fault ?? 'unknown'),
+                Log::ERROR,
+                'com_ordenproduccion.clientes'
+            );
+
+            return [];
+        }
+
+        $rows = OdooDiagnosticHelper::extractSearchReadRecords($result);
+        if ($rows === []) {
+            $names = OdooDiagnosticHelper::extractSearchReadNames($result);
+            foreach ($names as $id => $name) {
+                $rows[] = ['id' => (string) $id, 'name' => $name];
+            }
+        }
+
+        return array_map(static function (array $row): array {
+            return [
+                'id'     => (string) ($row['id'] ?? '0'),
+                'name'   => (string) ($row['name'] ?? ''),
+                'email'  => (string) ($row['email'] ?? ''),
+                'phone'  => (string) ($row['phone'] ?? ''),
+                'mobile' => (string) ($row['mobile'] ?? ''),
+                'street' => (string) ($row['street'] ?? ''),
+                'city'   => (string) ($row['city'] ?? ''),
+                'vat'    => (string) ($row['vat'] ?? ''),
+                'type'   => (string) ($row['type'] ?? 'contact'),
+            ];
+        }, $rows);
     }
 
     /**
@@ -336,7 +368,7 @@ class OdooHelper
      */
     private function hasXmlRpcFault($result): bool
     {
-        return is_array($result) && isset($result['fault']);
+        return is_array($result) && OdooDiagnosticHelper::extractFaultString($result) !== null;
     }
 
     /**

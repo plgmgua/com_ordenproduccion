@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.161-STABLE] - 2026-05-19
+
+### Fixed
+- **Mis Clientes / OdooHelper::getContactsByAgent():** stop requesting relational fields (`child_ids`, `parent_id`, etc.) that caused XML-RPC faults; parse `search_read` with the same shared extractor as the Odoo diagnostic tool so Helper counts match RPC.
+
 ## [3.119.160-STABLE] - 2026-05-19
 
 ### Added

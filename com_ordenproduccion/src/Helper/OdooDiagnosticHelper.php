@@ -387,6 +387,26 @@ class OdooDiagnosticHelper
             $row['message'] = $e->getMessage();
         }
 
+        if ($row['rpc_count'] > 0 && $row['helper_count'] === 0) {
+            $helperProbe = $this->xmlRpcCall(
+                $this->objectUrl,
+                self::buildExecuteKwXml(
+                    $this->odooDb,
+                    $this->odooUserId,
+                    $this->odooApiKey,
+                    'res.partner',
+                    'search_read',
+                    '[' . $domain . ']',
+                    '{"fields": ["id", "name", "email", "phone", "mobile", "street", "city", "vat", "type"], "limit": 10}'
+                )
+            );
+            if ($helperProbe['fault'] !== null) {
+                $row['helper_fault'] = $helperProbe['fault'];
+            } elseif (count(self::extractSearchReadRecords($helperProbe['parsed'])) === 0) {
+                $row['helper_fault'] = 'Odoo returned rows but parser found 0 — check XML response shape';
+            }
+        }
+
         if ($row['rpc_count'] > 0) {
             $row['status']  = 'pass';
             $row['message'] = $row['rpc_count'] . ' parent contact(s) in Odoo';
@@ -408,9 +428,15 @@ class OdooDiagnosticHelper
                 $checks[] = $this->warn('Agent filter', $row['message']);
             }
             if ($row['helper_count'] >= 0) {
+                $helperDetail = $row['helper_count'] > 0
+                    ? $row['helper_count'] . ' contact(s)'
+                    : '0 contacts (same as Mis Clientes view)';
+                if ($row['helper_count'] === 0 && !empty($row['helper_fault'])) {
+                    $helperDetail .= ' — ' . $row['helper_fault'];
+                }
                 $checks[] = $row['helper_count'] > 0
-                    ? $this->pass('getContactsByAgent()', $row['helper_count'] . ' contact(s)')
-                    : $this->warn('getContactsByAgent()', '0 contacts (same as Mis Clientes view)');
+                    ? $this->pass('getContactsByAgent()', $helperDetail)
+                    : $this->warn('getContactsByAgent()', $helperDetail);
             }
             $this->sections[] = [
                 'id'     => 'agent_' . $joomlaUserId,
@@ -612,7 +638,7 @@ class OdooDiagnosticHelper
         ];
     }
 
-    private static function extractFaultString(?array $parsed): ?string
+    public static function extractFaultString(?array $parsed): ?string
     {
         if (!is_array($parsed)) {
             return null;
@@ -821,6 +847,102 @@ class OdooDiagnosticHelper
 
     /**
      * @param mixed $parsed
+     * @return array<int, array<string, string>>
+     */
+    public static function extractSearchReadRecords($parsed): array
+    {
+        $out = [];
+        if (!is_array($parsed)) {
+            return $out;
+        }
+
+        foreach (self::getSearchReadValueNodes($parsed) as $row) {
+            if (!isset($row['struct']['member'])) {
+                continue;
+            }
+            $members = $row['struct']['member'];
+            if (isset($members['name'])) {
+                $members = [$members];
+            }
+            $record = [];
+            foreach ($members as $m) {
+                $name = (string) ($m['name'] ?? '');
+                if ($name === '') {
+                    continue;
+                }
+                $scalar = self::extractRpcScalarValue($m['value'] ?? null);
+                if ($scalar !== null) {
+                    $record[$name] = $scalar;
+                }
+            }
+            if (!empty($record['id'])) {
+                $out[] = $record;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param mixed $parsed
+     * @return array<int, array<string, mixed>>
+     */
+    private static function getSearchReadValueNodes($parsed): array
+    {
+        if (!is_array($parsed)) {
+            return [];
+        }
+
+        $param = $parsed['params']['param'] ?? null;
+        if (!is_array($param)) {
+            return [];
+        }
+        if (isset($param[0]) && is_array($param[0]) && !isset($param['value'])) {
+            $param = $param[0];
+        }
+
+        $values = $param['value']['array']['data']['value'] ?? [];
+        if ($values === [] || $values === null) {
+            return [];
+        }
+        if (isset($values['struct'])) {
+            return [$values];
+        }
+
+        return is_array($values) ? $values : [];
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private static function extractRpcScalarValue($value): ?string
+    {
+        if (!is_array($value)) {
+            return null;
+        }
+        if (isset($value['string'])) {
+            return (string) $value['string'];
+        }
+        if (isset($value['int'])) {
+            return (string) $value['int'];
+        }
+        if (isset($value['i4'])) {
+            return (string) $value['i4'];
+        }
+        if (isset($value['boolean'])) {
+            $bool = $value['boolean'];
+
+            return ($bool === '1' || $bool === 1 || $bool === true) ? '1' : '0';
+        }
+        if (isset($value['double'])) {
+            return (string) $value['double'];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param mixed $parsed
      * @return array<int, string>
      */
     public static function extractSearchReadNames($parsed): array
@@ -829,11 +951,8 @@ class OdooDiagnosticHelper
         if (!is_array($parsed)) {
             return $out;
         }
-        $values = $parsed['params']['param']['value']['array']['data']['value'] ?? [];
-        if (isset($values['struct'])) {
-            $values = [$values];
-        }
-        foreach ($values as $row) {
+
+        foreach (self::getSearchReadValueNodes($parsed) as $row) {
             if (!isset($row['struct']['member'])) {
                 continue;
             }

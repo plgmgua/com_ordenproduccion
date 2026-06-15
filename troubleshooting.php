@@ -247,7 +247,7 @@ function tsRender(array $vars): void
                         <td><?php echo (int) ($t['rpc_count'] ?? 0); ?></td>
                         <td><?php echo (int) ($t['helper_count'] ?? 0); ?></td>
                         <td><span class="badge <?php echo htmlspecialchars((string) ($t['status'] ?? 'info')); ?>"><?php echo htmlspecialchars((string) ($t['status'] ?? '')); ?></span></td>
-                        <td><?php echo htmlspecialchars((string) ($t['message'] ?? '')); ?></td>
+                        <td><?php echo htmlspecialchars((string) (($t['message'] ?? '') . (!empty($t['helper_fault']) ? ' · Helper: ' . $t['helper_fault'] : ''))); ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
