@@ -293,6 +293,14 @@ class OdooDiagnosticHelper
                     'Field missing — restore Studio field on Contacts after Odoo migration'
                 );
             }
+            if (in_array('mobile', $fieldNames, true)) {
+                $checks[] = $this->pass('mobile', 'Field exists on res.partner');
+            } else {
+                $checks[] = $this->warn(
+                    'mobile',
+                    'Not on res.partner in this Odoo version (Mis Clientes uses phone only; Odoo 19+)'
+                );
+            }
         }
 
         $sampleResult = $this->xmlRpcCall(
@@ -385,10 +393,14 @@ class OdooDiagnosticHelper
         } catch (\Throwable $e) {
             $row['helper_count'] = -1;
             $row['message'] = $e->getMessage();
+            $helper = null;
         }
 
         if ($row['rpc_count'] > 0 && $row['helper_count'] === 0) {
-            $helperKw = '{"fields": ["id", "name", "email", "phone", "mobile", "street", "city", "vat", "type"], "limit": 10}';
+            $probeFields = $helper instanceof OdooHelper
+                ? $helper->getResolvedPartnerListFields()
+                : ['id', 'name', 'email', 'phone', 'street', 'city', 'vat', 'type'];
+            $helperKw = json_encode(['fields' => $probeFields, 'limit' => 10], JSON_UNESCAPED_UNICODE) ?: '{}';
             $helperProbe = $this->xmlRpcCall(
                 $this->objectUrl,
                 self::buildExecuteKwXml(
@@ -405,7 +417,7 @@ class OdooDiagnosticHelper
             $row['helper_probe_count'] = $probeCount;
 
             if ($helperProbe['fault'] !== null) {
-                $row['helper_fault'] = 'XML-RPC fault: ' . $helperProbe['fault'];
+                $row['helper_fault'] = self::summarizeFaultString($helperProbe['fault']);
             } elseif ($probeCount > 0) {
                 $installed = self::readComponentVersion();
                 $row['helper_fault'] = 'Odoo returns ' . $probeCount
@@ -444,7 +456,7 @@ class OdooDiagnosticHelper
                     ? $row['helper_count'] . ' contact(s)'
                     : '0 contacts (same as Mis Clientes view)';
                 if ($row['helper_count'] === 0 && !empty($row['helper_fault'])) {
-                    $helperDetail .= ' — ' . $row['helper_fault'];
+                    $helperDetail .= ' — ' . OdooDiagnosticHelper::summarizeFaultString($row['helper_fault']);
                 }
                 $checks[] = $row['helper_count'] > 0
                     ? $this->pass('getContactsByAgent()', $helperDetail)
@@ -705,11 +717,29 @@ class OdooDiagnosticHelper
             if (($member['name'] ?? '') === 'faultString') {
                 $v = $member['value']['string'] ?? '';
 
-                return is_string($v) ? trim($v) : null;
+                return is_string($v) && $v !== '' ? $v : null;
             }
         }
 
-        return 'XML-RPC fault (no message)';
+        return null;
+    }
+
+    /**
+     * Short fault for UI (e.g. "Invalid field 'mobile' on 'res.partner'").
+     */
+    public static function summarizeFaultString(?string $fault): string
+    {
+        if ($fault === null || $fault === '') {
+            return '';
+        }
+        if (preg_match("/ValueError:\s*(.+?)(?:\n|$)/s", $fault, $m)) {
+            return trim($m[1]);
+        }
+        if (preg_match("/Invalid field '([^']+)' on '([^']+)'/", $fault, $m)) {
+            return "Invalid field '{$m[1]}' on '{$m[2]}'";
+        }
+
+        return strlen($fault) > 240 ? substr($fault, 0, 240) . '…' : $fault;
     }
 
     public static function buildVersionXml(): string

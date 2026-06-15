@@ -26,6 +26,14 @@ class OdooHelper
      */
     private $config;
 
+    /** @var array<int, string>|null  Cached res.partner field names from fields_get */
+    private static $partnerFieldNamesCache = null;
+
+    /** Mis Clientes list fields when present on res.partner (Odoo 19+ may omit mobile). */
+    private const PARTNER_LIST_FIELDS_PREFERRED = [
+        'id', 'name', 'email', 'phone', 'mobile', 'street', 'city', 'vat', 'type',
+    ];
+
     /**
      * Constructor
      */
@@ -112,6 +120,76 @@ class OdooHelper
     }
 
     /**
+     * res.partner fields to use for Mis Clientes search_read (only fields that exist in this Odoo DB).
+     *
+     * @return array<int, string>
+     */
+    public function getResolvedPartnerListFields(): array
+    {
+        return $this->filterPartnerFields(self::PARTNER_LIST_FIELDS_PREFERRED);
+    }
+
+    /**
+     * Whether a res.partner field exists (from fields_get cache).
+     */
+    public function isPartnerFieldAvailable(string $fieldName): bool
+    {
+        return in_array($fieldName, $this->loadPartnerFieldNames(), true);
+    }
+
+    /**
+     * @param   array<int, string>  $preferred
+     * @return  array<int, string>
+     */
+    private function filterPartnerFields(array $preferred): array
+    {
+        $available = $this->loadPartnerFieldNames();
+        if ($available === []) {
+            return ['id', 'name'];
+        }
+
+        $set = array_fill_keys($available, true);
+        $out = [];
+        foreach ($preferred as $field) {
+            if (isset($set[$field])) {
+                $out[] = $field;
+            }
+        }
+
+        return $out !== [] ? $out : ['id', 'name'];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function loadPartnerFieldNames(): array
+    {
+        if (self::$partnerFieldNamesCache !== null) {
+            return self::$partnerFieldNamesCache;
+        }
+
+        $xml = $this->buildExecuteKwXml(
+            'res.partner',
+            'fields_get',
+            [[]],
+            ['attributes' => ['string', 'type']]
+        );
+        $result = $this->executeOdooCall($xml);
+
+        if (!$result || $this->hasXmlRpcFault($result)) {
+            // Safe fallback for Odoo 19 (no mobile on res.partner).
+            self::$partnerFieldNamesCache = ['id', 'name', 'email', 'phone', 'street', 'city', 'vat', 'type'];
+
+            return self::$partnerFieldNamesCache;
+        }
+
+        $names = OdooDiagnosticHelper::extractFieldsGetNames($result);
+        self::$partnerFieldNamesCache = $names !== [] ? $names : ['id', 'name'];
+
+        return self::$partnerFieldNamesCache;
+    }
+
+    /**
      * Get contacts by sales agent - using exact same structure as your working PHP script
      *
      * @param   string   $agentName  The sales agent name
@@ -125,7 +203,7 @@ class OdooHelper
     {
         $offset = max(0, ((int) $page - 1) * (int) $limit);
         $kwargs = [
-            'fields' => ['id', 'name', 'email', 'phone', 'mobile', 'street', 'city', 'vat', 'type'],
+            'fields' => $this->getResolvedPartnerListFields(),
             'limit'  => max(1, (int) $limit),
         ];
         if ($offset > 0) {
@@ -928,6 +1006,9 @@ class OdooHelper
         ];
 
         foreach ($fieldMap as $xmlField => $dataField) {
+            if (!$this->isPartnerFieldAvailable($xmlField)) {
+                continue;
+            }
             if (isset($contactData[$dataField]) && $contactData[$dataField] !== '') {
                 $value = htmlspecialchars($contactData[$dataField], ENT_XML1, 'UTF-8');
                 $fields .= '<member>

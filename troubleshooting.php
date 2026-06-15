@@ -249,7 +249,19 @@ function tsRender(array $vars): void
                         <td><?php echo (int) ($t['helper_count'] ?? 0); ?></td>
                         <td><?php echo (int) ($t['helper_probe_count'] ?? 0); ?></td>
                         <td><span class="badge <?php echo htmlspecialchars((string) ($t['status'] ?? 'info')); ?>"><?php echo htmlspecialchars((string) ($t['status'] ?? '')); ?></span></td>
-                        <td><?php echo htmlspecialchars((string) (($t['message'] ?? '') . (!empty($t['helper_fault']) ? ' · Helper: ' . $t['helper_fault'] : ''))); ?></td>
+                        <?php
+                        $helperFaultMsg = '';
+                        if (!empty($t['helper_fault']) && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Helper\OdooDiagnosticHelper::class)) {
+                            $helperFaultMsg = \Grimpsa\Component\Ordenproduccion\Site\Helper\OdooDiagnosticHelper::summarizeFaultString((string) $t['helper_fault']);
+                        } elseif (!empty($t['helper_fault'])) {
+                            $helperFaultMsg = (string) $t['helper_fault'];
+                        }
+                        $rowMsg = (string) ($t['message'] ?? '');
+                        if ($helperFaultMsg !== '') {
+                            $rowMsg .= ' · Helper: ' . $helperFaultMsg;
+                        }
+                        ?>
+                        <td><?php echo htmlspecialchars($rowMsg); ?></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

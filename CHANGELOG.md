@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.163-STABLE] - 2026-05-19
+
+### Fixed
+- **Mis Clientes / Odoo 19:** `res.partner` has no `mobile` field — `getContactsByAgent()` now calls `fields_get` and only requests fields that exist (fixes `Invalid field 'mobile' on 'res.partner'`).
+
 ## [3.119.162-STABLE] - 2026-05-19
 
 ### Fixed
