@@ -440,6 +440,36 @@ deploy_component() {
     success "Component files deployed"
 }
 
+# Copy repository root utility scripts into Joomla web root.
+deploy_root_utilities() {
+    local repo_path="$1"
+    repo_path=$(echo "$repo_path" | tr -d '\n' | sed 's/\[.*\]//g' | xargs)
+
+    log "Deploying Joomla root utility files..."
+
+    if [ ! -f "$repo_path/troubleshooting.php" ]; then
+        error "troubleshooting.php not found in repository at $repo_path/troubleshooting.php"
+        exit 1
+    fi
+
+    if [ "$USE_SUDO" = true ]; then
+        sudo cp -f "$repo_path/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
+        sudo chmod 644 "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set permissions on troubleshooting.php"
+        sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
+    else
+        cp -f "$repo_path/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
+        chmod 644 "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set permissions on troubleshooting.php"
+        chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" 2>/dev/null || warning "Failed to set ownership for troubleshooting.php"
+    fi
+
+    if [ ! -f "$JOOMLA_ROOT/troubleshooting.php" ]; then
+        error "troubleshooting.php missing after deploy to $JOOMLA_ROOT"
+        exit 1
+    fi
+
+    success "troubleshooting.php deployed to $JOOMLA_ROOT/ (Odoo diagnostic)"
+}
+
 # Function to deploy module
 deploy_module() {
     local repo_path="$1"
@@ -502,6 +532,10 @@ verify_deployed_files() {
     if [ ! -f "$ADMIN_COMPONENT_PATH/$COMPONENT_NAME.xml" ]; then
         missing_files+=("Manifest file: $ADMIN_COMPONENT_PATH/$COMPONENT_NAME.xml")
     fi
+
+    if [ ! -f "$JOOMLA_ROOT/troubleshooting.php" ]; then
+        missing_files+=("Joomla root utility: $JOOMLA_ROOT/troubleshooting.php")
+    fi
     
     if [ ${#missing_files[@]} -gt 0 ]; then
         error "Deployment verification failed. Missing files:"
@@ -517,6 +551,7 @@ verify_deployed_files() {
     log "  - Admin component: $ADMIN_COMPONENT_PATH ($(find "$ADMIN_COMPONENT_PATH" -type f 2>/dev/null | wc -l) files)"
     log "  - Media files: $MEDIA_PATH ($(find "$MEDIA_PATH" -type f 2>/dev/null | wc -l) files)"
     log "  - Manifest file: $ADMIN_COMPONENT_PATH/$COMPONENT_NAME.xml"
+    log "  - Joomla root utility: $JOOMLA_ROOT/troubleshooting.php"
     
     success "All files deployed successfully"
 }
@@ -725,6 +760,7 @@ main() {
     # Clean the path again before deploying
     REPO_PATH=$(echo "$REPO_PATH" | tr -d '\n' | sed 's/\[.*\]//g' | xargs)
     deploy_component "$REPO_PATH"
+    deploy_root_utilities "$REPO_PATH"
     deploy_module "$REPO_PATH"
     verify_deployed_files
     set_permissions

@@ -61,6 +61,36 @@ clear_joomla_admin_cache_safe() {
         -exec sudo rm -rf {} + 2>/dev/null || true
 }
 
+# Copy repository root utility scripts into Joomla web root (troubleshooting.php, etc.)
+deploy_joomla_root_utilities() {
+    log "Copying Joomla root utility files..."
+
+    if [ ! -f "$REPO_DIR/fix_production_component.php" ]; then
+        error "fix_production_component.php not found in repository. Aborting deployment."
+        exit 1
+    fi
+
+    if [ ! -f "$REPO_DIR/troubleshooting.php" ]; then
+        error "troubleshooting.php not found in repository. Aborting deployment."
+        exit 1
+    fi
+
+    sudo cp -f "$REPO_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
+    sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set ownership for fix_production_component.php"
+    success "fix_production_component.php → $JOOMLA_ROOT/"
+
+    sudo cp -f "$REPO_DIR/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
+    sudo chmod 644 "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set permissions on troubleshooting.php"
+    sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
+    success "troubleshooting.php → $JOOMLA_ROOT/ (Odoo diagnostic)"
+
+    if [ ! -f "$JOOMLA_ROOT/troubleshooting.php" ]; then
+        error "troubleshooting.php missing after copy to $JOOMLA_ROOT"
+        exit 1
+    fi
+}
+
 # Function to get version information
 get_version_info() {
     log "Getting version information..."
@@ -229,6 +259,12 @@ main() {
     if [ -d "$COMPONENT_ROOT/help" ]; then
         sudo cp -r "$COMPONENT_ROOT/help" "$SITE_COMPONENT_PATH/" || error "Failed to copy help directory"
         log "✅ help directory copied successfully"
+    fi
+
+    # Copy tools directory (CLI diagnostics, e.g. test_odoo_connection.php)
+    if [ -d "$COMPONENT_ROOT/tools" ]; then
+        sudo cp -r "$COMPONENT_ROOT/tools" "$SITE_COMPONENT_PATH/" || error "Failed to copy tools directory"
+        log "✅ tools directory copied successfully"
     fi
     
     log "Copying media files from $COMPONENT_ROOT/media/ to $MEDIA_PATH/"
@@ -843,43 +879,16 @@ EOF
         exit 1
     fi
 
-    echo "Checking troubleshooting.php in repository..."
-    if [ -f "$REPO_DIR/troubleshooting.php" ]; then
-        success "troubleshooting.php found in repository"
-    else
-        error "troubleshooting.php not found in repository. Aborting deployment."
-        exit 1
-    fi
-    
+    deploy_joomla_root_utilities
+
     echo "Executing production component fix script..."
-    php "$REPO_DIR/fix_production_component.php" 2>/dev/null
-    
+    php "$JOOMLA_ROOT/fix_production_component.php" 2>/dev/null
+
     if [ $? -eq 0 ]; then
         success "Production component fixed in database"
     else
         warning "Failed to execute production component fix script"
     fi
-    
-    # Copy utility files to Joomla root directory before cleanup
-    echo "Copying fix_production_component.php to Joomla root (overwriting if exists)..."
-    sudo cp -f "$REPO_DIR/fix_production_component.php" "$JOOMLA_ROOT/" || error "Failed to copy fix_production_component.php"
-    sudo chmod 644 "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set permissions on fix_production_component.php"
-    success "fix_production_component.php copied to Joomla root"
-    
-    # No cleanup needed - files are in repository
-
-    # Step 13: Copy remaining utility files to Joomla root directory
-    log "Step 14: Copying remaining utility files to Joomla root directory..."
-    
-    echo "Copying troubleshooting.php to Joomla root (overwriting if exists)..."
-    sudo cp -f "$REPO_DIR/troubleshooting.php" "$JOOMLA_ROOT/" || error "Failed to copy troubleshooting.php"
-    sudo chmod 644 "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set permissions on troubleshooting.php"
-    success "troubleshooting.php copied to Joomla root"
-    
-    echo "Setting proper ownership for utility files..."
-    sudo chown www-data:www-data "$JOOMLA_ROOT/fix_production_component.php" || warning "Failed to set ownership for fix_production_component.php"
-    sudo chown www-data:www-data "$JOOMLA_ROOT/troubleshooting.php" || warning "Failed to set ownership for troubleshooting.php"
-    success "Utility files ownership set"
 
     # Step 14: Clear ALL Joomla caches
     log "Step 15: Clearing ALL Joomla caches (site, admin, compiled templates)..."
