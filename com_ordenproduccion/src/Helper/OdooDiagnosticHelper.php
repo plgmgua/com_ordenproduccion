@@ -241,7 +241,7 @@ class OdooDiagnosticHelper
         $checks = [];
         $result = $this->xmlRpcCall(
             $this->objectUrl,
-            self::buildExecuteKwXml($this->odooDb, $this->odooUserId, $this->odooApiKey, 'res.partner', 'search_count', '[]')
+            self::buildExecuteKwXml($this->odooDb, $this->odooUserId, $this->odooApiKey, 'res.partner', 'search_count', '[[]]')
         );
         if ($result['fault'] !== null) {
             $checks[] = $this->fail('res.partner search_count', $result['fault']);

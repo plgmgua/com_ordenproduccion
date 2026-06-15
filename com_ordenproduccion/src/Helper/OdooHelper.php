@@ -147,60 +147,24 @@ class OdooHelper
      */
     public function getContactsByAgent($agentName, $page = 1, $limit = 20, $search = '')
     {
-        // Use the exact same XML structure as get_contacts_by_vendor.php
-        $xmlPayload = '<?xml version="1.0"?>
-<methodCall>
-   <methodName>execute_kw</methodName>
-   <params>
-' . $this->buildAuthParamsCompact() . '
-      <param>
-         <value><string>res.partner</string></value> <!-- Model -->
-      </param>
-      <param>
-         <value><string>search_read</string></value> <!-- Method -->
-      </param>
-      <param>
-         <value><array><data/></array></value> <!-- Args -->
-      </param>
-      <param>
-         <value>
-            <struct>
-               <member>
-                  <name>fields</name>
-                  <value>
-                     <array>
-                        <data>
-                           <value><string>name</string></value>
-                           <value><string>x_studio_agente_de_ventas</string></value>
-                           <value><string>type</string></value>
-                           <value><string>complete_name</string></value>
-                           <value><string>vat</string></value>
-                           <value><string>street</string></value>
-                           <value><string>city</string></value>
-                           <value><string>email</string></value>
-                           <value><string>phone</string></value>
-                           <value><string>mobile</string></value>
-                           <value><string>display_name</string></value>
-                           <value><string>child_ids</string></value>
-                           <value><string>parent_id</string></value>
-                        </data>
-                     </array>
-                  </value>
-               </member>
-            </struct>
-         </value> <!-- Keyword Args -->
-      </param>
-   </params>
-</methodCall>';
+        $offset = max(0, ((int) $page - 1) * (int) $limit);
+        $xmlPayload = $this->buildPartnerSearchReadXml(
+            $this->buildAgentParentDomain($agentName, $search),
+            [
+                'id', 'name', 'x_studio_agente_de_ventas', 'type', 'complete_name', 'vat',
+                'street', 'city', 'email', 'phone', 'mobile', 'display_name', 'child_ids', 'parent_id',
+            ],
+            (int) $limit,
+            $offset
+        );
 
         $result = $this->executeOdooCall($xmlPayload);
-        
-        if (!$result) {
+
+        if (!$result || $this->hasXmlRpcFault($result)) {
             return [];
         }
 
-        // Parse exactly like your working PHP script
-        return $this->parseContactsFromAllResults($result, $agentName);
+        return $this->parseContactsFromSearchRead($result);
     }
 
     /**
@@ -220,11 +184,16 @@ class OdooHelper
         foreach ($domain as $condition) {
             if (is_array($condition)) {
                 if (count($condition) === 3) {
-                    // Field condition: ['field', 'operator', 'value']
                     $xml .= '<value><array><data>';
-                    $xml .= '<value><string>' . htmlspecialchars($condition[0]) . '</string></value>';
-                    $xml .= '<value><string>' . htmlspecialchars($condition[1]) . '</string></value>';
-                    $xml .= '<value><string>' . htmlspecialchars($condition[2]) . '</string></value>';
+                    $xml .= '<value><string>' . htmlspecialchars((string) $condition[0], ENT_XML1, 'UTF-8') . '</string></value>';
+                    $xml .= '<value><string>' . htmlspecialchars((string) $condition[1], ENT_XML1, 'UTF-8') . '</string></value>';
+                    if ($condition[2] === false) {
+                        $xml .= '<value><boolean>0</boolean></value>';
+                    } elseif ($condition[2] === true) {
+                        $xml .= '<value><boolean>1</boolean></value>';
+                    } else {
+                        $xml .= '<value><string>' . htmlspecialchars((string) $condition[2], ENT_XML1, 'UTF-8') . '</string></value>';
+                    }
                     $xml .= '</data></array></value>';
                 } elseif (count($condition) === 1) {
                     // OR operator: ['|']
@@ -246,39 +215,185 @@ class OdooHelper
      */
     public function getContactsCountByAgent($agentName, $search = '')
     {
-        // Use search_count method to get total count
-        $xmlPayload = '<?xml version="1.0"?>
+        $xmlPayload = $this->buildPartnerSearchCountXml($this->buildAgentParentDomain($agentName, $search));
+        $result = $this->executeOdooCall($xmlPayload);
+
+        if (!$result || $this->hasXmlRpcFault($result)) {
+            return 0;
+        }
+
+        if (isset($result['params']['param']['value']['int'])) {
+            return (int) $result['params']['param']['value']['int'];
+        }
+
+        return 0;
+    }
+
+    /**
+     * Odoo domain: parent companies for a sales agent (Mis Clientes).
+     *
+     * @return array<int, array<int, mixed>>
+     */
+    private function buildAgentParentDomain(string $agentName, string $search = ''): array
+    {
+        $domain = [
+            ['x_studio_agente_de_ventas', '=', $agentName],
+            ['parent_id', '=', false],
+        ];
+
+        if ($search !== '') {
+            $domain[] = ['name', 'ilike', $search];
+        }
+
+        return $domain;
+    }
+
+    /**
+     * @param   array<int, array<int, mixed>>  $domain
+     * @param   array<int, string>             $fields
+     */
+    private function buildPartnerSearchReadXml(array $domain, array $fields, int $limit, int $offset): string
+    {
+        $fieldsXml = '';
+        foreach ($fields as $field) {
+            $fieldsXml .= '<value><string>' . htmlspecialchars($field, ENT_XML1, 'UTF-8') . '</string></value>';
+        }
+
+        return '<?xml version="1.0"?>
 <methodCall>
    <methodName>execute_kw</methodName>
    <params>
 ' . $this->buildAuthParamsCompact() . '
+      <param><value><string>res.partner</string></value></param>
+      <param><value><string>search_read</string></value></param>
+      ' . $this->wrapDomainAsExecuteKwArg($this->buildDomainXml($domain)) . '
       <param>
-         <value><string>res.partner</string></value>
-      </param>
-      <param>
-         <value><string>search_count</string></value>
-      </param>
-      <param>
-         <value><array><data/></array></value>
+         <value>
+            <struct>
+               <member>
+                  <name>fields</name>
+                  <value><array><data>' . $fieldsXml . '</data></array></value>
+               </member>
+               <member>
+                  <name>limit</name>
+                  <value><int>' . max(1, $limit) . '</int></value>
+               </member>
+               <member>
+                  <name>offset</name>
+                  <value><int>' . max(0, $offset) . '</int></value>
+               </member>
+            </struct>
+         </value>
       </param>
    </params>
 </methodCall>';
+    }
 
-        $result = $this->executeOdooCall($xmlPayload);
-        
-        if (!$result) {
-            return 0;
+    /**
+     * @param   array<int, array<int, mixed>>  $domain
+     */
+    private function buildPartnerSearchCountXml(array $domain): string
+    {
+        return '<?xml version="1.0"?>
+<methodCall>
+   <methodName>execute_kw</methodName>
+   <params>
+' . $this->buildAuthParamsCompact() . '
+      <param><value><string>res.partner</string></value></param>
+      <param><value><string>search_count</string></value></param>
+      ' . $this->wrapDomainAsExecuteKwArg($this->buildDomainXml($domain)) . '
+   </params>
+</methodCall>';
+    }
+
+    /**
+     * @param   mixed  $result
+     */
+    private function hasXmlRpcFault($result): bool
+    {
+        return is_array($result) && isset($result['fault']);
+    }
+
+    /**
+     * Wrap Odoo domain conditions as the first execute_kw argument: [domain].
+     */
+    private function wrapDomainAsExecuteKwArg(string $domainXml): string
+    {
+        return '<param><value><array><data><value><array><data>'
+            . $domainXml
+            . '</data></array></value></data></array></value></param>';
+    }
+
+    /**
+     * Parse search_read rows (already filtered server-side).
+     *
+     * @param   array  $result
+     * @return  array<int, array<string, mixed>>
+     */
+    private function parseContactsFromSearchRead(array $result): array
+    {
+        if (!isset($result['params']['param']['value']['array']['data']['value'])) {
+            return [];
         }
 
-        // Parse the count from the response
-        if (isset($result['params']['param']['value']['int'])) {
-            $totalCount = (int)$result['params']['param']['value']['int'];
-            // Filter by agent name (this is a simplified approach)
-            // In a real implementation, you'd need to filter by agent in the search domain
-            return $totalCount;
+        $contacts = [];
+        $values = $result['params']['param']['value']['array']['data']['value'];
+
+        if (isset($values['struct'])) {
+            $values = [$values];
         }
 
-        return 0;
+        foreach ($values as $value) {
+            if (!isset($value['struct']['member'])) {
+                continue;
+            }
+
+            $row = $this->parseStructMembers($value['struct']['member']);
+            $contacts[] = [
+                'id'     => (string) ($row['id'] ?? '0'),
+                'name'   => (string) ($row['name'] ?? ''),
+                'email'  => (string) ($row['email'] ?? ''),
+                'phone'  => (string) ($row['phone'] ?? ''),
+                'mobile' => (string) ($row['mobile'] ?? ''),
+                'street' => (string) ($row['street'] ?? ''),
+                'city'   => (string) ($row['city'] ?? ''),
+                'vat'    => (string) ($row['vat'] ?? ''),
+                'type'   => (string) ($row['type'] ?? 'contact'),
+            ];
+        }
+
+        return $contacts;
+    }
+
+    /**
+     * @param   array<string, mixed>|array<int, array<string, mixed>>  $members
+     * @return  array<string, string>
+     */
+    private function parseStructMembers($members): array
+    {
+        if (isset($members['name'])) {
+            $members = [$members];
+        }
+
+        $row = [];
+        foreach ($members as $member) {
+            $name = (string) ($member['name'] ?? '');
+            $value = $member['value'] ?? [];
+            if ($name === '') {
+                continue;
+            }
+            if (isset($value['string'])) {
+                $row[$name] = (string) $value['string'];
+            } elseif (isset($value['int'])) {
+                $row[$name] = (string) $value['int'];
+            } elseif (isset($value['boolean'])) {
+                $row[$name] = $value['boolean'] ? '1' : '0';
+            } elseif (isset($value['double'])) {
+                $row[$name] = (string) $value['double'];
+            }
+        }
+
+        return $row;
     }
 
     /**
@@ -1632,24 +1747,32 @@ class OdooHelper
          <value><string>search_count</string></value>
       </param>
       <param>
-         <value><array><data></data></array></value>
+         <value><array><data>
+            <value><array><data></data></array>
+         </data></array></value>
       </param>
    </params>
 </methodCall>';
         
         $result = $this->executeOdooCall($testXmlPayload);
-        
-        if ($result === false) {
+
+        if ($result === false || $this->hasXmlRpcFault($result)) {
             return [
                 'success' => false,
-                'message' => 'Failed to connect to Odoo server. Please check your configuration and network connection.'
+                'message' => 'Failed to connect to Odoo server. Please check your configuration and network connection.',
             ];
         }
-        
-        // If we get here, the connection is working
+
+        if (!isset($result['params']['param']['value']['int'])) {
+            return [
+                'success' => false,
+                'message' => 'Odoo responded but partner search_count failed (check API user permissions).',
+            ];
+        }
+
         return [
             'success' => true,
-            'message' => 'Successfully connected to Odoo ' . $odooDb . ' database'
+            'message' => 'Successfully connected to Odoo ' . $odooDb . ' database (' . (int) $result['params']['param']['value']['int'] . ' partners)',
         ];
     }
 }
