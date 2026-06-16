@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.167-STABLE] - 2026-05-19
+
+### Added
+- **MT940 Importar datos:** import from IMAP mailbox for a specific email date (date picker + “Import for date”); logs runs as `manual_mailbox_date` in Registro de importación.
+
 ## [3.119.166-STABLE] - 2026-05-19
 
 ### Changed

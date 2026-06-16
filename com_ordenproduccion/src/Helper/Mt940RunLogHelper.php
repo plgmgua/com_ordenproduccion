@@ -20,9 +20,10 @@ use Joomla\CMS\Factory;
  */
 class Mt940RunLogHelper
 {
-    public const TRIGGER_CRON          = 'cron';
-    public const TRIGGER_MANUAL_MAILBOX = 'manual_mailbox';
-    public const TRIGGER_MANUAL_FILE   = 'manual_file';
+    public const TRIGGER_CRON                 = 'cron';
+    public const TRIGGER_MANUAL_MAILBOX       = 'manual_mailbox';
+    public const TRIGGER_MANUAL_MAILBOX_DATE  = 'manual_mailbox_date';
+    public const TRIGGER_MANUAL_FILE          = 'manual_file';
 
     public const STATUS_SUCCESS = 'success';
     public const STATUS_FAIL    = 'fail';
@@ -111,7 +112,8 @@ class Mt940RunLogHelper
         array $result,
         string $message = '',
         int $httpStatus = 200,
-        int $createdBy = 0
+        int $createdBy = 0,
+        ?array $extraDetails = null
     ): void {
         $status = !empty($result['success']) ? self::STATUS_SUCCESS : self::STATUS_FAIL;
         $details = [];
@@ -123,6 +125,12 @@ class Mt940RunLogHelper
         }
         if (!empty($result['imap_error'])) {
             $details['imap_error'] = (string) $result['imap_error'];
+        }
+        if (!empty($result['filter_date'])) {
+            $details['filter_date'] = (string) $result['filter_date'];
+        }
+        if ($extraDetails !== null && $extraDetails !== []) {
+            $details = \array_merge($details, $extraDetails);
         }
 
         self::recordRun(
@@ -218,7 +226,7 @@ class Mt940RunLogHelper
 
     private static function normalizeTriggerType(string $triggerType): string
     {
-        $allowed = [self::TRIGGER_CRON, self::TRIGGER_MANUAL_MAILBOX, self::TRIGGER_MANUAL_FILE];
+        $allowed = [self::TRIGGER_CRON, self::TRIGGER_MANUAL_MAILBOX, self::TRIGGER_MANUAL_MAILBOX_DATE, self::TRIGGER_MANUAL_FILE];
 
         return \in_array($triggerType, $allowed, true) ? $triggerType : self::TRIGGER_CRON;
     }

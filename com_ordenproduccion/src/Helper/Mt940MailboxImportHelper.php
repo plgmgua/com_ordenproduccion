@@ -37,6 +37,44 @@ class Mt940MailboxImportHelper
      */
     public static function runInitialImport(array $imapSettings, array $allowedBankIds): array
     {
+        return self::runImport($imapSettings, $allowedBankIds, null);
+    }
+
+    /**
+     * Import MT-940 attachments from emails received on a specific calendar date (IMAP ON).
+     *
+     * @param   array<string, mixed>  $imapSettings
+     * @param   array<int>            $allowedBankIds
+     * @param   string                $dateYmd  Y-m-d
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.167
+     */
+    public static function runImportByDate(array $imapSettings, array $allowedBankIds, string $dateYmd): array
+    {
+        $imapOnDate = self::parseDateForImap($dateYmd);
+        if ($imapOnDate === null) {
+            return ['success' => false, 'message' => 'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_INVALID'];
+        }
+
+        $result = self::runImport($imapSettings, $allowedBankIds, $imapOnDate);
+        if (!empty($result['success'])) {
+            $result['filter_date'] = \substr($dateYmd, 0, 10);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param   array<string, mixed>  $imapSettings
+     * @param   array<int>            $allowedBankIds
+     * @param   string|null           $imapOnDate  IMAP ON date, e.g. 19-May-2026
+     *
+     * @return  array<string, mixed>
+     */
+    private static function runImport(array $imapSettings, array $allowedBankIds, ?string $imapOnDate): array
+    {
         if ($allowedBankIds === []) {
             return ['success' => false, 'message' => 'COM_ORDENPRODUCCION_MT940_IMPORT_NO_ACCOUNTS_CONFIGURED'];
         }
@@ -57,10 +95,30 @@ class Mt940MailboxImportHelper
         }
 
         if (\function_exists('imap_open')) {
-            return self::runWithImapExtension($host, $port, $enc, $user, $password, $sender, $allowedBankIds);
+            return self::runWithImapExtension($host, $port, $enc, $user, $password, $sender, $allowedBankIds, $imapOnDate);
         }
 
-        return self::runWithSocketClient($host, $port, $enc, $user, $password, $sender, $allowedBankIds);
+        return self::runWithSocketClient($host, $port, $enc, $user, $password, $sender, $allowedBankIds, $imapOnDate);
+    }
+
+    /**
+     * @param   string  $dateYmd  Y-m-d
+     *
+     * @return  string|null  IMAP ON token, e.g. 19-May-2026
+     */
+    private static function parseDateForImap(string $dateYmd): ?string
+    {
+        $dateYmd = \trim($dateYmd);
+        if (!\preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateYmd)) {
+            return null;
+        }
+
+        $dt = \DateTimeImmutable::createFromFormat('Y-m-d', $dateYmd);
+        if ($dt === false || $dt->format('Y-m-d') !== $dateYmd) {
+            return null;
+        }
+
+        return $dt->format('j-M-Y');
     }
 
     /**
@@ -75,7 +133,8 @@ class Mt940MailboxImportHelper
         string $user,
         string $password,
         string $sender,
-        array $allowedBankIds
+        array $allowedBankIds,
+        ?string $imapOnDate = null
     ): array {
         $mailbox = Mt940ImapHelper::buildMailboxString($host, $port, $encryption);
         $imap    = @\imap_open($mailbox, $user, $password, \OP_READONLY, 1);
@@ -92,7 +151,7 @@ class Mt940MailboxImportHelper
         $summary = self::emptySummary('imap');
 
         try {
-            $criteria = 'FROM "' . \str_replace(['\\', '"'], ['\\\\', '\\"'], $sender) . '"';
+            $criteria = self::buildSearchCriteria($sender, $imapOnDate);
             $uids     = @\imap_search($imap, $criteria, \SE_UID);
             if (!\is_array($uids)) {
                 $uids = [];
@@ -138,7 +197,11 @@ class Mt940MailboxImportHelper
             @\imap_close($imap);
         }
 
-        return self::finalizeSummary($summary);
+        if ($imapOnDate !== null) {
+            $summary['filter_date_imap'] = $imapOnDate;
+        }
+
+        return self::finalizeSummary($summary, $imapOnDate !== null);
     }
 
     /**
@@ -153,7 +216,8 @@ class Mt940MailboxImportHelper
         string $user,
         string $password,
         string $sender,
-        array $allowedBankIds
+        array $allowedBankIds,
+        ?string $imapOnDate = null
     ): array {
         $client  = new Mt940SocketImapClient();
         $summary = self::emptySummary('socket');
@@ -162,7 +226,7 @@ class Mt940MailboxImportHelper
             $client->connect($host, $port, $encryption);
             $client->login($user, $password);
             $client->selectInbox();
-            $uids = $client->uidSearchFromSender($sender);
+            $uids = $client->uidSearchFromSender($sender, $imapOnDate);
             $summary['emails_scanned'] = \count($uids);
 
             foreach ($uids as $uid) {
@@ -193,7 +257,24 @@ class Mt940MailboxImportHelper
             $client->close();
         }
 
-        return self::finalizeSummary($summary);
+        if ($imapOnDate !== null) {
+            $summary['filter_date_imap'] = $imapOnDate;
+        }
+
+        return self::finalizeSummary($summary, $imapOnDate !== null);
+    }
+
+    /**
+     * @return  string
+     */
+    private static function buildSearchCriteria(string $sender, ?string $imapOnDate): string
+    {
+        $criteria = 'FROM "' . \str_replace(['\\', '"'], ['\\\\', '\\"'], $sender) . '"';
+        if ($imapOnDate !== null && $imapOnDate !== '') {
+            $criteria .= ' ON "' . \str_replace(['\\', '"'], ['\\\\', '\\"'], $imapOnDate) . '"';
+        }
+
+        return $criteria;
     }
 
     /**
@@ -269,22 +350,25 @@ class Mt940MailboxImportHelper
      *
      * @return  array<string, mixed>
      */
-    private static function finalizeSummary(array $summary): array
+    private static function finalizeSummary(array $summary, bool $dateFiltered = false): array
     {
         $imported = (int) ($summary['files_imported'] ?? 0);
         $skipped  = (int) ($summary['files_skipped'] ?? 0);
-        $tx       = (int) ($summary['transactions_imported'] ?? 0);
         $scanned  = (int) ($summary['emails_scanned'] ?? 0);
 
         if ($imported === 0 && $skipped === 0 && $scanned === 0) {
             $summary['success'] = true;
-            $summary['message'] = 'COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_EMPTY';
+            $summary['message'] = $dateFiltered
+                ? 'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_EMPTY'
+                : 'COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_EMPTY';
 
             return $summary;
         }
 
         $summary['success'] = true;
-        $summary['message'] = 'COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_OK';
+        $summary['message'] = $dateFiltered
+            ? 'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_OK'
+            : 'COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_OK';
 
         return $summary;
     }

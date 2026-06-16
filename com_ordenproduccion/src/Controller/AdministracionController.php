@@ -3252,6 +3252,109 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * JSON: import MT-940 files from mailbox for a specific email date (IMAP ON).
+     *
+     * @return  void
+     *
+     * @since   3.119.167
+     */
+    public function runMt940MailboxImportByDate(): void
+    {
+        $app = Factory::getApplication();
+
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        $dateYmd = \trim($this->input->post->getString('mt940_mailbox_date', ''));
+        if ($dateYmd === '') {
+            $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_INVALID'), []);
+
+            return;
+        }
+
+        try {
+            $model = $this->getModel('Administracion');
+            if (!$model) {
+                $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), []);
+
+                return;
+            }
+
+            $settings   = $model->getMt940Settings();
+            $allowedIds = $model->getMt940BankAccountIds();
+
+            if (($settings['enabled'] ?? '0') !== '1') {
+                $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_DISABLED'), []);
+
+                return;
+            }
+
+            $result = Mt940MailboxImportHelper::runImportByDate($settings, $allowedIds, $dateYmd);
+        } catch (\Throwable $e) {
+            Mt940RunLogHelper::recordRun(
+                Mt940RunLogHelper::TRIGGER_MANUAL_MAILBOX_DATE,
+                Mt940RunLogHelper::STATUS_FAIL,
+                [],
+                $e->getMessage(),
+                500,
+                (int) Factory::getUser()->id,
+                ['filter_date' => $dateYmd]
+            );
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+
+            return;
+        }
+
+        $msgKey = (string) ($result['message'] ?? '');
+        $msg    = $msgKey !== '' && \strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+
+        if (!empty($result['success']) && $msgKey === 'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_OK') {
+            $msg = Text::sprintf(
+                'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_OK_DETAIL',
+                $dateYmd,
+                (int) ($result['emails_scanned'] ?? 0),
+                (int) ($result['files_imported'] ?? 0),
+                (int) ($result['files_skipped'] ?? 0),
+                (int) ($result['transactions_imported'] ?? 0)
+            );
+        } elseif (!empty($result['success']) && $msgKey === 'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_EMPTY') {
+            $msg = Text::sprintf('COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_EMPTY', $dateYmd);
+        }
+
+        if (!empty($result['imap_error'])) {
+            $msg .= ' ' . (string) $result['imap_error'];
+        }
+
+        Mt940RunLogHelper::recordMailboxImport(
+            Mt940RunLogHelper::TRIGGER_MANUAL_MAILBOX_DATE,
+            $result,
+            $msg,
+            !empty($result['success']) ? 200 : 500,
+            (int) Factory::getUser()->id
+        );
+
+        $this->sendAdministracionJson(!empty($result['success']), $msg, [
+            'filter_date'           => $dateYmd,
+            'emails_scanned'        => (int) ($result['emails_scanned'] ?? 0),
+            'files_imported'        => (int) ($result['files_imported'] ?? 0),
+            'files_skipped'         => (int) ($result['files_skipped'] ?? 0),
+            'transactions_imported' => (int) ($result['transactions_imported'] ?? 0),
+            'driver'                => (string) ($result['driver'] ?? ''),
+            'details'               => $result['details'] ?? [],
+        ]);
+    }
+
+    /**
      * JSON: delete all imported MT-940 transactions and import log entries.
      *
      * @return  void

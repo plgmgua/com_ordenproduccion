@@ -21,9 +21,10 @@ $pagination = $this->mt940RunLogPagination ?? null;
 
 $triggerLabel = static function (string $type): string {
     $map = [
-        'cron'           => 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_CRON',
-        'manual_mailbox' => 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_MANUAL_MAILBOX',
-        'manual_file'    => 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_MANUAL_FILE',
+        'cron'                 => 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_CRON',
+        'manual_mailbox'       => 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_MANUAL_MAILBOX',
+        'manual_mailbox_date'  => 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_MANUAL_MAILBOX_DATE',
+        'manual_file'          => 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_MANUAL_FILE',
     ];
 
     return Text::_($map[$type] ?? 'COM_ORDENPRODUCCION_MT940_RUN_TRIGGER_UNKNOWN');

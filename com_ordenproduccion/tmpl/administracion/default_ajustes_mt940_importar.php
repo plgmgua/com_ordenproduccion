@@ -26,6 +26,7 @@ $mt940Accounts  = isset($this->ajustesMt940BankAccountOptions) && \is_array($thi
     ? $this->ajustesMt940BankAccountOptions : [];
 $mt940ImportUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.importMt940File&format=json', false);
 $mt940InitialUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.runMt940InitialImport&format=json', false);
+$mt940DateUrl    = Route::_('index.php?option=com_ordenproduccion&task=administracion.runMt940MailboxImportByDate&format=json', false);
 $mt940ClearUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.clearMt940ImportedData&format=json', false);
 $mt940CronSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveMt940CronSettings', false);
 $mt940Token      = Session::getFormToken();
@@ -94,6 +95,29 @@ $mt940CronKeyOk  = !empty($this->mt940CronKeyConfigured);
         </div>
     </div>
 
+    <div class="card mb-3 border-info">
+        <div class="card-body py-3">
+            <h3 class="h6 mb-2"><i class="fas fa-calendar-day"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_MAILBOX_DATE_TITLE'); ?></h3>
+            <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_MAILBOX_DATE_DESC'); ?></p>
+            <p class="small text-muted mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_DEDUP_NOTICE'); ?></p>
+            <div class="d-flex flex-wrap gap-2 align-items-end">
+                <div>
+                    <label class="form-label small mb-0" for="mt940-mailbox-date"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_MAILBOX_DATE_LABEL'); ?></label>
+                    <input type="date" class="form-control form-control-sm" id="mt940-mailbox-date" name="mt940_mailbox_date"
+                           value="<?php echo htmlspecialchars(date('Y-m-d'), ENT_QUOTES, 'UTF-8'); ?>" style="max-width: 180px;">
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btn-mt940-date-import"
+                        data-url="<?php echo htmlspecialchars($mt940DateUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                    <i class="fas fa-envelope-open-text"></i> <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_MAILBOX_DATE_BTN'); ?>
+                </button>
+            </div>
+            <div id="mt940-date-result" class="d-none mt-2">
+                <div id="mt940-date-alert" class="alert mb-0" role="alert"></div>
+                <pre id="mt940-date-json" class="bg-light border rounded p-2 small mb-0 mt-2" style="max-height: 180px; overflow: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
     <div class="card mb-3">
         <div class="card-body py-3">
             <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_TITLE'); ?></h3>
@@ -115,12 +139,64 @@ $mt940CronKeyOk  = !empty($this->mt940CronKeyConfigured);
 (function () {
     var token = <?php echo json_encode($mt940Token); ?>;
     var runningInitial = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_INITIAL_IMPORT_RUNNING')); ?>;
+    var runningDateImport = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_MAILBOX_DATE_RUNNING')); ?>;
     var clearingLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_CLEAR_RUNNING')); ?>;
     var initialBtn = document.getElementById('btn-mt940-initial-import');
+    var dateBtn = document.getElementById('btn-mt940-date-import');
+    var dateInput = document.getElementById('mt940-mailbox-date');
     var clearBtn = document.getElementById('btn-mt940-clear-imported');
     var initialResult = document.getElementById('mt940-initial-result');
     var initialAlert = document.getElementById('mt940-initial-alert');
     var initialJson = document.getElementById('mt940-initial-json');
+    var dateResult = document.getElementById('mt940-date-result');
+    var dateAlert = document.getElementById('mt940-date-alert');
+    var dateJson = document.getElementById('mt940-date-json');
+
+    if (dateBtn && dateInput) {
+        dateBtn.addEventListener('click', function () {
+            var url = dateBtn.getAttribute('data-url');
+            var dateVal = (dateInput.value || '').trim();
+            if (!url || !dateVal) {
+                return;
+            }
+            var orig = dateBtn.innerHTML;
+            dateBtn.disabled = true;
+            dateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + runningDateImport;
+            dateResult.classList.remove('d-none');
+            dateAlert.className = 'alert alert-info mb-0';
+            dateAlert.textContent = runningDateImport;
+            dateJson.textContent = '';
+
+            var body = new URLSearchParams();
+            body.append(token, '1');
+            body.append('mt940_mailbox_date', dateVal);
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'same-origin',
+                body: body.toString()
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var ok = !!data.success;
+                    dateAlert.className = 'alert mb-0 ' + (ok ? 'alert-success' : 'alert-danger');
+                    dateAlert.textContent = data.message || (ok ? 'OK' : 'Error');
+                    dateJson.textContent = JSON.stringify(data, null, 2);
+                    if (ok && (data.data?.files_imported > 0 || data.data?.transactions_imported > 0)) {
+                        window.setTimeout(function () { window.location.reload(); }, 1500);
+                    }
+                })
+                .catch(function (err) {
+                    dateAlert.className = 'alert alert-danger mb-0';
+                    dateAlert.textContent = err && err.message ? err.message : 'Error';
+                })
+                .finally(function () {
+                    dateBtn.disabled = false;
+                    dateBtn.innerHTML = orig;
+                });
+        });
+    }
 
     if (initialBtn) {
         initialBtn.addEventListener('click', function () {

@@ -127,20 +127,26 @@ class Mt940SocketImapClient
     }
 
     /**
-     * @param   string  $sender
+     * @param   string       $sender
+     * @param   string|null  $imapOnDate  e.g. 19-May-2026
      *
      * @return  array<int>
      *
      * @since   3.119.150
      */
-    public function uidSearchFromSender(string $sender): array
+    public function uidSearchFromSender(string $sender, ?string $imapOnDate = null): array
     {
         $sender = \trim($sender);
         if ($sender === '') {
             return [];
         }
 
-        $resp = $this->command('UID SEARCH FROM ' . self::quote($sender));
+        $cmd = 'UID SEARCH FROM ' . self::quote($sender);
+        if ($imapOnDate !== null && $imapOnDate !== '') {
+            $cmd .= ' ON ' . self::quote($imapOnDate);
+        }
+
+        $resp = $this->command($cmd);
         if (\preg_match('/^\*\s+SEARCH\s*(.*)$/im', $resp, $m)) {
             $ids = \trim((string) ($m[1] ?? ''));
             if ($ids === '') {
