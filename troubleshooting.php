@@ -277,6 +277,50 @@ function tsRender(array $vars): void
             CLI: <code>php components/com_ordenproduccion/tools/test_odoo_connection.php</code>
         </p>
     <?php endif; ?>
+
+    <?php if (!empty($mt940Error)): ?>
+        <hr style="margin: 28px 0; border: 0; border-top: 1px solid #e0e0e0;">
+        <h1>MT-940 IMAP mailbox</h1>
+        <p class="result-err">MT-940 diagnostic error: <?php echo htmlspecialchars((string) $mt940Error); ?></p>
+    <?php elseif (!empty($mt940Report)): ?>
+        <hr style="margin: 28px 0; border: 0; border-top: 1px solid #e0e0e0;">
+        <h1>MT-940 IMAP mailbox</h1>
+        <p class="subtitle">Stored settings from <strong>Ajustes → MT940 → Configuración</strong>. Tests run from this web server (same path as Importar por fecha).</p>
+        <?php
+        $mt940Meta = $mt940Report['meta'] ?? [];
+        $mt940Status = (string) ($mt940Meta['status'] ?? 'info');
+        $mt940StatusLabel = $mt940Status === 'ok' ? 'OK' : ($mt940Status === 'fail' ? 'FAIL' : 'WARN');
+        $mt940StatusClass = $mt940Status === 'ok' ? 'ok' : ($mt940Status === 'fail' ? 'err' : 'warn');
+        $mt940Cfg = $mt940Report['config'] ?? [];
+        ?>
+        <p>
+            <span class="badge <?php echo htmlspecialchars($mt940StatusClass); ?>"><?php echo htmlspecialchars($mt940StatusLabel); ?></span>
+            Failures: <?php echo (int) ($mt940Meta['failures'] ?? 0); ?>
+            &nbsp; Warnings: <?php echo (int) ($mt940Meta['warnings'] ?? 0); ?>
+            &nbsp; Run: <?php echo htmlspecialchars((string) ($mt940Meta['time'] ?? '')); ?>
+        </p>
+        <div class="meta-grid">
+            <div class="meta-item"><strong>IMAP host</strong><?php echo htmlspecialchars((string) ($mt940Cfg['imap_host'] ?? '')); ?></div>
+            <div class="meta-item"><strong>Port</strong><?php echo htmlspecialchars((string) ($mt940Cfg['imap_port'] ?? '')); ?></div>
+            <div class="meta-item"><strong>Encryption</strong><?php echo htmlspecialchars((string) ($mt940Cfg['imap_encryption'] ?? '')); ?></div>
+            <div class="meta-item"><strong>Username</strong><?php echo htmlspecialchars((string) ($mt940Cfg['imap_username'] ?? '')); ?></div>
+        </div>
+        <?php foreach ($mt940Report['sections'] ?? [] as $section): ?>
+            <h2><?php echo htmlspecialchars((string) ($section['title'] ?? '')); ?></h2>
+            <?php if (!empty($section['details']) && is_array($section['details'])): ?>
+                <?php foreach ($section['details'] as $dk => $dv): ?>
+                    <p><code><?php echo htmlspecialchars((string) $dk); ?></code>: <?php echo htmlspecialchars(is_scalar($dv) ? (string) $dv : json_encode($dv)); ?></p>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            <?php foreach ($section['checks'] ?? [] as $check): ?>
+                <div class="check-row <?php echo htmlspecialchars(tsStatusClass($check)); ?>">
+                    <span class="badge <?php echo htmlspecialchars(tsStatusClass($check)); ?>"><?php echo htmlspecialchars((string) ($check['status'] ?? '')); ?></span>
+                    <strong><?php echo htmlspecialchars((string) ($check['label'] ?? '')); ?></strong>
+                    — <?php echo htmlspecialchars((string) ($check['detail'] ?? '')); ?>
+                </div>
+            <?php endforeach; ?>
+        <?php endforeach; ?>
+    <?php endif; ?>
 </div>
 </div>
 <?php if ($standalone): ?>
@@ -293,6 +337,8 @@ $fatalError = null;
 $componentBootError = null;
 $odooError = null;
 $odooReport = null;
+$mt940Report = null;
+$mt940Error = null;
 $odooUserId = 0;
 $odooLogin = '';
 $skipSaveTest = false;
@@ -332,6 +378,17 @@ try {
             'user_limit'          => 30,
             'test_save_contact'   => !$skipSaveTest,
         ]);
+
+        $mt940Class = \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940DiagnosticHelper::class;
+        if (\class_exists($mt940Class)) {
+            try {
+                $mt940Report = (new $mt940Class())->run();
+            } catch (\Throwable $e) {
+                $mt940Error = $e->getMessage();
+            }
+        } else {
+            $mt940Error = 'Mt940DiagnosticHelper not found. Deploy com_ordenproduccion 3.119.168+ and clear cache.';
+        }
     }
 
     $root = defined('JPATH_ROOT') ? JPATH_ROOT : (defined('JPATH_BASE') ? JPATH_BASE : '');
@@ -348,6 +405,8 @@ tsRender(compact(
     'componentBootError',
     'odooError',
     'odooReport',
+    'mt940Report',
+    'mt940Error',
     'odooUserId',
     'odooLogin',
     'skipSaveTest',

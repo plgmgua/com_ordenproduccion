@@ -11,6 +11,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
+
 /**
  * IMAP connectivity for MT-940 bank statement emails.
  *
@@ -51,6 +54,21 @@ class Mt940ImapHelper
         }
 
         return Mt940SocketImapClient::testConnection($settings);
+    }
+
+    /**
+     * Default IMAP connect/read timeout (seconds).
+     *
+     * @since  3.119.168
+     */
+    public static function getConnectTimeoutSeconds(): int
+    {
+        $timeout = (int) \ini_get('default_socket_timeout');
+        if ($timeout < 1) {
+            $timeout = 60;
+        }
+
+        return \max(30, \min(120, $timeout));
     }
 
     /**
@@ -171,5 +189,72 @@ class Mt940ImapHelper
     private static function escapeImapSearchValue(string $email): string
     {
         return str_replace(['\\', '"'], ['\\\\', '\\"'], $email);
+    }
+
+    /**
+     * Translate MT-940 IMAP helper result into a user-facing message.
+     *
+     * @param   array<string, mixed>  $result
+     * @param   array<string, mixed>  $settings
+     *
+     * @return  string
+     *
+     * @since   3.119.168
+     */
+    public static function formatResultMessage(array $result, array $settings = []): string
+    {
+        $app = Factory::getApplication();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion');
+
+        $msgKey = (string) ($result['message'] ?? '');
+        $msg    = $msgKey !== '' && \strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+        $imapErr = \trim((string) ($result['imap_error'] ?? ''));
+
+        if ($imapErr !== '') {
+            $host = \trim((string) ($settings['imap_host'] ?? ''));
+            $port = \max(1, (int) ($settings['imap_port'] ?? 993));
+            if (\stripos($imapErr, 'timed out') !== false && $host !== '') {
+                $msg = Text::sprintf(
+                    'COM_ORDENPRODUCCION_MT940_IMAP_TIMEOUT_DETAIL',
+                    $msg,
+                    $host,
+                    $port,
+                    $imapErr
+                );
+            } else {
+                $msg = \trim($msg . ' ' . $imapErr);
+            }
+        }
+
+        return \trim($msg);
+    }
+
+    /**
+     * @param   array<string, mixed>  $result
+     * @param   array<string, mixed>  $settings
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.168
+     */
+    public static function buildFailurePayload(array $result, array $settings = []): array
+    {
+        $host = \trim((string) ($settings['imap_host'] ?? ''));
+        $port = \max(1, (int) ($settings['imap_port'] ?? 993));
+        $enc  = self::normalizeEncryption((string) ($settings['imap_encryption'] ?? 'ssl'));
+        $payload = [
+            'driver'      => (string) ($result['driver'] ?? ''),
+            'imap_host'   => $host,
+            'imap_port'   => $port,
+            'encryption'  => $enc,
+            'imap_error'  => (string) ($result['imap_error'] ?? ''),
+        ];
+
+        if ($host !== '') {
+            $payload['tcp_probe'] = Mt940DiagnosticHelper::probeTcp($host, $port, $enc, 15);
+        }
+
+        return $payload;
     }
 }

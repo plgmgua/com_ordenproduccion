@@ -46,7 +46,7 @@ class Mt940SocketImapClient
         $encryption = Mt940ImapHelper::normalizeEncryption($encryption);
         $errno      = 0;
         $errstr     = '';
-        $timeout    = 30;
+        $timeout    = Mt940ImapHelper::getConnectTimeoutSeconds();
 
         $context = \stream_context_create([
             'ssl' => [

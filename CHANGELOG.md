@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.168-STABLE] - 2026-05-19
+
+### Added
+- **MT940 IMAP diagnostic** in `troubleshooting.php` (DNS, TCP probe, full login test from the web server).
+- Clearer timeout errors for mailbox import with host/port and `tcp_probe` in JSON responses.
+
+### Changed
+- Socket IMAP client uses `default_socket_timeout` (30–120s) instead of a fixed 30s cap.
+
 ## [3.119.167-STABLE] - 2026-05-19
 
 ### Added

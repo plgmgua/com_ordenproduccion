@@ -3057,18 +3057,17 @@ class AdministracionController extends BaseController
         }
 
         $result = Mt940ImapHelper::testConnection($settings);
-        $msgKey = (string) ($result['message'] ?? '');
-        $msg    = $msgKey !== '' && strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
 
         if (!empty($result['success'])) {
+            $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
             $msg = Text::sprintf(
                 'COM_ORDENPRODUCCION_MT940_IMAP_CONNECT_OK_DETAIL',
                 (int) ($result['mailbox_total'] ?? 0),
                 trim((string) ($settings['sender_email'] ?? '')),
                 (int) ($result['sender_total'] ?? 0)
             );
-        } elseif (!empty($result['imap_error'])) {
-            $msg .= ' ' . (string) $result['imap_error'];
+        } else {
+            $msg = Mt940ImapHelper::formatResultMessage($result, $settings);
         }
 
         $payload = [
@@ -3077,7 +3076,9 @@ class AdministracionController extends BaseController
             'mailbox'       => (string) ($result['mailbox'] ?? ''),
             'driver'        => (string) ($result['driver'] ?? ''),
         ];
-        if (!empty($result['imap_error'])) {
+        if (empty($result['success'])) {
+            $payload = \array_merge($payload, Mt940ImapHelper::buildFailurePayload($result, $settings));
+        } elseif (!empty($result['imap_error'])) {
             $payload['imap_error'] = (string) $result['imap_error'];
         }
 
@@ -3217,7 +3218,7 @@ class AdministracionController extends BaseController
         }
 
         $msgKey = (string) ($result['message'] ?? '');
-        $msg    = $msgKey !== '' && \strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 
         if (!empty($result['success']) && $msgKey === 'COM_ORDENPRODUCCION_MT940_INITIAL_IMPORT_OK') {
             $msg = Text::sprintf(
@@ -3227,10 +3228,8 @@ class AdministracionController extends BaseController
                 (int) ($result['files_skipped'] ?? 0),
                 (int) ($result['transactions_imported'] ?? 0)
             );
-        }
-
-        if (!empty($result['imap_error'])) {
-            $msg .= ' ' . (string) $result['imap_error'];
+        } else {
+            $msg = Mt940ImapHelper::formatResultMessage($result, $settings);
         }
 
         Mt940RunLogHelper::recordMailboxImport(
@@ -3241,14 +3240,19 @@ class AdministracionController extends BaseController
             (int) Factory::getUser()->id
         );
 
-        $this->sendAdministracionJson(!empty($result['success']), $msg, [
+        $payload = [
             'emails_scanned'        => (int) ($result['emails_scanned'] ?? 0),
             'files_imported'        => (int) ($result['files_imported'] ?? 0),
             'files_skipped'         => (int) ($result['files_skipped'] ?? 0),
             'transactions_imported' => (int) ($result['transactions_imported'] ?? 0),
             'driver'                => (string) ($result['driver'] ?? ''),
             'details'               => $result['details'] ?? [],
-        ]);
+        ];
+        if (empty($result['success'])) {
+            $payload = \array_merge($payload, Mt940ImapHelper::buildFailurePayload($result, $settings));
+        }
+
+        $this->sendAdministracionJson(!empty($result['success']), $msg, $payload);
     }
 
     /**
@@ -3316,7 +3320,7 @@ class AdministracionController extends BaseController
         }
 
         $msgKey = (string) ($result['message'] ?? '');
-        $msg    = $msgKey !== '' && \strpos($msgKey, 'COM_ORDENPRODUCCION_') === 0 ? Text::_($msgKey) : $msgKey;
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 
         if (!empty($result['success']) && $msgKey === 'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_OK') {
             $msg = Text::sprintf(
@@ -3329,10 +3333,8 @@ class AdministracionController extends BaseController
             );
         } elseif (!empty($result['success']) && $msgKey === 'COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_EMPTY') {
             $msg = Text::sprintf('COM_ORDENPRODUCCION_MT940_MAILBOX_DATE_IMPORT_EMPTY', $dateYmd);
-        }
-
-        if (!empty($result['imap_error'])) {
-            $msg .= ' ' . (string) $result['imap_error'];
+        } else {
+            $msg = Mt940ImapHelper::formatResultMessage($result, $settings);
         }
 
         Mt940RunLogHelper::recordMailboxImport(
@@ -3343,7 +3345,7 @@ class AdministracionController extends BaseController
             (int) Factory::getUser()->id
         );
 
-        $this->sendAdministracionJson(!empty($result['success']), $msg, [
+        $payload = [
             'filter_date'           => $dateYmd,
             'emails_scanned'        => (int) ($result['emails_scanned'] ?? 0),
             'files_imported'        => (int) ($result['files_imported'] ?? 0),
@@ -3351,7 +3353,12 @@ class AdministracionController extends BaseController
             'transactions_imported' => (int) ($result['transactions_imported'] ?? 0),
             'driver'                => (string) ($result['driver'] ?? ''),
             'details'               => $result['details'] ?? [],
-        ]);
+        ];
+        if (empty($result['success'])) {
+            $payload = \array_merge($payload, Mt940ImapHelper::buildFailurePayload($result, $settings));
+        }
+
+        $this->sendAdministracionJson(!empty($result['success']), $msg, $payload);
     }
 
     /**
