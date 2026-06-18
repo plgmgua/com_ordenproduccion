@@ -5,6 +5,8 @@
  * @var callable $l
  * @var int $quotationId
  * @var string $manualFelIssueUrl
+ * @var string $manualFelPreviewUrl
+ * @var string $manualFelQuotationRef
  * @var string $digifactVerifyCuiUrl
  * @var bool $manualFelBillingIsCf
  * @var string $manualBuyerNameInitial
@@ -27,6 +29,10 @@ $manualFelOtherQuotations = is_array($manualFelOtherQuotations ?? null) ? $manua
 $manualFelIssueDateDefault = trim((string) ($manualFelIssueDateDefault ?? ''));
 if ($manualFelIssueDateDefault === '') {
     $manualFelIssueDateDefault = date('Y-m-d');
+}
+$manualFelQuotationRef = trim((string) ($manualFelQuotationRef ?? ''));
+if ($manualFelQuotationRef === '') {
+    $manualFelQuotationRef = 'COT-' . (int) ($quotationId ?? 0);
 }
 ?>
 <div class="modal fade" id="manual-fel-invoice-modal" tabindex="-1" aria-labelledby="manualFelInvoiceModalLabel" aria-hidden="true">
@@ -60,6 +66,32 @@ if ($manualFelIssueDateDefault === '') {
                     <div class="col-md-3">
                         <label class="form-label small mb-1" for="manual-fel-issue-date"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE', 'Issue date', 'Fecha de emisión')); ?></label>
                         <input type="date" class="form-control form-control-sm" id="manual-fel-issue-date" value="<?php echo htmlspecialchars($manualFelIssueDateDefault, ENT_QUOTES, 'UTF-8'); ?>" max="<?php echo htmlspecialchars($manualFelIssueDateDefault, ENT_QUOTES, 'UTF-8'); ?>" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1" for="manual-fel-doc-type"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE', 'Document type', 'Tipo de documento')); ?></label>
+                        <select class="form-select form-select-sm" id="manual-fel-doc-type">
+                            <option value="FACT"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE_FACT', 'FACT — Invoice', 'FACT — Factura')); ?></option>
+                            <option value="FCAM"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE_FCAM', 'FCAM — Exchange invoice', 'FCAM — Factura cambiaria')); ?></option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small mb-1" for="manual-fel-observaciones"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_OBSERVACIONES', 'Observations', 'Observaciones')); ?></label>
+                        <textarea class="form-control form-control-sm" id="manual-fel-observaciones" rows="2" maxlength="500"><?php echo htmlspecialchars($manualFelQuotationRef, ENT_QUOTES, 'UTF-8'); ?></textarea>
+                        <div class="form-text small"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_OBSERVACIONES_HELP', 'Shown on the invoice PDF and sent to Digifact as OBSERVACIONES. Default is the quotation reference.', 'Se muestra en el PDF y se envía a Digifact como OBSERVACIONES. Por defecto es la referencia de cotización.')); ?></div>
+                    </div>
+                </div>
+                <div id="manual-fel-fcam-panel" class="border rounded p-3 mb-3 bg-light d-none">
+                    <h6 class="text-uppercase text-muted small mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_HEADING', 'Exchange invoice — payment schedule', 'Factura cambiaria — abonos')); ?></h6>
+                    <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_HELP', 'Enter the due date and amount for the payment (amount must equal invoice total).', 'Ingrese la fecha de vencimiento y el monto del abono (debe coincidir con el total de la factura).')); ?></p>
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="manual-fel-fcam-due-date"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_DUE_DATE', 'Due date', 'Fecha de vencimiento')); ?></label>
+                            <input type="date" class="form-control form-control-sm" id="manual-fel-fcam-due-date" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="manual-fel-fcam-amount"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_AMOUNT', 'Payment amount', 'Monto del abono')); ?></label>
+                            <input type="number" class="form-control form-control-sm text-end" id="manual-fel-fcam-amount" step="0.01" min="0" readonly />
+                        </div>
                     </div>
                 </div>
                 <?php if ($manualFelOtherQuotations !== []) : ?>
@@ -172,9 +204,28 @@ if ($manualFelIssueDateDefault === '') {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('JCANCEL')); ?></button>
+                <button type="button" class="btn btn-outline-primary" id="manual-fel-preview-btn">
+                    <i class="fas fa-eye" aria-hidden="true"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_BTN', 'Preview', 'Vista previa')); ?>
+                </button>
                 <button type="button" class="btn btn-success" id="manual-fel-generar-btn">
                     <i class="fas fa-file-invoice" aria-hidden="true"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_GENERAR_BTN', 'Generate invoice', 'Generar factura')); ?>
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="manual-fel-preview-modal" tabindex="-1" aria-labelledby="manualFelPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manualFelPreviewModalLabel"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_TITLE', 'Invoice preview', 'Vista previa de factura')); ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="manual-fel-preview-iframe" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_TITLE', 'Invoice preview', 'Vista previa de factura')); ?>" style="width:100%; height:75vh; border:0;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('JCLOSE')); ?></button>
             </div>
         </div>
     </div>
@@ -185,10 +236,14 @@ if ($manualFelIssueDateDefault === '') {
     var modalEl = document.getElementById('manual-fel-invoice-modal');
     var tokenForm = document.getElementById('manual-fel-token-form');
     var generarBtn = document.getElementById('manual-fel-generar-btn');
+    var previewBtn = document.getElementById('manual-fel-preview-btn');
+    var previewModalEl = document.getElementById('manual-fel-preview-modal');
+    var previewIframe = document.getElementById('manual-fel-preview-iframe');
     var alertEl = document.getElementById('manual-fel-modal-alert');
     var tbody = document.getElementById('manual-fel-lines-tbody');
     var addLineBtn = document.getElementById('manual-fel-add-line-btn');
     var issueUrl = <?php echo json_encode($manualFelIssueUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var previewUrl = <?php echo json_encode($manualFelPreviewUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var linesUrl = <?php echo json_encode($manualFelLinesUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var verifyCuiUrl = <?php echo json_encode($digifactVerifyCuiUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var qid = <?php echo (int) ($quotationId ?? 0); ?>;
@@ -204,17 +259,52 @@ if ($manualFelIssueDateDefault === '') {
     var nameInput = document.getElementById('manual-fel-buyer-name');
     var nitInput = document.getElementById('manual-fel-buyer-nit');
     var addrInput = document.getElementById('manual-fel-buyer-address');
+    var docTypeSelect = document.getElementById('manual-fel-doc-type');
+    var observacionesInput = document.getElementById('manual-fel-observaciones');
+    var fcamPanel = document.getElementById('manual-fel-fcam-panel');
+    var fcamDueDate = document.getElementById('manual-fel-fcam-due-date');
+    var fcamAmount = document.getElementById('manual-fel-fcam-amount');
+    var quotationRefDefault = <?php echo json_encode($manualFelQuotationRef, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgBuyerRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_REQUIRED', 'Client name and NIT are required.', 'Nombre del cliente y NIT son obligatorios.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgLinesRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED', 'Add at least one valid line.', 'Agregue al menos una línea válida.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgCuiRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_REQUIRED', 'Enter and validate the buyer CUI before issuing (consumidor final).', 'Ingrese y valide el CUI del comprador antes de timbrar (consumidor final).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgCuiNotValidated = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_NOT_VALIDATED', 'Click «Validate» and wait for Digifact to confirm the CUI before generating.', 'Pulse «Validar» y espere la confirmación de Digifact antes de generar.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgFcamDateRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_DATE_REQUIRED', 'Due date is required for FCAM.', 'La fecha de vencimiento es obligatoria para FCAM.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgPreviewFailed = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_FAILED', 'Could not build preview.', 'No se pudo generar la vista previa.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     if (!openBtn || !modalEl || !generarBtn || !tbody) return;
 
     function showModal() {
         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
             bootstrap.Modal.getOrCreateInstance(modalEl).show();
         }
+    }
+    function showPreviewModal() {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal && previewModalEl) {
+            bootstrap.Modal.getOrCreateInstance(previewModalEl).show();
+        }
+    }
+    function sumLineTotals() {
+        var total = 0;
+        tbody.querySelectorAll('.manual-fel-line-row').forEach(function(tr) {
+            var sub = tr.querySelector('.manual-fel-subtotal');
+            total += sub ? parseNum(sub.value) : 0;
+        });
+        return round2(total);
+    }
+    function syncFcamAmountFromLines() {
+        if (!fcamAmount) return;
+        fcamAmount.value = sumLineTotals().toFixed(2);
+    }
+    function toggleFcamPanel() {
+        var isFcam = docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM';
+        if (fcamPanel) {
+            fcamPanel.classList.toggle('d-none', !isFcam);
+        }
+        syncFcamAmountFromLines();
+    }
+    if (docTypeSelect) {
+        docTypeSelect.addEventListener('change', toggleFcamPanel);
     }
     function hideAlert() {
         if (alertEl) {
@@ -249,6 +339,7 @@ if ($manualFelIssueDateDefault === '') {
         var qty = parseNum(qtyInp.value);
         var unit = parseNum(unitInp.value);
         subInp.value = round2(qty * unit).toFixed(2);
+        syncFcamAmountFromLines();
     }
     /** subtotal ÷ qty → unit (keeps subtotal when quantity changes) */
     function updateRowUnitFromSubtotal(tr) {
@@ -264,6 +355,7 @@ if ($manualFelIssueDateDefault === '') {
             return;
         }
         unitInp.value = round4(sub / qty).toFixed(4);
+        syncFcamAmountFromLines();
     }
     function bindRow(tr) {
         var qtyInp = tr.querySelector('.manual-fel-qty');
@@ -285,10 +377,12 @@ if ($manualFelIssueDateDefault === '') {
                     return;
                 }
                 tr.remove();
+                syncFcamAmountFromLines();
             });
         }
     }
     tbody.querySelectorAll('.manual-fel-line-row').forEach(bindRow);
+    toggleFcamPanel();
 
     function addLineFromPreset(preset, quotationIdForRow) {
         var tr = document.createElement('tr');
@@ -382,6 +476,16 @@ if ($manualFelIssueDateDefault === '') {
             issueDateInput.value = issueDateDefault;
             issueDateInput.max = issueDateDefault;
         }
+        if (docTypeSelect) {
+            docTypeSelect.value = 'FACT';
+        }
+        if (observacionesInput) {
+            observacionesInput.value = quotationRefDefault || '';
+        }
+        if (fcamDueDate) {
+            fcamDueDate.value = '';
+        }
+        toggleFcamPanel();
         resetCuiGate();
         if (!needsCfCui) {
             generarBtn.disabled = false;
@@ -522,28 +626,46 @@ if ($manualFelIssueDateDefault === '') {
         return ids;
     }
 
-    generarBtn.addEventListener('click', function() {
-        hideAlert();
+    function buildFcamAbonosJson() {
+        if (!docTypeSelect || String(docTypeSelect.value || 'FACT').toUpperCase() !== 'FCAM') {
+            return '[]';
+        }
+        var due = fcamDueDate ? String(fcamDueDate.value || '').trim() : '';
+        var amt = fcamAmount ? parseNum(fcamAmount.value) : sumLineTotals();
+        if (!due || amt <= 0) {
+            return '[]';
+        }
+        return JSON.stringify([{ numero: 1, fecha: due, monto: round2(amt) }]);
+    }
+
+    function buildManualFelFormData(requireCui) {
         var buyerName = nameInput ? String(nameInput.value || '').trim() : '';
         var buyerNit = nitInput ? String(nitInput.value || '').trim() : '';
+        var lines = collectLines();
         if (!buyerName || !buyerNit) {
             showAlert(msgBuyerRequired);
-            return;
+            return null;
         }
-        var lines = collectLines();
         if (!lines.length) {
             showAlert(msgLinesRequired);
-            return;
+            return null;
         }
-        if (needsCfCui && !cuiValidated) {
+        if (requireCui && needsCfCui && !cuiValidated) {
             showAlert(msgCuiNotValidated);
-            return;
+            return null;
         }
         if (!validateIssueDate()) {
-            return;
+            return null;
+        }
+        if (docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM') {
+            var dueCheck = fcamDueDate ? String(fcamDueDate.value || '').trim() : '';
+            if (!dueCheck) {
+                showAlert(msgFcamDateRequired);
+                return null;
+            }
         }
         if (!tokenForm) {
-            return;
+            return null;
         }
         var fd = new FormData(tokenForm);
         fd.append('quotation_id', String(qid));
@@ -553,19 +675,76 @@ if ($manualFelIssueDateDefault === '') {
         fd.append('manual_lines_json', JSON.stringify(lines));
         fd.append('manual_orden_ids_json', JSON.stringify(collectOrdenIds()));
         fd.append('manual_quotation_ids_json', JSON.stringify(collectQuotationIds()));
+        fd.append('manual_doc_type', docTypeSelect ? String(docTypeSelect.value || 'FACT') : 'FACT');
+        fd.append('manual_observaciones', observacionesInput ? String(observacionesInput.value || '').trim() : '');
+        fd.append('manual_fcam_abonos_json', buildFcamAbonosJson());
         if (issueDateInput) {
             fd.append('manual_issue_date', String(issueDateInput.value || issueDateDefault));
         }
         if (needsCfCui && cuiInput) {
             fd.append('digifact_buyer_cui', String(cuiInput.value || '').replace(/\D/g, ''));
         }
+        return fd;
+    }
+
+    if (previewBtn && previewUrl) {
+        previewBtn.addEventListener('click', function() {
+            hideAlert();
+            var fd = buildManualFelFormData(false);
+            if (!fd) return;
+            previewBtn.disabled = true;
+            generarBtn.disabled = true;
+            if (openBtn) openBtn.disabled = true;
+            fetch(previewUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.text().then(function(t) { try { return { ok: r.ok, data: JSON.parse(t) }; } catch (e) { return { ok: false, data: null }; } }); })
+                .then(function(res) {
+                    previewBtn.disabled = false;
+                    generarBtn.disabled = needsCfCui && !cuiValidated;
+                    if (openBtn) openBtn.disabled = false;
+                    var j = res.data;
+                    if (!j || !j.success || !j.pdf_base64) {
+                        showAlert((j && j.message) ? j.message : msgPreviewFailed);
+                        return;
+                    }
+                    if (previewIframe) {
+                        var blob = b64ToBlob(j.pdf_base64, 'application/pdf');
+                        var url = URL.createObjectURL(blob);
+                        previewIframe.src = url;
+                    }
+                    showPreviewModal();
+                })
+                .catch(function() {
+                    previewBtn.disabled = false;
+                    generarBtn.disabled = needsCfCui && !cuiValidated;
+                    if (openBtn) openBtn.disabled = false;
+                    showAlert(msgNet);
+                });
+        });
+    }
+
+    function b64ToBlob(b64, mime) {
+        var bin = atob(b64);
+        var len = bin.length;
+        var bytes = new Uint8Array(len);
+        for (var i = 0; i < len; i++) {
+            bytes[i] = bin.charCodeAt(i);
+        }
+        return new Blob([bytes], { type: mime || 'application/octet-stream' });
+    }
+
+    generarBtn.addEventListener('click', function() {
+        hideAlert();
+        var fd = buildManualFelFormData(true);
+        if (!fd) return;
         generarBtn.disabled = true;
         openBtn.disabled = true;
+        if (previewBtn) previewBtn.disabled = true;
         fetch(issueUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function(r) { return r.text().then(function(t) { try { return { ok: r.ok, data: JSON.parse(t) }; } catch (e) { return { ok: false, data: null, text: t }; } }); })
             .then(function(res) {
                 generarBtn.disabled = false;
                 openBtn.disabled = false;
+                if (previewBtn) previewBtn.disabled = false;
                 var j = res.data;
                 if (!j) {
                     showAlert(msgNet);
@@ -584,6 +763,7 @@ if ($manualFelIssueDateDefault === '') {
             .catch(function() {
                 generarBtn.disabled = false;
                 openBtn.disabled = false;
+                if (previewBtn) previewBtn.disabled = false;
                 showAlert(msgNet);
             });
     });

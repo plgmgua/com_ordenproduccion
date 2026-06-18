@@ -191,9 +191,14 @@ $digifactQuotBillingIsCf = CertificadorFactNitLookupHelper::billingIdIndicatesCo
 $digifactVerifyCuiUrl = Route::_('index.php?option=com_ordenproduccion&task=cliente.verifyDigifactCui&format=json', false);
 $digifactBuyerNameInitial = trim((string) ($quotation->client_name ?? ''));
 $manualFelIssueUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelIssueFromQuotation&format=json', false);
+$manualFelPreviewUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelPreviewFromQuotation&format=json', false);
 $manualFelBillingIsCf = $digifactQuotBillingIsCf;
 $manualBuyerNameInitial = $digifactBuyerNameInitial;
 $manualBuyerNitInitial = trim((string) ($quotation->client_nit ?? ''));
+$manualFelQuotationRef = trim((string) ($quotation->quotation_number ?? ''));
+if ($manualFelQuotationRef === '') {
+    $manualFelQuotationRef = 'COT-' . $quotationId;
+}
 $manualFelLinePresets = isset($this->manualFelLinePresets) && is_array($this->manualFelLinePresets) ? $this->manualFelLinePresets : [];
 $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($this->manualFelOrdensForClient) ? $this->manualFelOrdensForClient : [];
 $manualFelOtherQuotations = isset($this->manualFelOtherQuotations) && is_array($this->manualFelOtherQuotations) ? $this->manualFelOtherQuotations : [];

@@ -19,6 +19,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHe
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
@@ -2072,7 +2073,8 @@ class FelInvoiceIssuanceService
         ?string $nucBuyerTaxIdOverride = null,
         ?string $buyerNameOverride = null,
         ?\DateTimeInterface $issuedAt = null,
-        array $additionalCotizacionRefs = []
+        array $additionalCotizacionRefs = [],
+        array $nucOptions = []
     ): array {
         $buyerTaxIdRaw = trim((string) ($quotation->client_nit ?? ''));
         $isCfBuyer     = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerTaxIdRaw);
@@ -2238,6 +2240,18 @@ class FelInvoiceIssuanceService
             ];
         }
 
+        $docType = 'FACT';
+        if ($nucOptions !== []) {
+            $normalizedOpts = $this->normalizeManualFelNucOptions($nucOptions, $grand);
+            $docType        = (string) $normalizedOpts['doc_type'];
+            $this->appendNucAdditionalDocumentBlocks(
+                $additionalInfos,
+                $cotRef,
+                (int) ($quotation->id ?? 0),
+                $normalizedOpts
+            );
+        }
+
         $buyerPayload = [
             'TaxID'       => $buyerNit !== '' ? $buyerNit : 'CF',
             'Name'        => $buyerName,
@@ -2258,7 +2272,7 @@ class FelInvoiceIssuanceService
             'Version'     => '1.00',
             'CountryCode' => 'GT',
             'Header'      => [
-                'DocType'        => 'FACT',
+                'DocType'        => $docType,
                 'IssuedDateTime' => $issued,
                 'Currency'       => 'GTQ',
             ],
@@ -2325,7 +2339,8 @@ class FelInvoiceIssuanceService
         string $buyerAddress,
         ?string $nucBuyerTaxIdOverride = null,
         ?\DateTimeInterface $issuedAt = null,
-        array $additionalCotizacionRefs = []
+        array $additionalCotizacionRefs = [],
+        array $nucOptions = []
     ): array {
         $lineRows = [];
         foreach ($manualLines as $line) {
@@ -2353,7 +2368,8 @@ class FelInvoiceIssuanceService
             $nucBuyerTaxIdOverride,
             $buyerName !== '' ? $buyerName : null,
             $issuedAt,
-            $additionalCotizacionRefs
+            $additionalCotizacionRefs,
+            $nucOptions
         );
 
         $addr = trim($buyerAddress);
@@ -2400,7 +2416,8 @@ class FelInvoiceIssuanceService
         array $ordenIdsToLink = [],
         ?string $nucBuyerTaxIdOverride = null,
         array $additionalQuotationIds = [],
-        ?string $issueDateYmd = null
+        ?string $issueDateYmd = null,
+        array $nucOptions = []
     ): array {
         $quotationId = (int) $quotationId;
         $userId      = (int) $userId;
@@ -2460,7 +2477,8 @@ class FelInvoiceIssuanceService
             $buyerAddress,
             $nucBuyerTaxIdOverride,
             $issuedAt,
-            $additionalRefs
+            $additionalRefs,
+            $nucOptions
         );
         if (($payload['Items'] ?? []) === []) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')];
@@ -2469,6 +2487,14 @@ class FelInvoiceIssuanceService
         $grand = 0.0;
         if (isset($payload['Totals']['GrandTotal']['InvoiceTotal'])) {
             $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
+        }
+
+        $normalizedOpts = $this->normalizeManualFelNucOptions($nucOptions, $grand);
+        if ($normalizedOpts['doc_type'] === 'FCAM') {
+            $fcamErr = $this->validateManualFelFcamAbonos($normalizedOpts['fcam_abonos'], $grand);
+            if ($fcamErr !== null) {
+                return ['success' => false, 'message' => $fcamErr];
+            }
         }
 
         $invoiceId = $this->createNewManualInvoiceFromQuotation($quotationId, $userId, $issuedAt->format('Y-m-d'), $allQuotationIds);
@@ -2501,6 +2527,13 @@ class FelInvoiceIssuanceService
             ];
         }
 
+        $felExtraPre = [
+            'pdf_observaciones' => trim((string) $normalizedOpts['observaciones']),
+        ];
+        if ($normalizedOpts['doc_type'] === 'FCAM') {
+            $felExtraPre['complemento_abonos'] = $normalizedOpts['fcam_abonos'];
+        }
+
         $this->updateInvoiceFields($invoiceId, [
             'client_name'    => $buyerName,
             'client_nit'     => $buyerNit,
@@ -2509,6 +2542,8 @@ class FelInvoiceIssuanceService
             'notes'          => \count($allQuotationIds) > 1
                 ? 'FEL manual multi-cotización (' . implode(', ', array_merge([$this->getQuotationDisplayRef($quotation)], $additionalRefs)) . ')'
                 : 'FEL manual desde cotización',
+            'fel_extra'      => json_encode($felExtraPre, JSON_UNESCAPED_UNICODE),
+            'fel_tipo_dte'   => (string) $normalizedOpts['doc_type'],
         ]);
 
         $this->linkInvoiceToQuotations($invoiceId, $quotationId, $allQuotationIds);
@@ -2575,6 +2610,398 @@ class FelInvoiceIssuanceService
         $normalized = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc($buyerNitRaw);
 
         return $normalized !== '' ? $normalized : trim($buyerNitRaw);
+    }
+
+    /**
+     * Normalize manual FEL NUC options (document type, observaciones, FCAM abonos).
+     *
+     * @param   array<string, mixed>  $nucOptions
+     *
+     * @return  array{doc_type: string, observaciones: string, fcam_abonos: list<array{numero: int, fecha: string, monto: float}>}
+     *
+     * @since   3.119.169
+     */
+    protected function normalizeManualFelNucOptions(array $nucOptions, float $grandTotal = 0.0): array
+    {
+        $docType = strtoupper(trim((string) ($nucOptions['doc_type'] ?? 'FACT')));
+        if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
+            $docType = 'FACT';
+        }
+
+        $obs    = trim((string) ($nucOptions['observaciones'] ?? ''));
+        $abonos = [];
+        if ($docType === 'FCAM') {
+            $raw = $nucOptions['fcam_abonos'] ?? [];
+            if (\is_array($raw)) {
+                foreach ($raw as $i => $ab) {
+                    if (!\is_array($ab)) {
+                        continue;
+                    }
+                    $fecha = trim((string) ($ab['fecha'] ?? $ab['fecha_vencimiento'] ?? ''));
+                    $monto = (float) ($ab['monto'] ?? $ab['monto_abono'] ?? 0);
+                    $num   = (int) ($ab['numero'] ?? $ab['numero_abono'] ?? ($i + 1));
+                    if ($fecha === '' || $monto <= 0.00001) {
+                        continue;
+                    }
+                    $abonos[] = [
+                        'numero' => $num > 0 ? $num : ($i + 1),
+                        'fecha'  => $fecha,
+                        'monto'  => \round($monto, 2),
+                    ];
+                }
+            }
+        }
+
+        return [
+            'doc_type'      => $docType,
+            'observaciones' => $obs,
+            'fcam_abonos'   => $abonos,
+        ];
+    }
+
+    /**
+     * @param   list<array{numero: int, fecha: string, monto: float}>  $abonos
+     *
+     * @since   3.119.169
+     */
+    protected function validateManualFelFcamAbonos(array $abonos, float $grand): ?string
+    {
+        if ($abonos === []) {
+            return Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_ABONO_REQUIRED');
+        }
+
+        $sum = 0.0;
+        foreach ($abonos as $ab) {
+            if (trim((string) ($ab['fecha'] ?? '')) === '') {
+                return Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_DATE_REQUIRED');
+            }
+            $sum += (float) ($ab['monto'] ?? 0);
+        }
+
+        if (\abs($sum - $grand) > 0.05) {
+            return Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_TOTAL_MISMATCH');
+        }
+
+        return null;
+    }
+
+    /**
+     * Append ADENDA (observaciones) and optional FCAMB complement blocks to NUC AdditionalInfo list.
+     *
+     * @param   list<array<string, mixed>>  $additionalInfos
+     * @param   array{doc_type: string, observaciones: string, fcam_abonos: list<array{numero: int, fecha: string, monto: float}>}  $normalizedOpts
+     *
+     * @since   3.119.169
+     */
+    protected function appendNucAdditionalDocumentBlocks(
+        array &$additionalInfos,
+        string $cotRef,
+        int $quotationId,
+        array $normalizedOpts
+    ): void {
+        $obsDigifact = trim((string) ($normalizedOpts['observaciones'] ?? ''));
+        if ($obsDigifact === '') {
+            $obsDigifact = '-';
+        }
+
+        $adendaCode = $quotationId > 0 ? 'COT-' . $quotationId : ($cotRef !== '' ? $cotRef : 'MANUAL');
+        $cotValue   = $cotRef !== '' ? $cotRef : '-';
+
+        $additionalInfos[] = [
+            'Code'          => $adendaCode,
+            'Type'          => 'ADENDA',
+            'AditionalData' => [
+                'Data' => [[
+                    'Name' => 'INFORMACION_ADICIONAL',
+                    'Info' => [
+                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => $obsDigifact],
+                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => $cotValue],
+                    ],
+                ]],
+            ],
+        ];
+
+        if (($normalizedOpts['doc_type'] ?? '') !== 'FCAM') {
+            return;
+        }
+
+        $fcamData = [];
+        foreach ($normalizedOpts['fcam_abonos'] as $ab) {
+            $fcamData[] = [
+                'Info' => [
+                    ['Name' => 'NumeroAbono', 'Data' => null, 'Value' => (string) (int) ($ab['numero'] ?? 1)],
+                    ['Name' => 'FechaVencimiento', 'Data' => null, 'Value' => (string) ($ab['fecha'] ?? '')],
+                    ['Name' => 'MontoAbono', 'Data' => null, 'Value' => \sprintf('%.2f', (float) ($ab['monto'] ?? 0))],
+                ],
+            ];
+        }
+        if ($fcamData === []) {
+            return;
+        }
+
+        $additionalInfos[] = [
+            'Code'          => 'FCAMB',
+            'Type'          => 'COMPLEMENTO',
+            'AditionalData' => ['Data' => $fcamData],
+        ];
+    }
+
+    /**
+     * Build manual FEL NUC payload without persisting or certifying (preview / validation).
+     *
+     * @param   list<array{descripcion: string, cantidad: float, precio_unitario: float}>  $manualLines
+     * @param   int[]  $additionalQuotationIds
+     * @param   array<string, mixed>  $nucOptions
+     *
+     * @return  array{success: bool, message: string, payload?: array<string, mixed>}
+     *
+     * @since   3.119.169
+     */
+    public function buildManualFelNucPayloadForQuotation(
+        int $quotationId,
+        array $manualLines,
+        string $buyerName,
+        string $buyerNit,
+        string $buyerAddress,
+        array $additionalQuotationIds = [],
+        ?string $nucBuyerTaxIdOverride = null,
+        ?string $issueDateYmd = null,
+        array $nucOptions = []
+    ): array {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1 || !$this->isEngineAvailable()) {
+            return ['success' => false, 'message' => 'Engine unavailable'];
+        }
+
+        $issuedAt = $this->resolveManualIssueDate($issueDateYmd);
+        if ($issuedAt === null) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE_INVALID')];
+        }
+
+        $allQuotationIds = array_values(array_unique(array_filter(array_merge(
+            [$quotationId],
+            array_map('intval', $additionalQuotationIds)
+        ))));
+        if (!$this->quotationsShareClientNit($allQuotationIds)) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_QUOTATIONS_SAME_CLIENT')];
+        }
+
+        $quotation = $this->loadQuotation($quotationId);
+        if (!$quotation) {
+            return ['success' => false, 'message' => 'Quotation not found'];
+        }
+
+        $additionalRefs = [];
+        foreach ($allQuotationIds as $qid) {
+            if ((int) $qid === $quotationId) {
+                continue;
+            }
+            $qExtra = $this->loadQuotation((int) $qid);
+            if ($qExtra) {
+                $additionalRefs[] = $this->getQuotationDisplayRef($qExtra);
+            }
+        }
+
+        $creds = $this->getActiveCertificadorCredentials();
+        $buyerName = trim($buyerName);
+        $buyerNit  = trim($buyerNit);
+        if ($buyerName === '' || $buyerNit === '') {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_REQUIRED')];
+        }
+
+        $payload = $this->buildDigifactNucJsonPayloadFromManualInput(
+            $quotation,
+            $manualLines,
+            $creds,
+            $buyerName,
+            $buyerNit,
+            $buyerAddress,
+            $nucBuyerTaxIdOverride,
+            $issuedAt,
+            $additionalRefs,
+            $nucOptions
+        );
+        if (($payload['Items'] ?? []) === []) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')];
+        }
+
+        $grand = 0.0;
+        if (isset($payload['Totals']['GrandTotal']['InvoiceTotal'])) {
+            $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
+        }
+
+        $normalizedOpts = $this->normalizeManualFelNucOptions($nucOptions, $grand);
+        if ($normalizedOpts['doc_type'] === 'FCAM') {
+            $fcamErr = $this->validateManualFelFcamAbonos($normalizedOpts['fcam_abonos'], $grand);
+            if ($fcamErr !== null) {
+                return ['success' => false, 'message' => $fcamErr];
+            }
+        }
+
+        return ['success' => true, 'message' => 'OK', 'payload' => $payload];
+    }
+
+    /**
+     * Build PDF + HTML preview artifacts from a manual FEL NUC payload (no certification).
+     *
+     * @param   array<string, mixed>  $payload
+     *
+     * @return  array{success: bool, message: string, pdf_base64?: string, html?: string, doc_type?: string}
+     *
+     * @since   3.119.169
+     */
+    public function buildManualFelPreviewArtifacts(array $payload): array
+    {
+        try {
+            $previewItem = $this->buildInvoicePreviewItemFromNucPayload($payload);
+            $previewQuotationRef = $this->extractCotizacionReferenceFromNucPayload($payload);
+
+            if (!InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable()) {
+                return ['success' => false, 'message' => 'PDF engine unavailable'];
+            }
+
+            $pdfBinary = InvoiceGrimpsaTemplatePdfHelper::build($previewItem);
+
+            $fragment = JPATH_SITE . '/components/com_ordenproduccion/tmpl/invoice/preview_digifact_fragment.php';
+            $html     = '';
+            if (\is_file($fragment)) {
+                \ob_start();
+                include $fragment;
+                $html = (string) \ob_get_clean();
+            }
+
+            $docType = 'FACT';
+            if (isset($payload['Header']['DocType'])) {
+                $dt = strtoupper(trim((string) $payload['Header']['DocType']));
+                if (\in_array($dt, ['FACT', 'FCAM'], true)) {
+                    $docType = $dt;
+                }
+            }
+
+            return [
+                'success'     => true,
+                'message'     => 'OK',
+                'pdf_base64'  => \base64_encode($pdfBinary),
+                'html'        => $html,
+                'doc_type'    => $docType,
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Extract OBSERVACIONES from NUC AdditionalDocumentInfo ADENDA block.
+     *
+     * @param   array<string, mixed>  $payload
+     *
+     * @since   3.119.169
+     */
+    public function extractObservacionesFromNucPayload(array $payload): string
+    {
+        $list = $payload['AdditionalDocumentInfo']['AdditionalInfo'] ?? null;
+        if (!\is_array($list)) {
+            return '';
+        }
+
+        foreach ($list as $entry) {
+            if (!\is_array($entry) || strtoupper((string) ($entry['Type'] ?? '')) !== 'ADENDA') {
+                continue;
+            }
+            $dataBlocks = $entry['AditionalData']['Data'] ?? null;
+            if (!\is_array($dataBlocks)) {
+                continue;
+            }
+            foreach ($dataBlocks as $block) {
+                if (!\is_array($block)) {
+                    continue;
+                }
+                $infos = $block['Info'] ?? null;
+                if (!\is_array($infos)) {
+                    continue;
+                }
+                foreach ($infos as $info) {
+                    if (!\is_array($info)) {
+                        continue;
+                    }
+                    if (strtoupper(trim((string) ($info['Name'] ?? ''))) === 'OBSERVACIONES') {
+                        $v = trim((string) ($info['Value'] ?? ''));
+
+                        return ($v === '' || $v === '-') ? '' : $v;
+                    }
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Extract FCAM abonos from NUC FCAMB complement block.
+     *
+     * @param   array<string, mixed>  $payload
+     *
+     * @return  list<array{numero_abono: int, fecha_vencimiento: string, monto_abono: float}>
+     *
+     * @since   3.119.169
+     */
+    public function extractFcamAbonosFromNucPayload(array $payload): array
+    {
+        $list = $payload['AdditionalDocumentInfo']['AdditionalInfo'] ?? null;
+        if (!\is_array($list)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($list as $entry) {
+            if (!\is_array($entry)) {
+                continue;
+            }
+            $code = strtoupper(trim((string) ($entry['Code'] ?? '')));
+            $type = strtoupper(trim((string) ($entry['Type'] ?? '')));
+            if ($code !== 'FCAMB' && $type !== 'COMPLEMENTO') {
+                continue;
+            }
+            $dataBlocks = $entry['AditionalData']['Data'] ?? null;
+            if (!\is_array($dataBlocks)) {
+                continue;
+            }
+            foreach ($dataBlocks as $block) {
+                if (!\is_array($block)) {
+                    continue;
+                }
+                $infos = $block['Info'] ?? null;
+                if (!\is_array($infos)) {
+                    continue;
+                }
+                $num = 0;
+                $fecha = '';
+                $monto = 0.0;
+                foreach ($infos as $info) {
+                    if (!\is_array($info)) {
+                        continue;
+                    }
+                    $n = strtoupper(trim((string) ($info['Name'] ?? '')));
+                    $v = trim((string) ($info['Value'] ?? ''));
+                    if ($n === 'NUMEROABONO') {
+                        $num = (int) $v;
+                    } elseif ($n === 'FECHAVENCIMIENTO') {
+                        $fecha = $v;
+                    } elseif ($n === 'MONTOABONO') {
+                        $monto = (float) $v;
+                    }
+                }
+                if ($fecha !== '' && $monto > 0) {
+                    $out[] = [
+                        'numero_abono'       => $num > 0 ? $num : (\count($out) + 1),
+                        'fecha_vencimiento'  => $fecha,
+                        'monto_abono'        => $monto,
+                    ];
+                }
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -2932,6 +3359,15 @@ class FelInvoiceIssuanceService
             $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
         }
 
+        $observaciones = $this->extractObservacionesFromNucPayload($payload);
+        if ($observaciones !== '') {
+            $felExtra['pdf_observaciones'] = $observaciones;
+        }
+        $fcamAbonos = $this->extractFcamAbonosFromNucPayload($payload);
+        if ($fcamAbonos !== []) {
+            $felExtra['complemento_abonos'] = $fcamAbonos;
+        }
+
         $issuerName = trim((string) ($branch['Name'] ?? ''));
         if ($issuerName === '') {
             $issuerName = (string) ($seller['Name'] ?? '');
@@ -2941,6 +3377,7 @@ class FelInvoiceIssuanceService
         $item->id               = 0;
         $item->invoice_source = 'fel_import';
         $item->invoice_number = '';
+        $item->fel_tipo_dte   = (string) ($payload['Header']['DocType'] ?? 'FACT');
         $item->fel_emisor_nombre = $issuerName;
         $item->fel_emisor_nit    = (string) ($seller['TaxID'] ?? '');
         $item->fel_autorizacion_uuid = '';
@@ -3354,12 +3791,19 @@ class FelInvoiceIssuanceService
                 $receptorDireccion = $addrFromPayload;
             }
         }
+        $felTipoDte = 'FACT';
+        if (isset($nucPayload['Header']['DocType'])) {
+            $dt = strtoupper(trim((string) $nucPayload['Header']['DocType']));
+            if (\in_array($dt, ['FACT', 'FCAM'], true)) {
+                $felTipoDte = $dt;
+            }
+        }
         $update = [
             'fel_issue_status'       => 'completed',
             'fel_issue_error'        => null,
             'felplex_uuid'           => $felplex,
             'fel_autorizacion_uuid'  => $felAuth,
-            'fel_tipo_dte'           => 'FACT',
+            'fel_tipo_dte'           => $felTipoDte,
             'fel_fecha_emision'      => $felFechaEmision,
             'invoice_date'           => $invoiceDateYmd,
             'fel_receptor_id'        => $receptorDigits,

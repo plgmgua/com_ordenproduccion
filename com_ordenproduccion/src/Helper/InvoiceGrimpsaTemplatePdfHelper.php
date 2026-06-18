@@ -19,6 +19,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFacturaTemplateHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFelQrPngHelper;
@@ -362,6 +363,9 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $lineHBody = 3.5;
         $pdf->SetFont('Helvetica', '', 7.5);
 
+        $obsText = FelInvoiceHelper::resolvePdfObservaciones($inv);
+        $obsRowH = $obsText !== '' ? self::observacionesRowHeight($lineHBody) : 0.0;
+
         $totalIva = 0.0;
         $i        = 0;
         $nLines   = \count($lineItems);
@@ -371,7 +375,8 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $row     = $lineItems[$i];
             $nextH   = self::estimateDataRowHeight($pdf, $row, $colWidths, $lineHBody);
             $hasMoreAfterThis = ($i < $nLines - 1);
-            $bottomLimit      = $hasMoreAfterThis ? $tableBottom : ($tableBottom - $totH);
+            $reserveBelow     = $hasMoreAfterThis ? 0.0 : ($totH + $obsRowH);
+            $bottomLimit      = $tableBottom - $reserveBelow;
 
             if ($yTable + $nextH > $bottomLimit && $yTable > $yBodySegmentTop + 0.5) {
                 self::drawTableVerticalGuides($pdf, self::MARGIN_X, $yTable, $tableBottom, $colWidths);
@@ -398,6 +403,23 @@ final class InvoiceGrimpsaTemplatePdfHelper
                 $lineHBody
             );
             $i++;
+        }
+
+        if ($obsText !== '') {
+            $preferredObsTop = $tableBottom - $totH - $obsRowH;
+            if ($yTable + $obsRowH > $preferredObsTop && $yTable > $yBodySegmentTop + 0.5) {
+                self::drawTableVerticalGuides($pdf, self::MARGIN_X, $yTable, $tableBottom, $colWidths);
+                $pdf->AddPage();
+                $pdf->SetXY(self::MARGIN_X, self::CMY_BAR_MM + 4);
+                $pdf->SetFont('Helvetica', 'B', 8);
+                $pdf->Cell($lw, 4, CotizacionPdfHelper::encodeTextForFpdf(
+                    'Continuación — ' . (string) ($inv->invoice_number ?? '')
+                ), 0, 1, 'L');
+                $pdf->Ln(1);
+                $pdf->SetFont('Helvetica', '', 7.5);
+                $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
+            }
+            $yTable = self::drawObservacionesRow($pdf, $yTable, $colWidths, $obsText, $lineHBody);
         }
 
         $preferredTotalsTop = $tableBottom - $totH;
@@ -653,6 +675,66 @@ final class InvoiceGrimpsaTemplatePdfHelper
             number_format($iva, 2, '.', ''),
             false
         );
+
+        return $y + $rowH;
+    }
+
+    /**
+     * Fixed height for the observaciones band (3 text lines in the description column).
+     *
+     * @since  3.119.169
+     */
+    private static function observacionesRowHeight(float $lineH): float
+    {
+        return 3 * $lineH + 1.1;
+    }
+
+    /**
+     * Draw observaciones at the bottom of the description column (justified, 3-line height).
+     *
+     * @param  list<float>  $cw
+     *
+     * @since  3.119.169
+     */
+    private static function drawObservacionesRow(
+        InvoiceGrimpsaPdfDocument $pdf,
+        float $y,
+        array $cw,
+        string $obsText,
+        float $lineH
+    ): float {
+        $rowH     = self::observacionesRowHeight($lineH);
+        $padXDesc = 0.9;
+        $padY     = 0.55;
+        $x        = self::MARGIN_X;
+
+        for ($ci = 0; $ci < 3; $ci++) {
+            $pdf->SetXY($x, $y);
+            $pdf->Cell($cw[$ci], $rowH, '', 'LR', 0);
+            $x += $cw[$ci];
+        }
+
+        $pdf->SetXY($x, $y);
+        $pdf->Cell($cw[3], $rowH, '', 'LR', 0);
+        $pdf->SetXY($x + $padXDesc, $y + $padY);
+        $innerW = $cw[3] - 2 * $padXDesc;
+        $pdf->SetFont('Helvetica', '', 7.5);
+        $pdf->MultiCell(
+            $innerW,
+            $lineH,
+            CotizacionPdfHelper::encodeTextForFpdf($obsText),
+            0,
+            'J'
+        );
+        $x += $cw[3];
+
+        for ($j = 0; $j < 2; $j++) {
+            $pdf->SetXY($x, $y);
+            $pdf->Cell($cw[4 + $j], $rowH, '', 'LR', 0);
+            $x += $cw[4 + $j];
+        }
+
+        self::drawImpuestosSubCells($pdf, $x, $y, $rowH, $cw[6], '', false);
 
         return $y + $rowH;
     }

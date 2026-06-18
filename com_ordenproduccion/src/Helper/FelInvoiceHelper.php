@@ -226,6 +226,39 @@ class FelInvoiceHelper
     }
 
     /**
+     * Resolve observaciones text for PDF rendering (fel_extra or NUC ADENDA).
+     *
+     * @since   3.119.169
+     */
+    public static function resolvePdfObservaciones(object $inv): string
+    {
+        if (!empty($inv->fel_extra) && \is_string($inv->fel_extra)) {
+            $extra = \json_decode($inv->fel_extra, true);
+            if (\is_array($extra)) {
+                $obs = trim((string) ($extra['pdf_observaciones'] ?? ''));
+                if ($obs !== '') {
+                    return $obs;
+                }
+            }
+        }
+
+        if (!empty($inv->fel_request_json) && \is_string($inv->fel_request_json)) {
+            $payload = \json_decode($inv->fel_request_json, true);
+            if (\is_array($payload)) {
+                foreach (self::parseNucAdditionalDocumentRowsFromFelRequest($inv->fel_request_json) as $row) {
+                    if (strtoupper((string) ($row['label'] ?? '')) === 'OBSERVACIONES') {
+                        $v = trim((string) ($row['value'] ?? ''));
+
+                        return ($v === '' || $v === '-') ? '' : $v;
+                    }
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
      * One-line summary for invoice list (prefers Cotizacion/COTIZACION row, else first non-empty value).
      *
      * @since   3.118.43

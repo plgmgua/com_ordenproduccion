@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.169-STABLE] - 2026-05-19
+
+### Added
+- **Factura manual:** select **FACT** or **FCAM**; editable **Observaciones** (Digifact ADENDA + PDF); FCAM abono due date/amount; **Vista previa** PDF before certification (`manualFelPreviewFromQuotation`).
+
+### Changed
+- **Invoice PDF (Grimpsa template):** observaciones band at bottom of description column (3 lines, justified).
+- **FEL issuance:** `fel_tipo_dte` taken from NUC `Header.DocType` (FACT/FCAM).
+
 ## [3.119.168-STABLE] - 2026-05-19
 
 ### Added

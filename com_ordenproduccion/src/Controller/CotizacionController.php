@@ -2161,6 +2161,7 @@ class CotizacionController extends BaseController
         }
 
         $issueDateYmd = trim((string) $app->input->post->getString('manual_issue_date', ''));
+        $nucOptions   = $this->parseManualFelNucOptionsFromPost($app->input);
 
         $extraIdsRaw = $app->input->post->getString('manual_quotation_ids_json', '[]');
         $extraIdsDec = \json_decode($extraIdsRaw, true);
@@ -2250,7 +2251,8 @@ class CotizacionController extends BaseController
                     $ordenIds,
                     $cuiDigits,
                     $additionalQuotationIds,
-                    $issueDateYmd
+                    $issueDateYmd,
+                    $nucOptions
                 );
             } else {
                 $result = $fel->issueDigifactNucManualFromQuotation(
@@ -2263,7 +2265,8 @@ class CotizacionController extends BaseController
                     $ordenIds,
                     null,
                     $additionalQuotationIds,
-                    $issueDateYmd
+                    $issueDateYmd,
+                    $nucOptions
                 );
             }
 
@@ -2285,6 +2288,191 @@ class CotizacionController extends BaseController
         }
 
         $app->close();
+    }
+
+    /**
+     * JSON: preview manual FEL invoice (PDF + HTML) before Digifact certification.
+     *
+     * @return  void
+     *
+     * @since   3.119.169
+     */
+    public function manualFelPreviewFromQuotation(): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $quotationId = $app->input->getInt('quotation_id', 0);
+        if ($quotationId < 1) {
+            $quotationId = $app->input->getInt('id', 0);
+        }
+        if ($quotationId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotations'))
+                ->where($db->quoteName('id') . ' = ' . $quotationId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        if (!AccessHelper::userCanAccessQuotationRow($row)) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        if (!AccessHelper::isInStrictAdministracionGroup()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $buyerName = trim((string) $app->input->post->getString('manual_buyer_name', ''));
+        $buyerNit  = trim((string) $app->input->post->getString('manual_buyer_nit', ''));
+        $buyerAddr = trim((string) $app->input->post->getString('manual_buyer_address', 'Ciudad'));
+
+        $linesRaw = $app->input->post->getString('manual_lines_json', '');
+        $linesDec = \json_decode($linesRaw, true);
+        if (!\is_array($linesDec) || $linesDec === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+        $manualLines = [];
+        foreach ($linesDec as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $desc = trim((string) ($line['descripcion'] ?? ''));
+            $qty  = (float) ($line['cantidad'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? 0);
+            if ($desc === '' || $qty < 0.000001 || $unit < 0) {
+                continue;
+            }
+            $manualLines[] = [
+                'descripcion'       => $desc,
+                'cantidad'          => $qty,
+                'precio_unitario'   => $unit,
+                'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
+            ];
+        }
+        if ($manualLines === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $issueDateYmd = trim((string) $app->input->post->getString('manual_issue_date', ''));
+        $nucOptions   = $this->parseManualFelNucOptionsFromPost($app->input);
+
+        $extraIdsRaw = $app->input->post->getString('manual_quotation_ids_json', '[]');
+        $extraIdsDec = \json_decode($extraIdsRaw, true);
+        $additionalQuotationIds = [];
+        if (\is_array($extraIdsDec)) {
+            foreach ($extraIdsDec as $eqid) {
+                $eqid = (int) $eqid;
+                if ($eqid > 0 && $eqid !== $quotationId) {
+                    $additionalQuotationIds[] = $eqid;
+                }
+            }
+        }
+
+        try {
+            $fel = new FelInvoiceIssuanceService();
+            if (!$fel->isEngineAvailable() || !$fel->hasQuotationIdColumn()) {
+                echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_FEL_UNAVAILABLE')], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+
+            $nitRaw = $buyerNit !== '' ? $buyerNit : trim((string) ($row->client_nit ?? ''));
+            $cuiOverride = null;
+            if (CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($nitRaw)) {
+                $cuiPost   = trim((string) $app->input->post->getString('digifact_buyer_cui', ''));
+                $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
+                if ($cuiDigits !== '') {
+                    $cuiOverride = $cuiDigits;
+                }
+            }
+
+            $built = $fel->buildManualFelNucPayloadForQuotation(
+                $quotationId,
+                $manualLines,
+                $buyerName,
+                $nitRaw,
+                $buyerAddr,
+                $additionalQuotationIds,
+                $cuiOverride,
+                $issueDateYmd,
+                $nucOptions
+            );
+            if (empty($built['success']) || empty($built['payload']) || !\is_array($built['payload'])) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => (string) ($built['message'] ?? Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_FAILED')),
+                ], JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+
+            $preview = $fel->buildManualFelPreviewArtifacts($built['payload']);
+            echo json_encode($preview, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+
+        $app->close();
+    }
+
+    /**
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.169
+     */
+    protected function parseManualFelNucOptionsFromPost(\Joomla\Input\Input $input): array
+    {
+        $docType = strtoupper(trim((string) $input->post->getString('manual_doc_type', 'FACT')));
+        if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
+            $docType = 'FACT';
+        }
+
+        $observaciones = trim((string) $input->post->getString('manual_observaciones', ''));
+
+        $fcamAbonos = [];
+        $fcamRaw    = $input->post->getString('manual_fcam_abonos_json', '[]');
+        $fcamDec    = \json_decode($fcamRaw, true);
+        if (\is_array($fcamDec)) {
+            foreach ($fcamDec as $ab) {
+                if (!\is_array($ab)) {
+                    continue;
+                }
+                $fcamAbonos[] = $ab;
+            }
+        }
+
+        return [
+            'doc_type'      => $docType,
+            'observaciones' => $observaciones,
+            'fcam_abonos'   => $fcamAbonos,
+        ];
     }
 
     /**
