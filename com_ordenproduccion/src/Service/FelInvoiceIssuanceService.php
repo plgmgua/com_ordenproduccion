@@ -3729,9 +3729,21 @@ class FelInvoiceIssuanceService
             return $nucOptions;
         }
 
-        $dateYmd = $issuedAt->format('Y-m-d');
-        $helper  = new BanguatTipoCambioHelper();
-        $rate    = $helper->getUsdReferenciaForDate($dateYmd);
+        $dateYmd      = $issuedAt->format('Y-m-d');
+        $postedRate   = null;
+        if (isset($nucOptions['exchange_rate'])) {
+            $candidate = (float) $nucOptions['exchange_rate'];
+            if ($candidate > 0.000001) {
+                $postedRate = $candidate;
+            }
+        }
+
+        $helper = new BanguatTipoCambioHelper();
+        $rate   = $helper->getUsdReferenciaForDate($dateYmd);
+        if ($rate === null || $rate <= 0.000001) {
+            $rate = $postedRate;
+        }
+
         if ($rate === null || $rate <= 0.000001) {
             $nucOptions['_error'] = Text::sprintf(
                 'COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_UNAVAILABLE',

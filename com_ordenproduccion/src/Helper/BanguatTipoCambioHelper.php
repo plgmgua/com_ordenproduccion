@@ -115,6 +115,16 @@ class BanguatTipoCambioHelper
             . '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">'
             . '<soap:Body>' . $innerBody . '</soap:Body></soap:Envelope>';
 
+        $body = $this->soapPostViaHttpFactory($envelope, $action);
+        if ($body !== '') {
+            return $body;
+        }
+
+        return $this->soapPostViaCurl($envelope, $action);
+    }
+
+    private function soapPostViaHttpFactory(string $envelope, string $action): string
+    {
         try {
             $http = HttpFactory::getHttp();
             $resp = $http->post(
@@ -134,6 +144,42 @@ class BanguatTipoCambioHelper
         } catch (\Throwable $e) {
             return '';
         }
+    }
+
+    private function soapPostViaCurl(string $envelope, string $action): string
+    {
+        if (!\function_exists('curl_init')) {
+            return '';
+        }
+
+        $ch = \curl_init(self::SOAP_URL);
+        if ($ch === false) {
+            return '';
+        }
+
+        \curl_setopt_array($ch, [
+            \CURLOPT_POST           => true,
+            \CURLOPT_POSTFIELDS     => $envelope,
+            \CURLOPT_HTTPHEADER     => [
+                'Content-Type: text/xml; charset=utf-8',
+                'SOAPAction: "' . self::SOAP_NS . $action . '"',
+            ],
+            \CURLOPT_RETURNTRANSFER => true,
+            \CURLOPT_TIMEOUT        => 15,
+            \CURLOPT_CONNECTTIMEOUT => 10,
+            \CURLOPT_SSL_VERIFYPEER => true,
+            \CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+
+        $body = \curl_exec($ch);
+        $code = (int) \curl_getinfo($ch, \CURLINFO_HTTP_CODE);
+        \curl_close($ch);
+
+        if ($body === false || $code !== 200) {
+            return '';
+        }
+
+        return \trim((string) $body);
     }
 
     private function ymdToDmY(string $dateYmd): string

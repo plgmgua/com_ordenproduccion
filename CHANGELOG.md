@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.187-STABLE] - 2026-06-19
+
+### Fixed
+- **Factura manual USD:** BANGUAT SOAP lookup uses cURL fallback when Joomla HTTP client fails; exchange rate field is editable and posted rate is accepted when auto-fetch fails.
+
 ## [3.119.186-STABLE] - 2026-05-19
 
 ### Added

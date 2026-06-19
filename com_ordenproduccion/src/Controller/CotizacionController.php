@@ -2529,11 +2529,25 @@ class CotizacionController extends BaseController
             }
         }
 
+        $currency = $this->parseManualFelCurrencyFromPost($input);
+
+        $exchangeRate = null;
+        if ($currency === 'USD') {
+            $rateRaw = $input->post->getString('manual_exchange_rate', '');
+            if ($rateRaw !== '') {
+                $rate = (float) $rateRaw;
+                if ($rate > 0.000001) {
+                    $exchangeRate = $rate;
+                }
+            }
+        }
+
         return [
-            'doc_type'      => $docType,
-            'observaciones' => $observaciones,
-            'fcam_abonos'   => $fcamAbonos,
-            'currency'      => $this->parseManualFelCurrencyFromPost($input),
+            'doc_type'       => $docType,
+            'observaciones'  => $observaciones,
+            'fcam_abonos'    => $fcamAbonos,
+            'currency'       => $currency,
+            'exchange_rate'  => $exchangeRate,
         ];
     }
 

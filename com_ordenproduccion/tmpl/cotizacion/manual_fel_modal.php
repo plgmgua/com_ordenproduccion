@@ -94,8 +94,8 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                     </div>
                     <div class="col-md-3 d-none" id="manual-fel-exchange-wrap">
                         <label class="form-label small mb-1" for="manual-fel-exchange-rate"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE', 'Exchange rate (BANGUAT)', 'Tipo de cambio (BANGUAT)')); ?></label>
-                        <input type="text" class="form-control form-control-sm text-end" id="manual-fel-exchange-rate" readonly />
-                        <div id="manual-fel-exchange-msg" class="form-text small text-muted"></div>
+                        <input type="text" class="form-control form-control-sm text-end" id="manual-fel-exchange-rate" inputmode="decimal" />
+                        <div id="manual-fel-exchange-msg" class="form-text small text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_HELP', 'Auto-filled from BANGUAT for the issue date; you may enter it manually if the lookup fails.', 'Se completa automáticamente desde BANGUAT según la fecha de emisión; puede ingresarlo manualmente si la consulta falla.'), ENT_QUOTES, 'UTF-8'); ?></div>
                     </div>
                     <div class="col-12">
                         <label class="form-label small mb-1" for="manual-fel-observaciones"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_OBSERVACIONES', 'Observations', 'Observaciones')); ?></label>
@@ -305,6 +305,8 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     var msgPreviewFailed = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_FAILED', 'Could not build preview.', 'No se pudo generar la vista previa.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgExchangeRateRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_REQUIRED', 'USD invoices require the BANGUAT exchange rate for the issue date.', 'Las facturas en USD requieren el tipo de cambio BANGUAT de la fecha de emisión.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgExchangeRateLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_LOADING', 'Loading exchange rate…', 'Cargando tipo de cambio…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgExchangeRateManualHint = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_MANUAL_HINT', 'BANGUAT lookup failed — enter the reference rate manually (see banguat.gob.gt/tipo_cambio).', 'No se pudo consultar BANGUAT — ingrese el tipo de cambio de referencia manualmente (ver banguat.gob.gt/tipo_cambio).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgExchangeRateHelp = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_HELP', 'Auto-filled from BANGUAT for the issue date; you may enter it manually if the lookup fails.', 'Se completa automáticamente desde BANGUAT según la fecha de emisión; puede ingresarlo manualmente si la consulta falla.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var exchangeRateLoaded = false;
     var exchangeRateLoading = false;
     if (!modalEl || !generarBtn || !tbody) return;
@@ -344,13 +346,26 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     function isUsdCurrency() {
         return currencySelect && String(currencySelect.value || 'GTQ').toUpperCase() === 'USD';
     }
+    function hasValidExchangeRate() {
+        if (!exchangeRateInput) {
+            return false;
+        }
+        return parseNum(exchangeRateInput.value) > 0.000001;
+    }
+    function syncExchangeRateLoadedFromInput() {
+        exchangeRateLoaded = hasValidExchangeRate();
+        if (exchangeRateLoaded && exchangeMsg) {
+            exchangeMsg.textContent = msgExchangeRateHelp;
+            exchangeMsg.className = 'form-text small text-muted';
+        }
+    }
     function resetExchangeRateState() {
         exchangeRateLoaded = false;
         if (exchangeRateInput) {
             exchangeRateInput.value = '';
         }
         if (exchangeMsg) {
-            exchangeMsg.textContent = '';
+            exchangeMsg.textContent = msgExchangeRateHelp;
             exchangeMsg.className = 'form-text small text-muted';
         }
     }
@@ -398,10 +413,14 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                         exchangeMsg.className = 'form-text small text-muted';
                     }
                 } else {
-                    exchangeRateLoaded = false;
+                    exchangeRateLoaded = hasValidExchangeRate();
                     if (exchangeMsg) {
-                        exchangeMsg.textContent = (j && j.message) ? j.message : msgExchangeRateRequired;
-                        exchangeMsg.className = 'form-text small text-danger';
+                        exchangeMsg.textContent = exchangeRateLoaded
+                            ? msgExchangeRateHelp
+                            : (msgExchangeRateManualHint + ((j && j.message) ? (' ' + j.message) : ''));
+                        exchangeMsg.className = exchangeRateLoaded
+                            ? 'form-text small text-muted'
+                            : 'form-text small text-danger';
                     }
                 }
             })
@@ -430,6 +449,10 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 fetchExchangeRate();
             }
         });
+    }
+    if (exchangeRateInput) {
+        exchangeRateInput.addEventListener('input', syncExchangeRateLoadedFromInput);
+        exchangeRateInput.addEventListener('change', syncExchangeRateLoadedFromInput);
     }
     function hideAlert() {
         if (alertEl) {
@@ -848,7 +871,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 showAlert(msgExchangeRateLoading);
                 return null;
             }
-            if (!exchangeRateLoaded) {
+            if (!hasValidExchangeRate()) {
                 showAlert(msgExchangeRateRequired);
                 return null;
             }
@@ -881,6 +904,9 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         fd.append('manual_fcam_abonos_json', buildFcamAbonosJson());
         if (issueDateInput) {
             fd.append('manual_issue_date', String(issueDateInput.value || issueDateDefault));
+        }
+        if (isUsdCurrency() && exchangeRateInput) {
+            fd.append('manual_exchange_rate', String(exchangeRateInput.value || '').trim());
         }
         if (needsCfCui && cuiInput) {
             fd.append('digifact_buyer_cui', String(cuiInput.value || '').replace(/\D/g, ''));
