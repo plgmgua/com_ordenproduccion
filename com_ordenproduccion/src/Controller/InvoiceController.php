@@ -20,6 +20,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
@@ -1095,5 +1096,249 @@ class InvoiceController extends BaseController
         }
 
         $this->setRedirect($back);
+    }
+
+    /**
+     * JSON: preview manual FEL from invoice duplicate modal (invoice data only).
+     *
+     * @since  3.119.178
+     */
+    public function manualFelPreviewFromInvoiceDuplicate(): void
+    {
+        $this->respondManualFelFromInvoiceDuplicate(true);
+    }
+
+    /**
+     * JSON: issue manual FEL from invoice duplicate modal (invoice data only).
+     *
+     * @since  3.119.178
+     */
+    public function manualFelIssueFromInvoiceDuplicate(): void
+    {
+        $this->respondManualFelFromInvoiceDuplicate(false);
+    }
+
+    /**
+     * @since  3.119.178
+     */
+    protected function respondManualFelFromInvoiceDuplicate(bool $previewOnly): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        if (!AccessHelper::isSuperUser()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $sourceInvoiceId = $app->input->getInt('source_invoice_id', 0);
+        if ($sourceInvoiceId < 1) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $invModel = $this->getModel('Invoice', 'Site', ['ignore_request' => true]);
+        $sourceInv = $invModel && \is_callable([$invModel, 'getItem']) ? $invModel->getItem($sourceInvoiceId) : null;
+        if (!$sourceInv) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $buyerName = trim((string) $app->input->post->getString('manual_buyer_name', ''));
+        $buyerNit  = trim((string) $app->input->post->getString('manual_buyer_nit', ''));
+        $buyerAddr = trim((string) $app->input->post->getString('manual_buyer_address', 'Ciudad'));
+
+        $linesRaw = $app->input->post->getString('manual_lines_json', '');
+        $linesDec = \json_decode($linesRaw, true);
+        if (!\is_array($linesDec) || $linesDec === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $manualLines = [];
+        foreach ($linesDec as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $desc = trim((string) ($line['descripcion'] ?? ''));
+            $qty  = (float) ($line['cantidad'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? 0);
+            if ($desc === '' || $qty < 0.000001 || $unit < 0) {
+                continue;
+            }
+            $manualLines[] = [
+                'descripcion'     => $desc,
+                'cantidad'        => $qty,
+                'precio_unitario' => $unit,
+            ];
+        }
+        if ($manualLines === []) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $issueDateYmd = trim((string) $app->input->post->getString('manual_issue_date', ''));
+        $nucOptions   = $this->parseManualFelNucOptionsFromPost($app->input);
+
+        $ordenIdsRaw = $app->input->post->getString('manual_orden_ids_json', '[]');
+        $ordenIdsDec = \json_decode($ordenIdsRaw, true);
+        $ordenIds    = [];
+        if (\is_array($ordenIdsDec)) {
+            foreach ($ordenIdsDec as $oid) {
+                $oid = (int) $oid;
+                if ($oid > 0) {
+                    $ordenIds[] = $oid;
+                }
+            }
+        }
+
+        $fel = new FelInvoiceIssuanceService();
+        if (!$fel->isEngineAvailable()) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_FEL_UNAVAILABLE')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $nitRaw    = $buyerNit !== '' ? $buyerNit : trim((string) ($sourceInv->client_nit ?? ''));
+        $isCf      = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($nitRaw);
+        $cuiPost   = trim((string) $app->input->post->getString('digifact_buyer_cui', ''));
+        $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
+        $cuiOverride = null;
+
+        if ($isCf) {
+            if ($previewOnly) {
+                if ($cuiDigits !== '') {
+                    $cuiOverride = $cuiDigits;
+                }
+            } else {
+                if ($cuiDigits === '') {
+                    echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_REQUIRED')], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+                $verify = $fel->verifyDigifactCui($cuiPost);
+                if (empty($verify['success'])) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => (string) ($verify['message'] ?? Text::_('COM_ORDENPRODUCCION_CLIENTE_DIGIFACT_CUI_NOT_FOUND')),
+                    ], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+                $cuiOverride = $cuiDigits;
+            }
+        }
+
+        try {
+            if ($previewOnly) {
+                $built = $fel->buildManualFelNucPayloadFromInvoiceDuplicate(
+                    $sourceInvoiceId,
+                    $manualLines,
+                    $buyerName,
+                    $nitRaw,
+                    $buyerAddr,
+                    $cuiOverride,
+                    $issueDateYmd,
+                    $nucOptions
+                );
+                if (empty($built['success']) || !isset($built['payload']) || !\is_array($built['payload'])) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => (string) ($built['message'] ?? Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_FAILED')),
+                    ], JSON_UNESCAPED_UNICODE);
+                    $app->close();
+                }
+                $preview = $fel->buildManualFelPreviewArtifacts($built['payload']);
+                echo json_encode($preview, JSON_UNESCAPED_UNICODE);
+                $app->close();
+            }
+
+            $result = $fel->issueDigifactNucManualFromInvoiceDuplicate(
+                $sourceInvoiceId,
+                (int) $user->id,
+                $manualLines,
+                $buyerName,
+                $nitRaw,
+                $buyerAddr,
+                $ordenIds,
+                $cuiOverride,
+                $issueDateYmd,
+                $nucOptions
+            );
+            if (!empty($result['success']) && !empty($result['invoice_id'])) {
+                $result['invoice_url'] = Route::_(
+                    'index.php?option=com_ordenproduccion&view=invoice&id=' . (int) $result['invoice_id'],
+                    false
+                );
+            }
+            echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        $app->close();
+    }
+
+    /**
+     * @return  array<string, mixed>
+     *
+     * @since  3.119.178
+     */
+    protected function parseManualFelNucOptionsFromPost(\Joomla\Input\Input $input): array
+    {
+        $docType = strtoupper(trim((string) $input->post->getString('manual_doc_type', 'FACT')));
+        if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
+            $docType = 'FACT';
+        }
+
+        $observaciones = trim((string) $input->post->getString('manual_observaciones', ''));
+
+        $fcamAbonos = [];
+        $fcamRaw    = $input->post->getString('manual_fcam_abonos_json', '[]');
+        $fcamDec    = \json_decode($fcamRaw, true);
+        if (\is_array($fcamDec)) {
+            foreach ($fcamDec as $ab) {
+                if (!\is_array($ab)) {
+                    continue;
+                }
+                $fcamAbonos[] = $ab;
+            }
+        }
+
+        $currency = strtoupper(trim((string) $input->post->getString('manual_currency', 'GTQ')));
+        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+            $currency = 'GTQ';
+        }
+
+        $exchangeRate = null;
+        if ($currency === 'USD') {
+            $rateRaw = $input->post->getString('manual_exchange_rate', '');
+            if ($rateRaw !== '') {
+                $rate = (float) $rateRaw;
+                if ($rate > 0.000001) {
+                    $exchangeRate = $rate;
+                }
+            }
+        }
+
+        return [
+            'doc_type'       => $docType,
+            'observaciones'  => $observaciones,
+            'fcam_abonos'    => $fcamAbonos,
+            'currency'       => $currency,
+            'exchange_rate'  => $exchangeRate,
+        ];
     }
 }

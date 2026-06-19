@@ -2711,12 +2711,7 @@ class FelInvoiceIssuanceService
      */
     public function buildManualFelSeedFromInvoice(object $invoice): ?array
     {
-        $quotationId = $this->resolveQuotationIdForInvoiceDuplicate($invoice);
-        if ($quotationId < 1) {
-            return null;
-        }
-
-        $lines = $this->resolveManualFelLinesFromInvoice($invoice, $quotationId);
+        $lines = $this->resolveManualFelLinesFromInvoice($invoice, 0);
         if ($lines === []) {
             return null;
         }
@@ -2814,7 +2809,7 @@ class FelInvoiceIssuanceService
         $issueDate = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
 
         return [
-            'quotation_id'    => $quotationId,
+            'quotation_id'      => 0,
             'source_invoice_id' => (int) ($invoice->id ?? 0),
             'buyer_name'      => $buyerName,
             'buyer_nit'       => $buyerNit,
@@ -2838,15 +2833,11 @@ class FelInvoiceIssuanceService
      */
     public function canDuplicateInvoiceToManualFel(object $invoice): bool
     {
-        if (!$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
+        if (!$this->isEngineAvailable()) {
             return false;
         }
 
-        if ($this->resolveQuotationIdForInvoiceDuplicate($invoice) < 1) {
-            return false;
-        }
-
-        return $this->resolveManualFelLinesFromInvoice($invoice) !== [];
+        return $this->resolveManualFelLinesFromInvoice($invoice, 0) !== [];
     }
 
     /**
@@ -3169,23 +3160,359 @@ class FelInvoiceIssuanceService
      */
     public function buildDuplicateManualFelUrlForInvoice(object $invoice): string
     {
-        if (!$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
+        if (!$this->isEngineAvailable()) {
             return '';
         }
 
-        $quotationId = $this->resolveQuotationIdForInvoiceDuplicate($invoice);
-        if ($quotationId < 1) {
+        if ($this->resolveManualFelLinesFromInvoice($invoice, 0) === []) {
             return '';
         }
 
-        if ($this->resolveManualFelLinesFromInvoice($invoice, $quotationId) === []) {
-            return '';
+        return 'index.php?option=com_ordenproduccion&view=invoice&id='
+            . (int) ($invoice->id ?? 0)
+            . '&manual_fel_duplicate=1';
+    }
+
+    /**
+     * Synthetic cotización context for manual FEL when issuing from invoice data only.
+     *
+     * @since  3.119.178
+     */
+    protected function buildSyntheticQuotationStubForManualFel(
+        string $buyerName,
+        string $buyerNit,
+        string $buyerAddress,
+        string $referenceLabel,
+        string $currency = 'Q'
+    ): object {
+        $stub                     = new \stdClass();
+        $stub->id                 = 0;
+        $stub->quotation_number   = $referenceLabel !== '' ? $referenceLabel : '-';
+        $stub->client_name        = $buyerName;
+        $stub->client_nit         = $buyerNit;
+        $stub->client_address     = $buyerAddress;
+        $stub->total_amount       = 0;
+        $stub->currency           = $currency;
+        $stub->sales_agent        = null;
+        $stub->quote_date         = null;
+
+        return $stub;
+    }
+
+    /**
+     * Create draft invoice row for manual FEL duplicated from an existing invoice (no cotización).
+     *
+     * @since  3.119.178
+     */
+    public function createNewManualInvoiceFromSourceInvoice(int $sourceInvoiceId, int $userId, ?string $invoiceDateYmd = null): int
+    {
+        $sourceInvoiceId = (int) $sourceInvoiceId;
+        $userId          = (int) $userId;
+        if (!$this->isEngineAvailable() || $sourceInvoiceId < 1 || $userId < 1) {
+            return 0;
         }
 
-        return 'index.php?option=com_ordenproduccion&view=cotizacion&id='
-            . $quotationId
-            . '&manual_fel_seed_invoice='
-            . (int) ($invoice->id ?? 0);
+        $source = $this->loadInvoice($sourceInvoiceId);
+        if (!$source) {
+            return 0;
+        }
+
+        $issuedAt = $this->resolveManualIssueDate($invoiceDateYmd);
+        if ($issuedAt === null) {
+            return 0;
+        }
+
+        $otLabels = [];
+        try {
+            $matchModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if ($matchModel && \is_callable([$matchModel, 'getAssociatedOrdenLinksForInvoice'])) {
+                foreach ($matchModel->getAssociatedOrdenLinksForInvoice($sourceInvoiceId) as $link) {
+                    $label = trim((string) ($link['orden_num'] ?? ''));
+                    if ($label !== '') {
+                        $otLabels[$label] = $label;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+        if ($otLabels === []) {
+            $legacyOt = trim((string) ($source->orden_de_trabajo ?? ''));
+            if ($legacyOt !== '') {
+                foreach (preg_split('/\s*,\s*/', $legacyOt) ?: [] as $part) {
+                    $part = trim((string) $part);
+                    if ($part !== '') {
+                        $otLabels[$part] = $part;
+                    }
+                }
+            }
+        }
+
+        $srcNum        = InvoiceListHelper::resolveInvoiceHeadingNumber($source);
+        $invoiceNumber = $this->generateNextInvoiceNumber();
+        $now           = Factory::getDate()->toSql();
+        $invoiceDate   = $issuedAt->format('Y-m-d');
+
+        $row = [
+            'invoice_number'     => $invoiceNumber,
+            'orden_id'           => null,
+            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', array_values($otLabels)) : '',
+            'client_name'        => $source->client_name ?? '',
+            'client_nit'         => $source->client_nit ?? null,
+            'sales_agent'        => $source->sales_agent ?? null,
+            'request_date'       => !empty($source->request_date) ? $source->request_date : null,
+            'delivery_date'      => null,
+            'invoice_date'       => $invoiceDate,
+            'invoice_amount'     => 0,
+            'currency'           => $source->currency ?? 'Q',
+            'work_description'   => $source->work_description ?? null,
+            'material'           => null,
+            'dimensions'         => null,
+            'print_color'        => null,
+            'line_items'         => '[]',
+            'quotation_file'     => null,
+            'extraction_status'  => 'manual',
+            'status'             => 'draft',
+            'notes'              => 'FEL manual duplicada desde factura ' . $srcNum,
+            'state'              => 1,
+            'version'            => '3.119.178',
+            'created'            => $now,
+            'created_by'         => $userId,
+            'quotation_id'       => null,
+            'invoice_source'     => 'invoice_fel_duplicate',
+            'fel_issue_status'   => 'pending',
+            'fel_issue_error'    => null,
+            'fel_request_json'   => null,
+            'fel_response_json'  => null,
+            'fel_local_pdf_path' => null,
+            'fel_local_xml_path' => null,
+            'felplex_uuid'       => null,
+        ];
+
+        $cols = $this->db->getTableColumns('#__ordenproduccion_invoices', false);
+        $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        $filtered = [];
+        foreach ($row as $k => $v) {
+            if (isset($cols[strtolower($k)])) {
+                $filtered[$k] = $v;
+            }
+        }
+
+        $this->ensureMultipleInvoicesPerQuotationSchema();
+
+        $o = (object) $filtered;
+        try {
+            $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
+        } catch (\Throwable $e) {
+            return 0;
+        }
+
+        return (int) ($o->id ?? 0);
+    }
+
+    /**
+     * Build manual FEL NUC preview payload from invoice duplicate modal (invoice data only).
+     *
+     * @param   list<array{descripcion: string, cantidad: float, precio_unitario: float}>  $manualLines
+     *
+     * @return  array{success: bool, message: string, payload?: array<string, mixed>}
+     *
+     * @since   3.119.178
+     */
+    public function buildManualFelNucPayloadFromInvoiceDuplicate(
+        int $sourceInvoiceId,
+        array $manualLines,
+        string $buyerName,
+        string $buyerNit,
+        string $buyerAddress,
+        ?string $nucBuyerTaxIdOverride = null,
+        ?string $issueDateYmd = null,
+        array $nucOptions = []
+    ): array {
+        $sourceInvoiceId = (int) $sourceInvoiceId;
+        if ($sourceInvoiceId < 1 || !$this->isEngineAvailable()) {
+            return ['success' => false, 'message' => 'Engine unavailable'];
+        }
+
+        $source = $this->loadInvoice($sourceInvoiceId);
+        if (!$source) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVOICE_NOT_FOUND')];
+        }
+
+        $issuedAt = $this->resolveManualIssueDate($issueDateYmd);
+        if ($issuedAt === null) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE_INVALID')];
+        }
+
+        $nucOptionsResolved = $this->resolveManualFelNucOptionsForIssuance($nucOptions, $issuedAt);
+        if (!empty($nucOptionsResolved['_error'])) {
+            return ['success' => false, 'message' => (string) $nucOptionsResolved['_error']];
+        }
+        $nucOptions = $nucOptionsResolved;
+
+        $buyerName = trim($buyerName);
+        $buyerNit  = trim($buyerNit);
+        if ($buyerName === '' || $buyerNit === '') {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_REQUIRED')];
+        }
+
+        $cotRef = trim((string) ($nucOptions['observaciones'] ?? ''));
+        if ($cotRef === '') {
+            $cotRef = '-';
+        }
+        $currencySym = $this->nucCurrencyToInvoiceCurrency((string) ($nucOptions['currency'] ?? 'GTQ'));
+        $stub        = $this->buildSyntheticQuotationStubForManualFel($buyerName, $buyerNit, $buyerAddress, $cotRef, $currencySym);
+
+        $creds = $this->getActiveCertificadorCredentials();
+        $payload = $this->buildDigifactNucJsonPayloadFromManualInput(
+            $stub,
+            $manualLines,
+            $creds,
+            $buyerName,
+            $buyerNit,
+            $buyerAddress,
+            $nucBuyerTaxIdOverride,
+            $issuedAt,
+            [],
+            $nucOptions
+        );
+        if (($payload['Items'] ?? []) === []) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')];
+        }
+
+        $grand = 0.0;
+        if (isset($payload['Totals']['GrandTotal']['InvoiceTotal'])) {
+            $grand = (float) $payload['Totals']['GrandTotal']['InvoiceTotal'];
+        }
+
+        $normalizedOpts = $this->normalizeManualFelNucOptions($nucOptions, $grand);
+        if ($normalizedOpts['doc_type'] === 'FCAM') {
+            $fcamErr = $this->validateManualFelFcamAbonos($normalizedOpts['fcam_abonos'], $grand);
+            if ($fcamErr !== null) {
+                return ['success' => false, 'message' => $fcamErr];
+            }
+        }
+
+        return ['success' => true, 'message' => 'OK', 'payload' => $payload];
+    }
+
+    /**
+     * Issue manual FEL from invoice duplicate modal (invoice data only, no cotización).
+     *
+     * @param   list<array{descripcion:string, cantidad:float, precio_unitario:float}>  $manualLines
+     * @param   int[]  $ordenIdsToLink
+     *
+     * @return  array{success:bool, message:string, invoice_id?:int, uuid?:string, invoice_url?:string}
+     *
+     * @since   3.119.178
+     */
+    public function issueDigifactNucManualFromInvoiceDuplicate(
+        int $sourceInvoiceId,
+        int $userId,
+        array $manualLines,
+        string $buyerName,
+        string $buyerNit,
+        string $buyerAddress,
+        array $ordenIdsToLink = [],
+        ?string $nucBuyerTaxIdOverride = null,
+        ?string $issueDateYmd = null,
+        array $nucOptions = []
+    ): array {
+        $sourceInvoiceId = (int) $sourceInvoiceId;
+        $userId          = (int) $userId;
+        if ($sourceInvoiceId < 1 || $userId < 1 || !$this->isEngineAvailable()) {
+            return ['success' => false, 'message' => 'Engine unavailable'];
+        }
+
+        $built = $this->buildManualFelNucPayloadFromInvoiceDuplicate(
+            $sourceInvoiceId,
+            $manualLines,
+            $buyerName,
+            $buyerNit,
+            $buyerAddress,
+            $nucBuyerTaxIdOverride,
+            $issueDateYmd,
+            $nucOptions
+        );
+        if (empty($built['success']) || !isset($built['payload']) || !\is_array($built['payload'])) {
+            return ['success' => false, 'message' => (string) ($built['message'] ?? 'Invalid payload')];
+        }
+
+        $payload = $built['payload'];
+        $creds   = $this->getActiveCertificadorCredentials();
+        if ($this->buildDigifactCertificarRequestUrl($creds) === '') {
+            return ['success' => false, 'message' => 'Digifact cert URL or credentials incomplete (URL certificación FACT or NIT, NIT emisor, usuario).'];
+        }
+        if ($this->resolveBearerJwtForDigifactPost() === '') {
+            return ['success' => false, 'message' => 'Digifact bearer token missing or expired (renew in Ajustes → Certificador).'];
+        }
+
+        $invoiceId = $this->createNewManualInvoiceFromSourceInvoice($sourceInvoiceId, $userId, $issueDateYmd);
+        if ($invoiceId < 1) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_CREATE_INVOICE_FAILED')];
+        }
+
+        $normalizedOpts = $this->normalizeManualFelNucOptions(
+            $nucOptions,
+            (float) ($payload['Totals']['GrandTotal']['InvoiceTotal'] ?? 0)
+        );
+
+        $storageLines = [];
+        foreach ($manualLines as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $qty  = (float) ($line['cantidad'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? 0);
+            $desc = trim((string) ($line['descripcion'] ?? ''));
+            if ($desc === '' || $qty < 0.000001) {
+                continue;
+            }
+            $sub = round($qty * $unit, 2);
+            $storageLines[] = [
+                'cantidad'        => $qty,
+                'descripcion'     => $desc,
+                'precio_unitario' => $unit,
+                'subtotal'        => $sub,
+            ];
+        }
+
+        $felExtraPre = [
+            'pdf_observaciones'  => trim((string) $normalizedOpts['observaciones']),
+            'source_invoice_id'  => $sourceInvoiceId,
+        ];
+        if ($normalizedOpts['doc_type'] === 'FCAM') {
+            $felExtraPre['complemento_abonos'] = $normalizedOpts['fcam_abonos'];
+        }
+        if (($normalizedOpts['currency'] ?? 'GTQ') === 'USD' && isset($payload['Header']['ExchangeRate'])) {
+            $felExtraPre['exchange_rate'] = (float) $payload['Header']['ExchangeRate'];
+        }
+
+        $invoiceCurrency = $this->nucCurrencyToInvoiceCurrency((string) ($payload['Header']['Currency'] ?? 'GTQ'));
+        $grand           = (float) ($payload['Totals']['GrandTotal']['InvoiceTotal'] ?? 0);
+
+        $this->updateInvoiceFields($invoiceId, [
+            'client_name'    => trim($buyerName),
+            'client_nit'     => trim($buyerNit),
+            'invoice_amount' => $grand,
+            'currency'       => $invoiceCurrency,
+            'line_items'     => json_encode($storageLines, JSON_UNESCAPED_UNICODE),
+            'fel_extra'      => json_encode($felExtraPre, JSON_UNESCAPED_UNICODE),
+            'fel_tipo_dte'   => (string) $normalizedOpts['doc_type'],
+        ]);
+
+        $this->skipAutoLinkOrdensOnFinalize = true;
+        $this->setStatus($invoiceId, 'processing');
+        $result = $this->executeDigifactCertificationForInvoice($invoiceId, 0, $payload, $userId);
+        $this->skipAutoLinkOrdensOnFinalize = false;
+
+        if (!empty($result['success'])) {
+            $this->linkInvoiceToSelectedOrdens($invoiceId, $ordenIdsToLink);
+            $result['invoice_url'] = 'index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId;
+        }
+
+        return $result;
     }
 
     /**
@@ -4379,7 +4706,7 @@ class FelInvoiceIssuanceService
         $invoiceId = (int) $invoiceId;
         $quotationId = (int) $quotationId;
         $userId = (int) $userId;
-        if ($invoiceId < 1 || $quotationId < 1 || $userId < 1) {
+        if ($invoiceId < 1 || $userId < 1) {
             return ['success' => false, 'message' => 'Invalid ids'];
         }
 
@@ -4488,8 +4815,16 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => 'Digifact error: ' . $failMsg];
         }
 
-        $quotation = $this->loadQuotation($quotationId);
-        if (!$quotation) {
+        $invoiceRow = $this->loadInvoice($invoiceId);
+        if (!$invoiceRow) {
+            $msg = 'Invoice not found';
+            $this->markFailed($invoiceId, $msg);
+
+            return ['success' => false, 'message' => $msg];
+        }
+
+        $quotation = $quotationId > 0 ? $this->loadQuotation($quotationId) : null;
+        if ($quotationId > 0 && !$quotation) {
             $msg = 'Quotation not found';
             $this->markFailed($invoiceId, $msg);
 
@@ -4532,7 +4867,6 @@ class FelInvoiceIssuanceService
         }
 
         $now = Factory::getDate()->toSql();
-        $invoiceRow = $this->loadInvoice($invoiceId);
         $felFechaEmision = $this->resolveFelFechaEmisionSqlFromNucPayload($nucPayload, $invoiceRow);
         $invoiceDateYmd  = $this->resolveInvoiceDateYmdFromNucPayload($nucPayload, $invoiceRow);
         $felplex = $uuid !== '' ? $uuid : null;
@@ -4543,8 +4877,13 @@ class FelInvoiceIssuanceService
         );
         $modoNorm = ($certificadorModo === 'prod') ? 'prod' : 'test';
         $felExtraOut = $this->injectCertificadorAmbienteIntoFelExtraJson($felExtraMerged, $modoNorm);
-        $otLabelsJoined = implode(', ', $this->collectOrdenDisplayLabelsForQuotation($quotationId));
-        $receptorDigits = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc((string) ($quotation->client_nit ?? ''));
+        $otLabelsJoined = $quotationId > 0
+            ? implode(', ', $this->collectOrdenDisplayLabelsForQuotation($quotationId))
+            : trim((string) ($invoiceRow->orden_de_trabajo ?? ''));
+        $clientNitForReceptor = $quotation
+            ? (string) ($quotation->client_nit ?? '')
+            : (string) ($invoiceRow->client_nit ?? $invoiceRow->fel_receptor_id ?? '');
+        $receptorDigits = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc($clientNitForReceptor);
         $buyerTaxFromPayload = '';
         if (isset($nucPayload['Buyer']) && \is_array($nucPayload['Buyer'])) {
             $buyerTaxFromPayload = trim((string) ($nucPayload['Buyer']['TaxID'] ?? ''));
@@ -4552,7 +4891,7 @@ class FelInvoiceIssuanceService
         if ($buyerTaxFromPayload !== '' && strtoupper($buyerTaxFromPayload) !== 'CF') {
             $receptorDigits = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc($buyerTaxFromPayload);
         }
-        $receptorNombre = (string) ($quotation->client_name ?? '');
+        $receptorNombre = $quotation ? (string) ($quotation->client_name ?? '') : (string) ($invoiceRow->client_name ?? '');
         $buyerNameFromPayload = '';
         if (isset($nucPayload['Buyer']) && \is_array($nucPayload['Buyer'])) {
             $buyerNameFromPayload = trim((string) ($nucPayload['Buyer']['Name'] ?? ''));
@@ -4560,7 +4899,7 @@ class FelInvoiceIssuanceService
         if ($buyerNameFromPayload !== '') {
             $receptorNombre = $buyerNameFromPayload;
         }
-        $receptorDireccion = (string) ($quotation->client_address ?? '');
+        $receptorDireccion = $quotation ? (string) ($quotation->client_address ?? '') : (string) ($invoiceRow->client_address ?? '');
         if (isset($nucPayload['Buyer']['AddressInfo']) && \is_array($nucPayload['Buyer']['AddressInfo'])) {
             $addrFromPayload = trim((string) ($nucPayload['Buyer']['AddressInfo']['Address'] ?? ''));
             if ($addrFromPayload !== '') {
@@ -4603,7 +4942,7 @@ class FelInvoiceIssuanceService
         $update = $this->filterToExistingColumns($update);
         $this->updateInvoiceFields($invoiceId, $update);
 
-        if (!$this->skipAutoLinkOrdensOnFinalize) {
+        if (!$this->skipAutoLinkOrdensOnFinalize && $quotationId > 0) {
             $this->tryAutoLinkInvoiceOrdensForCotizacionFel($invoiceId, $quotationId);
         }
 

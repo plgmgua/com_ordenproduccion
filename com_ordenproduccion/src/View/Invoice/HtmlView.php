@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\View\Invoice;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
@@ -79,6 +80,43 @@ class HtmlView extends BaseHtmlView
      * @since  3.119.175
      */
     protected $duplicateManualFelDisabledTitle = '';
+
+    /**
+     * Open Factura manual modal on invoice page (duplicate from this invoice).
+     *
+     * @var bool
+     *
+     * @since  3.119.178
+     */
+    protected $showManualFelDuplicateModal = false;
+
+    /**
+     * @var array<string, mixed>|null
+     *
+     * @since  3.119.178
+     */
+    protected $manualFelSeedFromInvoice = null;
+
+    /**
+     * @var array<int, array{descripcion: string, cantidad: float, precio_unitario: float}>
+     *
+     * @since  3.119.178
+     */
+    protected $manualFelLinePresets = [];
+
+    /**
+     * @var array<int, array{id: int, label: string, valor: float}>
+     *
+     * @since  3.119.178
+     */
+    protected $manualFelOrdensForClient = [];
+
+    /**
+     * @var bool
+     *
+     * @since  3.119.178
+     */
+    protected $felEngineAvailable = false;
 
     /**
      * GET assoc_nit filter for listing órdenes / invoices from another client NIT.
@@ -217,17 +255,50 @@ class HtmlView extends BaseHtmlView
         $this->canDuplicateToManualFel         = false;
         $this->duplicateManualFelUrl           = '';
         $this->duplicateManualFelDisabledTitle = '';
-        if ($this->canSuperUserInvoiceActions && $this->item) {
+        $this->showManualFelDuplicateModal     = false;
+        $this->manualFelSeedFromInvoice        = null;
+        $this->manualFelLinePresets            = [];
+        $this->manualFelOrdensForClient        = [];
+        $this->felEngineAvailable              = false;
+
+        $openManualFelDuplicate = $app->input->getInt('manual_fel_duplicate', 0) === 1;
+        $felSvc                 = new FelInvoiceIssuanceService();
+        $this->felEngineAvailable = $felSvc->isEngineAvailable();
+
+        if ($this->canSuperUserInvoiceActions && $this->item && $this->felEngineAvailable) {
             $this->canDuplicateToManualFel = true;
-            $felSvc                        = new FelInvoiceIssuanceService();
-            $relUrl                        = $felSvc->buildDuplicateManualFelUrlForInvoice($this->item);
-            if ($relUrl !== '') {
-                $this->duplicateManualFelUrl = Route::_($relUrl, false);
-            } elseif (!$felSvc->isEngineAvailable() || !$felSvc->hasQuotationIdColumn()) {
-                $this->duplicateManualFelDisabledTitle = Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_FEL_UNAVAILABLE');
+            $seed                          = $felSvc->buildManualFelSeedFromInvoice($this->item);
+            if (\is_array($seed) && ($seed['lines'] ?? []) !== []) {
+                $this->duplicateManualFelUrl = Route::_(
+                    'index.php?option=com_ordenproduccion&view=invoice&id='
+                    . (int) ($this->item->id ?? 0)
+                    . '&manual_fel_duplicate=1',
+                    false
+                );
+                if ($openManualFelDuplicate) {
+                    $seed['auto_open']                = true;
+                    $this->showManualFelDuplicateModal = true;
+                    $this->manualFelSeedFromInvoice    = $seed;
+                    $this->manualFelLinePresets        = $seed['lines'];
+                    foreach ($this->associatedOrdenLinks as $link) {
+                        $oid = (int) ($link['orden_id'] ?? 0);
+                        if ($oid < 1) {
+                            continue;
+                        }
+                        $this->manualFelOrdensForClient[] = [
+                            'id'    => $oid,
+                            'label' => (string) ($link['orden_num'] ?? ('ORD-' . $oid)),
+                            'valor' => 0.0,
+                        ];
+                    }
+                    HTMLHelper::_('bootstrap.framework');
+                }
             } else {
-                $this->duplicateManualFelDisabledTitle = Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_NO_QUOTATION');
+                $this->duplicateManualFelDisabledTitle = Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_NO_LINES');
             }
+        } elseif ($this->canSuperUserInvoiceActions && $this->item && !$this->felEngineAvailable) {
+            $this->canDuplicateToManualFel         = true;
+            $this->duplicateManualFelDisabledTitle = Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_FEL_UNAVAILABLE');
         }
 
         $this->_prepareDocument();

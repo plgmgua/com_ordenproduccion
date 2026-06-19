@@ -561,3 +561,4 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
     display: block;
 }
 </style>
+<?php include __DIR__ . '/manual_fel_duplicate.php'; ?>

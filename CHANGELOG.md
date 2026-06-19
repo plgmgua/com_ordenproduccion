@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.178-STABLE] - 2026-05-19
+
+### Changed
+- **Duplicate invoice → manual FEL:** stays on the **invoice detail** page; Factura manual modal is seeded from **invoice** client, lines, currency, and totals (no cotización redirect).
+
+### Added
+- **Invoice duplicate FEL:** `invoice.manualFelPreviewFromInvoiceDuplicate` and `invoice.manualFelIssueFromInvoiceDuplicate` JSON tasks; observaciones entered in the modal before preview/issue.
+
 ## [3.119.177-STABLE] - 2026-05-19
 
 ### Fixed
