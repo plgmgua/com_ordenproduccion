@@ -22,7 +22,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
-use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -2951,25 +2951,62 @@ class FelInvoiceIssuanceService
             return [];
         }
 
-        $this->db->setQuery(
-            $this->db->getQuery(true)
-                ->select('DISTINCT ' . $this->db->quoteName('quotation_id'))
-                ->from($this->db->quoteName('#__ordenproduccion_ordenes'))
-                ->where($this->db->quoteName('id') . ' IN (' . implode(',', array_map('intval', $ordenIds)) . ')')
-                ->where($this->db->quoteName('quotation_id') . ' > 0')
-                ->where($this->db->quoteName('state') . ' = 1')
-                ->order($this->db->quoteName('quotation_id') . ' DESC')
-        );
-
-        $qids = [];
-        foreach ($this->db->loadColumn() ?: [] as $q) {
-            $q = (int) $q;
-            if ($q > 0) {
-                $qids[] = $q;
+        $seen = [];
+        foreach ($ordenIds as $oid) {
+            foreach (QuotationEnvioFelHelper::getQuotationIdsForOrden((int) $oid, $this->db) as $qid) {
+                $qid = (int) $qid;
+                if ($qid > 0) {
+                    $seen[$qid] = $qid;
+                }
+            }
+            $jsonQid = $this->resolveQuotationIdFromOrdenSourceJson((int) $oid);
+            if ($jsonQid > 0) {
+                $seen[$jsonQid] = $jsonQid;
             }
         }
 
+        $qids = array_values($seen);
+        rsort($qids, SORT_NUMERIC);
+
         return $qids;
+    }
+
+    /**
+     * quotation_id from orden_source_json snapshot when present.
+     *
+     * @since  3.119.177
+     */
+    protected function resolveQuotationIdFromOrdenSourceJson(int $ordenId): int
+    {
+        $ordenId = (int) $ordenId;
+        if ($ordenId < 1) {
+            return 0;
+        }
+
+        $oCols = $this->db->getTableColumns('#__ordenproduccion_ordenes', false);
+        $oCols = \is_array($oCols) ? array_change_key_case($oCols, CASE_LOWER) : [];
+        if (!isset($oCols['orden_source_json'])) {
+            return 0;
+        }
+
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select($this->db->quoteName('orden_source_json'))
+                ->from($this->db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($this->db->quoteName('id') . ' = ' . $ordenId)
+                ->where($this->db->quoteName('state') . ' = 1')
+        );
+        $raw = trim((string) $this->db->loadResult());
+        if ($raw === '') {
+            return 0;
+        }
+
+        $decoded = \json_decode($raw, true);
+        if (!\is_array($decoded)) {
+            return 0;
+        }
+
+        return (int) ($decoded['quotation_id'] ?? 0);
     }
 
     /**

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.177-STABLE] - 2026-05-19
+
+### Fixed
+- **Duplicate invoice → manual FEL:** SQL error `Unknown column 'quotation_id'` on ordenes — resolve cotización via `pre_cotizacion_id` / `orden_source_json` instead.
+
 ## [3.119.176-STABLE] - 2026-05-19
 
 ### Fixed
