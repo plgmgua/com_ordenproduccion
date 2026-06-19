@@ -34,6 +34,19 @@ class OdooHelper
         'id', 'name', 'email', 'phone', 'mobile', 'street', 'city', 'vat', 'type',
     ];
 
+    /** Child contacts under a parent res.partner. */
+    private const PARTNER_CHILD_FIELDS_PREFERRED = [
+        'id', 'type', 'name', 'complete_name', 'vat', 'street', 'city', 'email', 'phone', 'mobile',
+        'display_name', 'x_studio_agente_de_ventas',
+    ];
+
+    /** Single partner detail (cliente edit). */
+    private const PARTNER_DETAIL_FIELDS_PREFERRED = [
+        'id', 'type', 'name', 'complete_name', 'vat', 'street', 'city', 'email', 'phone', 'mobile',
+        'x_studio_agente_de_ventas', 'display_name', 'parent_id', 'credit_limit',
+        'property_payment_term_id', 'property_supplier_payment_term_id', 'invoice_sending_method',
+    ];
+
     /**
      * Constructor
      */
@@ -127,6 +140,26 @@ class OdooHelper
     public function getResolvedPartnerListFields(): array
     {
         return $this->filterPartnerFields(self::PARTNER_LIST_FIELDS_PREFERRED);
+    }
+
+    /**
+     * res.partner fields for child contact search_read.
+     *
+     * @return array<int, string>
+     */
+    public function getResolvedPartnerChildFields(): array
+    {
+        return $this->filterPartnerFields(self::PARTNER_CHILD_FIELDS_PREFERRED);
+    }
+
+    /**
+     * res.partner fields for single-partner detail (cliente edit).
+     *
+     * @return array<int, string>
+     */
+    public function getResolvedPartnerDetailFields(): array
+    {
+        return $this->filterPartnerFields(self::PARTNER_DETAIL_FIELDS_PREFERRED);
     }
 
     /**
@@ -644,78 +677,30 @@ class OdooHelper
      */
     public function getContact($contactId)
     {
-        // Use the exact same XML structure as contact_edit.php
-        $xmlPayload = '<?xml version="1.0"?>
-<methodCall>
-   <methodName>execute_kw</methodName>
-   <params>
-' . $this->buildAuthParamsCompact() . '
-      <param>
-         <value><string>res.partner</string></value> <!-- Model -->
-      </param>
-      <param>
-         <value><string>search_read</string></value> <!-- Method -->
-      </param>
-     <param>
-      <value>
-        <array>
-          <data>
-            <value>
-              <array>
-                <data>
-                  <value>
-                    <array>
-                      <data>
-                        <value><string>id</string></value>
-                        <value><string>=</string></value>
-                        <value><int>'.$contactId.'</int></value>
-                      </data>
-                    </array>
-                  </value>
-                </data>
-              </array>
-            </value>
-          </data>
-        </array>
-      </value>
-    </param>
-    <param>
-         <value>
-            <struct> <!-- Specify fields to retrieve -->
-               <member>
-                  <name>fields</name>
-                  <value>
-                     <array>
-                        <data>
-                           <value><string>type</string></value>
-                           <value><string>name</string></value>
-                           <value><string>complete_name</string></value>
-                           <value><string>vat</string></value>
-                           <value><string>street</string></value>
-                           <value><string>city</string></value>
-                           <value><string>email</string></value>
-                           <value><string>phone</string></value>
-                           <value><string>mobile</string></value>
-                           <value><string>x_studio_agente_de_ventas</string></value>
-                           <value><string>display_name</string></value>
-                           <value><string>child_ids</string></value>
-                           <value><string>credit_limit</string></value>
-                           <value><string>property_payment_term_id</string></value>
-                           <value><string>property_supplier_payment_term_id</string></value>
-                           <value><string>invoice_sending_method</string></value>
-                        </data>
-                     </array>
-                  </value>
-               </member>
-            </struct>
-         </value>
-      </param>
-    </params>
-</methodCall>';
+        $contactId = (int) $contactId;
+        if ($contactId <= 0) {
+            return null;
+        }
+
+        $xmlPayload = $this->buildExecuteKwXml(
+            'res.partner',
+            'search_read',
+            [[['id', '=', $contactId]]],
+            ['fields' => $this->getResolvedPartnerDetailFields()]
+        );
 
         $result = $this->executeOdooCall($xmlPayload);
-        
-        if (!$result) {
+
+        if (!$result || $this->hasXmlRpcFault($result)) {
+            if ($result && $this->hasXmlRpcFault($result)) {
+                $fault = OdooDiagnosticHelper::extractFaultString($result);
+                Log::add(
+                    'getContact XML-RPC fault for id ' . $contactId . ': ' . ($fault ?? 'unknown'),
+                    Log::ERROR,
+                    'com_ordenproduccion.clientes'
+                );
+            }
+
             return null;
         }
 
@@ -737,78 +722,56 @@ class OdooHelper
      */
     public function getChildContacts($parentId)
     {
-        // Use the exact same XML structure as get_contacts_by_parent_id.php
-        $xmlPayload = '<?xml version="1.0"?>
-<methodCall>
-   <methodName>execute_kw</methodName>
-   <params>
-' . $this->buildAuthParamsCompact() . '
-      <param>
-         <value><string>res.partner</string></value> <!-- Model -->
-      </param>
-      <param>
-         <value><string>search_read</string></value> <!-- Method -->
-      </param>
-     <param>
-      <value>
-        <array>
-          <data>
-            <value>
-              <array>
-                <data>
-                  <value>
-                    <array>
-                      <data>
-                        <value><string>parent_id</string></value>
-                        <value><string>=</string></value>
-                        <value><int>'.$parentId.'</int></value>
-                      </data>
-                    </array>
-                  </value>
-                </data>
-              </array>
-            </value>
-          </data>
-        </array>
-      </value>
-    </param>
-    <param>
-         <value>
-            <struct> <!-- Specify fields to retrieve -->
-               <member>
-                  <name>fields</name>
-                  <value>
-                     <array>
-                        <data>
-                           <value><string>type</string></value>
-                           <value><string>name</string></value>
-                           <value><string>complete_name</string></value>
-                           <value><string>vat</string></value>
-                           <value><string>street</string></value>
-                           <value><string>city</string></value>
-                           <value><string>email</string></value>
-                           <value><string>phone</string></value>
-                           <value><string>mobile</string></value>
-                           <value><string>x_studio_agente_de_ventas</string></value>
-                           <value><string>display_name</string></value>
-                           <value><string>child_ids</string></value>
-                        </data>
-                     </array>
-                  </value>
-               </member>
-            </struct>
-         </value>
-      </param>
-    </params>
-</methodCall>';
-
-        $result = $this->executeOdooCall($xmlPayload);
-        
-        if (!$result) {
+        $parentId = (int) $parentId;
+        if ($parentId <= 0) {
             return [];
         }
 
-        return $this->parseContactsResponse($result);
+        $xmlPayload = $this->buildExecuteKwXml(
+            'res.partner',
+            'search_read',
+            [[['parent_id', '=', $parentId]]],
+            ['fields' => $this->getResolvedPartnerChildFields()]
+        );
+
+        $result = $this->executeOdooCall($xmlPayload);
+
+        if (!$result || $this->hasXmlRpcFault($result)) {
+            if ($result && $this->hasXmlRpcFault($result)) {
+                $fault = OdooDiagnosticHelper::extractFaultString($result);
+                Log::add(
+                    'getChildContacts XML-RPC fault for parent ' . $parentId . ': ' . ($fault ?? 'unknown'),
+                    Log::ERROR,
+                    'com_ordenproduccion.clientes'
+                );
+            }
+
+            return [];
+        }
+
+        $rows = OdooDiagnosticHelper::extractSearchReadRecords($result);
+        if ($rows === []) {
+            return $this->parseContactsFromSearchRead($result);
+        }
+
+        return array_map(static function (array $row): array {
+            $phone = (string) ($row['phone'] ?? '');
+            if ($phone === '' && isset($row['mobile'])) {
+                $phone = (string) $row['mobile'];
+            }
+
+            return [
+                'id'     => (string) ($row['id'] ?? '0'),
+                'name'   => (string) ($row['name'] ?? ($row['complete_name'] ?? '')),
+                'email'  => (string) ($row['email'] ?? ''),
+                'phone'  => $phone,
+                'mobile' => (string) ($row['mobile'] ?? ''),
+                'street' => (string) ($row['street'] ?? ''),
+                'city'   => (string) ($row['city'] ?? ''),
+                'vat'    => (string) ($row['vat'] ?? ''),
+                'type'   => (string) ($row['type'] ?? 'contact'),
+            ];
+        }, $rows);
     }
 
     /**
@@ -1147,6 +1110,17 @@ class OdooHelper
 
                     // Many2one: store label in canonical field slot used by Accounting UI imports
                     $contact[$fieldName] = $termName;
+
+                    continue;
+                } elseif (
+                    isset($member['value']['array']['data']['value'])
+                    && $fieldName === 'parent_id'
+                ) {
+                    [$parentId, $parentName] = self::many2oneIdAndLabelFromOdooRpcMember($member);
+                    $contact['parent_id'] = $parentId !== null ? (string) $parentId : '';
+                    if ($parentName !== '') {
+                        $contact['parent_name'] = $parentName;
+                    }
 
                     continue;
                 }

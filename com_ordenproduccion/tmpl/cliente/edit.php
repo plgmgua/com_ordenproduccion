@@ -45,11 +45,22 @@ function safeGetProperty($object, $property, $default = '') {
 $isNew = (!isset($this->item->id) || (int)$this->item->id === 0);
 $user = Factory::getUser();
 
-// Check if this is a child contact (has parent_id or type is not 'contact')
+// Child contact = has a parent partner in Odoo (not inferred from address type invoice/delivery).
 $isChildContact = false;
 $parentId = $input->getInt('parent_id', 0);
-if ($parentId > 0 || (!$isNew && isset($this->item->type) && $this->item->type !== 'contact')) {
+$itemParentId = 0;
+if (!$isNew && isset($this->item->parent_id)) {
+    if (is_array($this->item->parent_id)) {
+        $itemParentId = (int) ($this->item->parent_id[0] ?? 0);
+    } else {
+        $itemParentId = (int) $this->item->parent_id;
+    }
+}
+if ($parentId > 0 || $itemParentId > 0) {
     $isChildContact = true;
+    if ($parentId <= 0) {
+        $parentId = $itemParentId;
+    }
 }
 
 // Get child contacts if this is a main contact (not new and not child)

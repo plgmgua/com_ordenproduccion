@@ -84,6 +84,7 @@ class ClienteModel extends AdminModel
             'city' => '',
             'vat' => '',
             'type' => 'contact',
+            'parent_id' => 0,
             'payment_terms' => '',
             'payment_term_id' => '',
             'credit_limit_numeric' => null,

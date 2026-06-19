@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.180-STABLE] - 2026-05-19
+
+### Fixed
+- **Cliente view / Contactos Relacionados:** child contacts section was hidden when the partner address type was not `contact` (invoice/delivery); detection now uses `parent_id` only.
+- **OdooHelper::getChildContacts():** request only fields that exist on this Odoo DB (fixes Odoo 19 `mobile` fault), include `id`, and use the shared `search_read` parser.
+- **OdooHelper::getContact():** same field filtering as Mis Clientes; loads `parent_id` for child-contact breadcrumb/navigation.
+
 ## [3.119.179-STABLE] - 2026-05-19
 
 ### Fixed
