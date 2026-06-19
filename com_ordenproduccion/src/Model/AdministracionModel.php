@@ -1139,7 +1139,72 @@ class AdministracionModel extends BaseDatabaseModel
             $c->invoice_value_to_dec31_2025 = (float) ($c->invoice_value_to_dec31_2025 ?? 0);
         }
 
-        return $clients;
+        return $this->consolidateClientsByNormalizedKey($clients);
+    }
+
+    /**
+     * Merge rows that share the same trimmed client name + NIT.
+     *
+     * SQL GROUP BY uses raw ordenes.client_name/nit, but payment maps use trimmed clientKey(),
+     * which caused duplicate Estado de cuenta rows with identical totals (e.g. Pfizer).
+     *
+     * @param   array<int, object>  $clients
+     * @return  array<int, object>
+     *
+     * @since   3.119.183
+     */
+    protected function consolidateClientsByNormalizedKey(array $clients): array
+    {
+        $merged = [];
+
+        foreach ($clients as $c) {
+            $name = trim((string) ($c->client_name ?? ''));
+            $nit  = $this->normalizeClientNit($c->nit ?? '');
+            if ($name === '') {
+                continue;
+            }
+
+            $key = $this->clientKey($name, $nit);
+            $orderCount = (int) ($c->order_count ?? 0);
+
+            if (!isset($merged[$key])) {
+                $row = clone $c;
+                $row->client_name = $name;
+                $row->nit = $nit;
+                $row->_canonical_name_orders = $orderCount;
+                $merged[$key] = $row;
+                continue;
+            }
+
+            $row = $merged[$key];
+            $row->order_count = (int) ($row->order_count ?? 0) + $orderCount;
+            $row->total_invoice_value = (float) ($row->total_invoice_value ?? 0) + (float) ($c->total_invoice_value ?? 0);
+            $row->invoice_value_to_dec31_2025 = (float) ($row->invoice_value_to_dec31_2025 ?? 0)
+                + (float) ($c->invoice_value_to_dec31_2025 ?? 0);
+
+            if ($orderCount > (int) ($row->_canonical_name_orders ?? 0)) {
+                $row->client_name = $name;
+                $row->_canonical_name_orders = $orderCount;
+            }
+        }
+
+        foreach ($merged as $row) {
+            unset($row->_canonical_name_orders);
+        }
+
+        return array_values($merged);
+    }
+
+    /**
+     * @param   mixed  $nit
+     */
+    protected function normalizeClientNit($nit): string
+    {
+        if ($nit === null) {
+            return '';
+        }
+
+        return trim((string) $nit);
     }
 
     /**

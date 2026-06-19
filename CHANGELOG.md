@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.183-STABLE] - 2026-05-19
+
+### Fixed
+- **Estado de cuenta:** duplicate client rows with identical totals when `ordenes.client_name` had spacing variants (e.g. Pfizer twice); list now consolidates by trimmed name + NIT. NIT shown under client name when set.
+
 ## [3.119.182-STABLE] - 2026-05-19
 
 ### Fixed

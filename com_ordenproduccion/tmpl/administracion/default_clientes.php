@@ -609,7 +609,12 @@ function safeEscape($value, $default = '')
                                         data-nit="<?php echo safeEscape($nit); ?>">
                                 </td>
                                 <?php endif; ?>
-                                <td class="col-client-name"><?php echo safeEscape($cn); ?></td>
+                                <td class="col-client-name">
+                                    <?php echo safeEscape($cn); ?>
+                                    <?php if (trim((string) $nit) !== '') : ?>
+                                        <br><small class="text-muted">NIT: <?php echo safeEscape($nit); ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="col-compras">Q.<?php echo number_format($compras, 2); ?></td>
                                 <td class="col-registrado">Q.<?php echo number_format($registrado, 2); ?></td>
                                 <td class="col-verificado">Q.<?php echo number_format($verificado, 2); ?></td>
