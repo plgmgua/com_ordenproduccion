@@ -46,6 +46,9 @@ class FelInvoiceIssuanceService
     /** @var DatabaseInterface */
     protected $db;
 
+    /** @var string Last DB error when manual invoice insert fails (admin diagnostics). */
+    protected string $lastInvoiceInsertError = '';
+
     /** Guatemala IVA rate (12%) for price breakdown when totals are tax-inclusive */
     public const IVA_RATE = 0.12;
 
@@ -826,9 +829,13 @@ class FelInvoiceIssuanceService
                 try {
                     $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
                 } catch (\Throwable $retryEx) {
+                    $this->lastInvoiceInsertError = $retryEx->getMessage();
+
                     return 0;
                 }
             } else {
+                $this->lastInvoiceInsertError = $e->getMessage();
+
                 return 0;
             }
         }
@@ -2523,7 +2530,7 @@ class FelInvoiceIssuanceService
         if ($invoiceId < 1) {
             $message = $this->hasUniqueQuotationIdIndex()
                 ? Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_MIGRATION_REQUIRED')
-                : Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_CREATE_INVOICE_FAILED');
+                : $this->formatManualInvoiceCreateFailureMessage();
 
             return ['success' => false, 'message' => $message];
         }
@@ -3305,10 +3312,28 @@ class FelInvoiceIssuanceService
         try {
             $this->db->insertObject('#__ordenproduccion_invoices', $o, 'id');
         } catch (\Throwable $e) {
+            $this->lastInvoiceInsertError = $e->getMessage();
+
             return 0;
         }
 
         return (int) ($o->id ?? 0);
+    }
+
+    /**
+     * User-facing message when draft invoice row insert fails.
+     *
+     * @since  3.119.188
+     */
+    protected function formatManualInvoiceCreateFailureMessage(): string
+    {
+        $msg = Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_CREATE_INVOICE_FAILED');
+        $err = trim($this->lastInvoiceInsertError);
+        if ($err !== '') {
+            $msg .= ' ' . $err;
+        }
+
+        return $msg;
     }
 
     /**
@@ -3450,7 +3475,7 @@ class FelInvoiceIssuanceService
 
         $invoiceId = $this->createNewManualInvoiceFromSourceInvoice($sourceInvoiceId, $userId, $issueDateYmd);
         if ($invoiceId < 1) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_CREATE_INVOICE_FAILED')];
+            return ['success' => false, 'message' => $this->formatManualInvoiceCreateFailureMessage()];
         }
 
         $normalizedOpts = $this->normalizeManualFelNucOptions(

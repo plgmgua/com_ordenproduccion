@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.188-STABLE] - 2026-06-19
+
+### Fixed
+- **Factura manual (duplicar desde factura):** `invoice_source` value `invoice_fel_duplicate` (21 chars) exceeded `varchar(20)` — widen column to 32; surface DB error in create-invoice failure message.
+
 ## [3.119.187-STABLE] - 2026-06-19
 
 ### Fixed
