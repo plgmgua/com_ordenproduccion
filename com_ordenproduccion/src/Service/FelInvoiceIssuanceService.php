@@ -2277,7 +2277,7 @@ class FelInvoiceIssuanceService
             'Currency'       => $currency,
         ];
         if ($currency === 'USD' && $exchangeRate !== null) {
-            $header['ExchangeRate'] = sprintf('%.6f', $exchangeRate);
+            $header['ExchangeRate'] = round((float) $exchangeRate, 6);
         }
 
         $buyerPayload = [
