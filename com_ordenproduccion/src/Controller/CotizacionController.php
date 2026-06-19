@@ -26,6 +26,7 @@ use Joomla\CMS\User\User;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\BanguatTipoCambioHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
@@ -2053,6 +2054,66 @@ class CotizacionController extends BaseController
     }
 
     /**
+     * JSON: BANGUAT USD reference exchange rate for manual FEL issue date.
+     *
+     * @return  void
+     *
+     * @since   3.119.172
+     */
+    public function manualFelExchangeRate(): void
+    {
+        $app = Factory::getApplication();
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag();
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
+        if (!Session::checkToken()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isInStrictAdministracionGroup()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $issueDateYmd = trim((string) $app->input->post->getString('manual_issue_date', ''));
+        if ($issueDateYmd === '') {
+            $issueDateYmd = trim((string) $app->input->getString('manual_issue_date', ''));
+        }
+
+        $fel = new FelInvoiceIssuanceService();
+        $issuedAt = $fel->resolveManualIssueDate($issueDateYmd);
+        if ($issuedAt === null) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE_INVALID')], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        $dateYmd = $issuedAt->format('Y-m-d');
+        $helper  = new BanguatTipoCambioHelper();
+        $rate    = $helper->getUsdReferenciaForDate($dateYmd);
+        if ($rate === null || $rate <= 0.000001) {
+            echo json_encode([
+                'success' => false,
+                'message' => Text::sprintf('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_UNAVAILABLE', $dateYmd),
+            ], JSON_UNESCAPED_UNICODE);
+            $app->close();
+        }
+
+        echo json_encode([
+            'success'       => true,
+            'exchange_rate' => $rate,
+            'issue_date'    => $dateYmd,
+            'currency'      => 'USD',
+        ], JSON_UNESCAPED_UNICODE);
+        $app->close();
+    }
+
+    /**
      * Manual FEL invoice from cotización modal (JSON).
      *
      * @return  void
@@ -2472,7 +2533,18 @@ class CotizacionController extends BaseController
             'doc_type'      => $docType,
             'observaciones' => $observaciones,
             'fcam_abonos'   => $fcamAbonos,
+            'currency'      => $this->parseManualFelCurrencyFromPost($input),
         ];
+    }
+
+    /**
+     * @since  3.119.172
+     */
+    protected function parseManualFelCurrencyFromPost(\Joomla\Input\Input $input): string
+    {
+        $currency = strtoupper(trim((string) $input->post->getString('manual_currency', 'GTQ')));
+
+        return \in_array($currency, ['GTQ', 'USD'], true) ? $currency : 'GTQ';
     }
 
     /**

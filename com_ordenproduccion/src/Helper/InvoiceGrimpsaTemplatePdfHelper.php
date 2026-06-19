@@ -333,13 +333,14 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->Ln(2.5);
 
         $colWidths = self::columnWidths();
+        $curLabel  = self::pdfCurrencyLabel($inv);
         $hdr       = [
             '#',
             'B/S',
             'Cantidad',
             'Descripción',
-            'P. Unitario con IVA (Q)',
-            'Total (Q)',
+            'P. Unitario con IVA (' . $curLabel . ')',
+            'Total (' . $curLabel . ')',
             'Impuestos',
         ];
 
@@ -940,6 +941,24 @@ final class InvoiceGrimpsaTemplatePdfHelper
                 $felExtra['certificacion'] = $prevCert;
             }
         }
+    }
+
+    /**
+     * Currency label for PDF column headers (Q for quetzales, USD for dollars).
+     *
+     * @since  3.119.172
+     */
+    private static function pdfCurrencyLabel(object $inv): string
+    {
+        $cur = strtoupper(trim((string) ($inv->currency ?? 'Q')));
+        if ($cur === 'USD') {
+            return 'USD';
+        }
+        if ($cur === 'GTQ') {
+            return 'Q';
+        }
+
+        return $cur !== '' ? $cur : 'Q';
     }
 
     /**

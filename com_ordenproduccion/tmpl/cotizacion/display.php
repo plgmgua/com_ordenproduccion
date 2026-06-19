@@ -203,6 +203,7 @@ $manualFelLinePresets = isset($this->manualFelLinePresets) && is_array($this->ma
 $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($this->manualFelOrdensForClient) ? $this->manualFelOrdensForClient : [];
 $manualFelOtherQuotations = isset($this->manualFelOtherQuotations) && is_array($this->manualFelOtherQuotations) ? $this->manualFelOtherQuotations : [];
 $manualFelLinesUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelQuotationLines&format=json', false);
+$manualFelExchangeRateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelExchangeRate&format=json', false);
 $manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
 ?>
 <div class="cotizacion-container cotizacion-display">

@@ -13,6 +13,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Service;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\BanguatTipoCambioHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHelper;
@@ -2240,16 +2241,34 @@ class FelInvoiceIssuanceService
             ];
         }
 
-        $docType = 'FACT';
+        $docType      = 'FACT';
+        $currency     = 'GTQ';
+        $exchangeRate = null;
         if ($nucOptions !== []) {
             $normalizedOpts = $this->normalizeManualFelNucOptions($nucOptions, $grand);
             $docType        = (string) $normalizedOpts['doc_type'];
+            $currency       = (string) ($normalizedOpts['currency'] ?? 'GTQ');
+            if ($currency === 'USD') {
+                $exchangeRate = (float) ($normalizedOpts['exchange_rate'] ?? 0);
+                if ($exchangeRate <= 0.000001) {
+                    $exchangeRate = null;
+                }
+            }
             $this->appendNucAdditionalDocumentBlocks(
                 $additionalInfos,
                 $cotRef,
                 (int) ($quotation->id ?? 0),
                 $normalizedOpts
             );
+        }
+
+        $header = [
+            'DocType'        => $docType,
+            'IssuedDateTime' => $issued,
+            'Currency'       => $currency,
+        ];
+        if ($currency === 'USD' && $exchangeRate !== null) {
+            $header['ExchangeRate'] = $exchangeRate;
         }
 
         $buyerPayload = [
@@ -2271,11 +2290,7 @@ class FelInvoiceIssuanceService
         return [
             'Version'     => '1.00',
             'CountryCode' => 'GT',
-            'Header'      => [
-                'DocType'        => $docType,
-                'IssuedDateTime' => $issued,
-                'Currency'       => 'GTQ',
-            ],
+            'Header'      => $header,
             'Seller' => [
                 'TaxID'               => $nitSellerJson,
                 'TaxIDAdditionalInfo' => [
@@ -2430,6 +2445,12 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE_INVALID')];
         }
 
+        $nucOptionsResolved = $this->resolveManualFelNucOptionsForIssuance($nucOptions, $issuedAt);
+        if (!empty($nucOptionsResolved['_error'])) {
+            return ['success' => false, 'message' => (string) $nucOptionsResolved['_error']];
+        }
+        $nucOptions = $nucOptionsResolved;
+
         $allQuotationIds = array_values(array_unique(array_filter(array_merge(
             [$quotationId],
             array_map('intval', $additionalQuotationIds)
@@ -2533,11 +2554,17 @@ class FelInvoiceIssuanceService
         if ($normalizedOpts['doc_type'] === 'FCAM') {
             $felExtraPre['complemento_abonos'] = $normalizedOpts['fcam_abonos'];
         }
+        if (($normalizedOpts['currency'] ?? 'GTQ') === 'USD' && isset($payload['Header']['ExchangeRate'])) {
+            $felExtraPre['exchange_rate'] = (float) $payload['Header']['ExchangeRate'];
+        }
+
+        $invoiceCurrency = $this->nucCurrencyToInvoiceCurrency((string) ($payload['Header']['Currency'] ?? 'GTQ'));
 
         $this->updateInvoiceFields($invoiceId, [
             'client_name'    => $buyerName,
             'client_nit'     => $buyerNit,
             'invoice_amount' => $grand,
+            'currency'       => $invoiceCurrency,
             'line_items'     => json_encode($storageLines, JSON_UNESCAPED_UNICODE),
             'notes'          => \count($allQuotationIds) > 1
                 ? 'FEL manual multi-cotización (' . implode(', ', array_merge([$this->getQuotationDisplayRef($quotation)], $additionalRefs)) . ')'
@@ -2617,7 +2644,7 @@ class FelInvoiceIssuanceService
      *
      * @param   array<string, mixed>  $nucOptions
      *
-     * @return  array{doc_type: string, observaciones: string, fcam_abonos: list<array{numero: int, fecha: string, monto: float}>}
+     * @return  array{doc_type: string, observaciones: string, fcam_abonos: list<array{numero: int, fecha: string, monto: float}>, currency: string, exchange_rate: ?float}
      *
      * @since   3.119.169
      */
@@ -2626,6 +2653,19 @@ class FelInvoiceIssuanceService
         $docType = strtoupper(trim((string) ($nucOptions['doc_type'] ?? 'FACT')));
         if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
             $docType = 'FACT';
+        }
+
+        $currency = strtoupper(trim((string) ($nucOptions['currency'] ?? 'GTQ')));
+        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+            $currency = 'GTQ';
+        }
+
+        $exchangeRate = null;
+        if ($currency === 'USD' && isset($nucOptions['exchange_rate'])) {
+            $rate = (float) $nucOptions['exchange_rate'];
+            if ($rate > 0.000001) {
+                $exchangeRate = $rate;
+            }
         }
 
         $obs    = trim((string) ($nucOptions['observaciones'] ?? ''));
@@ -2653,10 +2693,62 @@ class FelInvoiceIssuanceService
         }
 
         return [
-            'doc_type'      => $docType,
-            'observaciones' => $obs,
-            'fcam_abonos'   => $abonos,
+            'doc_type'       => $docType,
+            'observaciones'  => $obs,
+            'fcam_abonos'    => $abonos,
+            'currency'       => $currency,
+            'exchange_rate'  => $exchangeRate,
         ];
+    }
+
+    /**
+     * Resolve currency and BANGUAT exchange rate for manual FEL issuance.
+     *
+     * @param   array<string, mixed>  $nucOptions
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.172
+     */
+    protected function resolveManualFelNucOptionsForIssuance(array $nucOptions, \DateTimeInterface $issuedAt): array
+    {
+        $currency = strtoupper(trim((string) ($nucOptions['currency'] ?? 'GTQ')));
+        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+            $currency = 'GTQ';
+        }
+        $nucOptions['currency'] = $currency;
+
+        if ($currency !== 'USD') {
+            $nucOptions['exchange_rate'] = null;
+
+            return $nucOptions;
+        }
+
+        $dateYmd = $issuedAt->format('Y-m-d');
+        $helper  = new BanguatTipoCambioHelper();
+        $rate    = $helper->getUsdReferenciaForDate($dateYmd);
+        if ($rate === null || $rate <= 0.000001) {
+            $nucOptions['_error'] = Text::sprintf(
+                'COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_UNAVAILABLE',
+                $dateYmd
+            );
+
+            return $nucOptions;
+        }
+
+        $nucOptions['exchange_rate'] = $rate;
+
+        return $nucOptions;
+    }
+
+    /**
+     * Map Digifact NUC currency code to invoice display/storage currency.
+     *
+     * @since  3.119.172
+     */
+    protected function nucCurrencyToInvoiceCurrency(string $nucCurrency): string
+    {
+        return strtoupper(trim($nucCurrency)) === 'USD' ? 'USD' : 'Q';
     }
 
     /**
@@ -2777,6 +2869,12 @@ class FelInvoiceIssuanceService
         if ($issuedAt === null) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE_INVALID')];
         }
+
+        $nucOptionsResolved = $this->resolveManualFelNucOptionsForIssuance($nucOptions, $issuedAt);
+        if (!empty($nucOptionsResolved['_error'])) {
+            return ['success' => false, 'message' => (string) $nucOptionsResolved['_error']];
+        }
+        $nucOptions = $nucOptionsResolved;
 
         $allQuotationIds = array_values(array_unique(array_filter(array_merge(
             [$quotationId],
@@ -3798,6 +3896,10 @@ class FelInvoiceIssuanceService
                 $felTipoDte = $dt;
             }
         }
+        $felMoneda = strtoupper(trim((string) ($nucPayload['Header']['Currency'] ?? 'GTQ')));
+        if (!\in_array($felMoneda, ['GTQ', 'USD'], true)) {
+            $felMoneda = 'GTQ';
+        }
         $update = [
             'fel_issue_status'       => 'completed',
             'fel_issue_error'        => null,
@@ -3809,7 +3911,8 @@ class FelInvoiceIssuanceService
             'fel_receptor_id'        => $receptorDigits,
             'fel_receptor_nombre'    => $receptorNombre,
             'fel_receptor_direccion' => $receptorDireccion !== '' ? $receptorDireccion : null,
-            'fel_moneda'             => 'GTQ',
+            'fel_moneda'             => $felMoneda,
+            'currency'               => $this->nucCurrencyToInvoiceCurrency($felMoneda),
             'fel_scheduled_at'       => null,
             'fel_local_xml_path'     => $xmlRel,
             'fel_local_pdf_path'     => $pdfRel,

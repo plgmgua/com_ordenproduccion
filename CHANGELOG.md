@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.172-STABLE] - 2026-05-19
+
+### Added
+- **Factura manual:** **USD** currency option with mandatory **BANGUAT** reference exchange rate (`Header.ExchangeRate`) for the issue date; auto-fetched from [Banco de Guatemala](https://www.banguat.gob.gt/tipo_cambio) SOAP service (`BanguatTipoCambioHelper`).
+- **Factura manual UI:** currency selector, read-only exchange rate field, `manualFelExchangeRate` JSON endpoint.
+
+### Changed
+- **Manual FEL NUC:** `Header.Currency` GTQ or USD; `fel_moneda` and invoice `currency` persisted from payload on certification.
+- **Invoice PDF (Grimpsa template):** column headers use **Q** or **USD** based on invoice currency.
+
 ## [3.119.171-STABLE] - 2026-05-19
 
 ### Changed

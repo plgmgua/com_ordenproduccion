@@ -15,6 +15,7 @@
  * @var array<int, array{id: int, label: string, valor: float}> $manualFelOrdensForClient
  * @var array<int, array{id: int, label: string, total: float, quote_date: string}> $manualFelOtherQuotations
  * @var string $manualFelLinesUrl
+ * @var string $manualFelExchangeRateUrl
  * @var string $manualFelIssueDateDefault
  */
 
@@ -73,6 +74,18 @@ if ($manualFelQuotationRef === '') {
                             <option value="FACT"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE_FACT', 'FACT — Invoice', 'FACT — Factura')); ?></option>
                             <option value="FCAM"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE_FCAM', 'FCAM — Exchange invoice', 'FCAM — Factura cambiaria')); ?></option>
                         </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1" for="manual-fel-currency"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_CURRENCY', 'Currency', 'Moneda')); ?></label>
+                        <select class="form-select form-select-sm" id="manual-fel-currency">
+                            <option value="GTQ"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_CURRENCY_GTQ', 'GTQ — Quetzales', 'GTQ — Quetzales')); ?></option>
+                            <option value="USD"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_CURRENCY_USD', 'USD — US dollars', 'USD — Dólares')); ?></option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-none" id="manual-fel-exchange-wrap">
+                        <label class="form-label small mb-1" for="manual-fel-exchange-rate"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE', 'Exchange rate (BANGUAT)', 'Tipo de cambio (BANGUAT)')); ?></label>
+                        <input type="text" class="form-control form-control-sm text-end" id="manual-fel-exchange-rate" readonly />
+                        <div id="manual-fel-exchange-msg" class="form-text small text-muted"></div>
                     </div>
                     <div class="col-12">
                         <label class="form-label small mb-1" for="manual-fel-observaciones"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_OBSERVACIONES', 'Observations', 'Observaciones')); ?></label>
@@ -245,6 +258,7 @@ if ($manualFelQuotationRef === '') {
     var issueUrl = <?php echo json_encode($manualFelIssueUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var previewUrl = <?php echo json_encode($manualFelPreviewUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var linesUrl = <?php echo json_encode($manualFelLinesUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var exchangeRateUrl = <?php echo json_encode($manualFelExchangeRateUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var verifyCuiUrl = <?php echo json_encode($digifactVerifyCuiUrl ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var qid = <?php echo (int) ($quotationId ?? 0); ?>;
     var issueDateInput = document.getElementById('manual-fel-issue-date');
@@ -260,6 +274,10 @@ if ($manualFelQuotationRef === '') {
     var nitInput = document.getElementById('manual-fel-buyer-nit');
     var addrInput = document.getElementById('manual-fel-buyer-address');
     var docTypeSelect = document.getElementById('manual-fel-doc-type');
+    var currencySelect = document.getElementById('manual-fel-currency');
+    var exchangeWrap = document.getElementById('manual-fel-exchange-wrap');
+    var exchangeRateInput = document.getElementById('manual-fel-exchange-rate');
+    var exchangeMsg = document.getElementById('manual-fel-exchange-msg');
     var observacionesInput = document.getElementById('manual-fel-observaciones');
     var fcamPanel = document.getElementById('manual-fel-fcam-panel');
     var fcamDueDate = document.getElementById('manual-fel-fcam-due-date');
@@ -272,6 +290,10 @@ if ($manualFelQuotationRef === '') {
     var msgCuiNotValidated = <?php echo json_encode($l('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_NOT_VALIDATED', 'Click «Validate» and wait for Digifact to confirm the CUI before generating.', 'Pulse «Validar» y espere la confirmación de Digifact antes de generar.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgFcamDateRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_DATE_REQUIRED', 'Due date is required for FCAM.', 'La fecha de vencimiento es obligatoria para FCAM.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgPreviewFailed = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_PREVIEW_FAILED', 'Could not build preview.', 'No se pudo generar la vista previa.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgExchangeRateRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_REQUIRED', 'USD invoices require the BANGUAT exchange rate for the issue date.', 'Las facturas en USD requieren el tipo de cambio BANGUAT de la fecha de emisión.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgExchangeRateLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_LOADING', 'Loading exchange rate…', 'Cargando tipo de cambio…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var exchangeRateLoaded = false;
+    var exchangeRateLoading = false;
     if (!openBtn || !modalEl || !generarBtn || !tbody) return;
 
     function showModal() {
@@ -305,6 +327,96 @@ if ($manualFelQuotationRef === '') {
     }
     if (docTypeSelect) {
         docTypeSelect.addEventListener('change', toggleFcamPanel);
+    }
+    function isUsdCurrency() {
+        return currencySelect && String(currencySelect.value || 'GTQ').toUpperCase() === 'USD';
+    }
+    function resetExchangeRateState() {
+        exchangeRateLoaded = false;
+        if (exchangeRateInput) {
+            exchangeRateInput.value = '';
+        }
+        if (exchangeMsg) {
+            exchangeMsg.textContent = '';
+            exchangeMsg.className = 'form-text small text-muted';
+        }
+    }
+    function toggleCurrencyPanel() {
+        var usd = isUsdCurrency();
+        if (exchangeWrap) {
+            exchangeWrap.classList.toggle('d-none', !usd);
+        }
+        if (!usd) {
+            resetExchangeRateState();
+        } else {
+            fetchExchangeRate();
+        }
+    }
+    function fetchExchangeRate() {
+        if (!isUsdCurrency() || !tokenForm || !exchangeRateUrl || !issueDateInput) {
+            return;
+        }
+        if (!validateIssueDateSilent()) {
+            resetExchangeRateState();
+            return;
+        }
+        exchangeRateLoading = true;
+        exchangeRateLoaded = false;
+        if (exchangeRateInput) {
+            exchangeRateInput.value = '';
+        }
+        if (exchangeMsg) {
+            exchangeMsg.textContent = msgExchangeRateLoading;
+            exchangeMsg.className = 'form-text small text-muted';
+        }
+        var fd = new FormData(tokenForm);
+        fd.append('manual_issue_date', String(issueDateInput.value || issueDateDefault));
+        fetch(exchangeRateUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(j) {
+                exchangeRateLoading = false;
+                if (j && j.success && j.exchange_rate != null) {
+                    exchangeRateLoaded = true;
+                    if (exchangeRateInput) {
+                        exchangeRateInput.value = Number(j.exchange_rate).toFixed(5);
+                    }
+                    if (exchangeMsg) {
+                        exchangeMsg.textContent = '';
+                        exchangeMsg.className = 'form-text small text-muted';
+                    }
+                } else {
+                    exchangeRateLoaded = false;
+                    if (exchangeMsg) {
+                        exchangeMsg.textContent = (j && j.message) ? j.message : msgExchangeRateRequired;
+                        exchangeMsg.className = 'form-text small text-danger';
+                    }
+                }
+            })
+            .catch(function() {
+                exchangeRateLoading = false;
+                exchangeRateLoaded = false;
+                if (exchangeMsg) {
+                    exchangeMsg.textContent = msgNet;
+                    exchangeMsg.className = 'form-text small text-danger';
+                }
+            });
+    }
+    function validateIssueDateSilent() {
+        if (!issueDateInput) {
+            return true;
+        }
+        var val = String(issueDateInput.value || '').trim();
+        return !!(val && val <= issueDateDefault);
+    }
+    if (currencySelect) {
+        currencySelect.addEventListener('change', toggleCurrencyPanel);
+    }
+    if (issueDateInput) {
+        issueDateInput.addEventListener('change', function() {
+            if (isUsdCurrency()) {
+                fetchExchangeRate();
+            }
+        });
     }
     function hideAlert() {
         if (alertEl) {
@@ -479,6 +591,11 @@ if ($manualFelQuotationRef === '') {
         if (docTypeSelect) {
             docTypeSelect.value = 'FACT';
         }
+        if (currencySelect) {
+            currencySelect.value = 'GTQ';
+        }
+        resetExchangeRateState();
+        toggleCurrencyPanel();
         if (observacionesInput) {
             observacionesInput.value = quotationRefDefault || '';
         }
@@ -657,6 +774,16 @@ if ($manualFelQuotationRef === '') {
         if (!validateIssueDate()) {
             return null;
         }
+        if (isUsdCurrency()) {
+            if (exchangeRateLoading) {
+                showAlert(msgExchangeRateLoading);
+                return null;
+            }
+            if (!exchangeRateLoaded) {
+                showAlert(msgExchangeRateRequired);
+                return null;
+            }
+        }
         if (docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM') {
             var dueCheck = fcamDueDate ? String(fcamDueDate.value || '').trim() : '';
             if (!dueCheck) {
@@ -676,6 +803,7 @@ if ($manualFelQuotationRef === '') {
         fd.append('manual_orden_ids_json', JSON.stringify(collectOrdenIds()));
         fd.append('manual_quotation_ids_json', JSON.stringify(collectQuotationIds()));
         fd.append('manual_doc_type', docTypeSelect ? String(docTypeSelect.value || 'FACT') : 'FACT');
+        fd.append('manual_currency', currencySelect ? String(currencySelect.value || 'GTQ') : 'GTQ');
         fd.append('manual_observaciones', observacionesInput ? String(observacionesInput.value || '').trim() : '');
         fd.append('manual_fcam_abonos_json', buildFcamAbonosJson());
         if (issueDateInput) {
