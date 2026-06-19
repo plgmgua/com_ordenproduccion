@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.181-STABLE] - 2026-05-19
+
+### Added
+- **Ajustes → Estandarización de Clientes:** search partial client names, analyze variants (órdenes, facturas, comprobantes, cotizaciones, saldos), and apply one canonical name while keeping documents linked by ID.
+
+### Changed
+- **Client merge / standardization:** updates invoices (`client_name`, `fel_receptor_nombre`), quotations, pliego quotes, and client balance rows in addition to órdenes.
+
 ## [3.119.180-STABLE] - 2026-05-19
 
 ### Fixed

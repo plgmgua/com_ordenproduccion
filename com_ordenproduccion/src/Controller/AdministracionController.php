@@ -861,6 +861,97 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Analyze client name variants (Ajustes > Estandarización de Clientes).
+     *
+     * @return  void
+     *
+     * @since   3.119.181
+     */
+    public function analyzeClientStandardization()
+    {
+        $app = Factory::getApplication();
+        $app->mimeType = 'application/json';
+        $app->setHeader('Content-Type', 'application/json; charset=utf-8', true);
+
+        if (!Session::checkToken('get')) {
+            echo json_encode(['success' => false, 'message' => Text::_('JINVALID_TOKEN')]);
+            $app->close();
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !$user->authorise('core.admin')) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_CLIENT_STD_SUPER_USER_ONLY')]);
+            $app->close();
+        }
+
+        $search = trim($app->input->getString('search', ''));
+        try {
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+            $data = $model->analyzeClientNameStandardization($search);
+            echo json_encode(['success' => true, 'data' => $data]);
+        } catch (\Throwable $e) {
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+
+        $app->close();
+    }
+
+    /**
+     * Apply client name standardization (Ajustes > Estandarización de Clientes).
+     *
+     * @return  void
+     *
+     * @since   3.119.181
+     */
+    public function applyClientStandardization()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $returnUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=estandarizacion_clientes', false);
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+            return;
+        }
+
+        if (!$user->authorise('core.admin')) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENT_STD_SUPER_USER_ONLY'), 'error');
+            $app->redirect($returnUrl);
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($returnUrl);
+            return;
+        }
+
+        $sources = $app->input->post->get('std_sources', [], 'array');
+        $targetName = trim($app->input->post->getString('std_target_name', ''));
+        $targetNit = trim($app->input->post->getString('std_target_nit', ''));
+
+        if (empty($sources) || $targetName === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENT_STD_SELECT_REQUIRED'), 'error');
+            $app->redirect($returnUrl);
+            return;
+        }
+
+        try {
+            $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site');
+            $ordenesUpdated = $model->standardizeClientNames($sources, $targetName, $targetNit !== '' ? $targetNit : null);
+            $app->enqueueMessage(
+                Text::sprintf('COM_ORDENPRODUCCION_CLIENT_STD_SUCCESS', $ordenesUpdated, $targetName),
+                'success'
+            );
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_CLIENT_STD_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($returnUrl);
+    }
+
+    /**
      * Save client opening balance (amount paid up to Dec 31 2025).
      *
      * @return  void

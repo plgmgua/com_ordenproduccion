@@ -132,6 +132,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-university"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_MT940'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=estandarizacion_clientes'); ?>"
+       class="ajustes-subtab <?php echo $activeSubTab === 'estandarizacion_clientes' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-user-check"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_ESTANDARIZACION_CLIENTES'); ?>
+    </a>
 </div>
 <div class="subtab-content">
     <?php if ($activeSubTab === 'ajustes_cotizacion'): ?>
@@ -167,6 +172,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php else: ?>
             <?php include __DIR__ . '/default_ajustes_mt940.php'; ?>
         <?php endif; ?>
+    <?php elseif ($activeSubTab === 'estandarizacion_clientes'): ?>
+        <?php include __DIR__ . '/default_ajustes_estandarizacion_clientes.php'; ?>
     <?php else: ?>
         <?php include __DIR__ . '/default_ajustes_ajustes_cotizacion.php'; ?>
     <?php endif; ?>

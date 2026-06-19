@@ -1603,54 +1603,74 @@ class AdministracionModel extends BaseDatabaseModel
      */
     public function mergeClients(array $sources, $targetClientName, $targetNit)
     {
+        return $this->standardizeClientNames($sources, $targetClientName, $targetNit);
+    }
+
+    /**
+     * Analyze client name variants for standardization (Ajustes tool).
+     *
+     * @return array<string, mixed>
+     *
+     * @since 3.119.181
+     */
+    public function analyzeClientNameStandardization(string $search): array
+    {
+        $helper = new \Grimpsa\Component\Ordenproduccion\Site\Helper\ClientNameStandardizationHelper();
+
+        return $helper->analyze($search);
+    }
+
+    /**
+     * Standardize client names across ordenes, invoices, balances, etc.
+     *
+     * @param   array   $sources  Array of ['client_name' => x, 'nit' => y] to rename
+     * @param   string  $targetClientName  Canonical client name
+     * @param   string|null  $targetNit  Canonical NIT (optional)
+     *
+     * @return  int  Total ordenes updated (for backward-compatible merge messaging)
+     *
+     * @since   3.55.0
+     */
+    public function standardizeClientNames(array $sources, $targetClientName, $targetNit)
+    {
         $db = Factory::getDbo();
         $user = Factory::getUser();
-        $totalUpdated = 0;
+        $helper = new \Grimpsa\Component\Ordenproduccion\Site\Helper\ClientNameStandardizationHelper($db);
 
         $this->ensureClientMergesTableExists($db);
         $this->ensureClientOpeningBalanceTableExists($db);
 
-        $openingBalanceToAdd = 0.0;
+        $stats = $helper->apply($sources, (string) $targetClientName, $targetNit !== null ? (string) $targetNit : null);
 
+        $openingBalanceToAdd = 0.0;
         foreach ($sources as $src) {
             $srcName = trim($src['client_name'] ?? '');
             $srcNit = isset($src['nit']) ? trim($src['nit']) : null;
-
-            if ($srcName === '' || ($srcName === $targetClientName && ($srcNit === $targetNit || ($srcNit === null && $targetNit === null)))) {
+            if ($srcName === '' || $srcName === trim((string) $targetClientName)) {
                 continue;
             }
 
-            $query = $db->getQuery(true)
-                ->update($db->quoteName('#__ordenproduccion_ordenes'))
-                ->set($db->quoteName('client_name') . ' = ' . $db->quote($targetClientName))
-                ->set($db->quoteName('nit') . ' = ' . $db->quote($targetNit ?? ''))
-                ->where($db->quoteName('client_name') . ' = ' . $db->quote($srcName))
-                ->where($db->quoteName('state') . ' = 1');
+            $this->logClientMerge(
+                $db,
+                $srcName,
+                $srcNit,
+                (string) $targetClientName,
+                $targetNit,
+                (int) ($stats['ordenes'] ?? 0),
+                (int) $user->id
+            );
 
-            if ($srcNit !== null && $srcNit !== '') {
-                $query->where($db->quoteName('nit') . ' = ' . $db->quote($srcNit));
-            } else {
-                $query->where('(' . $db->quoteName('nit') . ' IS NULL OR ' . $db->quoteName('nit') . ' = ' . $db->quote('') . ')');
-            }
-
-            $db->setQuery($query);
-            $updated = $db->execute();
-            $affected = $updated ? $db->getAffectedRows() : 0;
-            $totalUpdated += $affected;
-
-            if ($affected > 0) {
-                $this->logClientMerge($db, $srcName, $srcNit, $targetClientName, $targetNit, $affected, $user->id);
-                $openingBalanceToAdd += $this->getAndRemoveOpeningBalance($db, $srcName, $srcNit);
-                $this->removeClientBalance($db, $srcName, $srcNit);
-            }
+            $openingBalanceToAdd += $this->getAndRemoveOpeningBalance($db, $srcName, $srcNit);
+            $this->removeClientBalance($db, $srcName, $srcNit);
         }
 
         if ($openingBalanceToAdd > 0) {
-            $this->addToTargetOpeningBalance($db, $targetClientName, $targetNit, $openingBalanceToAdd, $user->id);
+            $this->addToTargetOpeningBalance($db, (string) $targetClientName, $targetNit, $openingBalanceToAdd, (int) $user->id);
         }
 
         $this->refreshClientBalances();
-        return $totalUpdated;
+
+        return (int) ($stats['ordenes'] ?? 0);
     }
 
     /**
