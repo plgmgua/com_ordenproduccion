@@ -2266,7 +2266,8 @@ class FelInvoiceIssuanceService
                 $additionalInfos,
                 $cotRef,
                 (int) ($quotation->id ?? 0),
-                $normalizedOpts
+                $normalizedOpts,
+                (int) ($nucOptions['source_invoice_id'] ?? 0)
             );
         }
 
@@ -2276,7 +2277,7 @@ class FelInvoiceIssuanceService
             'Currency'       => $currency,
         ];
         if ($currency === 'USD' && $exchangeRate !== null) {
-            $header['ExchangeRate'] = $exchangeRate;
+            $header['ExchangeRate'] = sprintf('%.6f', $exchangeRate);
         }
 
         $buyerPayload = [
@@ -3458,7 +3459,7 @@ class FelInvoiceIssuanceService
             $buyerAddress,
             $nucBuyerTaxIdOverride,
             $issueDateYmd,
-            $nucOptions
+            array_merge($nucOptions, ['source_invoice_id' => $sourceInvoiceId])
         );
         if (empty($built['success']) || !isset($built['payload']) || !\is_array($built['payload'])) {
             return ['success' => false, 'message' => (string) ($built['message'] ?? 'Invalid payload')];
@@ -3831,27 +3832,39 @@ class FelInvoiceIssuanceService
         array &$additionalInfos,
         string $cotRef,
         int $quotationId,
-        array $normalizedOpts
+        array $normalizedOpts,
+        int $sourceInvoiceId = 0
     ): void {
         $obsDigifact = trim((string) ($normalizedOpts['observaciones'] ?? ''));
         if ($obsDigifact === '') {
             $obsDigifact = '-';
         }
 
-        $adendaCode = $quotationId > 0 ? 'COT-' . $quotationId : ($cotRef !== '' ? $cotRef : 'MANUAL');
-        $cotValue   = $cotRef !== '' ? $cotRef : '-';
+        if ($quotationId > 0) {
+            $adendaCode = 'COT-' . $quotationId;
+        } elseif ($sourceInvoiceId > 0) {
+            $adendaCode = 'INV-' . $sourceInvoiceId;
+        } else {
+            $adendaCode = 'MANUAL';
+        }
+        $cotValue = $cotRef !== '' ? $cotRef : '-';
 
         $additionalInfos[] = [
             'Code'          => $adendaCode,
             'Type'          => 'ADENDA',
             'AditionalData' => [
-                'Data' => [[
-                    'Name' => 'INFORMACION_ADICIONAL',
-                    'Info' => [
-                        ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => $obsDigifact],
-                        ['Name' => 'COTIZACION', 'Data' => null, 'Value' => $cotValue],
+                'Data' => [
+                    [
+                        'Name' => 'INFORMACION_ADICIONAL',
+                        'Info' => [
+                            ['Name' => 'OBSERVACIONES', 'Data' => null, 'Value' => $obsDigifact],
+                            ['Name' => 'COTIZACION', 'Data' => null, 'Value' => $cotValue],
+                        ],
                     ],
-                ]],
+                ],
+            ],
+            'AditionalInfo' => [
+                ['Name' => 'VALIDAR_REFERENCIA_INTERNA', 'Data' => null, 'Value' => 'NO_VALIDAR'],
             ],
         ];
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.189-STABLE] - 2026-06-19
+
+### Fixed
+- **Factura manual Digifact:** ADENDA `AditionalData.Data` used an extra array nesting that broke JSON→XML transform (Digifact code 3000 / XML mal formado); ADENDA `Code` is now `INV-{id}` / `COT-{id}` / `MANUAL`; USD `ExchangeRate` sent as formatted string.
+
 ## [3.119.188-STABLE] - 2026-06-19
 
 ### Fixed
