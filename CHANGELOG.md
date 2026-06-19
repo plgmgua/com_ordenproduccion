@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.170-STABLE] - 2026-05-19
+
+### Changed
+- **Invoice PDF:** Observaciones moved to the **bottom of the page** with title **Observaciones** (full width, justified), above the legal/certificador footer — no longer inside the description table column.
+
 ## [3.119.169-STABLE] - 2026-05-19
 
 ### Added

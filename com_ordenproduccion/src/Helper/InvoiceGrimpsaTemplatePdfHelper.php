@@ -348,23 +348,24 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $footerReserve = self::CMY_BAR_MM + 25;
         $tableBottom   = self::PAGE_H_MM - $footerReserve;
         $totH          = 5.5;
+        $lineHBody     = 3.5;
+        $obsText       = FelInvoiceHelper::resolvePdfObservaciones($inv);
+        $obsFooterH    = $obsText !== '' ? self::observacionesFooterBlockHeight($lineHBody) : 0.0;
         if (\is_array($plantilla)) {
             $pieY = (float) ($plantilla['pie_y'] ?? 0);
             if ($pieY > 0.001) {
                 $gapBeforePie = 3.0;
-                $capped       = $pieY - $gapBeforePie;
+                $capped       = $pieY - $gapBeforePie - $obsFooterH;
                 if ($capped > $pdf->GetY() + $totH + 5) {
                     $tableBottom = min($tableBottom, $capped);
                 }
             }
+        } elseif ($obsFooterH > 0.0) {
+            $tableBottom = min($tableBottom, self::PAGE_H_MM - $footerReserve - $obsFooterH);
         }
 
         $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
-        $lineHBody = 3.5;
         $pdf->SetFont('Helvetica', '', 7.5);
-
-        $obsText = FelInvoiceHelper::resolvePdfObservaciones($inv);
-        $obsRowH = $obsText !== '' ? self::observacionesRowHeight($lineHBody) : 0.0;
 
         $totalIva = 0.0;
         $i        = 0;
@@ -375,7 +376,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $row     = $lineItems[$i];
             $nextH   = self::estimateDataRowHeight($pdf, $row, $colWidths, $lineHBody);
             $hasMoreAfterThis = ($i < $nLines - 1);
-            $reserveBelow     = $hasMoreAfterThis ? 0.0 : ($totH + $obsRowH);
+            $reserveBelow     = $hasMoreAfterThis ? 0.0 : $totH;
             $bottomLimit      = $tableBottom - $reserveBelow;
 
             if ($yTable + $nextH > $bottomLimit && $yTable > $yBodySegmentTop + 0.5) {
@@ -405,23 +406,6 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $i++;
         }
 
-        if ($obsText !== '') {
-            $preferredObsTop = $tableBottom - $totH - $obsRowH;
-            if ($yTable + $obsRowH > $preferredObsTop && $yTable > $yBodySegmentTop + 0.5) {
-                self::drawTableVerticalGuides($pdf, self::MARGIN_X, $yTable, $tableBottom, $colWidths);
-                $pdf->AddPage();
-                $pdf->SetXY(self::MARGIN_X, self::CMY_BAR_MM + 4);
-                $pdf->SetFont('Helvetica', 'B', 8);
-                $pdf->Cell($lw, 4, CotizacionPdfHelper::encodeTextForFpdf(
-                    'Continuación — ' . (string) ($inv->invoice_number ?? '')
-                ), 0, 1, 'L');
-                $pdf->Ln(1);
-                $pdf->SetFont('Helvetica', '', 7.5);
-                $yTable = self::drawTableHeader($pdf, $pdf->GetY(), $colWidths, $hdr);
-            }
-            $yTable = self::drawObservacionesRow($pdf, $yTable, $colWidths, $obsText, $lineHBody);
-        }
-
         $preferredTotalsTop = $tableBottom - $totH;
         $totalsTop          = max($preferredTotalsTop, $yTable);
         if ($totalsTop > $yTable + 0.02) {
@@ -439,6 +423,15 @@ final class InvoiceGrimpsaTemplatePdfHelper
         self::drawImpuestosSubCells($pdf, $xImp, $totalsTop, $totH, $colWidths[6], number_format($totalIva, 2, '.', ''), true);
         $pdf->SetXY(self::MARGIN_X, $totalsTop + $totH);
         $pdf->SetFillColor(255, 255, 255);
+
+        if ($obsText !== '') {
+            $yObs = self::resolveObservacionesAnchorY($obsFooterH, $plantilla);
+            $yMin = $totalsTop + $totH + 2.5;
+            if ($yObs < $yMin) {
+                $yObs = $yMin;
+            }
+            self::drawObservacionesFooterBlock($pdf, $yObs, $lw, $obsText, $lineHBody);
+        }
 
         if (\is_array($plantilla) && $footerHtmlProcessed !== '') {
             $pieBlocks = CotizacionFpdfBlocksHelper::parseHtmlBlocks($footerHtmlProcessed, $fixEnc);
@@ -680,63 +673,80 @@ final class InvoiceGrimpsaTemplatePdfHelper
     }
 
     /**
-     * Fixed height for the observaciones band (3 text lines in the description column).
+     * Height of the observaciones footer block (title + 3 body lines).
      *
      * @since  3.119.169
      */
-    private static function observacionesRowHeight(float $lineH): float
+    private static function observacionesFooterBlockHeight(float $lineH): float
     {
-        return 3 * $lineH + 1.1;
+        return 4.5 + 3 * $lineH + 0.8;
     }
 
     /**
-     * Draw observaciones at the bottom of the description column (justified, 3-line height).
+     * Y position for observaciones anchored near the bottom of the page (above pie/legal footer).
      *
-     * @param  list<float>  $cw
-     *
-     * @since  3.119.169
+     * @since  3.119.170
      */
-    private static function drawObservacionesRow(
-        InvoiceGrimpsaPdfDocument $pdf,
-        float $y,
-        array $cw,
-        string $obsText,
-        float $lineH
-    ): float {
-        $rowH     = self::observacionesRowHeight($lineH);
-        $padXDesc = 0.9;
-        $padY     = 0.55;
-        $x        = self::MARGIN_X;
-
-        for ($ci = 0; $ci < 3; $ci++) {
-            $pdf->SetXY($x, $y);
-            $pdf->Cell($cw[$ci], $rowH, '', 'LR', 0);
-            $x += $cw[$ci];
+    private static function resolveObservacionesAnchorY(float $obsBlockH, ?array $plantilla): float
+    {
+        $gapAbovePie = 2.0;
+        if (\is_array($plantilla)) {
+            $pieY = (float) ($plantilla['pie_y'] ?? 0);
+            if ($pieY > 0.001) {
+                $y = $pieY - $gapAbovePie - $obsBlockH;
+                if ($y > 40.0) {
+                    return $y;
+                }
+            }
         }
 
-        $pdf->SetXY($x, $y);
-        $pdf->Cell($cw[3], $rowH, '', 'LR', 0);
-        $pdf->SetXY($x + $padXDesc, $y + $padY);
-        $innerW = $cw[3] - 2 * $padXDesc;
+        return self::PAGE_H_MM - self::CMY_BAR_MM - 20.0 - $obsBlockH;
+    }
+
+    /**
+     * Localized title for the observaciones footer block.
+     *
+     * @since  3.119.170
+     */
+    private static function observacionesPdfLabel(): string
+    {
+        self::ensureComponentLanguageLoadedForPdf();
+        $key = 'COM_ORDENPRODUCCION_INVOICE_PDF_OBSERVACIONES';
+        $t   = Text::_($key);
+        if ($t === $key || strncmp($t, 'COM_', 4) === 0) {
+            $tag = Factory::getApplication()->getLanguage()->getTag();
+
+            return stripos($tag, 'es') === 0 ? 'Observaciones' : 'Observations';
+        }
+
+        return $t;
+    }
+
+    /**
+     * Draw observaciones at the bottom of the page: title + justified body (3-line band).
+     *
+     * @since  3.119.170
+     */
+    private static function drawObservacionesFooterBlock(
+        InvoiceGrimpsaPdfDocument $pdf,
+        float $y,
+        float $contentW,
+        string $obsText,
+        float $lineH
+    ): void {
+        $pdf->SetXY(self::MARGIN_X, $y);
+        $pdf->SetFont('Helvetica', 'B', 8);
+        $pdf->Cell($contentW, 4.5, CotizacionPdfHelper::encodeTextForFpdf(self::observacionesPdfLabel()), 0, 1, 'L');
+
+        $pdf->SetX(self::MARGIN_X);
         $pdf->SetFont('Helvetica', '', 7.5);
         $pdf->MultiCell(
-            $innerW,
+            $contentW,
             $lineH,
             CotizacionPdfHelper::encodeTextForFpdf($obsText),
             0,
             'J'
         );
-        $x += $cw[3];
-
-        for ($j = 0; $j < 2; $j++) {
-            $pdf->SetXY($x, $y);
-            $pdf->Cell($cw[4 + $j], $rowH, '', 'LR', 0);
-            $x += $cw[4 + $j];
-        }
-
-        self::drawImpuestosSubCells($pdf, $x, $y, $rowH, $cw[6], '', false);
-
-        return $y + $rowH;
     }
 
     /**
