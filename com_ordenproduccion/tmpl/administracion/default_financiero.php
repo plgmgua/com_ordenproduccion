@@ -403,6 +403,7 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940FilterMonth  = max(1, min(12, (int) ($this->financieroMt940FilterMonth ?? (int) \date('n'))));
     $mt940FilterYear   = max(2000, min(2100, (int) ($this->financieroMt940FilterYear ?? (int) \date('Y'))));
     $mt940Rows         = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
+    $mt940BalanceRows  = isset($this->financieroMt940BalanceRows) && \is_array($this->financieroMt940BalanceRows) ? $this->financieroMt940BalanceRows : [];
     $mt940DatosQs      = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias'
         . '&mt940_filter_month=' . $mt940FilterMonth . '&mt940_filter_year=' . $mt940FilterYear . $finItemSuffix;
     $mt940FormAction   = Route::_($mt940DatosQs, false);
@@ -418,6 +419,18 @@ $pagoConfirmadoBadge = static function ($r): string {
         $sym  = $currency === 'USD' ? 'USD ' : 'Q ';
 
         return $sign . $sym . number_format(abs($n), 2, '.', ',');
+    };
+
+    $fmtMt940Balance = static function ($amount, string $currency): string {
+        if ($amount === null || $amount === '') {
+            return '—';
+        }
+        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+            $currency = 'GTQ';
+        }
+        $sym = $currency === 'USD' ? 'USD ' : 'Q ';
+
+        return $sym . number_format((float) $amount, 2, '.', ',');
     };
 
     $mt940AccountNumberDisplay = static function (object $row): string {
@@ -486,6 +499,44 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
             </div>
         </form>
+
+        <?php if ($mt940BalanceRows !== []) : ?>
+            <h3 class="h6 mt-2 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_BALANCES_TITLE'); ?></h3>
+            <p class="text-muted small mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_BALANCES_INTRO'); ?></p>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm table-striped table-mt940 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_STATEMENT_DATE'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_OPENING'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_CLOSING'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($mt940BalanceRows as $bal) :
+                            $balCur  = (string) ($bal->currency ?? 'GTQ');
+                            $balAcct = \trim((string) ($bal->bank_account_name ?? ''));
+                            $balNo   = \trim((string) ($bal->account_number ?? ''));
+                            if ($balAcct === '' && $balNo !== '') {
+                                $balAcct = $balNo;
+                            } elseif ($balNo !== '' && $balAcct !== '' && \strpos($balAcct, $balNo) === false) {
+                                $balAcct .= ' (' . $balNo . ')';
+                            }
+                            ?>
+                        <tr>
+                            <td><?php echo $balAcct !== '' ? htmlspecialchars($balAcct) : '—'; ?></td>
+                            <td><?php echo !empty($bal->statement_date) ? htmlspecialchars((string) $bal->statement_date) : '—'; ?></td>
+                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($bal->opening_balance ?? null, $balCur)); ?></td>
+                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($bal->closing_balance ?? null, $balCur)); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+
+        <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TRANSACTIONS_TITLE'); ?></h3>
 
         <?php if ($mt940Rows === []) : ?>
             <p><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EMPTY'); ?></p>

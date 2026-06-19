@@ -6540,6 +6540,82 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Latest opening/closing balance per configured bank account (most recent imported MT-940 file).
+     *
+     * @param   array<string,mixed>  $filters  bank_account_id (0=all configured)
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.119.186
+     */
+    public function getMt940LatestBalancesByAccount(array $filters = []): array
+    {
+        if (!$this->isMt940TransactionsTableAvailable()) {
+            return [];
+        }
+
+        $configuredIds = $this->getMt940BankAccountIds();
+        if ($configuredIds === []) {
+            return [];
+        }
+
+        $bankAccountId = max(0, (int) ($filters['bank_account_id'] ?? 0));
+        if ($bankAccountId > 0 && \in_array($bankAccountId, $configuredIds, true)) {
+            $accountIds = [$bankAccountId];
+        } else {
+            $accountIds = $configuredIds;
+        }
+
+        $db = $this->getDatabase();
+        $q  = $db->getQuery(true)
+            ->select([
+                $db->quoteName('l') . '.*',
+                $db->quoteName('ba') . '.' . $db->quoteName('name', 'bank_account_name'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_mt940_import_log', 'l'))
+            ->join(
+                'LEFT',
+                $db->quoteName('#__ordenproduccion_bank_accounts', 'ba'),
+                $db->quoteName('ba') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('l') . '.' . $db->quoteName('bank_account_id')
+            )
+            ->where($db->quoteName('l') . '.' . $db->quoteName('status') . ' = ' . $db->quote('imported'))
+            ->where($db->quoteName('l') . '.' . $db->quoteName('bank_account_id') . ' IN (' . \implode(',', $accountIds) . ')')
+            ->order('IFNULL(' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ', ' . $db->quote('1970-01-01') . ') DESC')
+            ->order($db->quoteName('l') . '.' . $db->quoteName('imported_at') . ' DESC')
+            ->order($db->quoteName('l') . '.' . $db->quoteName('id') . ' DESC');
+        $db->setQuery($q, 0, 500);
+        $rows = $db->loadObjectList() ?: [];
+
+        $latestByAccount = [];
+        foreach ($rows as $row) {
+            $aid = (int) ($row->bank_account_id ?? 0);
+            if ($aid > 0 && !isset($latestByAccount[$aid])) {
+                $latestByAccount[$aid] = $row;
+            }
+        }
+
+        $labels = $this->getMt940ConfiguredBankAccountOptions();
+        $out    = [];
+        foreach ($accountIds as $aid) {
+            if (isset($latestByAccount[$aid])) {
+                $out[] = $latestByAccount[$aid];
+                continue;
+            }
+            $stub                   = new \stdClass();
+            $stub->bank_account_id  = $aid;
+            $stub->bank_account_name = (string) ($labels[$aid] ?? '');
+            $stub->account_number   = '';
+            $stub->statement_date   = null;
+            $stub->opening_balance  = null;
+            $stub->closing_balance  = null;
+            $stub->currency         = 'GTQ';
+            $out[]                  = $stub;
+        }
+
+        return $out;
+    }
+
+    /**
      * @return  bool
      *
      * @since   3.119.160

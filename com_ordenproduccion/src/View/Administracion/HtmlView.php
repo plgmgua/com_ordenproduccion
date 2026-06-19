@@ -910,6 +910,13 @@ class HtmlView extends BaseHtmlView
     /**
      * @var  array<int, object>
      *
+     * @since  3.119.186
+     */
+    protected $financieroMt940BalanceRows = [];
+
+    /**
+     * @var  array<int, object>
+     *
      * @since  3.119.151
      */
     protected $financieroMt940ImportRows = [];
@@ -1553,6 +1560,7 @@ class HtmlView extends BaseHtmlView
         $this->financieroMt940ListLimit             = 25;
         $this->financieroMt940ImportRows            = [];
         $this->financieroMt940ImportTotal           = 0;
+        $this->financieroMt940BalanceRows           = [];
         $this->ajustesMt940SchemaOk                 = false;
         $this->ajustesMt940BankAccountOptions       = [];
         $this->mt940CronCrontabLine                 = '';
@@ -2196,6 +2204,10 @@ class HtmlView extends BaseHtmlView
                             $pack = $admFin->getMt940TransactionsList($limit, $limitStart, $dateFilters);
                             $this->financieroMt940Rows  = $pack['rows'] ?? [];
                             $this->financieroMt940Total = (int) ($pack['total'] ?? 0);
+
+                            $this->financieroMt940BalanceRows = $admFin->getMt940LatestBalancesByAccount([
+                                'bank_account_id' => $this->financieroMt940FilterBankAccountId,
+                            ]);
 
                             if ($this->financieroMt940Total > 0) {
                                 $this->financieroMt940Pagination = new \Joomla\CMS\Pagination\Pagination(

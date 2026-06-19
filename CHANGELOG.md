@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.186-STABLE] - 2026-05-19
+
+### Added
+- **Financiero → Cuentas bancarias:** compact balance summary — one row per configured bank account with latest MT-940 opening and closing balances.
+
 ## [3.119.185-STABLE] - 2026-05-19
 
 ### Changed
