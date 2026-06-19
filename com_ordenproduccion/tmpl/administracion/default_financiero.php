@@ -403,7 +403,6 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940FilterMonth  = max(1, min(12, (int) ($this->financieroMt940FilterMonth ?? (int) \date('n'))));
     $mt940FilterYear   = max(2000, min(2100, (int) ($this->financieroMt940FilterYear ?? (int) \date('Y'))));
     $mt940Rows         = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
-    $mt940ImportRows   = isset($this->financieroMt940ImportRows) && \is_array($this->financieroMt940ImportRows) ? $this->financieroMt940ImportRows : [];
     $mt940DatosQs      = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias'
         . '&mt940_filter_month=' . $mt940FilterMonth . '&mt940_filter_year=' . $mt940FilterYear . $finItemSuffix;
     $mt940FormAction   = Route::_($mt940DatosQs, false);
@@ -419,18 +418,6 @@ $pagoConfirmadoBadge = static function ($r): string {
         $sym  = $currency === 'USD' ? 'USD ' : 'Q ';
 
         return $sign . $sym . number_format(abs($n), 2, '.', ',');
-    };
-
-    $fmtMt940Balance = static function ($amount, string $currency): string {
-        if ($amount === null || $amount === '') {
-            return '—';
-        }
-        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
-            $currency = 'GTQ';
-        }
-        $sym = $currency === 'USD' ? 'USD ' : 'Q ';
-
-        return $sym . number_format((float) $amount, 2, '.', ',');
     };
 
     $mt940AccountNumberDisplay = static function (object $row): string {
@@ -500,58 +487,6 @@ $pagoConfirmadoBadge = static function ($r): string {
             </div>
         </form>
 
-        <h3 class="h6 mt-2 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_TITLE'); ?></h3>
-        <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_INTRO'); ?></p>
-        <?php if ($mt940ImportRows === []) : ?>
-            <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_STATEMENTS_EMPTY'); ?></p>
-        <?php else : ?>
-            <div class="table-responsive mb-4">
-                <table class="table table-sm table-striped table-mt940 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_STATEMENT_DATE'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_STATEMENT_REF'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_SEQUENCE'); ?></th>
-                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_OPENING'); ?></th>
-                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_CLOSING'); ?></th>
-                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_AVAILABLE'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_TX_COUNT'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_SOURCE'); ?></th>
-                            <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_IMPORTED'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($mt940ImportRows as $imp) :
-                            $impCur   = (string) ($imp->currency ?? 'GTQ');
-                            $impAcct  = trim((string) ($imp->bank_account_name ?? ''));
-                            $impNo    = trim((string) ($imp->account_number ?? ''));
-                            if ($impAcct === '' && $impNo !== '') {
-                                $impAcct = $impNo;
-                            } elseif ($impNo !== '' && $impAcct !== '') {
-                                $impAcct .= ' (' . $impNo . ')';
-                            }
-                            ?>
-                        <tr>
-                            <td><?php echo !empty($imp->statement_date) ? htmlspecialchars((string) $imp->statement_date) : '—'; ?></td>
-                            <td><?php echo $impAcct !== '' ? htmlspecialchars($impAcct) : '—'; ?></td>
-                            <td><?php echo !empty($imp->statement_reference) ? htmlspecialchars((string) $imp->statement_reference) : '—'; ?></td>
-                            <td><?php echo !empty($imp->statement_sequence) ? htmlspecialchars((string) $imp->statement_sequence) : '—'; ?></td>
-                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($imp->opening_balance ?? null, $impCur)); ?></td>
-                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($imp->closing_balance ?? null, $impCur)); ?></td>
-                            <td class="text-end"><?php echo htmlspecialchars($fmtMt940Balance($imp->closing_available_balance ?? null, $impCur)); ?></td>
-                            <td><?php echo (int) ($imp->transactions_count ?? 0); ?></td>
-                            <td><code class="small"><?php echo !empty($imp->filename) ? htmlspecialchars((string) $imp->filename) : '—'; ?></code></td>
-                            <td><?php echo !empty($imp->imported_at) ? htmlspecialchars(HTMLHelper::_('date', $imp->imported_at, Text::_('COM_ORDENPRODUCCION_FINANCIERO_VERIFIED_DATETIME_FMT'))) : '—'; ?></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
-
-        <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TRANSACTIONS_TITLE'); ?></h3>
-
         <?php if ($mt940Rows === []) : ?>
             <p><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EMPTY'); ?></p>
         <?php else : ?>
@@ -597,7 +532,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                 </table>
             </div>
             <?php $mt940Pag = $this->financieroMt940Pagination ?? null; ?>
-            <?php if ($mt940Pag && ((int) ($this->financieroMt940Total ?? 0) > 0 || (int) ($this->financieroMt940ImportTotal ?? 0) > 0)) : ?>
+            <?php if ($mt940Pag && (int) ($this->financieroMt940Total ?? 0) > 0) : ?>
                 <div class="com-content-pagination mt-3 small"><?php echo $mt940Pag->getListFooter(); ?></div>
             <?php endif; ?>
         <?php endif; ?>

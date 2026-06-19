@@ -2197,14 +2197,9 @@ class HtmlView extends BaseHtmlView
                             $this->financieroMt940Rows  = $pack['rows'] ?? [];
                             $this->financieroMt940Total = (int) ($pack['total'] ?? 0);
 
-                            $importPack = $admFin->getMt940ImportLogList($limit, $limitStart, $dateFilters);
-                            $this->financieroMt940ImportRows  = $importPack['rows'] ?? [];
-                            $this->financieroMt940ImportTotal = (int) ($importPack['total'] ?? 0);
-
-                            if ($this->financieroMt940Total > 0 || $this->financieroMt940ImportTotal > 0) {
-                                $pagTotal = max($this->financieroMt940Total, $this->financieroMt940ImportTotal);
+                            if ($this->financieroMt940Total > 0) {
                                 $this->financieroMt940Pagination = new \Joomla\CMS\Pagination\Pagination(
-                                    $pagTotal,
+                                    $this->financieroMt940Total,
                                     $limitStart,
                                     $limit,
                                     'mt940_'

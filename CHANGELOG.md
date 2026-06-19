@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.185-STABLE] - 2026-05-19
+
+### Changed
+- **Financiero → Cuentas bancarias:** removed the imported MT-940 statement summary table (balances per file); only transaction rows are shown.
+
 ## [3.119.184-STABLE] - 2026-05-19
 
 ### Fixed
