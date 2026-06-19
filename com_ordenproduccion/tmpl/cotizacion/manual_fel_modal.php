@@ -17,6 +17,7 @@
  * @var string $manualFelLinesUrl
  * @var string $manualFelExchangeRateUrl
  * @var string $manualFelIssueDateDefault
+ * @var array<string, mixed>|null $manualFelSeedFromInvoice
  */
 
 defined('_JEXEC') or die;
@@ -34,6 +35,11 @@ if ($manualFelIssueDateDefault === '') {
 $manualFelQuotationRef = trim((string) ($manualFelQuotationRef ?? ''));
 if ($manualFelQuotationRef === '') {
     $manualFelQuotationRef = 'COT-' . (int) ($quotationId ?? 0);
+}
+$manualFelSeedFromInvoice = (isset($manualFelSeedFromInvoice) && \is_array($manualFelSeedFromInvoice)) ? $manualFelSeedFromInvoice : null;
+$manualFelBuyerAddressInitial = 'Ciudad';
+if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoice['buyer_address'] ?? '')) !== '') {
+    $manualFelBuyerAddressInitial = trim((string) $manualFelSeedFromInvoice['buyer_address']);
 }
 ?>
 <div class="modal fade" id="manual-fel-invoice-modal" tabindex="-1" aria-labelledby="manualFelInvoiceModalLabel" aria-hidden="true">
@@ -62,7 +68,7 @@ if ($manualFelQuotationRef === '') {
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small mb-1" for="manual-fel-buyer-address"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_ADDRESS', 'Address', 'Dirección')); ?></label>
-                        <input type="text" class="form-control form-control-sm" id="manual-fel-buyer-address" maxlength="255" value="Ciudad" />
+                        <input type="text" class="form-control form-control-sm" id="manual-fel-buyer-address" maxlength="255" value="<?php echo htmlspecialchars($manualFelBuyerAddressInitial, ENT_QUOTES, 'UTF-8'); ?>" />
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small mb-1" for="manual-fel-issue-date"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_ISSUE_DATE', 'Issue date', 'Fecha de emisión')); ?></label>
@@ -283,6 +289,7 @@ if ($manualFelQuotationRef === '') {
     var fcamDueDate = document.getElementById('manual-fel-fcam-due-date');
     var fcamAmount = document.getElementById('manual-fel-fcam-amount');
     var quotationRefDefault = <?php echo json_encode($manualFelQuotationRef, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var manualFelSeed = <?php echo json_encode($manualFelSeedFromInvoice, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgBuyerRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_REQUIRED', 'Client name and NIT are required.', 'Nombre del cliente y NIT son obligatorios.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgLinesRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED', 'Add at least one valid line.', 'Agregue al menos una línea válida.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -495,6 +502,60 @@ if ($manualFelQuotationRef === '') {
     }
     tbody.querySelectorAll('.manual-fel-line-row').forEach(bindRow);
     toggleFcamPanel();
+
+    function applyManualFelSeed(seed) {
+        if (!seed || typeof seed !== 'object') {
+            return;
+        }
+        if (nameInput && seed.buyer_name) {
+            nameInput.value = String(seed.buyer_name);
+        }
+        if (nitInput && seed.buyer_nit) {
+            nitInput.value = String(seed.buyer_nit);
+        }
+        if (addrInput && seed.buyer_address) {
+            addrInput.value = String(seed.buyer_address);
+        }
+        if (issueDateInput && seed.issue_date) {
+            issueDateInput.value = String(seed.issue_date);
+        }
+        if (docTypeSelect && seed.doc_type) {
+            docTypeSelect.value = String(seed.doc_type).toUpperCase() === 'FCAM' ? 'FCAM' : 'FACT';
+        }
+        if (currencySelect && seed.currency) {
+            currencySelect.value = String(seed.currency).toUpperCase() === 'USD' ? 'USD' : 'GTQ';
+        }
+        if (observacionesInput && seed.observaciones != null) {
+            observacionesInput.value = String(seed.observaciones);
+        }
+        if (Array.isArray(seed.lines) && seed.lines.length) {
+            tbody.innerHTML = '';
+            seed.lines.forEach(function(line) {
+                addLineFromPreset(line, line.quotation_id || qid);
+            });
+        }
+        toggleFcamPanel();
+        if (docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM' && Array.isArray(seed.fcam_abonos) && seed.fcam_abonos.length) {
+            var ab = seed.fcam_abonos[0];
+            if (fcamDueDate && ab.fecha) {
+                fcamDueDate.value = String(ab.fecha);
+            }
+            syncFcamAmountFromLines();
+        }
+        if (Array.isArray(seed.orden_ids) && seed.orden_ids.length) {
+            modalEl.querySelectorAll('.manual-fel-orden-cb').forEach(function(cb) {
+                var oid = parseInt(cb.value, 10);
+                cb.checked = seed.orden_ids.indexOf(oid) !== -1;
+            });
+        }
+        if (needsCfCui && cuiInput && seed.cui_digits) {
+            cuiInput.value = String(seed.cui_digits);
+            resetCuiGate();
+        } else if (!needsCfCui) {
+            generarBtn.disabled = false;
+        }
+        toggleCurrencyPanel();
+    }
 
     function addLineFromPreset(preset, quotationIdForRow) {
         var tr = document.createElement('tr');
@@ -895,5 +956,23 @@ if ($manualFelQuotationRef === '') {
                 showAlert(msgNet);
             });
     });
+
+    if (manualFelSeed && manualFelSeed.auto_open) {
+        applyManualFelSeed(manualFelSeed);
+        hideAlert();
+        showModal();
+        if (window.history && window.history.replaceState) {
+            try {
+                var cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('manual_fel_seed_invoice');
+                window.history.replaceState({}, '', cleanUrl.toString());
+            } catch (e) {}
+        }
+        setTimeout(function() {
+            if (modalEl && typeof modalEl.scrollIntoView === 'function') {
+                modalEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 300);
+    }
 })();
 </script>

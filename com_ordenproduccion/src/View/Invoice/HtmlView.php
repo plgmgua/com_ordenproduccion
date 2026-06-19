@@ -17,6 +17,7 @@ use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
+use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 class HtmlView extends BaseHtmlView
 {
@@ -51,6 +52,24 @@ class HtmlView extends BaseHtmlView
      * @var bool
      */
     protected $invoiceIsCancelled = false;
+
+    /**
+     * Super user may duplicate this invoice into manual FEL (cotización modal).
+     *
+     * @var bool
+     *
+     * @since  3.119.173
+     */
+    protected $canDuplicateToManualFel = false;
+
+    /**
+     * URL to cotización with manual FEL seed from this invoice.
+     *
+     * @var string
+     *
+     * @since  3.119.173
+     */
+    protected $duplicateManualFelUrl = '';
 
     /**
      * GET assoc_nit filter for listing órdenes / invoices from another client NIT.
@@ -184,6 +203,26 @@ class HtmlView extends BaseHtmlView
         } catch (\Throwable $e) {
             $this->associatedOrdenLinks = [];
             $this->invoiceDetailOrdenDropdown = [];
+        }
+
+        $this->canDuplicateToManualFel = false;
+        $this->duplicateManualFelUrl   = '';
+        if ($this->canSuperUserInvoiceActions && $this->item) {
+            $quotationId = (int) ($this->item->quotation_id ?? 0);
+            $felSvc      = new FelInvoiceIssuanceService();
+            if ($quotationId > 0 && $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn()) {
+                $lineItems = \is_array($this->item->line_items ?? null) ? $this->item->line_items : [];
+                if ($lineItems !== []) {
+                    $this->canDuplicateToManualFel = true;
+                    $this->duplicateManualFelUrl   = Route::_(
+                        'index.php?option=com_ordenproduccion&view=cotizacion&id='
+                        . $quotationId
+                        . '&manual_fel_seed_invoice='
+                        . (int) ($this->item->id ?? 0),
+                        false
+                    );
+                }
+            }
         }
 
         $this->_prepareDocument();

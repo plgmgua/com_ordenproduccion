@@ -174,17 +174,17 @@ $blinkCreateJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotiza
 $felForDirectCheck = new FelInvoiceIssuanceService();
 $digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
 $canSeeFacturaRelacionadaSection = $felEngineAvailable
-    && AccessHelper::isInStrictAdministracionGroup();
-$canDigifactEmitPermission = AccessHelper::isInStrictAdministracionGroup();
+    && (AccessHelper::isInStrictAdministracionGroup() || AccessHelper::isSuperUser());
+$canDigifactEmitPermission = AccessHelper::isInStrictAdministracionGroup() || AccessHelper::isSuperUser();
 $digifactCfgOk = (trim((string) ($digifactCredsCheck['url_cert_cf'] ?? '')) !== ''
     || trim((string) ($digifactCredsCheck['url_cert_nit'] ?? '')) !== '')
     && $felForDirectCheck->getActiveCertificadorBearerToken() !== '';
 $canDigifactDirectIssue = $canSeeFacturaRelacionadaSection && $canDigifactEmitPermission && $digifactCfgOk;
 // Factura manual: Administración group (and super users) only; same certificador gate as direct Digifact.
-$canManualFelIssue = AccessHelper::isInStrictAdministracionGroup()
+$canManualFelIssue = (AccessHelper::isInStrictAdministracionGroup() || AccessHelper::isSuperUser())
     && $felEngineAvailable
     && $digifactCfgOk
-    && !empty($items);
+    && (!empty($items) || !empty($this->manualFelSeedFromInvoice));
 $digifactDirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.digifactIssueDirectFromQuotation&format=json', false);
 $digifactLinesSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.saveQuotationLinesForFelDigifact&format=json', false);
 $digifactQuotBillingIsCf = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal(trim((string) ($quotation->client_nit ?? '')));
@@ -205,6 +205,18 @@ $manualFelOtherQuotations = isset($this->manualFelOtherQuotations) && is_array($
 $manualFelLinesUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelQuotationLines&format=json', false);
 $manualFelExchangeRateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelExchangeRate&format=json', false);
 $manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
+$manualFelSeedFromInvoice = isset($this->manualFelSeedFromInvoice) && \is_array($this->manualFelSeedFromInvoice)
+    ? $this->manualFelSeedFromInvoice
+    : null;
+if (\is_array($manualFelSeedFromInvoice) && !empty($manualFelSeedFromInvoice['buyer_name'])) {
+    $manualBuyerNameInitial = trim((string) $manualFelSeedFromInvoice['buyer_name']);
+}
+if (\is_array($manualFelSeedFromInvoice) && !empty($manualFelSeedFromInvoice['buyer_nit'])) {
+    $manualBuyerNitInitial = trim((string) $manualFelSeedFromInvoice['buyer_nit']);
+}
+if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInvoice['observaciones'] ?? '')) !== '') {
+    $manualFelQuotationRef = trim((string) $manualFelSeedFromInvoice['observaciones']);
+}
 ?>
 <div class="cotizacion-container cotizacion-display">
     <div class="cotizaciones-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

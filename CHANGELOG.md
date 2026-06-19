@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.173-STABLE] - 2026-05-19
+
+### Added
+- **Invoice detail (super admin):** **Nueva factura desde esta** opens the cotización **Factura manual** modal pre-filled from the source invoice (buyer, lines, currency, FCAM, observaciones, linked órdenes).
+
+### Changed
+- **Factura manual:** super users can open the manual FEL section on cotización (same certificador gate as Administración).
+
 ## [3.119.172-STABLE] - 2026-05-19
 
 ### Added

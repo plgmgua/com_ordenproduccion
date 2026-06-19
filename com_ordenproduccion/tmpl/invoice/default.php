@@ -101,6 +101,11 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
             <button type="submit" class="btn btn-outline-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_REACTIVAR_BUTTON'); ?></button>
         </form>
         <?php endif; ?>
+        <?php if (!empty($this->canDuplicateToManualFel) && !empty($this->duplicateManualFelUrl)) : ?>
+        <a href="<?php echo htmlspecialchars($this->duplicateManualFelUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-success btn-sm">
+            <i class="fas fa-copy" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_BTN'); ?>
+        </a>
+        <?php endif; ?>
         <?php if (InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable()) : ?>
         <a href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl((int) ($item->id ?? 0)), ENT_QUOTES, 'UTF-8'); ?>"
            target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm">

@@ -19,7 +19,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelpe
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
-use Grimpsa\Component\Ordenproduccion\Site\Helper\FpdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
@@ -2698,6 +2698,161 @@ class FelInvoiceIssuanceService
             'fcam_abonos'    => $abonos,
             'currency'       => $currency,
             'exchange_rate'  => $exchangeRate,
+        ];
+    }
+
+    /**
+     * Build manual FEL modal seed data from an existing invoice (super-user duplicate flow).
+     *
+     * @return  array<string, mixed>|null
+     *
+     * @since   3.119.173
+     */
+    public function buildManualFelSeedFromInvoice(object $invoice): ?array
+    {
+        $quotationId = (int) ($invoice->quotation_id ?? 0);
+        if ($quotationId < 1) {
+            return null;
+        }
+
+        $lineItems = $invoice->line_items ?? [];
+        if (!\is_array($lineItems)) {
+            $lineItems = \json_decode((string) $lineItems, true);
+        }
+        if (!\is_array($lineItems)) {
+            $lineItems = [];
+        }
+
+        $lines = [];
+        foreach ($lineItems as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $desc = trim((string) ($line['descripcion'] ?? $line['description'] ?? ''));
+            $qty  = (float) ($line['cantidad'] ?? $line['qty'] ?? $line['quantity'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? $line['valor_unitario'] ?? $line['unit_price'] ?? 0);
+            $sub  = (float) ($line['subtotal'] ?? $line['line_total'] ?? $line['total'] ?? 0);
+            if ($qty >= 0.000001 && $unit <= 0.000001 && $sub > 0) {
+                $unit = \round($sub / $qty, 4);
+            }
+            if ($desc === '' || $qty < 0.000001) {
+                continue;
+            }
+            $lines[] = [
+                'descripcion'       => $desc,
+                'cantidad'          => $qty,
+                'precio_unitario'   => $unit,
+                'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
+            ];
+        }
+
+        $buyerName = trim((string) ($invoice->fel_receptor_nombre ?? ''));
+        if ($buyerName === '') {
+            $buyerName = trim((string) ($invoice->client_name ?? ''));
+        }
+        $buyerNit = trim((string) ($invoice->client_nit ?? ''));
+        if ($buyerNit === '' && !empty($invoice->fel_receptor_id)) {
+            $buyerNit = trim((string) $invoice->fel_receptor_id);
+        }
+        $buyerAddr = trim((string) ($invoice->fel_receptor_direccion ?? ''));
+        if ($buyerAddr === '') {
+            $buyerAddr = trim((string) ($invoice->client_address ?? ''));
+        }
+        if ($buyerAddr === '') {
+            $buyerAddr = 'Ciudad';
+        }
+
+        $felExtra = [];
+        if (!empty($invoice->fel_extra) && \is_string($invoice->fel_extra)) {
+            $decoded = \json_decode($invoice->fel_extra, true);
+            if (\is_array($decoded)) {
+                $felExtra = $decoded;
+            }
+        }
+
+        $docType = strtoupper(trim((string) ($invoice->fel_tipo_dte ?? 'FACT')));
+        if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
+            $docType = 'FACT';
+        }
+
+        $currency = strtoupper(trim((string) ($invoice->fel_moneda ?? '')));
+        if ($currency === '') {
+            $curSym = strtoupper(trim((string) ($invoice->currency ?? 'Q')));
+            $currency = ($curSym === 'USD') ? 'USD' : 'GTQ';
+        }
+        if (!\in_array($currency, ['GTQ', 'USD'], true)) {
+            $currency = 'GTQ';
+        }
+
+        $observaciones = FelInvoiceHelper::resolvePdfObservaciones($invoice);
+
+        $fcamAbonos = [];
+        if ($docType === 'FCAM' && isset($felExtra['complemento_abonos']) && \is_array($felExtra['complemento_abonos'])) {
+            foreach ($felExtra['complemento_abonos'] as $i => $ab) {
+                if (!\is_array($ab)) {
+                    continue;
+                }
+                $fecha = trim((string) ($ab['fecha'] ?? $ab['fecha_vencimiento'] ?? ''));
+                $monto = (float) ($ab['monto'] ?? $ab['monto_abono'] ?? 0);
+                if ($fecha === '' || $monto <= 0.00001) {
+                    continue;
+                }
+                $fcamAbonos[] = [
+                    'numero' => (int) ($ab['numero'] ?? $ab['numero_abono'] ?? ($i + 1)),
+                    'fecha'  => $fecha,
+                    'monto'  => \round($monto, 2),
+                ];
+            }
+        }
+
+        $ordenIds = [];
+        try {
+            $app = Factory::getApplication();
+            $matchModel = $app->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if ($matchModel && \is_callable([$matchModel, 'getAssociatedOrdenLinksForInvoice'])) {
+                $links = $matchModel->getAssociatedOrdenLinksForInvoice((int) ($invoice->id ?? 0));
+                if (\is_array($links)) {
+                    foreach ($links as $link) {
+                        $oid = (int) ($link['orden_id'] ?? 0);
+                        if ($oid > 0) {
+                            $ordenIds[] = $oid;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $cuiDigits = '';
+        if (CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerNit)) {
+            $receptorDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId(
+                trim((string) ($invoice->fel_receptor_id ?? ''))
+            );
+            if ($receptorDigits !== '' && \strlen($receptorDigits) >= 10) {
+                $cuiDigits = $receptorDigits;
+                $buyerNit  = 'CF';
+            }
+        }
+
+        $issueDate = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
+
+        return [
+            'quotation_id'    => $quotationId,
+            'source_invoice_id' => (int) ($invoice->id ?? 0),
+            'buyer_name'      => $buyerName,
+            'buyer_nit'       => $buyerNit,
+            'buyer_address'   => $buyerAddr,
+            'doc_type'        => $docType,
+            'currency'        => $currency,
+            'observaciones'   => $observaciones,
+            'fcam_abonos'     => $fcamAbonos,
+            'lines'           => $lines,
+            'orden_ids'       => array_values(array_unique($ordenIds)),
+            'cui_digits'      => $cuiDigits,
+            'issue_date'      => $issueDate,
+            'auto_open'       => true,
         ];
     }
 

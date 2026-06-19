@@ -166,6 +166,14 @@ class HtmlView extends BaseHtmlView
     protected $manualFelOtherQuotations = [];
 
     /**
+     * Optional seed from duplicate-invoice flow (super user).
+     *
+     * @var    array<string, mixed>|null
+     * @since  3.119.173
+     */
+    protected $manualFelSeedFromInvoice = null;
+
+    /**
      * Confirmar modal: billing instruction fields (one per pre-cot with facturar), or empty if none.
      *
      * @var    array<int, array{id: int, number: string, showSuffix: bool}>
@@ -395,7 +403,7 @@ class HtmlView extends BaseHtmlView
                     }
                     $this->quotationHasLinkedPreCotizacion = $preIdsDistinct !== [];
                     $this->ordenesPorPreCotizacionId = $this->buildOrdenesLinksByPreCotizacionIds($db, array_keys($preIdsDistinct));
-                    if (AccessHelper::isInStrictAdministracionGroup() && $this->felEngineAvailable) {
+                    if ((AccessHelper::isInStrictAdministracionGroup() || AccessHelper::isSuperUser()) && $this->felEngineAvailable) {
                         $this->manualFelOrdensForClient = $this->buildOrdensForManualFelModal(
                             $db,
                             $this->quotation,
@@ -413,6 +421,23 @@ class HtmlView extends BaseHtmlView
                             ];
                         }
                         $this->manualFelOtherQuotations = $this->buildQuotationsForManualFelModal($db, $this->quotation);
+                    }
+                    $seedInvoiceId = $input->getInt('manual_fel_seed_invoice', 0);
+                    if ($seedInvoiceId > 0 && AccessHelper::isSuperUser() && $this->felEngineAvailable) {
+                        $invModel = $app->bootComponent('com_ordenproduccion')
+                            ->getMVCFactory()
+                            ->createModel('Invoice', 'Site', ['ignore_request' => true]);
+                        if ($invModel && \is_callable([$invModel, 'getItem'])) {
+                            $seedInv = $invModel->getItem($seedInvoiceId);
+                            if ($seedInv && (int) ($seedInv->quotation_id ?? 0) === $quotationId) {
+                                $felSeedSvc = new FelInvoiceIssuanceService();
+                                $seed = $felSeedSvc->buildManualFelSeedFromInvoice($seedInv);
+                                if (\is_array($seed) && ($seed['lines'] ?? []) !== []) {
+                                    $this->manualFelSeedFromInvoice = $seed;
+                                    $this->manualFelLinePresets     = $seed['lines'];
+                                }
+                            }
+                        }
                     }
                     // For confirmar modal Step 3: line "Detalles" per pre-cotización (instrucciones orden)
                     $this->itemsWithLineDetalles = [];
