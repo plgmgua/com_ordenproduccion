@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.171-STABLE] - 2026-05-19
+
+### Changed
+- **Invoice PDF:** Observaciones footer block now renders inside a bordered box.
+
 ## [3.119.170-STABLE] - 2026-05-19
 
 ### Changed

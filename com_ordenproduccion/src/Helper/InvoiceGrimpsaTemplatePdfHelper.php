@@ -679,7 +679,9 @@ final class InvoiceGrimpsaTemplatePdfHelper
      */
     private static function observacionesFooterBlockHeight(float $lineH): float
     {
-        return 4.5 + 3 * $lineH + 0.8;
+        $padY = 1.0;
+
+        return (2 * $padY) + 4.5 + (3 * $lineH);
     }
 
     /**
@@ -723,7 +725,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
     }
 
     /**
-     * Draw observaciones at the bottom of the page: title + justified body (3-line band).
+     * Draw observaciones at the bottom of the page: bordered box with title + justified body.
      *
      * @since  3.119.170
      */
@@ -734,14 +736,32 @@ final class InvoiceGrimpsaTemplatePdfHelper
         string $obsText,
         float $lineH
     ): void {
-        $pdf->SetXY(self::MARGIN_X, $y);
-        $pdf->SetFont('Helvetica', 'B', 8);
-        $pdf->Cell($contentW, 4.5, CotizacionPdfHelper::encodeTextForFpdf(self::observacionesPdfLabel()), 0, 1, 'L');
+        $padX   = 1.2;
+        $padY   = 1.0;
+        $titleH = 4.5;
+        $bodyH  = 3 * $lineH;
+        $boxH   = (2 * $padY) + $titleH + $bodyH;
+        $innerW = $contentW - (2 * $padX);
 
-        $pdf->SetX(self::MARGIN_X);
+        $pdf->SetDrawColor(0, 0, 0);
+        $pdf->SetLineWidth(0.2);
+        $pdf->Rect(self::MARGIN_X, $y, $contentW, $boxH, 'D');
+
+        $pdf->SetXY(self::MARGIN_X + $padX, $y + $padY);
+        $pdf->SetFont('Helvetica', 'B', 8);
+        $pdf->Cell(
+            $innerW,
+            $titleH,
+            CotizacionPdfHelper::encodeTextForFpdf(self::observacionesPdfLabel()),
+            0,
+            0,
+            'L'
+        );
+
+        $pdf->SetXY(self::MARGIN_X + $padX, $y + $padY + $titleH);
         $pdf->SetFont('Helvetica', '', 7.5);
         $pdf->MultiCell(
-            $contentW,
+            $innerW,
             $lineH,
             CotizacionPdfHelper::encodeTextForFpdf($obsText),
             0,
