@@ -2710,40 +2710,14 @@ class FelInvoiceIssuanceService
      */
     public function buildManualFelSeedFromInvoice(object $invoice): ?array
     {
-        $quotationId = (int) ($invoice->quotation_id ?? 0);
+        $quotationId = $this->resolveQuotationIdForInvoiceDuplicate($invoice);
         if ($quotationId < 1) {
             return null;
         }
 
-        $lineItems = $invoice->line_items ?? [];
-        if (!\is_array($lineItems)) {
-            $lineItems = \json_decode((string) $lineItems, true);
-        }
-        if (!\is_array($lineItems)) {
-            $lineItems = [];
-        }
-
-        $lines = [];
-        foreach ($lineItems as $line) {
-            if (!\is_array($line)) {
-                continue;
-            }
-            $desc = trim((string) ($line['descripcion'] ?? $line['description'] ?? ''));
-            $qty  = (float) ($line['cantidad'] ?? $line['qty'] ?? $line['quantity'] ?? 0);
-            $unit = (float) ($line['precio_unitario'] ?? $line['valor_unitario'] ?? $line['unit_price'] ?? 0);
-            $sub  = (float) ($line['subtotal'] ?? $line['line_total'] ?? $line['total'] ?? 0);
-            if ($qty >= 0.000001 && $unit <= 0.000001 && $sub > 0) {
-                $unit = \round($sub / $qty, 4);
-            }
-            if ($desc === '' || $qty < 0.000001) {
-                continue;
-            }
-            $lines[] = [
-                'descripcion'       => $desc,
-                'cantidad'          => $qty,
-                'precio_unitario'   => $unit,
-                'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
-            ];
+        $lines = $this->resolveManualFelLinesFromInvoice($invoice, $quotationId);
+        if ($lines === []) {
+            return null;
         }
 
         $buyerName = trim((string) ($invoice->fel_receptor_nombre ?? ''));
@@ -2854,6 +2828,250 @@ class FelInvoiceIssuanceService
             'issue_date'      => $issueDate,
             'auto_open'       => true,
         ];
+    }
+
+    /**
+     * Whether a super-user can duplicate this invoice into manual FEL.
+     *
+     * @since  3.119.174
+     */
+    public function canDuplicateInvoiceToManualFel(object $invoice): bool
+    {
+        if (!$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
+            return false;
+        }
+
+        if ($this->resolveQuotationIdForInvoiceDuplicate($invoice) < 1) {
+            return false;
+        }
+
+        return $this->resolveManualFelLinesFromInvoice($invoice) !== [];
+    }
+
+    /**
+     * Resolve cotización id for duplicate flow (column, NUC adenda, or quotation_number lookup).
+     *
+     * @since  3.119.174
+     */
+    public function resolveQuotationIdForInvoiceDuplicate(object $invoice): int
+    {
+        $qid = (int) ($invoice->quotation_id ?? 0);
+        if ($qid > 0) {
+            return $qid;
+        }
+
+        foreach ($this->collectCotizacionRefsFromInvoice($invoice) as $ref) {
+            $found = $this->lookupQuotationIdByReference($ref);
+            if ($found > 0) {
+                return $found;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Normalize invoice line rows for manual FEL seeding.
+     *
+     * @return  list<array{descripcion: string, cantidad: float, precio_unitario: float, quotation_id: int}>
+     *
+     * @since  3.119.174
+     */
+    public function resolveManualFelLinesFromInvoice(object $invoice, ?int $quotationId = null): array
+    {
+        if ($quotationId === null || $quotationId < 1) {
+            $quotationId = $this->resolveQuotationIdForInvoiceDuplicate($invoice);
+        }
+        if ($quotationId < 1) {
+            $quotationId = (int) ($invoice->quotation_id ?? 0);
+        }
+
+        $lineItems = $invoice->line_items ?? [];
+        if (!\is_array($lineItems)) {
+            $lineItems = \json_decode((string) $lineItems, true);
+        }
+        if (!\is_array($lineItems) || $lineItems === []) {
+            $lineItems = $this->extractLineItemsFromInvoiceFelSources($invoice);
+        }
+
+        $lines = [];
+        foreach ($lineItems as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $desc = trim((string) ($line['descripcion'] ?? $line['description'] ?? ''));
+            $qty  = (float) ($line['cantidad'] ?? $line['qty'] ?? $line['quantity'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? $line['valor_unitario'] ?? $line['unit_price'] ?? $line['price'] ?? 0);
+            $sub  = (float) ($line['subtotal'] ?? $line['line_total'] ?? $line['total'] ?? 0);
+            if ($qty >= 0.000001 && $unit <= 0.000001 && $sub > 0) {
+                $unit = \round($sub / $qty, 4);
+            }
+            if ($desc === '' || $qty < 0.000001) {
+                continue;
+            }
+            $lines[] = [
+                'descripcion'       => $desc,
+                'cantidad'          => $qty,
+                'precio_unitario'   => $unit,
+                'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
+            ];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @return  list<string>
+     *
+     * @since  3.119.174
+     */
+    protected function collectCotizacionRefsFromInvoice(object $invoice): array
+    {
+        $refs = [];
+        $json = (string) ($invoice->fel_request_json ?? '');
+
+        foreach (FelInvoiceHelper::parseNucAdditionalDocumentRowsFromFelRequest($json) as $row) {
+            $label = strtoupper(trim((string) ($row['label'] ?? '')));
+            if (!\in_array($label, ['COTIZACION', 'COTIZACIÓN'], true)) {
+                continue;
+            }
+            $v = trim((string) ($row['value'] ?? ''));
+            if ($v !== '' && $v !== '-') {
+                $refs[] = $v;
+            }
+        }
+
+        $payload = \json_decode($json, true);
+        if (\is_array($payload)) {
+            $cotFromPayload = $this->extractCotizacionReferenceFromNucPayload($payload);
+            if ($cotFromPayload !== '') {
+                $refs[] = $cotFromPayload;
+            }
+            $list = $payload['AdditionalDocumentInfo']['AdditionalInfo'] ?? null;
+            if (\is_array($list)) {
+                foreach ($list as $entry) {
+                    if (!\is_array($entry)) {
+                        continue;
+                    }
+                    $code = trim((string) ($entry['Code'] ?? ''));
+                    if (preg_match('/^COT-(\d+)$/i', $code, $m)) {
+                        $refs[] = 'COT-' . (int) $m[1];
+                    }
+                    if (isset($entry['#text'])) {
+                        $text = trim((string) $entry['#text']);
+                        if ($text !== '' && $text !== '-') {
+                            $refs[] = $text;
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($refs, static function ($r) {
+            return trim((string) $r) !== '';
+        })));
+    }
+
+    /**
+     * @since  3.119.174
+     */
+    protected function lookupQuotationIdByReference(string $ref): int
+    {
+        $ref = trim($ref);
+        if ($ref === '' || $ref === '-') {
+            return 0;
+        }
+
+        if (preg_match('/^COT-(\d+)$/i', $ref, $m)) {
+            $n = (int) $m[1];
+            $this->db->setQuery(
+                $this->db->getQuery(true)
+                    ->select($this->db->quoteName('id'))
+                    ->from($this->db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($this->db->quoteName('id') . ' = ' . $n)
+                    ->where($this->db->quoteName('state') . ' = 1')
+            );
+            $byId = (int) $this->db->loadResult();
+            if ($byId > 0) {
+                return $byId;
+            }
+        }
+
+        $candidates = [$ref];
+        if (preg_match('/^COT-(\d+)$/i', $ref, $m)) {
+            $n = (int) $m[1];
+            $candidates[] = 'COT-' . str_pad((string) $n, 5, '0', STR_PAD_LEFT);
+            $candidates[] = 'COT-' . str_pad((string) $n, 6, '0', STR_PAD_LEFT);
+        }
+        $candidates = array_values(array_unique($candidates));
+
+        foreach ($candidates as $cand) {
+            $this->db->setQuery(
+                $this->db->getQuery(true)
+                    ->select($this->db->quoteName('id'))
+                    ->from($this->db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($this->db->quoteName('quotation_number') . ' = ' . $this->db->quote($cand))
+                    ->where($this->db->quoteName('state') . ' = 1')
+            );
+            $found = (int) $this->db->loadResult();
+            if ($found > 0) {
+                return $found;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * @return  list<array<string, mixed>>
+     *
+     * @since  3.119.174
+     */
+    protected function extractLineItemsFromInvoiceFelSources(object $invoice): array
+    {
+        $json    = (string) ($invoice->fel_request_json ?? '');
+        $payload = \json_decode($json, true);
+        if (\is_array($payload) && isset($payload['Items']) && \is_array($payload['Items'])) {
+            $out = [];
+            foreach ($payload['Items'] as $it) {
+                if (!\is_array($it)) {
+                    continue;
+                }
+                $desc = trim((string) ($it['Description'] ?? ''));
+                $qty  = (float) ($it['Qty'] ?? 1);
+                $unit = (float) ($it['Price'] ?? 0);
+                $sub  = (float) ($it['Totals']['TotalItem'] ?? 0);
+                if ($desc === '') {
+                    continue;
+                }
+                $out[] = [
+                    'descripcion'       => $desc,
+                    'cantidad'          => $qty,
+                    'precio_unitario'   => $unit,
+                    'subtotal'          => $sub > 0 ? $sub : ($qty * $unit),
+                ];
+            }
+            if ($out !== []) {
+                return $out;
+            }
+        }
+
+        $xml = '';
+        $relXml = trim((string) ($invoice->fel_local_xml_path ?? ''));
+        if ($relXml !== '' && \is_file(JPATH_ROOT . '/' . $relXml)) {
+            $fromDisk = @\file_get_contents(JPATH_ROOT . '/' . $relXml);
+            if ($fromDisk !== false && $fromDisk !== '') {
+                $xml = $fromDisk;
+            }
+        }
+        if ($xml === '' && !empty($invoice->fel_response_json) && \is_string($invoice->fel_response_json)) {
+            $xml = FelXmlHelper::tryExtractXmlFromDigifactResponseBody($invoice->fel_response_json);
+        }
+        if ($xml !== '') {
+            return FelXmlHelper::extractLineItemsFromFelXmlString($xml);
+        }
+
+        return [];
     }
 
     /**

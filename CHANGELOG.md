@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.174-STABLE] - 2026-05-19
+
+### Fixed
+- **Invoice duplicate → manual FEL:** button now appears when `quotation_id` is missing but the cotización can be resolved from FEL NUC metadata (`COTIZACION` / `COT-{id}` adenda) or when lines exist only in `fel_request_json` / certified XML.
+
 ## [3.119.173-STABLE] - 2026-05-19
 
 ### Added

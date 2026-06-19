@@ -208,11 +208,10 @@ class HtmlView extends BaseHtmlView
         $this->canDuplicateToManualFel = false;
         $this->duplicateManualFelUrl   = '';
         if ($this->canSuperUserInvoiceActions && $this->item) {
-            $quotationId = (int) ($this->item->quotation_id ?? 0);
-            $felSvc      = new FelInvoiceIssuanceService();
-            if ($quotationId > 0 && $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn()) {
-                $lineItems = \is_array($this->item->line_items ?? null) ? $this->item->line_items : [];
-                if ($lineItems !== []) {
+            $felSvc = new FelInvoiceIssuanceService();
+            if ($felSvc->canDuplicateInvoiceToManualFel($this->item)) {
+                $quotationId = $felSvc->resolveQuotationIdForInvoiceDuplicate($this->item);
+                if ($quotationId > 0) {
                     $this->canDuplicateToManualFel = true;
                     $this->duplicateManualFelUrl   = Route::_(
                         'index.php?option=com_ordenproduccion&view=cotizacion&id='

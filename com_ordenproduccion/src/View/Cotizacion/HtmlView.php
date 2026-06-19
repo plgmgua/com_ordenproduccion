@@ -429,12 +429,15 @@ class HtmlView extends BaseHtmlView
                             ->createModel('Invoice', 'Site', ['ignore_request' => true]);
                         if ($invModel && \is_callable([$invModel, 'getItem'])) {
                             $seedInv = $invModel->getItem($seedInvoiceId);
-                            if ($seedInv && (int) ($seedInv->quotation_id ?? 0) === $quotationId) {
+                            if ($seedInv) {
                                 $felSeedSvc = new FelInvoiceIssuanceService();
-                                $seed = $felSeedSvc->buildManualFelSeedFromInvoice($seedInv);
-                                if (\is_array($seed) && ($seed['lines'] ?? []) !== []) {
-                                    $this->manualFelSeedFromInvoice = $seed;
-                                    $this->manualFelLinePresets     = $seed['lines'];
+                                $resolvedQid = $felSeedSvc->resolveQuotationIdForInvoiceDuplicate($seedInv);
+                                if ($resolvedQid === $quotationId) {
+                                    $seed = $felSeedSvc->buildManualFelSeedFromInvoice($seedInv);
+                                    if (\is_array($seed) && ($seed['lines'] ?? []) !== []) {
+                                        $this->manualFelSeedFromInvoice = $seed;
+                                        $this->manualFelLinePresets     = $seed['lines'];
+                                    }
                                 }
                             }
                         }
