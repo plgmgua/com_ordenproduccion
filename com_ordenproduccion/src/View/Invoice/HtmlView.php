@@ -63,13 +63,22 @@ class HtmlView extends BaseHtmlView
     protected $canDuplicateToManualFel = false;
 
     /**
-     * URL to cotización with manual FEL seed from this invoice.
+     * Relative URL to open manual FEL with seed data (empty = show disabled button).
      *
      * @var string
      *
-     * @since  3.119.173
+     * @since  3.119.175
      */
     protected $duplicateManualFelUrl = '';
+
+    /**
+     * Tooltip when duplicate button is disabled.
+     *
+     * @var string
+     *
+     * @since  3.119.175
+     */
+    protected $duplicateManualFelDisabledTitle = '';
 
     /**
      * GET assoc_nit filter for listing órdenes / invoices from another client NIT.
@@ -205,22 +214,19 @@ class HtmlView extends BaseHtmlView
             $this->invoiceDetailOrdenDropdown = [];
         }
 
-        $this->canDuplicateToManualFel = false;
-        $this->duplicateManualFelUrl   = '';
+        $this->canDuplicateToManualFel         = false;
+        $this->duplicateManualFelUrl           = '';
+        $this->duplicateManualFelDisabledTitle = '';
         if ($this->canSuperUserInvoiceActions && $this->item) {
-            $felSvc = new FelInvoiceIssuanceService();
-            if ($felSvc->canDuplicateInvoiceToManualFel($this->item)) {
-                $quotationId = $felSvc->resolveQuotationIdForInvoiceDuplicate($this->item);
-                if ($quotationId > 0) {
-                    $this->canDuplicateToManualFel = true;
-                    $this->duplicateManualFelUrl   = Route::_(
-                        'index.php?option=com_ordenproduccion&view=cotizacion&id='
-                        . $quotationId
-                        . '&manual_fel_seed_invoice='
-                        . (int) ($this->item->id ?? 0),
-                        false
-                    );
-                }
+            $this->canDuplicateToManualFel = true;
+            $felSvc                        = new FelInvoiceIssuanceService();
+            $relUrl                        = $felSvc->buildDuplicateManualFelUrlForInvoice($this->item);
+            if ($relUrl !== '') {
+                $this->duplicateManualFelUrl = Route::_($relUrl, false);
+            } elseif (!$felSvc->isEngineAvailable() || !$felSvc->hasQuotationIdColumn()) {
+                $this->duplicateManualFelDisabledTitle = Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_FEL_UNAVAILABLE');
+            } else {
+                $this->duplicateManualFelDisabledTitle = Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_NO_QUOTATION');
             }
         }
 

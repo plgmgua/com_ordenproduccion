@@ -21,6 +21,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OdooHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
@@ -2867,6 +2868,58 @@ class FelInvoiceIssuanceService
             }
         }
 
+        return $this->lookupQuotationIdByClientNit($invoice);
+    }
+
+    /**
+     * Match cotización by invoice client / receptor NIT (most recent published).
+     *
+     * @since  3.119.175
+     */
+    protected function lookupQuotationIdByClientNit(object $invoice): int
+    {
+        $candidates = [];
+        foreach ([$invoice->client_nit ?? '', $invoice->fel_receptor_id ?? ''] as $raw) {
+            $raw = trim((string) $raw);
+            if ($raw === '' || CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($raw)) {
+                continue;
+            }
+            $candidates[] = $raw;
+            $normalized = CertificadorFactNitLookupHelper::normalizeNitForDigifactNuc($raw);
+            if ($normalized !== '') {
+                $candidates[] = $normalized;
+            }
+            $digits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($raw);
+            if ($digits !== '') {
+                $candidates[] = $digits;
+            }
+        }
+
+        $candidates = array_values(array_unique(array_filter($candidates, static function ($v) {
+            return trim((string) $v) !== '';
+        })));
+
+        foreach ($candidates as $nit) {
+            $digits = CertificadorFactNitLookupHelper::digitsOnlyBillingId((string) $nit);
+            $this->db->setQuery(
+                $this->db->getQuery(true)
+                    ->select($this->db->quoteName('id'))
+                    ->from($this->db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($this->db->quoteName('state') . ' = 1')
+                    ->where('('
+                        . $this->db->quoteName('client_nit') . ' = ' . $this->db->quote((string) $nit)
+                        . ($digits !== '' && $digits !== (string) $nit
+                            ? ' OR ' . $this->db->quoteName('client_nit') . ' = ' . $this->db->quote($digits)
+                            : '')
+                        . ')')
+                    ->order($this->db->quoteName('id') . ' DESC')
+            );
+            $found = (int) $this->db->loadResult();
+            if ($found > 0) {
+                return $found;
+            }
+        }
+
         return 0;
     }
 
@@ -2917,7 +2970,49 @@ class FelInvoiceIssuanceService
             ];
         }
 
+        if ($lines === []) {
+            $amount = (float) ($invoice->invoice_amount ?? 0);
+            if ($amount > 0.0001) {
+                $desc = trim((string) ($invoice->work_description ?? ''));
+                if ($desc === '') {
+                    $desc = 'Factura ' . InvoiceListHelper::resolveInvoiceHeadingNumber($invoice);
+                }
+                $lines[] = [
+                    'descripcion'       => $desc,
+                    'cantidad'          => 1.0,
+                    'precio_unitario'   => $amount,
+                    'quotation_id'      => $quotationId > 0 ? $quotationId : 0,
+                ];
+            }
+        }
+
         return $lines;
+    }
+
+    /**
+     * Build cotización URL to open manual FEL seeded from this invoice (empty when not possible).
+     *
+     * @since  3.119.175
+     */
+    public function buildDuplicateManualFelUrlForInvoice(object $invoice): string
+    {
+        if (!$this->isEngineAvailable() || !$this->hasQuotationIdColumn()) {
+            return '';
+        }
+
+        $quotationId = $this->resolveQuotationIdForInvoiceDuplicate($invoice);
+        if ($quotationId < 1) {
+            return '';
+        }
+
+        if ($this->resolveManualFelLinesFromInvoice($invoice, $quotationId) === []) {
+            return '';
+        }
+
+        return 'index.php?option=com_ordenproduccion&view=cotizacion&id='
+            . $quotationId
+            . '&manual_fel_seed_invoice='
+            . (int) ($invoice->id ?? 0);
     }
 
     /**

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.175-STABLE] - 2026-05-19
+
+### Changed
+- **Invoice detail:** **Nueva factura desde esta** always shown beside **Anular factura** for super users (active link or disabled with tooltip).
+
+### Fixed
+- **Duplicate invoice:** resolve cotización by client/receptor NIT when `quotation_id` and FEL adenda are missing; fallback invoice line from total when line JSON is empty.
+
 ## [3.119.174-STABLE] - 2026-05-19
 
 ### Fixed

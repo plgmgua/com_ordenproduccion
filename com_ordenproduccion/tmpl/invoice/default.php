@@ -84,7 +84,8 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="h5 mb-0"><?php echo $l('COM_ORDENPRODUCCION_INVOICE', 'Factura'); ?> <?php echo htmlspecialchars(InvoiceListHelper::resolveInvoiceHeadingNumber($item), ENT_QUOTES, 'UTF-8'); ?></h1>
         <div class="d-flex flex-wrap align-items-center gap-2">
-        <?php if ($canSuperInvoice && !$invoiceCancelled) : ?>
+        <?php if ($canSuperInvoice) : ?>
+        <?php if (!$invoiceCancelled) : ?>
         <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion'); ?>" class="d-inline"
               onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_CONFIRM')); ?>);">
             <?php echo HTMLHelper::_('form.token'); ?>
@@ -92,7 +93,7 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
             <input type="hidden" name="invoice_id" value="<?php echo (int) ($item->id ?? 0); ?>" />
             <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_ANULAR_BUTTON'); ?></button>
         </form>
-        <?php elseif ($canSuperInvoice && $invoiceCancelled) : ?>
+        <?php else : ?>
         <form method="post" action="<?php echo Route::_('index.php?option=com_ordenproduccion'); ?>" class="d-inline"
               onsubmit="return window.confirm(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_INVOICE_REACTIVAR_CONFIRM')); ?>);">
             <?php echo HTMLHelper::_('form.token'); ?>
@@ -101,10 +102,19 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
             <button type="submit" class="btn btn-outline-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_REACTIVAR_BUTTON'); ?></button>
         </form>
         <?php endif; ?>
-        <?php if (!empty($this->canDuplicateToManualFel) && !empty($this->duplicateManualFelUrl)) : ?>
-        <a href="<?php echo htmlspecialchars($this->duplicateManualFelUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-success btn-sm">
+        <?php
+        $duplicateManualFelUrl = trim((string) ($this->duplicateManualFelUrl ?? ''));
+        $duplicateManualFelDisabledTitle = trim((string) ($this->duplicateManualFelDisabledTitle ?? ''));
+        if ($duplicateManualFelUrl !== '') :
+            ?>
+        <a href="<?php echo htmlspecialchars($duplicateManualFelUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-success btn-sm">
             <i class="fas fa-copy" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_BTN'); ?>
         </a>
+        <?php else : ?>
+        <button type="button" class="btn btn-outline-success btn-sm" disabled<?php if ($duplicateManualFelDisabledTitle !== '') : ?> title="<?php echo htmlspecialchars($duplicateManualFelDisabledTitle, ENT_QUOTES, 'UTF-8'); ?>"<?php endif; ?>>
+            <i class="fas fa-copy" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_BTN'); ?>
+        </button>
+        <?php endif; ?>
         <?php endif; ?>
         <?php if (InvoiceGrimpsaTemplatePdfHelper::isTemplateAvailable()) : ?>
         <a href="<?php echo htmlspecialchars(FelInvoiceHelper::downloadGrimpsaFacturaPdfUrl((int) ($item->id ?? 0)), ENT_QUOTES, 'UTF-8'); ?>"
