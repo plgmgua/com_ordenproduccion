@@ -992,5 +992,38 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             }
         }, 300);
     }
+
+    if (invoiceDuplicateMode) {
+        function openInvoiceManualFelDuplicateModal() {
+            if (manualFelSeed) {
+                applyManualFelSeed(manualFelSeed);
+            }
+            hideAlert();
+            showModal();
+            setTimeout(function() {
+                if (modalEl && typeof modalEl.scrollIntoView === 'function') {
+                    modalEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 300);
+        }
+        window.openInvoiceManualFelDuplicateModal = openInvoiceManualFelDuplicateModal;
+        var dupTrigger = document.getElementById('invoice-duplicate-manual-fel-trigger');
+        if (dupTrigger) {
+            dupTrigger.addEventListener('click', function(ev) {
+                ev.preventDefault();
+                openInvoiceManualFelDuplicateModal();
+            });
+        }
+        if (!(manualFelSeed && manualFelSeed.auto_open)) {
+            try {
+                var dupUrl = new URL(window.location.href);
+                if (dupUrl.searchParams.get('manual_fel_duplicate') === '1') {
+                    openInvoiceManualFelDuplicateModal();
+                    dupUrl.searchParams.delete('manual_fel_duplicate');
+                    window.history.replaceState({}, '', dupUrl.toString());
+                }
+            } catch (e) {}
+        }
+    }
 })();
 </script>

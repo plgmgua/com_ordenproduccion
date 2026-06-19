@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.179-STABLE] - 2026-05-19
+
+### Fixed
+- **Invoice duplicate → Factura manual:** modal is always embedded on the invoice page; the button opens it via JavaScript (no full-page reload or SEF query param required).
+
 ## [3.119.178-STABLE] - 2026-05-19
 
 ### Changed

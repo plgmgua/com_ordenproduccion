@@ -17,7 +17,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Invoice\HtmlView $this */
 
-if (empty($this->showManualFelDuplicateModal) || empty($this->manualFelSeedFromInvoice)) {
+if (empty($this->manualFelSeedFromInvoice) || !\is_array($this->manualFelSeedFromInvoice)) {
     return;
 }
 
@@ -58,6 +58,9 @@ $manualFelOtherQuotations = [];
 $manualFelLinesUrl = '';
 $manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
 $manualFelSeedFromInvoice = $seed;
+if (!empty($this->manualFelAutoOpenDuplicate)) {
+    $manualFelSeedFromInvoice['auto_open'] = true;
+}
 $manualFelSourceInvoiceId = $invId;
 $manualFelInvoiceDuplicateMode = true;
 

@@ -88,14 +88,21 @@ class HtmlView extends BaseHtmlView
      *
      * @since  3.119.178
      */
-    protected $showManualFelDuplicateModal = false;
+    public $showManualFelDuplicateModal = false;
+
+    /**
+     * @var bool
+     *
+     * @since  3.119.179
+     */
+    public $manualFelAutoOpenDuplicate = false;
 
     /**
      * @var array<string, mixed>|null
      *
      * @since  3.119.178
      */
-    protected $manualFelSeedFromInvoice = null;
+    public $manualFelSeedFromInvoice = null;
 
     /**
      * @var array<int, array{descripcion: string, cantidad: float, precio_unitario: float}>
@@ -256,12 +263,14 @@ class HtmlView extends BaseHtmlView
         $this->duplicateManualFelUrl           = '';
         $this->duplicateManualFelDisabledTitle = '';
         $this->showManualFelDuplicateModal     = false;
+        $this->manualFelAutoOpenDuplicate      = false;
         $this->manualFelSeedFromInvoice        = null;
         $this->manualFelLinePresets            = [];
         $this->manualFelOrdensForClient        = [];
         $this->felEngineAvailable              = false;
 
-        $openManualFelDuplicate = $app->input->getInt('manual_fel_duplicate', 0) === 1;
+        $openManualFelDuplicate = $app->input->getInt('manual_fel_duplicate', 0) === 1
+            || $app->input->getString('manual_fel_duplicate', '') === '1';
         $felSvc                 = new FelInvoiceIssuanceService();
         $this->felEngineAvailable = $felSvc->isEngineAvailable();
 
@@ -269,30 +278,22 @@ class HtmlView extends BaseHtmlView
             $this->canDuplicateToManualFel = true;
             $seed                          = $felSvc->buildManualFelSeedFromInvoice($this->item);
             if (\is_array($seed) && ($seed['lines'] ?? []) !== []) {
-                $this->duplicateManualFelUrl = Route::_(
-                    'index.php?option=com_ordenproduccion&view=invoice&id='
-                    . (int) ($this->item->id ?? 0)
-                    . '&manual_fel_duplicate=1',
-                    false
-                );
-                if ($openManualFelDuplicate) {
-                    $seed['auto_open']                = true;
-                    $this->showManualFelDuplicateModal = true;
-                    $this->manualFelSeedFromInvoice    = $seed;
-                    $this->manualFelLinePresets        = $seed['lines'];
-                    foreach ($this->associatedOrdenLinks as $link) {
-                        $oid = (int) ($link['orden_id'] ?? 0);
-                        if ($oid < 1) {
-                            continue;
-                        }
-                        $this->manualFelOrdensForClient[] = [
-                            'id'    => $oid,
-                            'label' => (string) ($link['orden_num'] ?? ('ORD-' . $oid)),
-                            'valor' => 0.0,
-                        ];
+                $this->manualFelSeedFromInvoice     = $seed;
+                $this->manualFelLinePresets         = $seed['lines'];
+                $this->showManualFelDuplicateModal  = true;
+                $this->manualFelAutoOpenDuplicate   = $openManualFelDuplicate;
+                foreach ($this->associatedOrdenLinks as $link) {
+                    $oid = (int) ($link['orden_id'] ?? 0);
+                    if ($oid < 1) {
+                        continue;
                     }
-                    HTMLHelper::_('bootstrap.framework');
+                    $this->manualFelOrdensForClient[] = [
+                        'id'    => $oid,
+                        'label' => (string) ($link['orden_num'] ?? ('ORD-' . $oid)),
+                        'valor' => 0.0,
+                    ];
                 }
+                HTMLHelper::_('bootstrap.framework');
             } else {
                 $this->duplicateManualFelDisabledTitle = Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_NO_LINES');
             }

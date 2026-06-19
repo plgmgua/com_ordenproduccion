@@ -103,13 +103,13 @@ $invoiceCancelled = !empty($this->invoiceIsCancelled);
         </form>
         <?php endif; ?>
         <?php
-        $duplicateManualFelUrl = trim((string) ($this->duplicateManualFelUrl ?? ''));
         $duplicateManualFelDisabledTitle = trim((string) ($this->duplicateManualFelDisabledTitle ?? ''));
-        if ($duplicateManualFelUrl !== '') :
+        $hasManualFelDuplicateModal = !empty($this->showManualFelDuplicateModal);
+        if ($hasManualFelDuplicateModal) :
             ?>
-        <a href="<?php echo htmlspecialchars($duplicateManualFelUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-success btn-sm">
+        <button type="button" id="invoice-duplicate-manual-fel-trigger" class="btn btn-outline-success btn-sm">
             <i class="fas fa-copy" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_BTN'); ?>
-        </a>
+        </button>
         <?php else : ?>
         <button type="button" class="btn btn-outline-success btn-sm" disabled<?php if ($duplicateManualFelDisabledTitle !== '') : ?> title="<?php echo htmlspecialchars($duplicateManualFelDisabledTitle, ENT_QUOTES, 'UTF-8'); ?>"<?php endif; ?>>
             <i class="fas fa-copy" aria-hidden="true"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICE_DUPLICATE_MANUAL_FEL_BTN'); ?>
