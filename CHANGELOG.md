@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.182-STABLE] - 2026-05-19
+
+### Fixed
+- **Estandarización de Clientes:** avoid duplicate key on `client_balance.idx_client_nit` by deleting stale source balance rows and rebuilding via `refreshClientBalances()` instead of renaming rows in place; merge all opening-balance rows per source client name.
+
 ## [3.119.181-STABLE] - 2026-05-19
 
 ### Added

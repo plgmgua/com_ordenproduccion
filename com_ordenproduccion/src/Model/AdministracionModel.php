@@ -1660,8 +1660,8 @@ class AdministracionModel extends BaseDatabaseModel
                 (int) $user->id
             );
 
-            $openingBalanceToAdd += $this->getAndRemoveOpeningBalance($db, $srcName, $srcNit);
-            $this->removeClientBalance($db, $srcName, $srcNit);
+            $openingBalanceToAdd += $this->getAndRemoveAllOpeningBalancesForName($db, $srcName);
+            $this->removeAllClientBalancesForName($db, $srcName);
         }
 
         if ($openingBalanceToAdd > 0) {
@@ -1691,6 +1691,73 @@ class AdministracionModel extends BaseDatabaseModel
         }
         $db->setQuery($query);
         $db->execute();
+    }
+
+    /**
+     * Remove all cached balance rows for a client name (any NIT).
+     *
+     * @since 3.119.182
+     */
+    protected function removeAllClientBalancesForName($db, $clientName)
+    {
+        if (!$this->hasTable($db, '#__ordenproduccion_client_balance')) {
+            return;
+        }
+        $clientName = trim((string) $clientName);
+        if ($clientName === '') {
+            return;
+        }
+        $db->setQuery(
+            $db->getQuery(true)
+                ->delete($db->quoteName('#__ordenproduccion_client_balance'))
+                ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName))
+        );
+        $db->execute();
+    }
+
+    /**
+     * Sum and remove all opening-balance rows for a client name (any NIT).
+     *
+     * @return float
+     *
+     * @since 3.119.182
+     */
+    protected function getAndRemoveAllOpeningBalancesForName($db, $clientName)
+    {
+        if (!$this->hasTable($db, '#__ordenproduccion_client_opening_balance')) {
+            return 0.0;
+        }
+        $clientName = trim((string) $clientName);
+        if ($clientName === '') {
+            return 0.0;
+        }
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select([
+                    $db->quoteName('id'),
+                    $db->quoteName('amount_paid_to_dec31_2025'),
+                ])
+                ->from($db->quoteName('#__ordenproduccion_client_opening_balance'))
+                ->where($db->quoteName('client_name') . ' = ' . $db->quote($clientName))
+        );
+        $rows = $db->loadObjectList() ?: [];
+        if ($rows === []) {
+            return 0.0;
+        }
+
+        $total = 0.0;
+        foreach ($rows as $row) {
+            $total += (float) ($row->amount_paid_to_dec31_2025 ?? 0);
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_client_opening_balance'))
+                    ->where($db->quoteName('id') . ' = ' . (int) $row->id)
+            );
+            $db->execute();
+        }
+
+        return $total;
     }
 
     /**

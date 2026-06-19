@@ -193,14 +193,7 @@ class ClientNameStandardizationHelper
                 );
             }
 
-            if ($this->tableExists('#__ordenproduccion_client_balance')) {
-                $stats['client_balance'] += $this->updateTableByClientName(
-                    '#__ordenproduccion_client_balance',
-                    'client_name',
-                    $srcName,
-                    $targetClientName
-                );
-            }
+            // client_balance: do not UPDATE here (unique idx_client_nit). Model deletes stale rows and refreshClientBalances().
         }
 
         return $stats;
