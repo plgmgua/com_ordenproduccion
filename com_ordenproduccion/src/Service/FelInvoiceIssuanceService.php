@@ -2759,7 +2759,7 @@ class FelInvoiceIssuanceService
             $currency = 'GTQ';
         }
 
-        $observaciones = FelInvoiceHelper::resolvePdfObservaciones($invoice);
+        $observaciones = '';
 
         $fcamAbonos = [];
         if ($docType === 'FCAM' && isset($felExtra['complemento_abonos']) && \is_array($felExtra['complemento_abonos'])) {
@@ -2850,15 +2850,37 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * Resolve cotización id for duplicate flow (column, NUC adenda, or quotation_number lookup).
+     * Resolve cotización id for duplicate flow (invoice links, FEL adenda, ordens; NIT last resort).
      *
      * @since  3.119.174
      */
     public function resolveQuotationIdForInvoiceDuplicate(object $invoice): int
     {
+        $invoiceId = (int) ($invoice->id ?? 0);
+
         $qid = (int) ($invoice->quotation_id ?? 0);
         if ($qid > 0) {
             return $qid;
+        }
+
+        $linked = $this->getQuotationIdsLinkedToInvoice($invoiceId);
+        if ($linked !== []) {
+            if ($this->hasInvoiceQuotationsTable() && $invoiceId > 0) {
+                $this->db->setQuery(
+                    $this->db->getQuery(true)
+                        ->select($this->db->quoteName('quotation_id'))
+                        ->from($this->db->quoteName('#__ordenproduccion_invoice_quotations'))
+                        ->where($this->db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                        ->where($this->db->quoteName('is_primary') . ' = 1')
+                        ->order($this->db->quoteName('id') . ' ASC')
+                );
+                $primary = (int) $this->db->loadResult();
+                if ($primary > 0) {
+                    return $primary;
+                }
+            }
+
+            return (int) $linked[0];
         }
 
         foreach ($this->collectCotizacionRefsFromInvoice($invoice) as $ref) {
@@ -2868,15 +2890,124 @@ class FelInvoiceIssuanceService
             }
         }
 
-        return $this->lookupQuotationIdByClientNit($invoice);
+        $ordenQids = $this->resolveQuotationIdsFromInvoiceOrdens($invoiceId);
+        if ($ordenQids !== []) {
+            return (int) $ordenQids[0];
+        }
+
+        $lineQid = $this->resolveQuotationIdFromInvoiceLineItems($invoice);
+        if ($lineQid > 0) {
+            return $lineQid;
+        }
+
+        $prefer = array_values(array_unique(array_merge($linked, $ordenQids)));
+
+        return $this->lookupQuotationIdByClientNit($invoice, $prefer);
     }
 
     /**
-     * Match cotización by invoice client / receptor NIT (most recent published).
+     * Cotización ids from work orders linked to this invoice.
+     *
+     * @return  int[]
+     *
+     * @since  3.119.176
+     */
+    protected function resolveQuotationIdsFromInvoiceOrdens(int $invoiceId): array
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1) {
+            return [];
+        }
+
+        $ordenIds = [];
+        try {
+            $app = Factory::getApplication();
+            $matchModel = $app->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if ($matchModel && \is_callable([$matchModel, 'getAssociatedOrdenLinksForInvoice'])) {
+                foreach ($matchModel->getAssociatedOrdenLinksForInvoice($invoiceId) as $link) {
+                    $oid = (int) ($link['orden_id'] ?? 0);
+                    if ($oid > 0) {
+                        $ordenIds[] = $oid;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $inv = $this->loadInvoice($invoiceId);
+        if ($inv) {
+            $legacy = (int) ($inv->orden_id ?? 0);
+            if ($legacy > 0) {
+                $ordenIds[] = $legacy;
+            }
+        }
+
+        $ordenIds = array_values(array_unique(array_filter($ordenIds, static function ($id) {
+            return (int) $id > 0;
+        })));
+        if ($ordenIds === []) {
+            return [];
+        }
+
+        $this->db->setQuery(
+            $this->db->getQuery(true)
+                ->select('DISTINCT ' . $this->db->quoteName('quotation_id'))
+                ->from($this->db->quoteName('#__ordenproduccion_ordenes'))
+                ->where($this->db->quoteName('id') . ' IN (' . implode(',', array_map('intval', $ordenIds)) . ')')
+                ->where($this->db->quoteName('quotation_id') . ' > 0')
+                ->where($this->db->quoteName('state') . ' = 1')
+                ->order($this->db->quoteName('quotation_id') . ' DESC')
+        );
+
+        $qids = [];
+        foreach ($this->db->loadColumn() ?: [] as $q) {
+            $q = (int) $q;
+            if ($q > 0) {
+                $qids[] = $q;
+            }
+        }
+
+        return $qids;
+    }
+
+    /**
+     * First quotation_id stored on invoice line_items JSON, if any.
+     *
+     * @since  3.119.176
+     */
+    protected function resolveQuotationIdFromInvoiceLineItems(object $invoice): int
+    {
+        $lineItems = $invoice->line_items ?? [];
+        if (!\is_array($lineItems)) {
+            $lineItems = \json_decode((string) $lineItems, true);
+        }
+        if (!\is_array($lineItems)) {
+            return 0;
+        }
+
+        foreach ($lineItems as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $qid = (int) ($line['quotation_id'] ?? 0);
+            if ($qid > 0) {
+                return $qid;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Match cotización by invoice client / receptor NIT (prefer invoice-linked ids when provided).
+     *
+     * @param   int[]  $preferQuotationIds
      *
      * @since  3.119.175
      */
-    protected function lookupQuotationIdByClientNit(object $invoice): int
+    protected function lookupQuotationIdByClientNit(object $invoice, array $preferQuotationIds = []): int
     {
         $candidates = [];
         foreach ([$invoice->client_nit ?? '', $invoice->fel_receptor_id ?? ''] as $raw) {
@@ -2914,9 +3045,14 @@ class FelInvoiceIssuanceService
                         . ')')
                     ->order($this->db->quoteName('id') . ' DESC')
             );
-            $found = (int) $this->db->loadResult();
-            if ($found > 0) {
-                return $found;
+            $foundIds = array_map('intval', $this->db->loadColumn() ?: []);
+            foreach ($foundIds as $found) {
+                if ($found > 0 && $preferQuotationIds !== [] && \in_array($found, $preferQuotationIds, true)) {
+                    return $found;
+                }
+            }
+            if ($foundIds !== [] && (int) $foundIds[0] > 0) {
+                return (int) $foundIds[0];
             }
         }
 
@@ -3062,9 +3198,46 @@ class FelInvoiceIssuanceService
             }
         }
 
+        foreach ($this->collectCotizacionRefsFromInvoiceText($invoice) as $textRef) {
+            $refs[] = $textRef;
+        }
+
         return array_values(array_unique(array_filter($refs, static function ($r) {
             return trim((string) $r) !== '';
         })));
+    }
+
+    /**
+     * @return  list<string>
+     *
+     * @since  3.119.176
+     */
+    protected function collectCotizacionRefsFromInvoiceText(object $invoice): array
+    {
+        $refs = [];
+        $chunks = [
+            (string) ($invoice->notes ?? ''),
+            (string) ($invoice->work_description ?? ''),
+            (string) ($invoice->fel_extra ?? ''),
+        ];
+        if (!empty($invoice->fel_extra) && \is_string($invoice->fel_extra)) {
+            $decoded = \json_decode($invoice->fel_extra, true);
+            if (\is_array($decoded)) {
+                $chunks[] = \json_encode($decoded, JSON_UNESCAPED_UNICODE);
+            }
+        }
+        foreach ($chunks as $text) {
+            if ($text === '') {
+                continue;
+            }
+            if (preg_match_all('/\bCOT-0*(\d+)\b/i', $text, $m)) {
+                foreach ($m[1] as $num) {
+                    $refs[] = 'COT-' . (int) $num;
+                }
+            }
+        }
+
+        return array_values(array_unique($refs));
     }
 
     /**

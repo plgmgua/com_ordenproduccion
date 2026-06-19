@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.176-STABLE] - 2026-05-19
+
+### Fixed
+- **Duplicate invoice → manual FEL:** resolve cotización from invoice links, linked ordens, and COT refs before client-NIT fallback (avoids wrong cotización page).
+- **Duplicate invoice → manual FEL:** redirect to the correct cotización and always open Factura manual modal with seeded client, lines, currency, and totals; observaciones left blank for you to enter before preview/issue.
+
 ## [3.119.175-STABLE] - 2026-05-19
 
 ### Changed

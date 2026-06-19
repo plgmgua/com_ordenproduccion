@@ -304,6 +304,30 @@ class HtmlView extends BaseHtmlView
 
         try {
             $quotationId = $input->getInt('id', 0);
+            $seedInvoiceId = $input->getInt('manual_fel_seed_invoice', 0);
+            if ($seedInvoiceId > 0 && AccessHelper::isSuperUser()) {
+                $invModel = $app->bootComponent('com_ordenproduccion')
+                    ->getMVCFactory()
+                    ->createModel('Invoice', 'Site', ['ignore_request' => true]);
+                if ($invModel && \is_callable([$invModel, 'getItem'])) {
+                    $seedInv = $invModel->getItem($seedInvoiceId);
+                    if ($seedInv) {
+                        $felRedirectSvc = new FelInvoiceIssuanceService();
+                        $targetQid      = $felRedirectSvc->resolveQuotationIdForInvoiceDuplicate($seedInv);
+                        if ($targetQid > 0 && $targetQid !== $quotationId) {
+                            $app->redirect(Route::_(
+                                'index.php?option=com_ordenproduccion&view=cotizacion&id='
+                                . $targetQid
+                                . '&manual_fel_seed_invoice='
+                                . $seedInvoiceId,
+                                false
+                            ));
+
+                            return;
+                        }
+                    }
+                }
+            }
 
             // Load existing quotation and items when editing
             if ($quotationId > 0) {
@@ -431,13 +455,10 @@ class HtmlView extends BaseHtmlView
                             $seedInv = $invModel->getItem($seedInvoiceId);
                             if ($seedInv) {
                                 $felSeedSvc = new FelInvoiceIssuanceService();
-                                $resolvedQid = $felSeedSvc->resolveQuotationIdForInvoiceDuplicate($seedInv);
-                                if ($resolvedQid === $quotationId) {
-                                    $seed = $felSeedSvc->buildManualFelSeedFromInvoice($seedInv);
-                                    if (\is_array($seed) && ($seed['lines'] ?? []) !== []) {
-                                        $this->manualFelSeedFromInvoice = $seed;
-                                        $this->manualFelLinePresets     = $seed['lines'];
-                                    }
+                                $seed       = $felSeedSvc->buildManualFelSeedFromInvoice($seedInv);
+                                if (\is_array($seed) && ($seed['lines'] ?? []) !== []) {
+                                    $this->manualFelSeedFromInvoice = $seed;
+                                    $this->manualFelLinePresets     = $seed['lines'];
                                 }
                             }
                         }

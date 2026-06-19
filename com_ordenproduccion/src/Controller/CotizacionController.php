@@ -2167,7 +2167,7 @@ class CotizacionController extends BaseController
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
             $app->close();
         }
-        if (!AccessHelper::isInStrictAdministracionGroup()) {
+        if (!AccessHelper::isInStrictAdministracionGroup() && !AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
             $app->close();
         }
@@ -2405,7 +2405,7 @@ class CotizacionController extends BaseController
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
             $app->close();
         }
-        if (!AccessHelper::isInStrictAdministracionGroup()) {
+        if (!AccessHelper::isInStrictAdministracionGroup() && !AccessHelper::isSuperUser()) {
             echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')], JSON_UNESCAPED_UNICODE);
             $app->close();
         }
