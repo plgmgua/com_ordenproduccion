@@ -2931,13 +2931,8 @@ class HtmlView extends BaseHtmlView
                     $this->ajustesMt940BankAccountOptions = $admMt940->getMt940ConfiguredBankAccountOptions();
 
                     $cronKey = $admMt940->getMt940CronKey();
-                    $base    = 'https://grimpsa_webserver.grantsolutions.cc/index.php?option=com_ordenproduccion&controller=mt940&task=runScheduledImport&format=raw&cron_key=';
-                    if ($cronKey !== '') {
-                        $this->mt940CronCrontabLine       = '0 8 * * * wget -q -O - ' . \escapeshellarg($base . $cronKey);
-                        $this->mt940CronKeyConfigured     = true;
-                    } else {
-                        $this->mt940CronCrontabLine = '0 8 * * * wget -q -O - ' . \escapeshellarg($base . 'YOUR_SECRET');
-                    }
+                    $this->mt940CronCrontabLine       = $admMt940->getMt940CronCrontabLine();
+                    $this->mt940CronKeyConfigured     = ($cronKey !== '');
                 }
             } catch (\Throwable $e) {
                 $this->ajustesMt940SchemaOk           = false;

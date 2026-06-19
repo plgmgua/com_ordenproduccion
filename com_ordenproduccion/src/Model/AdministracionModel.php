@@ -6146,6 +6146,43 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Public cron URL (uses current site root, not a hardcoded host).
+     *
+     * @param   string  $cronKey  Secret; empty loads stored key
+     *
+     * @return  string
+     *
+     * @since   3.119.184
+     */
+    public function getMt940CronEndpointUrl(string $cronKey = ''): string
+    {
+        if ($cronKey === '') {
+            $cronKey = $this->getMt940CronKey();
+        }
+
+        $root = \rtrim((string) \Joomla\CMS\Uri\Uri::root(), '/');
+        $qs   = 'option=com_ordenproduccion&controller=mt940&task=runScheduledImport&format=raw&cron_key='
+            . \rawurlencode($cronKey);
+
+        return $root . '/index.php?' . $qs;
+    }
+
+    /**
+     * Crontab line for daily 08:00 mailbox import.
+     *
+     * @return  string
+     *
+     * @since   3.119.184
+     */
+    public function getMt940CronCrontabLine(): string
+    {
+        $key = $this->getMt940CronKey();
+        $url = $this->getMt940CronEndpointUrl($key !== '' ? $key : 'YOUR_SECRET');
+
+        return '0 8 * * * wget -q -O - ' . \escapeshellarg($url);
+    }
+
+    /**
      * Save or generate the MT-940 cron secret. Blank input keeps the existing key; generates one if none exists.
      *
      * @param   string  $raw  Posted cron key (optional)

@@ -46,6 +46,15 @@ class Mt940Controller extends BaseController
         }
 
         if ($expected === '' || $key === '' || !\hash_equals($expected, $key)) {
+            Mt940RunLogHelper::recordRun(
+                Mt940RunLogHelper::TRIGGER_CRON,
+                Mt940RunLogHelper::STATUS_FAIL,
+                [],
+                $expected === '' || $key === ''
+                    ? 'Forbidden: missing or unset MT-940 cron_key (save secret under Ajustes → MT940 → Importar datos).'
+                    : 'Forbidden: cron_key does not match stored secret.',
+                403
+            );
             $this->emitPlainResponse(
                 403,
                 "Forbidden\n\nUse GET with query cron_key matching the MT-940 cron secret (Ajustes → MT940 → Importar datos)."

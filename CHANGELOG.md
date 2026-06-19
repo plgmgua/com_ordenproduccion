@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.184-STABLE] - 2026-05-19
+
+### Fixed
+- **MT-940 cron:** crontab line now uses the live site URL (`Uri::root()`) instead of a hardcoded host; 403 auth failures are logged to `mt940_run_log`.
+
+### Added
+- **MT-940 diagnostic / troubleshooting:** cron section (secret, last run, endpoint URL).
+
 ## [3.119.183-STABLE] - 2026-05-19
 
 ### Fixed

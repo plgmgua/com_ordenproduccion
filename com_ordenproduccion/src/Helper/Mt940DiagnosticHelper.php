@@ -60,7 +60,7 @@ class Mt940DiagnosticHelper
         ]);
 
         $this->addSection('Stored MT-940 IMAP settings', [
-            $this->check('Import enabled', ($settings['enabled'] ?? '0') === '1' ? 'pass' : 'warn', ($settings['enabled'] ?? '0') === '1' ? 'Yes' : 'No'),
+            $this->check('Import enabled', ($settings['enabled'] ?? '0') === '1' ? 'pass' : 'warn', ($settings['enabled'] ?? '0') === '1' ? 'Yes' : 'No (cron returns SKIPPED)'),
             $this->check('IMAP host', $host !== '' ? 'pass' : 'fail', $host !== '' ? $host : 'Not configured'),
             $this->check('IMAP port', 'info', (string) $port),
             $this->check('Encryption', 'info', $enc),
@@ -71,6 +71,8 @@ class Mt940DiagnosticHelper
             'mailbox_string' => $host !== '' ? Mt940ImapHelper::buildMailboxString($host, $port, $enc) : '',
             'driver_expected' => \function_exists('imap_open') ? 'imap' : 'socket',
         ]);
+
+        $this->addCronSection();
 
         if ($host === '' || $user === '' || !$passSet) {
             return $this->buildReport($settings);
@@ -206,6 +208,83 @@ class Mt940DiagnosticHelper
         }
 
         return [];
+    }
+
+    /**
+     * @param   array<string, mixed>  $settings
+     *
+     * @return array<string, mixed>
+     */
+    private function addCronSection(): void
+    {
+        $cronKey   = '';
+        $cronUrl   = '';
+        $lastCron  = null;
+        $logTable  = Mt940RunLogHelper::tableAvailable();
+
+        try {
+            BaseDatabaseModel::addIncludePath(JPATH_SITE . '/components/com_ordenproduccion/src/Model');
+            /** @var AdministracionModel|null $model */
+            $model = BaseDatabaseModel::getInstance('Administracion', 'Grimpsa\\Component\\Ordenproduccion\\Site\\Model');
+            if ($model) {
+                $cronKey = $model->getMt940CronKey();
+                $cronUrl = $model->getMt940CronEndpointUrl($cronKey !== '' ? $cronKey : 'YOUR_SECRET');
+            }
+        } catch (\Throwable $e) {
+        }
+
+        if ($logTable) {
+            $pack = Mt940RunLogHelper::getRunLogList(20, 0);
+            foreach ($pack['rows'] ?? [] as $row) {
+                if (($row->trigger_type ?? '') === Mt940RunLogHelper::TRIGGER_CRON) {
+                    $lastCron = $row;
+                    break;
+                }
+            }
+        }
+
+        $checks = [
+            $this->check(
+                'Cron secret saved',
+                $cronKey !== '' ? 'pass' : 'fail',
+                $cronKey !== '' ? 'mt940_cron_key is set in #__ordenproduccion_config' : 'Click Guardar on Ajustes → MT940 → Importar datos (cron key form)'
+            ),
+            $this->check(
+                'Run log table',
+                $logTable ? 'pass' : 'warn',
+                $logTable ? 'joomla_ordenproduccion_mt940_run_log exists' : 'Run log table missing — apply SQL 3.119.160'
+            ),
+        ];
+
+        if ($lastCron !== null) {
+            $checks[] = $this->check(
+                'Last cron run',
+                ($lastCron->status ?? '') === 'success' ? 'pass' : (($lastCron->status ?? '') === 'skipped' ? 'warn' : 'fail'),
+                \sprintf(
+                    '%s at %s — %s',
+                    (string) ($lastCron->status ?? ''),
+                    (string) ($lastCron->ran_at ?? ''),
+                    \mb_substr((string) ($lastCron->message ?? ''), 0, 200)
+                )
+            );
+        } else {
+            $checks[] = $this->check(
+                'Last cron run',
+                'warn',
+                $logTable
+                    ? 'No cron rows in run log — server crontab may not be calling the URL, or cron_key is wrong (403)'
+                    : 'Cannot read run log'
+            );
+        }
+
+        $checks[] = $this->check('Cron endpoint URL', $cronUrl !== '' ? 'info' : 'warn', $cronUrl !== '' ? $cronUrl : 'Not available');
+        $checks[] = $this->check(
+            'Crontab schedule',
+            'info',
+            '0 8 * * * (daily 08:00 server time). Test manually with wget/curl before waiting for cron.'
+        );
+
+        $this->addSection('MT-940 cron (scheduled import)', $checks);
     }
 
     /**
