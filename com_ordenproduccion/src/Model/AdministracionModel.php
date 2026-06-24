@@ -334,6 +334,7 @@ class AdministracionModel extends BaseDatabaseModel
         $query->select([
             $db->quoteName('o.id', 'id'),
             $db->quoteName('o.orden_de_trabajo', 'orden_de_trabajo'),
+            $db->quoteName('o.status', 'status'),
             $db->quoteName('o.work_description', 'work_description'),
             $db->quoteName('o.invoice_value', 'invoice_value'),
             $db->quoteName('o.client_name', 'client_name'),

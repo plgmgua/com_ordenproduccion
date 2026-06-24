@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.191-STABLE] - 2026-06-19
+
+### Added
+- **Control de Ventas → Ordenes y Envios → Ordenes:** Excel export includes **Estado** column (Nueva, Terminada, Anulada, etc.).
+
 ## [3.119.190-STABLE] - 2026-06-19
 
 ### Fixed

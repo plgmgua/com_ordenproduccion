@@ -90,6 +90,7 @@ class AdministracionController extends BaseController
 
         $cols = [
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_WORK_ORDER'),
+            $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_STATUS'),
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_CLIENT_NAME'),
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_REQUEST_DATE'),
             $lang->_('COM_ORDENPRODUCCION_REPORTES_COL_DELIVERY_DATE'),
@@ -149,6 +150,7 @@ class AdministracionController extends BaseController
             $sumDiferencia += $diferencia;
             fputcsv($out, [
                 $row->orden_de_trabajo ?? '',
+                $this->formatReportOrdenStatus((string) ($row->status ?? '')),
                 $row->client_name ?? '',
                 $requestDate,
                 $deliveryDate,
@@ -165,6 +167,7 @@ class AdministracionController extends BaseController
                 '',
                 '',
                 '',
+                '',
                 number_format($sumInvoice, 2, '.', ''),
                 number_format($sumPaid, 2, '.', ''),
                 number_format($sumDiferencia, 2, '.', ''),
@@ -172,6 +175,39 @@ class AdministracionController extends BaseController
         }
         fclose($out);
         $app->close();
+    }
+
+    /**
+     * Human-readable orden de trabajo status for report exports.
+     *
+     * @since  3.119.191
+     */
+    protected function formatReportOrdenStatus(string $status): string
+    {
+        $status = trim($status);
+        if ($status === '') {
+            return Text::_('COM_ORDENPRODUCCION_STATUS_NEW');
+        }
+
+        $map = [
+            'Nueva'       => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'En Proceso'  => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'Terminada'   => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'Cerrada'     => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            'Entregada'   => 'COM_ORDENPRODUCCION_STATUS_DELIVERED',
+            'Anulada'     => 'COM_ORDENPRODUCCION_STATUS_ANULADA',
+            'New'         => 'COM_ORDENPRODUCCION_STATUS_NEW',
+            'In Process'  => 'COM_ORDENPRODUCCION_STATUS_IN_PROCESS',
+            'Completed'   => 'COM_ORDENPRODUCCION_STATUS_COMPLETED',
+            'Closed'      => 'COM_ORDENPRODUCCION_STATUS_CLOSED',
+            'Delivered'   => 'COM_ORDENPRODUCCION_STATUS_DELIVERED',
+        ];
+
+        if (isset($map[$status])) {
+            return Text::_($map[$status]);
+        }
+
+        return $status;
     }
 
     /**
@@ -210,6 +246,7 @@ class AdministracionController extends BaseController
 
             $sheet->fromArray([
                 $row->orden_de_trabajo ?? '',
+                $this->formatReportOrdenStatus((string) ($row->status ?? '')),
                 $row->client_name ?? '',
                 $requestDate,
                 $deliveryDate,
@@ -228,23 +265,23 @@ class AdministracionController extends BaseController
         if ($rows !== []) {
             // PhpSpreadsheet does not always emit totals formulas; write the footer row explicitly.
             $sheet->setCellValue('A' . $totalsRow, 'Total');
-            $sheet->setCellValue('F' . $totalsRow, round($sumInvoice, 2));
-            $sheet->setCellValue('G' . $totalsRow, round($sumPaid, 2));
-            $sheet->setCellValue('H' . $totalsRow, round($sumDiferencia, 2));
-            $sheet->getStyle('A' . $totalsRow . ':H' . $totalsRow)->getFont()->setBold(true);
+            $sheet->setCellValue('G' . $totalsRow, round($sumInvoice, 2));
+            $sheet->setCellValue('H' . $totalsRow, round($sumPaid, 2));
+            $sheet->setCellValue('I' . $totalsRow, round($sumDiferencia, 2));
+            $sheet->getStyle('A' . $totalsRow . ':I' . $totalsRow)->getFont()->setBold(true);
         } else {
             $totalsRow = $lastDataRow;
         }
 
-        $tableRange = 'A1:H' . $totalsRow;
+        $tableRange = 'A1:I' . $totalsRow;
         $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table($tableRange, $tableName);
         $table->setShowHeaderRow(true);
         $table->setShowTotalsRow($rows !== []);
         if ($rows !== []) {
             $table->getColumn('A')->setTotalsRowLabel('Total');
-            $table->getColumn('F')->setTotalsRowFunction('sum');
             $table->getColumn('G')->setTotalsRowFunction('sum');
             $table->getColumn('H')->setTotalsRowFunction('sum');
+            $table->getColumn('I')->setTotalsRowFunction('sum');
         }
 
         $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
@@ -255,15 +292,15 @@ class AdministracionController extends BaseController
 
         $numFormat = '#,##0.00';
         if ($rows !== []) {
-            $sheet->getStyle('F2:H' . $totalsRow)->getNumberFormat()->setFormatCode($numFormat);
+            $sheet->getStyle('G2:I' . $totalsRow)->getNumberFormat()->setFormatCode($numFormat);
         }
 
         $defaultColWidth = 8.43;
-        foreach (['A', 'B', 'C', 'D', 'F', 'G', 'H'] as $col) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I'] as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
-        $sheet->getColumnDimension('E')->setAutoSize(false);
-        $sheet->getColumnDimension('E')->setWidth($defaultColWidth * 2);
+        $sheet->getColumnDimension('F')->setAutoSize(false);
+        $sheet->getColumnDimension('F')->setWidth($defaultColWidth * 2);
 
         $filename = 'reporte-ordenes-' . date('Y-m-d-His') . '.xlsx';
         @ob_clean();
