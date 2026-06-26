@@ -15,5 +15,12 @@
         <folder>language</folder>
     </files>
 
+    <languages folder="language">
+        <language tag="en-GB">en-GB/plg_system_op_impersonate.ini</language>
+        <language tag="en-GB">en-GB/plg_system_op_impersonate.sys.ini</language>
+        <language tag="es-ES">es-ES/plg_system_op_impersonate.ini</language>
+        <language tag="es-ES">es-ES/plg_system_op_impersonate.sys.ini</language>
+    </languages>
+
     <scriptfile>install.php</scriptfile>
 </extension>
