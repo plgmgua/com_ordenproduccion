@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.198-STABLE] - 2026-05-19
+
+### Fixed
+- **VERSION file deployment:** Include `VERSION` in the site install package and manifest; write it on install/update via `script.php` so troubleshooting and User Audit version badge work on server.
+
 ## [3.119.197-STABLE] - 2026-05-19
 
 ### Fixed

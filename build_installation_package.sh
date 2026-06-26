@@ -118,6 +118,10 @@ main() {
     if [ -f "$COMPONENT_DIR/ordenproduccion.php" ]; then
         cp "$COMPONENT_DIR/ordenproduccion.php" "$BUILD_DIR/$COMPONENT_NAME/site/" || error "Failed to copy ordenproduccion.php"
     fi
+
+    if [ -f "$VERSION_FILE" ]; then
+        cp "$VERSION_FILE" "$BUILD_DIR/$COMPONENT_NAME/site/" || error "Failed to copy VERSION"
+    fi
     
     # Copy media files
     if [ -d "$COMPONENT_DIR/media" ]; then

@@ -161,7 +161,7 @@ function tsRender(array $vars): void
 
     <?php if (!empty($impersonationChecks)): ?>
         <h2>User impersonation deployment</h2>
-        <p class="subtitle">Control de Ventas → User Audit needs component <strong>3.119.197-STABLE+</strong> and plugin <strong>plg_system_op_impersonate</strong>. After deploy, open User Audit — badge <em>Componente v3.119.197-STABLE</em> under the intro and yellow panel <em>Ver como otro usuario</em> above the filters.</p>
+        <p class="subtitle">Control de Ventas → User Audit needs component <strong>3.119.198-STABLE+</strong> and plugin <strong>plg_system_op_impersonate</strong>. After deploy, open User Audit — badge <em>Componente v3.119.198-STABLE</em> under the intro and yellow panel <em>Ver como otro usuario</em> above the filters.</p>
         <?php foreach ($impersonationChecks as $check): ?>
             <div class="check-row <?php echo htmlspecialchars(tsStatusClass($check)); ?>">
                 <span class="badge <?php echo htmlspecialchars(tsStatusClass($check)); ?>"><?php echo htmlspecialchars((string) ($check['status'] ?? '')); ?></span>
@@ -407,6 +407,25 @@ try {
     $versionFile = $root . '/components/com_ordenproduccion/VERSION';
     if ($root !== '' && is_file($versionFile)) {
         $componentVersion = trim((string) file_get_contents($versionFile));
+    } elseif ($root !== '' && class_exists(\Joomla\CMS\Factory::class)) {
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('manifest_cache'))
+                ->from($db->quoteName('#__extensions'))
+                ->where($db->quoteName('type') . ' = ' . $db->quote('component'))
+                ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'));
+            $db->setQuery($query);
+            $manifestCache = (string) $db->loadResult();
+            if ($manifestCache !== '') {
+                $manifest = json_decode($manifestCache, true);
+                if (is_array($manifest) && !empty($manifest['version'])) {
+                    $componentVersion = trim((string) $manifest['version']);
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
     }
 
     $impersonationChecks = [];
@@ -422,31 +441,62 @@ try {
         foreach ($impPaths as $label => $path) {
             $exists = is_file($path);
             $extra = '';
+            $status = $exists ? 'pass' : 'fail';
             if ($label === 'VERSION file' && $exists) {
                 $extra = ' → ' . trim((string) file_get_contents($path));
+            } elseif ($label === 'VERSION file' && !$exists && $componentVersion !== '') {
+                $status = 'warn';
+                $extra = ' — missing on disk; Joomla reports ' . $componentVersion . '. Reinstall com_ordenproduccion 3.119.198-STABLE+ or create file manually.';
             }
             if ($label === 'startImpersonation (controller)' && $exists) {
                 $src = (string) file_get_contents($path);
                 $exists = str_contains($src, 'function startImpersonation');
                 $extra = $exists ? '' : ' (method missing — old component)';
+                $status = $exists ? 'pass' : 'fail';
             }
             if ($label === 'User Audit loads impersonate panel' && $exists) {
                 $src = (string) file_get_contents($path);
                 $exists = str_contains($src, "loadTemplate('user_audit_impersonate')");
                 $extra = $exists ? '' : ' (does not load impersonate panel — old template)';
+                $status = $exists ? 'pass' : 'fail';
             }
             $impersonationChecks[] = [
                 'label' => $label,
-                'status' => $exists ? 'pass' : 'fail',
-                'detail' => ($exists ? 'OK' : 'Missing') . $extra . ' — ' . $path,
+                'status' => $status,
+                'detail' => ($status === 'pass' ? 'OK' : ($status === 'warn' ? 'WARN' : 'Missing')) . $extra . ' — ' . $path,
             ];
         }
-        $needVersion = '3.119.197';
+
+        $overridePaths = glob($root . '/templates/*/html/com_ordenproduccion/administracion/default_user_audit.php') ?: [];
+        if ($overridePaths !== []) {
+            foreach ($overridePaths as $overridePath) {
+                $src = is_file($overridePath) ? (string) file_get_contents($overridePath) : '';
+                $hasPanel = str_contains($src, "loadTemplate('user_audit_impersonate')");
+                $impersonationChecks[] = [
+                    'label' => 'Template override (User Audit)',
+                    'status' => $hasPanel ? 'warn' : 'fail',
+                    'detail' => ($hasPanel ? 'Override exists and includes impersonate panel' : 'Override hides impersonation UI — delete or update')
+                        . ' — ' . $overridePath,
+                ];
+            }
+        }
+
+        if (class_exists(\Grimpsa\Component\Ordenproduccion\Site\Helper\UserImpersonationHelper::class)) {
+            $impersonationChecks[] = [
+                'label' => 'Active impersonation session',
+                'status' => \Grimpsa\Component\Ordenproduccion\Site\Helper\UserImpersonationHelper::isImpersonating() ? 'warn' : 'pass',
+                'detail' => \Grimpsa\Component\Ordenproduccion\Site\Helper\UserImpersonationHelper::isImpersonating()
+                    ? 'Session active — impersonation panel is hidden while impersonating. Use banner “Dejar de suplantar”.'
+                    : 'None',
+            ];
+        }
+
+        $needVersion = '3.119.198';
         if ($componentVersion !== '' && version_compare(preg_replace('/-.*$/', '', $componentVersion), preg_replace('/-.*$/', '', $needVersion), '<')) {
             $impersonationChecks[] = [
                 'label' => 'Component version for impersonation UI',
                 'status' => 'fail',
-                'detail' => 'Installed ' . $componentVersion . ' — need ' . $needVersion . '-STABLE or newer. Upload deployment_package/com_ordenproduccion-3.119.197-STABLE.zip',
+                'detail' => 'Installed ' . $componentVersion . ' — need ' . $needVersion . '-STABLE or newer. Upload deployment_package/com_ordenproduccion-3.119.198-STABLE.zip',
             ];
         } elseif ($componentVersion !== '') {
             $impersonationChecks[] = [

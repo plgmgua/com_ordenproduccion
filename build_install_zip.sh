@@ -12,6 +12,7 @@ mkdir -p "$BUILD/site" "$BUILD/admin" "$BUILD/media"
 cp "$COMP/com_ordenproduccion.xml" "$BUILD/"
 test -f "$COMP/script.php" && cp "$COMP/script.php" "$BUILD/"
 cp "$COMP/ordenproduccion.php" "$BUILD/site/"
+test -f "$COMP/VERSION" && cp "$COMP/VERSION" "$BUILD/site/"
 cp -R "$COMP/src" "$COMP/tmpl" "$COMP/language" "$COMP/forms" "$BUILD/site/"
 if [[ -d "$COMP/libraries" ]]; then
   cp -R "$COMP/libraries" "$BUILD/site/"

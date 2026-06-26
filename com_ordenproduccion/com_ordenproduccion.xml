@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.197-STABLE</version>
+    <version>3.119.198-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -26,6 +26,7 @@
 
     <files folder="site">
         <filename>ordenproduccion.php</filename>
+        <filename>VERSION</filename>
         <folder>src</folder>
         <folder>tmpl</folder>
         <folder>language</folder>

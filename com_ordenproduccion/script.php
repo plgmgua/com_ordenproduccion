@@ -376,6 +376,34 @@ function ensureCotizacionMenuItem()
 }
 
 /**
+ * Write components/com_ordenproduccion/VERSION from the installed package manifest.
+ *
+ * @param   InstallerAdapter  $parent  The installer adapter
+ *
+ * @return  bool
+ */
+function syncSiteVersionFile(InstallerAdapter $parent): bool
+{
+    $version = trim((string) $parent->getManifest()->version);
+
+    if ($version === '') {
+        return true;
+    }
+
+    $dest = JPATH_SITE . '/components/com_ordenproduccion/VERSION';
+
+    if (@file_put_contents($dest, $version . "\n") === false) {
+        try {
+            Log::add('com_ordenproduccion: could not write VERSION file at ' . $dest, Log::WARNING, 'com_ordenproduccion');
+        } catch (\Exception $e) {
+            // ignore
+        }
+    }
+
+    return true;
+}
+
+/**
  * Script run on extension install.
  *
  * @param   InstallerAdapter  $parent  The installer adapter
@@ -385,6 +413,7 @@ function ensureCotizacionMenuItem()
 function com_install($parent)
 {
     copyAdminLanguageToSystem($parent);
+    syncSiteVersionFile($parent);
     ordenproduccionInstallBundledOpAdmlangPlugin();
     ordenproduccionInstallBundledOpImpersonatePlugin();
     ordenproduccionInstallBundledOpfelTaskPlugin();
@@ -402,6 +431,7 @@ function com_install($parent)
 function com_update($parent)
 {
     copyAdminLanguageToSystem($parent);
+    syncSiteVersionFile($parent);
     ordenproduccionInstallBundledOpAdmlangPlugin();
     ordenproduccionInstallBundledOpImpersonatePlugin();
     ordenproduccionInstallBundledOpfelTaskPlugin();
