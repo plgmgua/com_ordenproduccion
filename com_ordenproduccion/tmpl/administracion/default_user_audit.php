@@ -31,7 +31,10 @@ $filterFrom = htmlspecialchars((string) ($this->userSessionAuditFilterDateFrom ?
 $filterTo   = htmlspecialchars((string) ($this->userSessionAuditFilterDateTo ?? ''), ENT_QUOTES, 'UTF-8');
 $listUrl    = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=user_audit');
 $impersonateStartUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.startImpersonation');
-$canShowImpersonateUi = AccessHelper::isSuperUser() && !AccessHelper::isImpersonating();
+$canShowImpersonateUi = AccessHelper::isRealSuperUser() && !AccessHelper::isImpersonating();
+
+$versionFile = JPATH_SITE . '/components/com_ordenproduccion/VERSION';
+$componentVersion = is_file($versionFile) ? trim((string) file_get_contents($versionFile)) : '?';
 
 $deviceLabels = [
     'desktop' => Text::_('COM_ORDENPRODUCCION_USER_AUDIT_DEVICE_DESKTOP'),
@@ -46,12 +49,19 @@ if ($schemaOk && $rows !== []) {
 }
 
 ?>
+<?php echo $this->loadTemplate('user_audit_impersonate'); ?>
+
 <div class="admin-dashboard user-session-audit px-2 py-1 mx-auto" style="max-width: 1500px; font-size: 0.8125rem;">
     <h2 class="h5 mb-2">
         <i class="fas fa-user-shield"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_TITLE'); ?>
     </h2>
-    <p class="text-muted mb-3" style="font-size: 0.75rem;"><?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_INTRO'); ?></p>
+    <p class="text-muted mb-3" style="font-size: 0.75rem;">
+        <?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_INTRO'); ?>
+        <?php if (AccessHelper::isRealSuperUser()) : ?>
+            <span class="badge bg-secondary ms-1"><?php echo htmlspecialchars(Text::sprintf('COM_ORDENPRODUCCION_IMPERSONATE_BUILD', $componentVersion), ENT_QUOTES, 'UTF-8'); ?></span>
+        <?php endif; ?>
+    </p>
 
     <?php if (!$schemaOk) : ?>
         <div class="alert alert-warning py-2 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_SCHEMA_MISSING'); ?></div>
@@ -108,7 +118,7 @@ if ($schemaOk && $rows !== []) {
                             <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_COL_PLATFORM'); ?></th>
                             <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_COL_HITS'); ?></th>
                             <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_COL_LAST_VIEW'); ?></th>
-                            <?php if ($canShowImpersonateUi && $impersonateOpts !== []) : ?>
+                            <?php if ($canShowImpersonateUi) : ?>
                                 <th class="py-1"><?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_COL_ACTIONS'); ?></th>
                             <?php endif; ?>
                         </tr>
@@ -153,7 +163,7 @@ if ($schemaOk && $rows !== []) {
                             $rowUserId = (int) ($row->user_id ?? 0);
                             $canImpersonateRow = $canShowImpersonateUi
                                 && $rowUserId > 0
-                                && isset($impersonateOpts[$rowUserId]);
+                                && UserImpersonationHelper::canImpersonateUserId($rowUserId);
                             ?>
                             <tr>
                                 <td class="py-1">
@@ -173,7 +183,7 @@ if ($schemaOk && $rows !== []) {
                                 <td class="py-1"><?php echo htmlspecialchars((string) ($row->platform ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td class="py-1 text-end"><?php echo (int) ($row->hit_count ?? 0); ?></td>
                                 <td class="py-1"><?php echo $view !== '' ? $view : '—'; ?><?php echo $task !== '' ? ' / ' . $task : ''; ?></td>
-                                <?php if ($canShowImpersonateUi && $impersonateOpts !== []) : ?>
+                                <?php if ($canShowImpersonateUi) : ?>
                                     <td class="py-1 text-nowrap">
                                         <?php if ($canImpersonateRow) : ?>
                                             <form method="post" action="<?php echo $impersonateStartUrl; ?>" class="d-inline">
@@ -191,7 +201,7 @@ if ($schemaOk && $rows !== []) {
                                 <?php endif; ?>
                             </tr>
                             <tr class="collapse bg-light" id="<?php echo $collapseId; ?>">
-                                <td colspan="<?php echo ($canShowImpersonateUi && $impersonateOpts !== []) ? '11' : '10'; ?>" class="py-2 px-3">
+                                <td colspan="<?php echo $canShowImpersonateUi ? '11' : '10'; ?>" class="py-2 px-3">
                                     <div class="row g-3">
                                         <div class="col-md-6">
                                             <div class="fw-semibold mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_USER_AUDIT_DETAIL_SESSION'); ?></div>

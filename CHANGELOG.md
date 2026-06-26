@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.197-STABLE] - 2026-05-19
+
+### Fixed
+- **User Audit impersonation UI:** Load impersonation panel from `default_user_audit.php` (not only tabs); use `isRealSuperUser()` for controls; show component version badge under User Audit title; always show Acciones column for Super Users.
+
 ## [3.119.196-STABLE] - 2026-05-19
 
 ### Fixed

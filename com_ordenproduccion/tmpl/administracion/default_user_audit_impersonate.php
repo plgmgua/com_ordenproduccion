@@ -24,7 +24,7 @@ $lang = \Joomla\CMS\Factory::getApplication()->getLanguage();
 $lang->load('com_ordenproduccion', JPATH_SITE);
 $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
 
-$canShowImpersonateUi = AccessHelper::isSuperUser() && !AccessHelper::isImpersonating();
+$canShowImpersonateUi = AccessHelper::isRealSuperUser() && !AccessHelper::isImpersonating();
 
 if (!$canShowImpersonateUi) {
     return;

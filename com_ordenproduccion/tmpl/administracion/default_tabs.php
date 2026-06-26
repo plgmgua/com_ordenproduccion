@@ -213,7 +213,6 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
     <?php elseif ($activeTab === 'email_log'): ?>
         <?php echo $this->loadTemplate('email_log'); ?>
     <?php elseif ($activeTab === 'user_audit'): ?>
-        <?php echo $this->loadTemplate('user_audit_impersonate'); ?>
         <?php echo $this->loadTemplate('user_audit'); ?>
     <?php elseif ($activeTab === 'herramientas'): ?>
         <?php echo $this->loadTemplate('herramientas'); ?>

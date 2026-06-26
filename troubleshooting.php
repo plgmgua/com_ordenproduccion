@@ -161,7 +161,7 @@ function tsRender(array $vars): void
 
     <?php if (!empty($impersonationChecks)): ?>
         <h2>User impersonation deployment</h2>
-        <p class="subtitle">Control de Ventas → User Audit needs component <strong>3.119.196-STABLE+</strong> and plugin <strong>plg_system_op_impersonate</strong>. After deploy, open User Audit — yellow panel <em>Ver como otro usuario</em> appears above the filters.</p>
+        <p class="subtitle">Control de Ventas → User Audit needs component <strong>3.119.197-STABLE+</strong> and plugin <strong>plg_system_op_impersonate</strong>. After deploy, open User Audit — badge <em>Componente v3.119.197-STABLE</em> under the intro and yellow panel <em>Ver como otro usuario</em> above the filters.</p>
         <?php foreach ($impersonationChecks as $check): ?>
             <div class="check-row <?php echo htmlspecialchars(tsStatusClass($check)); ?>">
                 <span class="badge <?php echo htmlspecialchars(tsStatusClass($check)); ?>"><?php echo htmlspecialchars((string) ($check['status'] ?? '')); ?></span>
@@ -416,6 +416,7 @@ try {
             'UserImpersonationHelper.php' => $root . '/components/com_ordenproduccion/src/Helper/UserImpersonationHelper.php',
             'startImpersonation (controller)' => $root . '/components/com_ordenproduccion/src/Controller/AdministracionController.php',
             'User Audit impersonate panel' => $root . '/components/com_ordenproduccion/tmpl/administracion/default_user_audit_impersonate.php',
+            'User Audit loads impersonate panel' => $root . '/components/com_ordenproduccion/tmpl/administracion/default_user_audit.php',
             'System plugin file' => $root . '/plugins/system/op_impersonate/op_impersonate.php',
         ];
         foreach ($impPaths as $label => $path) {
@@ -429,18 +430,23 @@ try {
                 $exists = str_contains($src, 'function startImpersonation');
                 $extra = $exists ? '' : ' (method missing — old component)';
             }
+            if ($label === 'User Audit loads impersonate panel' && $exists) {
+                $src = (string) file_get_contents($path);
+                $exists = str_contains($src, "loadTemplate('user_audit_impersonate')");
+                $extra = $exists ? '' : ' (does not load impersonate panel — old template)';
+            }
             $impersonationChecks[] = [
                 'label' => $label,
                 'status' => $exists ? 'pass' : 'fail',
                 'detail' => ($exists ? 'OK' : 'Missing') . $extra . ' — ' . $path,
             ];
         }
-        $needVersion = '3.119.196';
+        $needVersion = '3.119.197';
         if ($componentVersion !== '' && version_compare(preg_replace('/-.*$/', '', $componentVersion), preg_replace('/-.*$/', '', $needVersion), '<')) {
             $impersonationChecks[] = [
                 'label' => 'Component version for impersonation UI',
                 'status' => 'fail',
-                'detail' => 'Installed ' . $componentVersion . ' — need ' . $needVersion . '-STABLE or newer. Upload deployment_package/com_ordenproduccion-3.119.196-STABLE.zip',
+                'detail' => 'Installed ' . $componentVersion . ' — need ' . $needVersion . '-STABLE or newer. Upload deployment_package/com_ordenproduccion-3.119.197-STABLE.zip',
             ];
         } elseif ($componentVersion !== '') {
             $impersonationChecks[] = [
