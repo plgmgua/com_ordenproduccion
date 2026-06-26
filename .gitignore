@@ -27,6 +27,7 @@ Thumbs.db
 *.zip
 !deployment_package/mod_ordop_pending_approvals-*-site.zip
 !deployment_package/com_ordenproduccion-*.zip
+!deployment_package/plg_system_op_impersonate-*.zip
 *.tar.gz
 
 # Node modules (if using build tools)

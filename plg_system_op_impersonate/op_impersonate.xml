@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<extension type="plugin" group="system" version="5.0" method="upgrade">
+<extension type="plugin" group="system" method="upgrade">
     <name>PLG_SYSTEM_OP_IMPERSONATE</name>
     <author>Grimpsa</author>
     <creationDate>May 2026</creationDate>
@@ -9,8 +9,11 @@
     <authorUrl>https://grimpsa.com</authorUrl>
     <version>3.119.194-STABLE</version>
     <description>PLG_SYSTEM_OP_IMPERSONATE_XML_DESCRIPTION</description>
+
     <files>
         <filename plugin="op_impersonate">op_impersonate.php</filename>
         <folder>language</folder>
     </files>
+
+    <scriptfile>install.php</scriptfile>
 </extension>

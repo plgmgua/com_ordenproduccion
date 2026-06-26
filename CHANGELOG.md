@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **User impersonation:** Swap Joomla site identity on `onAfterInitialise` via bundled system plugin so menus, modules, and ACL match the impersonated user (not only com_ordenproduccion MVC). Clear ACL static cache after `loadIdentity`; avoid clearing impersonation when apply runs twice per request.
 
+### Added
+- **Standalone plugin package:** `deployment_package/plg_system_op_impersonate-3.119.194-STABLE.zip` and `plg_system_op_impersonate/` for manual install via Joomla Extensions → Install.
+
 ## [3.119.193-STABLE] - 2026-05-19
 
 ### Fixed
