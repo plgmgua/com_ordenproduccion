@@ -247,6 +247,16 @@ final class UserImpersonationHelper
 
         try {
             $db = Factory::getContainer()->get(DatabaseInterface::class);
+
+            // Exclude Joomla Super Users group (typically id 8) in SQL; authorise() checked below as fallback.
+            $superUserSub = $db->getQuery(true)
+                ->select('DISTINCT ' . $db->quoteName('m.user_id'))
+                ->from($db->quoteName('#__user_usergroup_map', 'm'))
+                ->innerJoin(
+                    $db->quoteName('#__usergroups', 'g') . ' ON ' . $db->quoteName('g.id') . ' = ' . $db->quoteName('m.group_id')
+                )
+                ->where($db->quoteName('g.title') . ' = ' . $db->quote('Super Users'));
+
             $q  = $db->getQuery(true)
                 ->select([
                     $db->quoteName('u.id'),
@@ -257,6 +267,7 @@ final class UserImpersonationHelper
                 ->where($db->quoteName('u.block') . ' = 0')
                 ->where($db->quoteName('u.id') . ' > 0')
                 ->where($db->quoteName('u.id') . ' != ' . $realId)
+                ->where($db->quoteName('u.id') . ' NOT IN (' . (string) $superUserSub . ')')
                 ->order($db->quoteName('u.name') . ' ASC');
             $db->setQuery($q);
             $rows = $db->loadObjectList() ?: [];
@@ -292,6 +303,20 @@ final class UserImpersonationHelper
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    /**
+     * Whether the given user id may be impersonated by the current real super user.
+     */
+    public static function canImpersonateUserId(int $targetUserId): bool
+    {
+        $targetUserId = (int) $targetUserId;
+
+        if ($targetUserId < 1) {
+            return false;
+        }
+
+        return isset(self::getImpersonatableUserOptions()[$targetUserId]);
     }
 
     /**

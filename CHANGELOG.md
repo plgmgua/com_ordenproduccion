@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.195-STABLE] - 2026-05-19
+
+### Fixed
+- **User Audit impersonation UI:** Always show the impersonation panel for Super Users; add per-row **Ver como** button; improve impersonatable-user query.
+
 ## [3.119.194-STABLE] - 2026-05-19
 
 ### Fixed
