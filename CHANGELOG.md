@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.196-STABLE] - 2026-05-19
+
+### Fixed
+- **User Audit impersonation UI:** Load dedicated `default_user_audit_impersonate.php` from tabs; show component version badge; fallback user list from helper when view property missing.
+
 ## [3.119.195-STABLE] - 2026-05-19
 
 ### Fixed

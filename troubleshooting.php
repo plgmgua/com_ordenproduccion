@@ -159,6 +159,18 @@ function tsRender(array $vars): void
         <?php endif; ?>
     </p>
 
+    <?php if (!empty($impersonationChecks)): ?>
+        <h2>User impersonation deployment</h2>
+        <p class="subtitle">Control de Ventas → User Audit needs component <strong>3.119.196-STABLE+</strong> and plugin <strong>plg_system_op_impersonate</strong>. After deploy, open User Audit — yellow panel <em>Ver como otro usuario</em> appears above the filters.</p>
+        <?php foreach ($impersonationChecks as $check): ?>
+            <div class="check-row <?php echo htmlspecialchars(tsStatusClass($check)); ?>">
+                <span class="badge <?php echo htmlspecialchars(tsStatusClass($check)); ?>"><?php echo htmlspecialchars((string) ($check['status'] ?? '')); ?></span>
+                <strong><?php echo htmlspecialchars((string) ($check['label'] ?? '')); ?></strong>
+                — <?php echo htmlspecialchars((string) ($check['detail'] ?? '')); ?>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
     <?php if (!empty($fatalError)): ?>
         <p class="result-err"><?php echo htmlspecialchars((string) $fatalError); ?></p>
     <?php elseif (!empty($componentBootError)): ?>
@@ -396,9 +408,53 @@ try {
     if ($root !== '' && is_file($versionFile)) {
         $componentVersion = trim((string) file_get_contents($versionFile));
     }
+
+    $impersonationChecks = [];
+    if ($root !== '') {
+        $impPaths = [
+            'VERSION file' => $versionFile,
+            'UserImpersonationHelper.php' => $root . '/components/com_ordenproduccion/src/Helper/UserImpersonationHelper.php',
+            'startImpersonation (controller)' => $root . '/components/com_ordenproduccion/src/Controller/AdministracionController.php',
+            'User Audit impersonate panel' => $root . '/components/com_ordenproduccion/tmpl/administracion/default_user_audit_impersonate.php',
+            'System plugin file' => $root . '/plugins/system/op_impersonate/op_impersonate.php',
+        ];
+        foreach ($impPaths as $label => $path) {
+            $exists = is_file($path);
+            $extra = '';
+            if ($label === 'VERSION file' && $exists) {
+                $extra = ' → ' . trim((string) file_get_contents($path));
+            }
+            if ($label === 'startImpersonation (controller)' && $exists) {
+                $src = (string) file_get_contents($path);
+                $exists = str_contains($src, 'function startImpersonation');
+                $extra = $exists ? '' : ' (method missing — old component)';
+            }
+            $impersonationChecks[] = [
+                'label' => $label,
+                'status' => $exists ? 'pass' : 'fail',
+                'detail' => ($exists ? 'OK' : 'Missing') . $extra . ' — ' . $path,
+            ];
+        }
+        $needVersion = '3.119.196';
+        if ($componentVersion !== '' && version_compare(preg_replace('/-.*$/', '', $componentVersion), preg_replace('/-.*$/', '', $needVersion), '<')) {
+            $impersonationChecks[] = [
+                'label' => 'Component version for impersonation UI',
+                'status' => 'fail',
+                'detail' => 'Installed ' . $componentVersion . ' — need ' . $needVersion . '-STABLE or newer. Upload deployment_package/com_ordenproduccion-3.119.196-STABLE.zip',
+            ];
+        } elseif ($componentVersion !== '') {
+            $impersonationChecks[] = [
+                'label' => 'Component version for impersonation UI',
+                'status' => 'pass',
+                'detail' => 'Installed ' . $componentVersion,
+            ];
+        }
+    }
 } catch (\Throwable $e) {
     $fatalError = $e->getMessage();
 }
+
+$impersonationChecks = $impersonationChecks ?? [];
 
 tsRender(compact(
     'fatalError',
@@ -411,5 +467,6 @@ tsRender(compact(
     'odooLogin',
     'skipSaveTest',
     'componentVersion',
-    'formAction'
+    'formAction',
+    'impersonationChecks'
 ));
