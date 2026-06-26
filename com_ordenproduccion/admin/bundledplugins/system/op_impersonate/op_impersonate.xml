@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="plugin" group="system" version="5.0" method="upgrade">
+    <name>COM_ordenproduccion — user impersonation (site identity)</name>
+    <author>Grimpsa</author>
+    <creationDate>May 2026</creationDate>
+    <copyright>(C) 2026 Grimpsa.</copyright>
+    <license>GNU General Public License version 2 or later</license>
+    <description>Applies Super User impersonation to the Joomla site identity on every frontend request so menus, modules, and ACL match the impersonated user.</description>
+    <version>3.119.194</version>
+    <files>
+        <filename plugin="op_impersonate">op_impersonate.php</filename>
+    </files>
+</extension>

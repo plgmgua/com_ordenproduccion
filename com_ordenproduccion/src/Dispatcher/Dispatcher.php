@@ -4,7 +4,6 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Dispatcher;
 
 defined('_JEXEC') or die;
 
-use Grimpsa\Component\Ordenproduccion\Site\Helper\UserImpersonationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\UserSessionAuditHelper;
 use Joomla\CMS\Dispatcher\ComponentDispatcher;
 use Joomla\CMS\Factory;
@@ -92,8 +91,6 @@ class Dispatcher extends ComponentDispatcher
         }
 
         if (!$user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport) {
-            UserImpersonationHelper::applyActiveImpersonation();
-            UserImpersonationHelper::registerDocumentBanner();
             UserSessionAuditHelper::recordFromRequest($this->input);
         }
 

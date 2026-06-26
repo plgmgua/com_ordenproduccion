@@ -137,10 +137,60 @@ function ordenproduccionEnableBundledPlugin(): void
             ->set($db->quoteName('enabled') . ' = 1')
             ->where($db->quoteName('type') . ' = ' . $db->quote('plugin'))
             ->where($db->quoteName('folder') . ' = ' . $db->quote('system'))
-            ->where($db->quoteName('element') . ' = ' . $db->quote('op_admlang'));
+            ->where($db->quoteName('element') . ' IN (' . $db->quote('op_admlang') . ',' . $db->quote('op_impersonate') . ')');
         $db->setQuery($query)->execute();
     } catch (\Throwable $e) {
     }
+}
+
+/**
+ * Copy bundled site impersonation plugin and register it via the extension installer.
+ *
+ * @return  bool
+ */
+function ordenproduccionInstallBundledOpImpersonatePlugin()
+{
+    $bundled = __DIR__ . '/admin/bundledplugins/system/op_impersonate';
+    $dest = JPATH_PLUGINS . '/system/op_impersonate';
+
+    if (!is_dir($bundled) || !defined('JPATH_PLUGINS')) {
+        return true;
+    }
+
+    try {
+        if (is_dir($dest)) {
+            Folder::delete($dest);
+        }
+
+        if (!Folder::copy($bundled, $dest, '', true)) {
+            Log::add('com_ordenproduccion: bundled op_impersonate plugin copy failed.', Log::WARNING, 'com_ordenproduccion');
+
+            return false;
+        }
+
+        $installer = new Installer();
+
+        if (!$installer->install($dest)) {
+            Log::add('com_ordenproduccion: Installer could not register plg_system_op_impersonate.', Log::WARNING, 'com_ordenproduccion');
+
+            return false;
+        }
+
+        ordenproduccionEnableBundledPlugin();
+    } catch (\Throwable $e) {
+        try {
+            Log::add(
+                'com_ordenproduccion: ordenproduccionInstallBundledOpImpersonatePlugin: ' . $e->getMessage(),
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+        } catch (\Throwable $ignore) {
+        }
+
+        return false;
+    }
+
+    return true;
 }
 
 /**
@@ -336,6 +386,7 @@ function com_install($parent)
 {
     copyAdminLanguageToSystem($parent);
     ordenproduccionInstallBundledOpAdmlangPlugin();
+    ordenproduccionInstallBundledOpImpersonatePlugin();
     ordenproduccionInstallBundledOpfelTaskPlugin();
     ensureCotizacionMenuItem();
     return true;
@@ -352,6 +403,7 @@ function com_update($parent)
 {
     copyAdminLanguageToSystem($parent);
     ordenproduccionInstallBundledOpAdmlangPlugin();
+    ordenproduccionInstallBundledOpImpersonatePlugin();
     ordenproduccionInstallBundledOpfelTaskPlugin();
     ensureCotizacionMenuItem();
     return true;

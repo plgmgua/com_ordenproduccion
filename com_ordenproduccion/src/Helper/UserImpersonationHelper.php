@@ -9,6 +9,7 @@
 
 namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
+use Joomla\CMS\Access\Access;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
@@ -43,8 +44,14 @@ final class UserImpersonationHelper
             return;
         }
 
-        $realUser = Factory::getUser();
-        if ($realUser->guest || (int) $realUser->id !== $adminId) {
+        $currentUser = Factory::getUser();
+
+        // Already applied earlier this request (e.g. system plugin + component dispatcher).
+        if (!$currentUser->guest && (int) $currentUser->id === $targetId) {
+            return;
+        }
+
+        if ($currentUser->guest || (int) $currentUser->id !== $adminId) {
             self::clearSessionKeys($session);
             return;
         }
@@ -63,6 +70,17 @@ final class UserImpersonationHelper
         }
 
         $app->loadIdentity($targetUser);
+        self::refreshAuthorisationCaches();
+    }
+
+    /**
+     * Clear Joomla ACL static caches so menu/modules use the impersonated identity.
+     */
+    private static function refreshAuthorisationCaches(): void
+    {
+        if (method_exists(Access::class, 'clearStatics')) {
+            Access::clearStatics();
+        }
     }
 
     /**
@@ -204,6 +222,7 @@ final class UserImpersonationHelper
             $realUser    = $userFactory->loadUserById($adminId);
             if (!$realUser->guest && (int) $realUser->id === $adminId) {
                 Factory::getApplication()->loadIdentity($realUser);
+                self::refreshAuthorisationCaches();
             }
         } catch (\Throwable $e) {
             // Session cleared; next request loads real user from session.
@@ -286,7 +305,7 @@ final class UserImpersonationHelper
     }
 
     /**
-     * Inject a fixed banner on HTML component pages while impersonating.
+     * Inject a fixed banner on HTML site pages while impersonating.
      */
     public static function registerDocumentBanner(): void
     {
@@ -295,7 +314,7 @@ final class UserImpersonationHelper
         }
 
         $app = Factory::getApplication();
-        if ($app->input->getCmd('format', 'html') !== 'html') {
+        if (!$app->isClient('site') || $app->input->getCmd('format', 'html') !== 'html') {
             return;
         }
 
