@@ -116,6 +116,8 @@ final class UserImpersonationHelper
      */
     public static function start(int $targetUserId): array
     {
+        self::ensureLanguageLoaded();
+
         if (!Session::checkToken('post')) {
             return ['success' => false, 'message' => Text::_('JINVALID_TOKEN')];
         }
@@ -176,6 +178,8 @@ final class UserImpersonationHelper
      */
     public static function stop(): array
     {
+        self::ensureLanguageLoaded();
+
         if (!Session::checkToken('post')) {
             return ['success' => false, 'message' => Text::_('JINVALID_TOKEN')];
         }
@@ -272,6 +276,16 @@ final class UserImpersonationHelper
     }
 
     /**
+     * Load component language (Dispatcher runs before views load .ini files).
+     */
+    private static function ensureLanguageLoaded(): void
+    {
+        $lang = Factory::getApplication()->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+    }
+
+    /**
      * Inject a fixed banner on HTML component pages while impersonating.
      */
     public static function registerDocumentBanner(): void
@@ -284,6 +298,8 @@ final class UserImpersonationHelper
         if ($app->input->getCmd('format', 'html') !== 'html') {
             return;
         }
+
+        self::ensureLanguageLoaded();
 
         try {
             $doc = $app->getDocument();

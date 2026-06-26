@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.193-STABLE] - 2026-05-19
+
+### Fixed
+- **Impersonation banner:** Load component language in the Dispatcher so banner labels show translated text instead of raw `COM_ORDENPRODUCCION_*` keys.
+
 ## [3.119.192-STABLE] - 2026-05-19
 
 ### Added
