@@ -35,6 +35,42 @@ class AccessHelper
     }
 
     /**
+     * Whether a super-user impersonation session is active (effective user differs from real login).
+     *
+     * @return  bool
+     *
+     * @since   3.119.192
+     */
+    public static function isImpersonating(): bool
+    {
+        return UserImpersonationHelper::isImpersonating();
+    }
+
+    /**
+     * Real logged-in user (before impersonation overlay).
+     *
+     * @return  User
+     *
+     * @since   3.119.192
+     */
+    public static function getRealUser(): User
+    {
+        return UserImpersonationHelper::getRealUser();
+    }
+
+    /**
+     * Whether the real logged-in user is a Joomla super user (core.admin), even while impersonating.
+     *
+     * @return  bool
+     *
+     * @since   3.119.192
+     */
+    public static function isRealSuperUser(): bool
+    {
+        return UserImpersonationHelper::isRealSuperUser();
+    }
+
+    /**
      * Check if user is in Ventas group
      *
      * @return  boolean

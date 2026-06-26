@@ -433,6 +433,11 @@ final class UserSessionAuditHelper
             'format'                => trim($input->getCmd('format', '')),
         ];
 
+        $impersonationMeta = UserImpersonationHelper::getAuditMeta();
+        if ($impersonationMeta !== []) {
+            $meta['impersonation'] = $impersonationMeta;
+        }
+
         try {
             return json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         } catch (\Throwable $e) {

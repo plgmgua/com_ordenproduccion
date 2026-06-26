@@ -3535,4 +3535,48 @@ class AdministracionController extends BaseController
             'transactions_deleted' => (int) ($result['transactions_deleted'] ?? 0),
         ]);
     }
+
+    /**
+     * Start viewing the component as another user (super user only).
+     *
+     * @return  void
+     *
+     * @since   3.119.192
+     */
+    public function startImpersonation(): void
+    {
+        $app = Factory::getApplication();
+        $targetUserId = $app->input->getInt('impersonate_user_id', 0);
+        $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\UserImpersonationHelper::start($targetUserId);
+
+        if (!empty($result['success'])) {
+            $app->enqueueMessage((string) ($result['message'] ?? ''), 'success');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes', false));
+            return;
+        }
+
+        $app->enqueueMessage((string) ($result['message'] ?? Text::_('JERROR_AN_ERROR_HAS_OCCURRED')), 'error');
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=user_audit', false));
+    }
+
+    /**
+     * Stop impersonating and restore super-user view.
+     *
+     * @return  void
+     *
+     * @since   3.119.192
+     */
+    public function stopImpersonation(): void
+    {
+        $app = Factory::getApplication();
+        $result = \Grimpsa\Component\Ordenproduccion\Site\Helper\UserImpersonationHelper::stop();
+
+        if (!empty($result['success'])) {
+            $app->enqueueMessage((string) ($result['message'] ?? ''), 'success');
+        } else {
+            $app->enqueueMessage((string) ($result['message'] ?? Text::_('JERROR_AN_ERROR_HAS_OCCURRED')), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=user_audit', false));
+    }
 }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.192-STABLE] - 2026-05-19
+
+### Added
+- **Super User impersonation:** Control de Ventas → User Audit lets a Super User view the component as another user (filters, groups, ACL). Fixed banner with **Stop impersonating** on all component pages; actions are logged.
+
 ## [3.119.191-STABLE] - 2026-06-19
 
 ### Added

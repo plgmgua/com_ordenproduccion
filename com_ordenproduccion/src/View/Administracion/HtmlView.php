@@ -20,6 +20,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\UserImpersonationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\UserSessionAuditHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OtWizardCreationLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
@@ -706,6 +707,15 @@ class HtmlView extends BaseHtmlView
      * @since  3.119.111
      */
     protected $userSessionAuditFilterDateTo = '';
+
+    /**
+     * Users a super user may impersonate (tab=user_audit).
+     *
+     * @var  array<int, string>
+     *
+     * @since  3.119.192
+     */
+    protected $impersonatableUserOptions = [];
 
     /**
      * Ajustes → Creación OT: lines from Joomla logs (createOrdenFromQuotation failures).
@@ -2038,6 +2048,7 @@ class HtmlView extends BaseHtmlView
             $this->userSessionAuditLimit          = max(5, min(100, (int) $input->getInt('user_audit_limit', 20)));
             $this->userSessionAuditLimitStart     = max(0, (int) $input->getInt('user_audit_limitstart', 0));
             $this->userSessionAuditUserFilterOptions = UserSessionAuditHelper::getUserFilterOptions();
+            $this->impersonatableUserOptions = UserImpersonationHelper::getImpersonatableUserOptions();
 
             $pack = UserSessionAuditHelper::getListForAdministracion(
                 $this->userSessionAuditLimitStart,
