@@ -413,6 +413,7 @@ class AdministracionModel extends BaseDatabaseModel
         $query = $db->getQuery(true)
             ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
             ->where($db->quoteName('o.state') . ' = 1');
+        $this->appendExcludeAnuladaOrdenesWhere($query, 'o');
 
         if (!empty($dateFrom)) {
             $query->where($db->quoteName('o.created') . ' >= ' . $db->quote($dateFrom . ' 00:00:00'));

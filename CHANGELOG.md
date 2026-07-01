@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.199-STABLE] - 2026-05-19
+
+### Fixed
+- **Ordenes y Envíos report:** Exclude work orders with status Anulada from the Ordenes subtab list, totals, and Excel export.
+
 ## [3.119.198-STABLE] - 2026-05-19
 
 ### Fixed
