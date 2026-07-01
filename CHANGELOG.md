@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.200-STABLE] - 2026-05-19
+
+### Added
+- **Payment types:** Optional **Super Users only** flag on Tipos de Pago; restricted types are hidden from payment proof forms for non–Super Users and blocked on save.
+
 ## [3.119.199-STABLE] - 2026-05-19
 
 ### Fixed

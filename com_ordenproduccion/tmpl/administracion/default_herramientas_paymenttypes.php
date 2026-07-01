@@ -42,6 +42,7 @@ $isSpanish = (strpos($langTag, 'es') === 0);
 .paymenttype-code { font-weight: 600; color: #495057; min-width: 180px; }
 .paymenttype-name { flex: 1; color: #212529; }
 .paymenttype-badge { background: #17a2b8; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-left: 10px; }
+.paymenttype-badge-super { background: #6f42c1; }
 .paymenttype-actions { display: flex; gap: 10px; }
 .btn-edit-paymenttype, .btn-delete-paymenttype { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
 .btn-edit-paymenttype { background: #17a2b8; color: white; }
@@ -99,6 +100,7 @@ $isSpanish = (strpos($langTag, 'es') === 0);
                 <?php
                 $displayName = ($isSpanish && !empty(trim($pt->name_es ?? ''))) ? trim($pt->name_es) : (trim($pt->name_en ?? $pt->name ?? '') ?: trim($pt->name ?? $pt->code));
                 $requiresBank = !empty($pt->requires_bank);
+                $superUserOnly = !empty($pt->super_user_only);
                 ?>
                 <div class="paymenttype-item" data-id="<?php echo (int) $pt->id; ?>" data-code="<?php echo htmlspecialchars($pt->code); ?>">
                     <div class="paymenttype-handle"><i class="fas fa-grip-vertical"></i></div>
@@ -106,10 +108,11 @@ $isSpanish = (strpos($langTag, 'es') === 0);
                         <div class="paymenttype-code"><?php echo htmlspecialchars($pt->code); ?></div>
                         <div class="paymenttype-name"><?php echo htmlspecialchars($displayName); ?>
                             <?php if (!$requiresBank): ?><span class="paymenttype-badge"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_NO_BANK'); ?></span><?php endif; ?>
+                            <?php if ($superUserOnly): ?><span class="paymenttype-badge paymenttype-badge-super"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SUPER_USER_ONLY_BADGE'); ?></span><?php endif; ?>
                         </div>
                     </div>
                     <div class="paymenttype-actions">
-                        <button class="btn-edit-paymenttype" onclick="editPT(<?php echo (int) $pt->id; ?>, '<?php echo htmlspecialchars($pt->code, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES); ?>', <?php echo $requiresBank ? '1' : '0'; ?>)">
+                        <button class="btn-edit-paymenttype" onclick="editPT(<?php echo (int) $pt->id; ?>, '<?php echo htmlspecialchars($pt->code, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES); ?>', <?php echo $requiresBank ? '1' : '0'; ?>, <?php echo $superUserOnly ? '1' : '0'; ?>)">
                             <i class="fas fa-edit"></i> <?php echo Text::_('JEDIT'); ?>
                         </button>
                         <button class="btn-delete-paymenttype" onclick="deletePT(<?php echo (int) $pt->id; ?>)">
@@ -152,6 +155,10 @@ $isSpanish = (strpos($langTag, 'es') === 0);
                 <input type="checkbox" id="pt-requires-bank" name="requires_bank" value="1" checked>
                 <label for="pt-requires-bank"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_REQUIRES_BANK'); ?></label>
             </div>
+            <div class="pt-form-group pt-form-checkbox">
+                <input type="checkbox" id="pt-super-user-only" name="super_user_only" value="1">
+                <label for="pt-super-user-only"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SUPER_USER_ONLY'); ?></label>
+            </div>
             <div class="pt-modal-actions">
                 <button type="button" class="pt-btn-cancel" onclick="closePTModal()"><?php echo Text::_('JCANCEL'); ?></button>
                 <button type="submit" class="pt-btn-save"><i class="fas fa-save"></i> <?php echo Text::_('JSAVE'); ?></button>
@@ -191,7 +198,7 @@ $isSpanish = (strpos($langTag, 'es') === 0);
 
     window.closePTModal = function() { document.getElementById('pt-modal').style.display = 'none'; };
 
-    window.editPT = function(id, code, name, nameEn, nameEs, requiresBank) {
+    window.editPT = function(id, code, name, nameEn, nameEs, requiresBank, superUserOnly) {
         document.getElementById('pt-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_EDIT')); ?>';
         document.getElementById('pt-id').value = id;
         document.getElementById('pt-code').value = code;
@@ -200,6 +207,7 @@ $isSpanish = (strpos($langTag, 'es') === 0);
         document.getElementById('pt-name-en').value = nameEn || '';
         document.getElementById('pt-name-es').value = nameEs || '';
         document.getElementById('pt-requires-bank').checked = !!requiresBank;
+        document.getElementById('pt-super-user-only').checked = !!superUserOnly;
         document.getElementById('pt-modal').style.display = 'block';
     };
 
@@ -213,6 +221,7 @@ $isSpanish = (strpos($langTag, 'es') === 0);
         fd.append('name_en', formData.get('name_en') || '');
         fd.append('name_es', formData.get('name_es') || '');
         fd.append('requires_bank', document.getElementById('pt-requires-bank').checked ? '1' : '0');
+        fd.append('super_user_only', document.getElementById('pt-super-user-only').checked ? '1' : '0');
         fd.append(tokenName, '1');
 
         fetch(baseUrl + '&controller=paymenttype&task=save&format=json', { method: 'POST', body: fd })

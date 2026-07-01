@@ -53,7 +53,8 @@ class PaymenttypeController extends BankController
             'name_en' => $input->post->getString('name_en', ''),
             'name_es' => $input->post->getString('name_es', ''),
             'state' => $input->post->getInt('state', 1),
-            'requires_bank' => $input->post->get('requires_bank', 1) == '1' ? 1 : 0
+            'requires_bank' => $input->post->get('requires_bank', 1) == '1' ? 1 : 0,
+            'super_user_only' => $input->post->get('super_user_only', 0) == '1' ? 1 : 0,
         ];
 
         if (empty($data['code']) || empty($data['name'])) {

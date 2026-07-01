@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 
 /**
  * Payment Type Model for managing payment types (efectivo, cheque, etc.)
@@ -21,6 +22,34 @@ use Joomla\CMS\MVC\Model\BaseDatabaseModel;
  */
 class PaymenttypeModel extends BaseDatabaseModel
 {
+    /**
+     * Cached: payment_types table has super_user_only column.
+     *
+     * @var bool|null
+     */
+    protected $paymentTypesHasSuperUserOnlyColumn;
+
+    /**
+     * @return bool
+     */
+    protected function paymentTypesTableHasSuperUserOnlyColumn(): bool
+    {
+        if ($this->paymentTypesHasSuperUserOnlyColumn !== null) {
+            return $this->paymentTypesHasSuperUserOnlyColumn;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $columns = $db->getTableColumns('#__ordenproduccion_payment_types', false);
+            $this->paymentTypesHasSuperUserOnlyColumn = is_array($columns)
+                && isset($columns['super_user_only']);
+        } catch (\Throwable $e) {
+            $this->paymentTypesHasSuperUserOnlyColumn = false;
+        }
+
+        return $this->paymentTypesHasSuperUserOnlyColumn;
+    }
+
     /**
      * Get all payment types ordered by ordering field
      *
@@ -104,6 +133,9 @@ class PaymenttypeModel extends BaseDatabaseModel
         $obj->name_en = $data['name_en'] ?? $data['name'] ?? '';
         $obj->name_es = $data['name_es'] ?? $data['name'] ?? '';
         $obj->requires_bank = isset($data['requires_bank']) ? (int) $data['requires_bank'] : 1;
+        if ($this->paymentTypesTableHasSuperUserOnlyColumn()) {
+            $obj->super_user_only = isset($data['super_user_only']) ? (int) $data['super_user_only'] : 0;
+        }
         $obj->state = isset($data['state']) ? (int) $data['state'] : 1;
 
         try {
@@ -233,6 +265,12 @@ class PaymenttypeModel extends BaseDatabaseModel
                 continue;
             }
 
+            if ($this->paymentTypesTableHasSuperUserOnlyColumn()
+                && !empty($t->super_user_only)
+                && !AccessHelper::isSuperUser()) {
+                continue;
+            }
+
             if ($isSpanish && !empty(trim($t->name_es ?? ''))) {
                 $label = trim($t->name_es);
             } elseif (!empty(trim($t->name_en ?? ''))) {
@@ -245,5 +283,49 @@ class PaymenttypeModel extends BaseDatabaseModel
         }
 
         return $options;
+    }
+
+    /**
+     * Whether the given payment type code may be used by the current user.
+     *
+     * @param   string  $code  Payment type code
+     *
+     * @return  bool
+     *
+     * @since   3.119.200
+     */
+    public function isPaymentTypeAllowedForUser(string $code): bool
+    {
+        $code = trim(strtolower($code));
+
+        if ($code === '') {
+            return false;
+        }
+
+        if (!$this->paymentTypesTableHasSuperUserOnlyColumn()) {
+            return true;
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('super_user_only'),
+                $db->quoteName('state'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_types'))
+            ->where($db->quoteName('code') . ' = ' . $db->quote($code));
+
+        $db->setQuery($query);
+        $row = $db->loadObject();
+
+        if (!$row || (int) ($row->state ?? 0) !== 1) {
+            return false;
+        }
+
+        if (!empty($row->super_user_only) && !AccessHelper::isSuperUser()) {
+            return false;
+        }
+
+        return true;
     }
 }

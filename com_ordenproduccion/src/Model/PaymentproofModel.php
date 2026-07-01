@@ -171,6 +171,24 @@ class PaymentproofModel extends ItemModel
                 $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
                 return false;
             }
+
+            $paymenttypeModel = null;
+            try {
+                $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+                $paymenttypeModel = $component->getMVCFactory()->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+            } catch (\Throwable $e) {
+                $paymenttypeModel = null;
+            }
+            if ($paymenttypeModel && method_exists($paymenttypeModel, 'isPaymentTypeAllowedForUser')) {
+                foreach ($paymentLines as $line) {
+                    $type = trim((string) ($line['payment_type'] ?? ''));
+                    if ($type !== '' && !$paymenttypeModel->isPaymentTypeAllowedForUser($type)) {
+                        $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SUPER_USER_ONLY_DENIED'));
+                        return false;
+                    }
+                }
+            }
+
             // Flag duplicate combinations (payment_type + bank + document_number) but allow save.
             foreach ($paymentLines as $line) {
                 $type = trim((string) ($line['payment_type'] ?? ''));
