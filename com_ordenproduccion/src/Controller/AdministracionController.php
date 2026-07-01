@@ -3069,6 +3069,9 @@ class AdministracionController extends BaseController
             if (!empty($result['payment_links']) && \is_array($result['payment_links'])) {
                 $payload['payment_links'] = $result['payment_links'];
             }
+            if (!empty($result['request_preview']) && \is_array($result['request_preview'])) {
+                $payload['request_preview'] = $result['request_preview'];
+            }
             if (!empty($result['api_key_hint']) && \is_array($result['api_key_hint'])) {
                 $payload['api_key_hint'] = $result['api_key_hint'];
             }

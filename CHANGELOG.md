@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.206-STABLE] - 2026-05-19
+
+### Changed
+- **Blink payment test:** Always send default `socialNetworkCode`, include redacted `request_preview` in JSON errors, and clearer hint when Pay Bi returns “Datos insuficientes” (Blink server must map Pay Bi link/maintenance fields).
+
 ## [3.119.205-STABLE] - 2026-05-19
 
 ### Changed

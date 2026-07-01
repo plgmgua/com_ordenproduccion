@@ -218,7 +218,7 @@ class BlinkGatewayService
             $body = (string) ($response->body ?? '');
             $json = json_decode($body, true);
 
-            return $this->parseCreatePaymentResponse($code, $json, $body, (string) ($payload['referenceId'] ?? $referenceId));
+            return $this->parseCreatePaymentResponse($code, $json, $body, (string) ($payload['referenceId'] ?? $referenceId), $payload);
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'http_code' => 0];
         }
@@ -245,7 +245,7 @@ class BlinkGatewayService
         string $title,
         string $description,
         string $usuario
-    ): ?array {
+    ): array {
         $credentials = [
             'usuario' => $usuario,
             'clave'   => BlinkGatewayConfigHelper::getPayBiClave(),
@@ -274,6 +274,8 @@ class BlinkGatewayService
         $socialNetworkCode = BlinkGatewayConfigHelper::getSocialNetworkCode();
         if ($socialNetworkCode !== '') {
             $payload['socialNetworkCode'] = $socialNetworkCode;
+        } else {
+            $payload['socialNetworkCode'] = BlinkGatewayConfigHelper::DEFAULT_SOCIAL_NETWORK_CODE;
         }
 
         return $payload;
@@ -284,12 +286,17 @@ class BlinkGatewayService
      * @param   mixed        $json
      * @param   string       $rawBody
      * @param   string       $referenceId
+     * @param   array        $requestPayload  Redacted in error responses for debugging.
      *
-     * @return  array{success: bool, message?: string, payment_url?: string, payment_links?: array, reference_id?: string, http_code?: int, raw?: mixed}
+     * @return  array{success: bool, message?: string, payment_url?: string, payment_links?: array, reference_id?: string, http_code?: int, raw?: mixed, request_preview?: array}
      */
-    protected function parseCreatePaymentResponse(int $httpCode, $json, string $rawBody, string $referenceId): array
+    protected function parseCreatePaymentResponse(int $httpCode, $json, string $rawBody, string $referenceId, array $requestPayload = []): array
     {
-        $base = ['http_code' => $httpCode, 'reference_id' => $referenceId];
+        $base = [
+            'http_code'       => $httpCode,
+            'reference_id'    => $referenceId,
+            'request_preview' => self::redactResponse($requestPayload),
+        ];
 
         if ($httpCode === 201 && \is_array($json) && !empty($json['success']) && !empty($json['data']) && \is_array($json['data'])) {
             $data = $json['data'];
@@ -345,7 +352,12 @@ class BlinkGatewayService
 
         if (\is_array($json)) {
             if (!empty($json['payBiMessage']) && \is_string($json['payBiMessage'])) {
-                return Text::sprintf('COM_ORDENPRODUCCION_BLINK_ERROR_PAYBI', $json['payBiMessage']);
+                $msg = Text::sprintf('COM_ORDENPRODUCCION_BLINK_ERROR_PAYBI', $json['payBiMessage']);
+                if (stripos($json['payBiMessage'], 'Datos insuficientes') !== false) {
+                    $msg .= ' ' . Text::_('COM_ORDENPRODUCCION_BLINK_ERROR_PAYBI_INSUFFICIENT_HINT');
+                }
+
+                return $msg;
             }
             if (!empty($json['error']) && \is_string($json['error'])) {
                 if ($httpCode === 400) {
