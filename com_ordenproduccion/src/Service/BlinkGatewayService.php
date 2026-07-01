@@ -156,6 +156,7 @@ class BlinkGatewayService
      * @param   string  $referenceId
      * @param   string  $title
      * @param   string  $description
+     * @param   bool    $testMode  When true, only credentials are required (Blink may be disabled).
      *
      * @return  array{success: bool, message?: string, payment_url?: string, payment_links?: array, reference_id?: string, http_code?: int, raw?: mixed}
      */
@@ -164,12 +165,21 @@ class BlinkGatewayService
         string $installments,
         string $referenceId,
         string $title = '',
-        string $description = ''
+        string $description = '',
+        bool $testMode = false
     ): array {
         BlinkGatewayConfigHelper::loadLanguage();
         $cfg = BlinkGatewayConfigHelper::getSnapshot();
-        if (empty($cfg['configured'])) {
+        if ($testMode) {
+            if (empty($cfg['credentials_configured'])) {
+                return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
+            }
+        } elseif (empty($cfg['configured'])) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
+        }
+
+        if ($testMode && $amount <= 0) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_LINK_TOTAL_ZERO')];
         }
 
         if ($amount < 0) {

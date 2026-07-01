@@ -29,10 +29,24 @@ $blinkHasApiKey            = (bool) ($snap['api_key_set'] ?? false);
 $blinkHasClave             = (bool) ($snap['clave_set'] ?? false);
 $blinkHealthUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkHealth&format=json', false);
 $blinkLoginUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkTestLogin&format=json', false);
+$blinkPaymentUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkCreatePaymentLink&format=json', false);
 $blinkConfigUrl  = $user->authorise('core.admin')
     ? Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion')
     : '';
 $token = Session::getFormToken();
+$blinkTestReferenceDefault = 'test-manual-' . date('YmdHis');
+$blinkInstallmentChoices = [
+    'VC00' => Text::_('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_SINGLE'),
+    'VC02' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 2),
+    'VC03' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 3),
+    'VC06' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 6),
+    'VC10' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 10),
+    'VC12' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 12),
+    'VC15' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 15),
+    'VC18' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 18),
+    'VC24' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 24),
+    'VC36' => Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', 36),
+];
 ?>
 <div class="card">
     <div class="card-header">
@@ -118,12 +132,64 @@ $token = Session::getFormToken();
 
                 <div id="blink-test-result" class="d-none">
                     <div id="blink-test-alert" class="alert" role="alert"></div>
+                    <div id="blink-payment-link-box" class="d-none mb-3">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control font-monospace" id="blink-payment-link-input" readonly>
+                            <a href="#" class="btn btn-outline-secondary" id="btn-blink-open-link" target="_blank" rel="noopener noreferrer">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_OPEN_LINK'); ?>
+                            </a>
+                            <button type="button" class="btn btn-outline-primary" id="btn-blink-copy-link">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COPY_LINK'); ?>
+                            </button>
+                        </div>
+                    </div>
                     <pre id="blink-test-json" class="bg-light border rounded p-3 small mb-0" style="max-height: 320px; overflow: auto;"></pre>
                 </div>
+
+                <hr class="my-4">
+
+                <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_CREATE_SECTION'); ?></h3>
+                <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_CREATE_DESC'); ?></p>
+
+                <form id="blink-create-payment-form" class="row g-3 mb-3" <?php echo $blinkCredentialsConfigured ? '' : 'data-disabled="1"'; ?>>
+                    <div class="col-md-4">
+                        <label for="blink-test-amount" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_AMOUNT_LABEL'); ?></label>
+                        <input type="number" class="form-control form-control-sm" id="blink-test-amount" name="amount" value="1.00" min="0.01" step="0.01" required <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="blink-test-reference" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COL_REFERENCE'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-test-reference" name="reference_id" value="<?php echo htmlspecialchars($blinkTestReferenceDefault); ?>" maxlength="64" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                        <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_REFERENCE_HINT'); ?></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="blink-test-installments" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_LABEL'); ?></label>
+                        <select class="form-select form-select-sm" id="blink-test-installments" name="installments" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                            <?php foreach ($blinkInstallmentChoices as $code => $label) : ?>
+                                <option value="<?php echo htmlspecialchars($code); ?>"<?php echo $code === 'VC00' ? ' selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($label); ?> (<?php echo htmlspecialchars($code); ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="blink-test-title" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_TITLE_LABEL'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-test-title" name="title" value="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_TITLE_DEFAULT')); ?>" maxlength="100" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="blink-test-description" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_DESCRIPTION_LABEL'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-test-description" name="description" value="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_DESCRIPTION_DEFAULT')); ?>" maxlength="255" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-success btn-sm" id="btn-blink-create-payment" data-url="<?php echo htmlspecialchars($blinkPaymentUrl); ?>" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                            <i class="fas fa-link"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CREATE_BTN'); ?>
+                        </button>
+                    </div>
+                </form>
             </div>
 
             <div class="col-lg-4">
-                <div class="border rounded p-3 bg-light">
+                <div class="border rounded p-3 bg-light mb-3">
                     <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_TITLE'); ?></h3>
                     <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_DESC'); ?></p>
                     <pre class="small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/test-login \
@@ -136,6 +202,25 @@ $token = Session::getFormToken();
     }
   }'</pre>
                 </div>
+                <div class="border rounded p-3 bg-light">
+                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_PAYMENTS_TITLE'); ?></h3>
+                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_PAYMENTS_DESC'); ?></p>
+                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/payments \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
+  -d '{
+    "credentials": {
+      "usuario": "merchant@example.com",
+      "clave": "your-paybi-password"
+    },
+    "amount": 1.00,
+    "referenceId": "test-manual-001",
+    "installments": "VC00",
+    "title": "Manual test",
+    "description": "Blink payment test"
+  }'</pre>
+                </div>
             </div>
         </div>
     </div>
@@ -146,9 +231,32 @@ $token = Session::getFormToken();
     var token = <?php echo json_encode($token); ?>;
     var runningText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_RUNNING')); ?>;
     var networkErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_NETWORK')); ?>;
+    var linkCopiedText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_LINK_COPIED')); ?>;
     var resultBox = document.getElementById('blink-test-result');
     var alertBox = document.getElementById('blink-test-alert');
     var jsonBox = document.getElementById('blink-test-json');
+    var paymentLinkBox = document.getElementById('blink-payment-link-box');
+    var paymentLinkInput = document.getElementById('blink-payment-link-input');
+    var openLinkBtn = document.getElementById('btn-blink-open-link');
+    var copyLinkBtn = document.getElementById('btn-blink-copy-link');
+
+    function showBlinkResult(data) {
+        var ok = !!data.success;
+        alertBox.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
+        alertBox.textContent = data.message || (ok ? 'OK' : 'Error');
+        jsonBox.textContent = JSON.stringify(data, null, 2);
+
+        var paymentUrl = data.data && data.data.payment_url ? data.data.payment_url : '';
+        if (ok && paymentUrl) {
+            paymentLinkBox.classList.remove('d-none');
+            paymentLinkInput.value = paymentUrl;
+            openLinkBtn.href = paymentUrl;
+        } else {
+            paymentLinkBox.classList.add('d-none');
+            paymentLinkInput.value = '';
+            openLinkBtn.href = '#';
+        }
+    }
 
     function runBlinkTest(url, button) {
         if (!url || !button) {
@@ -161,6 +269,7 @@ $token = Session::getFormToken();
         alertBox.className = 'alert alert-info';
         alertBox.textContent = runningText;
         jsonBox.textContent = '';
+        paymentLinkBox.classList.add('d-none');
 
         var sep = url.indexOf('?') >= 0 ? '&' : '?';
         fetch(url + sep + token + '=1', {
@@ -175,10 +284,7 @@ $token = Session::getFormToken();
                 return response.json();
             })
             .then(function (data) {
-                var ok = !!data.success;
-                alertBox.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
-                alertBox.textContent = data.message || (ok ? 'OK' : 'Error');
-                jsonBox.textContent = JSON.stringify(data, null, 2);
+                showBlinkResult(data);
             })
             .catch(function (err) {
                 alertBox.className = 'alert alert-danger';
@@ -201,6 +307,73 @@ $token = Session::getFormToken();
     if (loginBtn) {
         loginBtn.addEventListener('click', function () {
             runBlinkTest(loginBtn.getAttribute('data-url'), loginBtn);
+        });
+    }
+
+    var paymentForm = document.getElementById('blink-create-payment-form');
+    var paymentBtn = document.getElementById('btn-blink-create-payment');
+    if (paymentForm && paymentBtn) {
+        paymentForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var url = paymentBtn.getAttribute('data-url');
+            if (!url) {
+                return;
+            }
+            var origHtml = paymentBtn.innerHTML;
+            paymentBtn.disabled = true;
+            paymentBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + runningText;
+            resultBox.classList.remove('d-none');
+            alertBox.className = 'alert alert-info';
+            alertBox.textContent = runningText;
+            jsonBox.textContent = '';
+            paymentLinkBox.classList.add('d-none');
+
+            var body = new URLSearchParams(new FormData(paymentForm));
+            body.append(token, '1');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                credentials: 'same-origin',
+                body: body.toString()
+            })
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data) {
+                    showBlinkResult(data);
+                })
+                .catch(function (err) {
+                    alertBox.className = 'alert alert-danger';
+                    alertBox.textContent = (err && err.message) ? err.message : networkErr;
+                })
+                .finally(function () {
+                    paymentBtn.disabled = false;
+                    paymentBtn.innerHTML = origHtml;
+                });
+        });
+    }
+
+    if (copyLinkBtn && paymentLinkInput) {
+        copyLinkBtn.addEventListener('click', function () {
+            var value = paymentLinkInput.value;
+            if (!value) {
+                return;
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(value).then(function () {
+                    alertBox.className = 'alert alert-success';
+                    alertBox.textContent = linkCopiedText;
+                });
+                return;
+            }
+            paymentLinkInput.select();
+            document.execCommand('copy');
+            alertBox.className = 'alert alert-success';
+            alertBox.textContent = linkCopiedText;
         });
     }
 })();

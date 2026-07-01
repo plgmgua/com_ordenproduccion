@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.203-STABLE] - 2026-05-19
+
+### Added
+- **Blink payment test (Ajustes):** Manual “Create payment link” form to exercise the full Pay Bi checkout flow using saved credentials, even when Blink payments are disabled in component options.
+
 ## [3.119.202-STABLE] - 2026-05-19
 
 ### Fixed

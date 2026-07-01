@@ -2993,6 +2993,38 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Create a manual Pay Bi payment link (JSON; Ajustes → Blink payment test).
+     *
+     * @return  void
+     *
+     * @since   3.119.203
+     */
+    public function blinkCreatePaymentLink(): void
+    {
+        $input = Factory::getApplication()->input;
+        $amount       = (float) $input->post->get('amount', 0, 'float');
+        $referenceId  = trim((string) $input->post->get('reference_id', '', 'string'));
+        $installments = (string) $input->post->get('installments', 'VC00', 'string');
+        $title        = trim((string) $input->post->get('title', '', 'string'));
+        $description  = trim((string) $input->post->get('description', '', 'string'));
+
+        if ($referenceId === '') {
+            $referenceId = 'test-manual-' . date('YmdHis') . '-' . bin2hex(random_bytes(2));
+        }
+
+        $this->runBlinkGatewayJsonTask(function () use ($amount, $installments, $referenceId, $title, $description) {
+            return (new BlinkGatewayService())->createPaymentLink(
+                $amount,
+                $installments,
+                $referenceId,
+                $title,
+                $description,
+                true
+            );
+        });
+    }
+
+    /**
      * @param   callable  $runner  Returns BlinkGatewayService result array
      *
      * @return  void
@@ -3028,6 +3060,15 @@ class AdministracionController extends BaseController
                 'http_code' => (int) ($result['http_code'] ?? 0),
                 'response'  => $result['data'] ?? ($result['raw'] ?? null),
             ];
+            if (!empty($result['payment_url']) && \is_string($result['payment_url'])) {
+                $payload['payment_url'] = $result['payment_url'];
+            }
+            if (!empty($result['reference_id']) && \is_string($result['reference_id'])) {
+                $payload['reference_id'] = $result['reference_id'];
+            }
+            if (!empty($result['payment_links']) && \is_array($result['payment_links'])) {
+                $payload['payment_links'] = $result['payment_links'];
+            }
             if (!empty($result['api_key_hint']) && \is_array($result['api_key_hint'])) {
                 $payload['api_key_hint'] = $result['api_key_hint'];
             }
