@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.205-STABLE] - 2026-05-19
+
+### Changed
+- **Blink payment client:** Align POST `/api/v1/gateway/payments` payload with strict gateway spec — JSON number `amount`, optional fields omitted when unset, title/description length limits, `BLINK_GATEWAY_API_KEY` env alias, gateway key in header only.
+
 ## [3.119.204-STABLE] - 2026-05-19
 
 ### Fixed

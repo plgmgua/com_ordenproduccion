@@ -69,7 +69,10 @@ class BlinkGatewayConfigHelper
      */
     public static function getApiKey(): string
     {
-        return self::resolveSecret(['BLINK_API_KEY', 'GATEWAY_API_KEY'], 'blink_api_key');
+        return self::resolveSecret(
+            ['BLINK_GATEWAY_API_KEY', 'BLINK_API_KEY', 'GATEWAY_API_KEY'],
+            'blink_api_key'
+        );
     }
 
     /**
@@ -131,21 +134,67 @@ class BlinkGatewayConfigHelper
     }
 
     /**
-     * Pay Bi checkout channel code for link creation.
+     * Pay Bi checkout channel code for link creation (omit from payload when default).
      *
-     * @return  string
+     * @return  string  Empty when configured/default is Botón de Pago (Blink applies its default).
      *
      * @since   3.119.204
      */
     public static function getSocialNetworkCode(): string
     {
-        $code = self::resolveString(
-            'PAYBI_SOCIAL_NETWORK_CODE',
-            'blink_social_network_code',
-            self::DEFAULT_SOCIAL_NETWORK_CODE
-        );
+        $code = self::resolveString('PAYBI_SOCIAL_NETWORK_CODE', 'blink_social_network_code', '');
 
-        return $code !== '' ? $code : self::DEFAULT_SOCIAL_NETWORK_CODE;
+        if ($code === '' || $code === self::DEFAULT_SOCIAL_NETWORK_CODE) {
+            return '';
+        }
+
+        return $code;
+    }
+
+    /**
+     * Truncate Pay Bi title (max 100 chars).
+     *
+     * @param   string  $title
+     *
+     * @return  string
+     *
+     * @since   3.119.205
+     */
+    public static function truncatePaymentTitle(string $title): string
+    {
+        $title = trim($title);
+        if ($title === '') {
+            return '';
+        }
+
+        if (\strlen($title) > 100) {
+            return \substr($title, 0, 97) . '...';
+        }
+
+        return $title;
+    }
+
+    /**
+     * Truncate Pay Bi description (max 500 chars).
+     *
+     * @param   string  $description
+     *
+     * @return  string
+     *
+     * @since   3.119.205
+     */
+    public static function truncatePaymentDescription(string $description): string
+    {
+        $description = trim($description);
+        if ($description === '') {
+            return '';
+        }
+
+        if (\strlen($description) > 500) {
+            return \substr($description, 0, 497) . '...';
+        }
+
+        return $description;
     }
 
     /**
@@ -169,6 +218,7 @@ class BlinkGatewayConfigHelper
         $usuario = self::getPayBiUsuario();
         $clave   = self::getPayBiClave();
         $payBiKey = self::getPayBiKey();
+        $socialCode = self::getSocialNetworkCode();
         $enabled = self::isEnabled();
 
         $credentialsConfigured = $baseUrl !== ''
@@ -184,7 +234,7 @@ class BlinkGatewayConfigHelper
             'usuario'                => $usuario,
             'clave_set'              => $clave !== '',
             'paybi_key_set'          => $payBiKey !== '',
-            'social_network_code'    => self::getSocialNetworkCode(),
+            'social_network_code'    => $socialCode !== '' ? $socialCode : self::DEFAULT_SOCIAL_NETWORK_CODE,
             'credentials_configured' => $credentialsConfigured,
             'configured'             => $enabled && $credentialsConfigured,
         ];

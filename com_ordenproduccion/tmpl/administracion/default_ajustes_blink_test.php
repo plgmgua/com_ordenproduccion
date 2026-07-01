@@ -227,7 +227,6 @@ $blinkInstallmentChoices = [
                     <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_PAYMENTS_DESC'); ?></p>
                     <pre class="small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/payments \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
   -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
   -d '{
     "credentials": {
@@ -235,11 +234,10 @@ $blinkInstallmentChoices = [
       "clave": "your-paybi-password"
     },
     "amount": 1.00,
-    "referenceId": "test-manual-001",
     "installments": "VC00",
     "title": "Manual test",
     "description": "Blink payment test",
-    "socialNetworkCode": "<?php echo htmlspecialchars($blinkSocialNetworkCode); ?>"
+    "referenceId": "OP-12345"
   }'</pre>
                 </div>
             </div>

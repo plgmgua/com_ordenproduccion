@@ -178,45 +178,23 @@ class BlinkGatewayService
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
         }
 
-        if ($testMode && $amount <= 0) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_LINK_TOTAL_ZERO')];
-        }
-
         if ($amount < 0) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_AMOUNT_INVALID')];
         }
 
         $installments = BlinkGatewayConfigHelper::normalizeInstallments($installments);
         $referenceId  = trim($referenceId);
-        if ($referenceId === '') {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_REFERENCE_INVALID')];
-        }
+        $title        = BlinkGatewayConfigHelper::truncatePaymentTitle($title);
+        $description  = BlinkGatewayConfigHelper::truncatePaymentDescription($description);
 
-        $credentials = [
-            'usuario' => $cfg['usuario'],
-            'clave'   => BlinkGatewayConfigHelper::getPayBiClave(),
-        ];
-        $payBiKey = BlinkGatewayConfigHelper::getPayBiKey();
-        if ($payBiKey !== '') {
-            $credentials['key'] = $payBiKey;
-        }
-
-        if ($title === '') {
-            $title = Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_TITLE_DEFAULT');
-        }
-        if ($description === '') {
-            $description = Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_DESCRIPTION_DEFAULT');
-        }
-
-        $payload = [
-            'credentials'        => $credentials,
-            'amount'             => round($amount, 2),
-            'installments'       => $installments,
-            'referenceId'        => $referenceId,
-            'title'              => $title,
-            'description'        => $description,
-            'socialNetworkCode'  => BlinkGatewayConfigHelper::getSocialNetworkCode(),
-        ];
+        $payload = $this->buildPaymentsPayload(
+            round($amount, 2),
+            $installments,
+            $referenceId,
+            $title,
+            $description,
+            $cfg['usuario']
+        );
 
         $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE);
         if ($jsonBody === false) {
@@ -240,10 +218,65 @@ class BlinkGatewayService
             $body = (string) ($response->body ?? '');
             $json = json_decode($body, true);
 
-            return $this->parseCreatePaymentResponse($code, $json, $body, $referenceId);
+            return $this->parseCreatePaymentResponse($code, $json, $body, (string) ($payload['referenceId'] ?? $referenceId));
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'http_code' => 0];
         }
+    }
+
+    /**
+     * Build strict Blink POST /api/v1/gateway/payments JSON body (allowed fields only).
+     *
+     * @param   float   $amount         JSON number; 0 = open amount on Pay Bi checkout.
+     * @param   string  $installments   VC00|VC02|… or comma-separated list.
+     * @param   string  $referenceId    Optional; omitted when empty (Blink auto-generates).
+     * @param   string  $title          Optional; max 100 chars.
+     * @param   string  $description    Optional; max 500 chars.
+     * @param   string  $usuario        Pay Bi merchant email.
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.205
+     */
+    protected function buildPaymentsPayload(
+        float $amount,
+        string $installments,
+        string $referenceId,
+        string $title,
+        string $description,
+        string $usuario
+    ): ?array {
+        $credentials = [
+            'usuario' => $usuario,
+            'clave'   => BlinkGatewayConfigHelper::getPayBiClave(),
+        ];
+        $payBiKey = BlinkGatewayConfigHelper::getPayBiKey();
+        if ($payBiKey !== '') {
+            $credentials['key'] = $payBiKey;
+        }
+
+        $payload = [
+            'credentials'  => $credentials,
+            'amount'       => $amount,
+            'installments' => $installments,
+        ];
+
+        if ($title !== '') {
+            $payload['title'] = $title;
+        }
+        if ($description !== '') {
+            $payload['description'] = $description;
+        }
+        if ($referenceId !== '') {
+            $payload['referenceId'] = $referenceId;
+        }
+
+        $socialNetworkCode = BlinkGatewayConfigHelper::getSocialNetworkCode();
+        if ($socialNetworkCode !== '') {
+            $payload['socialNetworkCode'] = $socialNetworkCode;
+        }
+
+        return $payload;
     }
 
     /**

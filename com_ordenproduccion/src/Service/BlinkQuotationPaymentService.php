@@ -113,11 +113,11 @@ class BlinkQuotationPaymentService
         $title  = $num !== '' ? $num : ('COT-' . $quotationId);
         $client = trim((string) ($row->client_name ?? ''));
         $titulo = $title . ($client !== '' ? ' — ' . $client : '');
-        if (\strlen($titulo) > 100) {
-            $titulo = \substr($titulo, 0, 97) . '...';
-        }
+        $titulo = BlinkGatewayConfigHelper::truncatePaymentTitle($titulo);
 
-        $description = Text::sprintf('COM_ORDENPRODUCCION_BLINK_PAYMENT_DESCRIPTION', $title);
+        $description = BlinkGatewayConfigHelper::truncatePaymentDescription(
+            Text::sprintf('COM_ORDENPRODUCCION_BLINK_PAYMENT_DESCRIPTION', $title)
+        );
         $referenceId = $this->buildReferenceId($quotationId);
         $now         = Factory::getDate()->toSql();
 
