@@ -31,7 +31,9 @@ class BlinkGatewayConfigHelper
         'blink_paybi_key',
     ];
 
-    public const DEFAULT_SOCIAL_NETWORK_CODE = 'Botón de Pago';
+    public const DEFAULT_SOCIAL_NETWORK_CODE = '1621282737059942b';
+
+    public const DEFAULT_SOCIAL_NETWORK_LABEL = 'Botón de Pago';
 
     /**
      * @return  Registry
@@ -136,7 +138,7 @@ class BlinkGatewayConfigHelper
     /**
      * Pay Bi checkout channel code for link creation (omit from payload when default).
      *
-     * @return  string  Empty when configured/default is Botón de Pago (Blink applies its default).
+     * @return  string  Pay Bi network code; empty = use Blink default (1621282737059942b).
      *
      * @since   3.119.204
      */
@@ -144,7 +146,7 @@ class BlinkGatewayConfigHelper
     {
         $code = self::resolveString('PAYBI_SOCIAL_NETWORK_CODE', 'blink_social_network_code', '');
 
-        if ($code === '' || $code === self::DEFAULT_SOCIAL_NETWORK_CODE) {
+        if ($code === '' || $code === self::DEFAULT_SOCIAL_NETWORK_CODE || $code === self::DEFAULT_SOCIAL_NETWORK_LABEL) {
             return '';
         }
 
@@ -235,6 +237,7 @@ class BlinkGatewayConfigHelper
             'clave_set'              => $clave !== '',
             'paybi_key_set'          => $payBiKey !== '',
             'social_network_code'    => $socialCode !== '' ? $socialCode : self::DEFAULT_SOCIAL_NETWORK_CODE,
+            'social_network_label'   => self::DEFAULT_SOCIAL_NETWORK_LABEL,
             'credentials_configured' => $credentialsConfigured,
             'configured'             => $enabled && $credentialsConfigured,
         ];

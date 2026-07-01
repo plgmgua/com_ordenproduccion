@@ -274,11 +274,120 @@ class BlinkGatewayService
         $socialNetworkCode = BlinkGatewayConfigHelper::getSocialNetworkCode();
         if ($socialNetworkCode !== '') {
             $payload['socialNetworkCode'] = $socialNetworkCode;
-        } else {
-            $payload['socialNetworkCode'] = BlinkGatewayConfigHelper::DEFAULT_SOCIAL_NETWORK_CODE;
         }
 
         return $payload;
+    }
+
+    /**
+     * Query Blink ↔ Pay Bi HTTP exchange logs (GET /api/v1/gateway/logs).
+     *
+     * @param   array<string, scalar|null>  $filters  referenceId, requestId, gatewayOperation, from, to, success, limit, offset
+     *
+     * @return  array{success: bool, message?: string, http_code?: int, entries?: array, total?: int, raw?: mixed}
+     *
+     * @since   3.119.207
+     */
+    public function getExchangeLogs(array $filters = []): array
+    {
+        BlinkGatewayConfigHelper::loadLanguage();
+        $cfg = BlinkGatewayConfigHelper::getSnapshot();
+        if (empty($cfg['credentials_configured'])) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
+        }
+
+        $allowed = ['referenceId', 'requestId', 'gatewayOperation', 'from', 'to', 'success', 'limit', 'offset'];
+        $query   = [];
+        foreach ($allowed as $key) {
+            if (!isset($filters[$key]) || $filters[$key] === '' || $filters[$key] === null) {
+                continue;
+            }
+            $query[$key] = (string) $filters[$key];
+        }
+
+        if ($query === []) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_LOGS_FILTER_REQUIRED')];
+        }
+
+        $url = $cfg['base_url'] . '/api/v1/gateway/logs';
+        if ($query !== []) {
+            $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+        }
+
+        try {
+            $http     = HttpFactory::getHttp();
+            $response = $http->get(
+                $url,
+                [
+                    'Accept'    => 'application/json',
+                    'X-API-Key' => $cfg['api_key'],
+                ],
+                30
+            );
+
+            $code = (int) ($response->code ?? 0);
+            $body = (string) ($response->body ?? '');
+            $json = json_decode($body, true);
+
+            if ($code === 200 && \is_array($json) && !empty($json['success']) && !empty($json['data']) && \is_array($json['data'])) {
+                $data = $json['data'];
+
+                return [
+                    'success'   => true,
+                    'message'   => Text::_('COM_ORDENPRODUCCION_BLINK_LOGS_OK'),
+                    'http_code' => $code,
+                    'entries'   => $data['entries'] ?? [],
+                    'total'     => (int) ($data['total'] ?? 0),
+                    'raw'       => self::redactResponse($json),
+                ];
+            }
+
+            return [
+                'success'   => false,
+                'message'   => $this->extractErrorMessage($code, $json, $body),
+                'http_code' => $code,
+                'raw'       => self::redactResponse(\is_array($json) ? $json : ['body' => $body]),
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'http_code' => 0];
+        }
+    }
+
+    /**
+     * @param   string  $referenceId
+     * @param   string  $requestId
+     *
+     * @return  array{entries: array, total: int, fetch_error?: string}
+     *
+     * @since   3.119.207
+     */
+    protected function fetchExchangeLogsForFailure(string $referenceId, string $requestId = ''): array
+    {
+        $filters = [];
+        if ($requestId !== '') {
+            $filters['requestId'] = $requestId;
+        } elseif ($referenceId !== '') {
+            $filters['referenceId'] = $referenceId;
+        } else {
+            return ['entries' => [], 'total' => 0];
+        }
+
+        $filters['gatewayOperation'] = 'create-payment';
+        $filters['limit']            = min(200, max(1, (int) ($filters['limit'] ?? 50)));
+
+        $logs = $this->getExchangeLogs($filters);
+        if (empty($logs['success'])) {
+            return [
+                'entries'     => [],
+                'total'       => 0,
+                'fetch_error' => (string) ($logs['message'] ?? Text::_('COM_ORDENPRODUCCION_BLINK_LOGS_FETCH_FAILED')),
+            ];
+        }
+
+        return [
+            'entries' => \is_array($logs['entries'] ?? null) ? $logs['entries'] : [],
+            'total'   => (int) ($logs['total'] ?? 0),
+        ];
     }
 
     /**
@@ -321,16 +430,26 @@ class BlinkGatewayService
                 'message'       => Text::_('COM_ORDENPRODUCCION_BLINK_PAYMENT_CREATED'),
                 'payment_url'   => $url,
                 'payment_links' => $data['paymentLinks'] ?? [],
+                'request_id'    => trim((string) ($data['requestId'] ?? '')),
                 'raw'           => self::redactResponse($json),
             ];
         }
 
-        $message = $this->extractErrorMessage($httpCode, $json, $rawBody);
+        $message   = $this->extractErrorMessage($httpCode, $json, $rawBody);
+        $requestId = '';
+        if (\is_array($json)) {
+            $requestId = trim((string) ($json['data']['requestId'] ?? $json['requestId'] ?? ''));
+        }
+        $exchangeLogs = $this->fetchExchangeLogsForFailure($referenceId, $requestId);
 
         return $base + [
-            'success' => false,
-            'message' => $message,
-            'raw'     => self::redactResponse(\is_array($json) ? $json : ['body' => $rawBody]),
+            'success'        => false,
+            'message'        => $message,
+            'request_id'     => $requestId,
+            'exchange_logs'  => $exchangeLogs['entries'] ?? [],
+            'exchange_total' => (int) ($exchangeLogs['total'] ?? 0),
+            'exchange_error' => $exchangeLogs['fetch_error'] ?? null,
+            'raw'            => self::redactResponse(\is_array($json) ? $json : ['body' => $rawBody]),
         ];
     }
 

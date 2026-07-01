@@ -165,6 +165,7 @@ class BlinkQuotationPaymentService
                 'message'      => (string) ($gw['message'] ?? Text::_('COM_ORDENPRODUCCION_BLINK_PAYMENT_CREATED')),
                 'payment_url'  => (string) $gw['payment_url'],
                 'reference_id' => $referenceId,
+                'request_id'   => (string) ($gw['request_id'] ?? ''),
                 'payment_id'   => $paymentId,
             ];
         }
@@ -174,10 +175,13 @@ class BlinkQuotationPaymentService
         $this->db->updateObject('#__ordenproduccion_blink_payments', $update, 'id');
 
         return [
-            'success'      => false,
-            'message'      => $update->error_message,
-            'reference_id' => $referenceId,
-            'payment_id'   => $paymentId,
+            'success'        => false,
+            'message'        => $update->error_message,
+            'reference_id'   => $referenceId,
+            'request_id'     => (string) ($gw['request_id'] ?? ''),
+            'exchange_logs'  => $gw['exchange_logs'] ?? [],
+            'exchange_total' => (int) ($gw['exchange_total'] ?? 0),
+            'payment_id'     => $paymentId,
         ];
     }
 

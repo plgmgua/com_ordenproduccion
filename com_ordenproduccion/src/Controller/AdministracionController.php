@@ -3025,6 +3025,39 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Blink ↔ Pay Bi exchange logs (JSON; Ajustes → Blink payment test).
+     *
+     * @return  void
+     *
+     * @since   3.119.207
+     */
+    public function blinkGetExchangeLogs(): void
+    {
+        $input = Factory::getApplication()->input;
+
+        $this->runBlinkGatewayJsonTask(function () use ($input) {
+            $filters = [
+                'referenceId'      => trim((string) $input->getString('referenceId', $input->getString('reference_id', ''))),
+                'requestId'        => trim((string) $input->getString('requestId', $input->getString('request_id', ''))),
+                'gatewayOperation' => trim((string) $input->getString('gatewayOperation', '')),
+                'from'             => trim((string) $input->getString('from', '')),
+                'to'               => trim((string) $input->getString('to', '')),
+                'success'          => $input->get('success', null),
+                'limit'            => $input->getInt('limit', 50),
+                'offset'           => $input->getInt('offset', 0),
+            ];
+
+            if ($filters['success'] !== null && $filters['success'] !== '') {
+                $filters['success'] = \in_array(strtolower((string) $filters['success']), ['1', 'true', 'yes'], true) ? 'true' : 'false';
+            } else {
+                unset($filters['success']);
+            }
+
+            return (new BlinkGatewayService())->getExchangeLogs($filters);
+        });
+    }
+
+    /**
      * @param   callable  $runner  Returns BlinkGatewayService result array
      *
      * @return  void
@@ -3071,6 +3104,20 @@ class AdministracionController extends BaseController
             }
             if (!empty($result['request_preview']) && \is_array($result['request_preview'])) {
                 $payload['request_preview'] = $result['request_preview'];
+            }
+            if (!empty($result['request_id']) && \is_string($result['request_id'])) {
+                $payload['request_id'] = $result['request_id'];
+            }
+            if (isset($result['exchange_logs']) && \is_array($result['exchange_logs'])) {
+                $payload['exchange_logs'] = $result['exchange_logs'];
+                $payload['exchange_total'] = (int) ($result['exchange_total'] ?? \count($result['exchange_logs']));
+            }
+            if (!empty($result['exchange_error']) && \is_string($result['exchange_error'])) {
+                $payload['exchange_error'] = $result['exchange_error'];
+            }
+            if (isset($result['entries']) && \is_array($result['entries'])) {
+                $payload['entries'] = $result['entries'];
+                $payload['total']   = (int) ($result['total'] ?? \count($result['entries']));
             }
             if (!empty($result['api_key_hint']) && \is_array($result['api_key_hint'])) {
                 $payload['api_key_hint'] = $result['api_key_hint'];

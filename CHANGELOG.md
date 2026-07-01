@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.207-STABLE] - 2026-05-19
+
+### Added
+- **Blink gateway logs:** `GET /api/v1/gateway/logs` client, auto-fetch on payment failure, manual query on Ajustes → Blink test, and `requestId` from successful payments.
+- **Pay Bi channel default:** use network code `1621282737059942b` (Botón de Pago) per Blink gateway spec.
+
 ## [3.119.206-STABLE] - 2026-05-19
 
 ### Changed

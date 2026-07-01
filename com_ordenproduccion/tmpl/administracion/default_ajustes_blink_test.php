@@ -32,6 +32,7 @@ $blinkSocialNetworkCode    = (string) ($snap['social_network_code'] ?? BlinkGate
 $blinkHealthUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkHealth&format=json', false);
 $blinkLoginUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkTestLogin&format=json', false);
 $blinkPaymentUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkCreatePaymentLink&format=json', false);
+$blinkLogsUrl    = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkGetExchangeLogs&format=json', false);
 $blinkConfigUrl  = $user->authorise('core.admin')
     ? Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion')
     : '';
@@ -112,7 +113,10 @@ $blinkInstallmentChoices = [
                     </dd>
 
                     <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_SOCIAL_NETWORK_LABEL'); ?></dt>
-                    <dd class="col-sm-8"><code><?php echo htmlspecialchars($blinkSocialNetworkCode); ?></code></dd>
+                    <dd class="col-sm-8">
+                        <code><?php echo htmlspecialchars($blinkSocialNetworkCode); ?></code>
+                        <span class="text-muted small"> (<?php echo htmlspecialchars(BlinkGatewayConfigHelper::DEFAULT_SOCIAL_NETWORK_LABEL); ?>)</span>
+                    </dd>
                 </dl>
 
                 <?php if (!$blinkCredentialsConfigured) : ?>
@@ -164,6 +168,11 @@ $blinkInstallmentChoices = [
                         </div>
                     </div>
                     <pre id="blink-test-json" class="bg-light border rounded p-3 small mb-0" style="max-height: 320px; overflow: auto;"></pre>
+                    <div id="blink-exchange-logs-box" class="d-none mt-3">
+                        <h4 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_TITLE'); ?></h4>
+                        <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_DESC'); ?></p>
+                        <pre id="blink-exchange-logs-json" class="bg-light border rounded p-3 small mb-0" style="max-height: 360px; overflow: auto;"></pre>
+                    </div>
                 </div>
 
                 <hr class="my-4">
@@ -206,6 +215,27 @@ $blinkInstallmentChoices = [
                         </button>
                     </div>
                 </form>
+
+                <hr class="my-4">
+
+                <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_SECTION'); ?></h3>
+                <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_DESC'); ?></p>
+                <form id="blink-fetch-logs-form" class="row g-3 mb-3">
+                    <div class="col-md-5">
+                        <label for="blink-logs-reference" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COL_REFERENCE'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-logs-reference" name="referenceId" maxlength="100" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="blink-logs-request-id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_REQUEST_ID_LABEL'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-logs-request-id" name="requestId" maxlength="64" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100" id="btn-blink-fetch-logs" data-url="<?php echo htmlspecialchars($blinkLogsUrl); ?>" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                            <i class="fas fa-list-alt"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_FETCH_LOGS_BTN'); ?>
+                        </button>
+                    </div>
+                </form>
             </div>
 
             <div class="col-lg-4">
@@ -240,6 +270,12 @@ $blinkInstallmentChoices = [
     "referenceId": "OP-12345"
   }'</pre>
                 </div>
+                <div class="border rounded p-3 bg-light mt-3">
+                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LOGS_TITLE'); ?></h3>
+                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LOGS_DESC'); ?></p>
+                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
+  "<?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/logs?referenceId=OP-12345"</pre>
+                </div>
             </div>
         </div>
     </div>
@@ -258,12 +294,48 @@ $blinkInstallmentChoices = [
     var paymentLinkInput = document.getElementById('blink-payment-link-input');
     var openLinkBtn = document.getElementById('btn-blink-open-link');
     var copyLinkBtn = document.getElementById('btn-blink-copy-link');
+    var exchangeLogsBox = document.getElementById('blink-exchange-logs-box');
+    var exchangeLogsJson = document.getElementById('blink-exchange-logs-json');
+    var logsReferenceInput = document.getElementById('blink-logs-reference');
+    var logsRequestIdInput = document.getElementById('blink-logs-request-id');
+
+    function renderExchangeLogs(data) {
+        var logs = (data && data.data && data.data.exchange_logs) ? data.data.exchange_logs : null;
+        if (!logs && data && data.data && data.data.entries) {
+            logs = data.data.entries;
+        }
+        if (!logs || !logs.length) {
+            exchangeLogsBox.classList.add('d-none');
+            exchangeLogsJson.textContent = '';
+            return;
+        }
+        exchangeLogsBox.classList.remove('d-none');
+        exchangeLogsJson.textContent = JSON.stringify(logs, null, 2);
+    }
+
+    function syncLogQueryFields(data) {
+        if (!data || !data.data) {
+            return;
+        }
+        if (data.data.reference_id && logsReferenceInput && logsReferenceInput.value === '') {
+            logsReferenceInput.value = data.data.reference_id;
+        }
+        if (data.data.request_id && logsRequestIdInput) {
+            logsRequestIdInput.value = data.data.request_id;
+        }
+    }
 
     function showBlinkResult(data) {
         var ok = !!data.success;
         alertBox.className = 'alert ' + (ok ? 'alert-success' : 'alert-danger');
-        alertBox.textContent = data.message || (ok ? 'OK' : 'Error');
+        var msg = data.message || (ok ? 'OK' : 'Error');
+        if (!ok && data.data && data.data.exchange_total) {
+            msg += ' (' + data.data.exchange_total + ' log entries)';
+        }
+        alertBox.textContent = msg;
         jsonBox.textContent = JSON.stringify(data, null, 2);
+        syncLogQueryFields(data);
+        renderExchangeLogs(data);
 
         var paymentUrl = data.data && data.data.payment_url ? data.data.payment_url : '';
         if (ok && paymentUrl) {
@@ -289,6 +361,8 @@ $blinkInstallmentChoices = [
         alertBox.textContent = runningText;
         jsonBox.textContent = '';
         paymentLinkBox.classList.add('d-none');
+        exchangeLogsBox.classList.add('d-none');
+        exchangeLogsJson.textContent = '';
 
         var sep = url.indexOf('?') >= 0 ? '&' : '?';
         fetch(url + sep + token + '=1', {
@@ -346,6 +420,8 @@ $blinkInstallmentChoices = [
             alertBox.textContent = runningText;
             jsonBox.textContent = '';
             paymentLinkBox.classList.add('d-none');
+            exchangeLogsBox.classList.add('d-none');
+            exchangeLogsJson.textContent = '';
 
             var body = new URLSearchParams(new FormData(paymentForm));
             body.append(token, '1');
@@ -393,6 +469,59 @@ $blinkInstallmentChoices = [
             document.execCommand('copy');
             alertBox.className = 'alert alert-success';
             alertBox.textContent = linkCopiedText;
+        });
+    }
+
+    var logsForm = document.getElementById('blink-fetch-logs-form');
+    var logsBtn = document.getElementById('btn-blink-fetch-logs');
+    if (logsForm && logsBtn) {
+        logsForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var url = logsBtn.getAttribute('data-url');
+            if (!url) {
+                return;
+            }
+            var referenceId = (document.getElementById('blink-logs-reference') || {}).value || '';
+            var requestId = (document.getElementById('blink-logs-request-id') || {}).value || '';
+            if (referenceId === '' && requestId === '') {
+                alertBox.className = 'alert alert-warning';
+                alertBox.textContent = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_LOGS_FILTER_REQUIRED')); ?>;
+                resultBox.classList.remove('d-none');
+                return;
+            }
+            var origHtml = logsBtn.innerHTML;
+            logsBtn.disabled = true;
+            logsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + runningText;
+            resultBox.classList.remove('d-none');
+            alertBox.className = 'alert alert-info';
+            alertBox.textContent = runningText;
+
+            var params = new URLSearchParams();
+            if (referenceId !== '') {
+                params.set('referenceId', referenceId);
+            }
+            if (requestId !== '') {
+                params.set('requestId', requestId);
+            }
+            params.set('gatewayOperation', 'create-payment');
+            params.set('limit', '50');
+            params.set(token, '1');
+
+            fetch(url + '?' + params.toString(), {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) { showBlinkResult(data); })
+                .catch(function (err) {
+                    alertBox.className = 'alert alert-danger';
+                    alertBox.textContent = (err && err.message) ? err.message : networkErr;
+                })
+                .finally(function () {
+                    logsBtn.disabled = false;
+                    logsBtn.innerHTML = origHtml;
+                });
         });
     }
 })();
