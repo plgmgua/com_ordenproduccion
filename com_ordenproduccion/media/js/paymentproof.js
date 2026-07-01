@@ -12,6 +12,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let rowIndex = 1;
     let unpaidOrders = [];
 
+    function getPaymentTypeRequiresBankMap() {
+        if (typeof Joomla !== 'undefined' && typeof Joomla.getOptions === 'function') {
+            const opts = Joomla.getOptions('com_ordenproduccion.paymentproof') || {};
+            return opts.paymentTypeRequiresBank || { efectivo: false };
+        }
+        return { efectivo: false };
+    }
+
+    function paymentTypeNeedsBank(typeCode) {
+        if (!typeCode) {
+            return true;
+        }
+        const map = getPaymentTypeRequiresBankMap();
+        if (Object.prototype.hasOwnProperty.call(map, typeCode)) {
+            return !!map[typeCode];
+        }
+        return typeCode !== 'efectivo';
+    }
+
     // Load unpaid orders data
     try {
         const dataElement = document.getElementById('unpaid-orders-data');
@@ -413,17 +432,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     errorMessage += '• Tipo de pago es requerido en cada línea\n';
                     break;
                 }
-                if (typeSel.value !== 'efectivo') {
+                if (paymentTypeNeedsBank(typeSel.value)) {
                     const bankSel = row && row.querySelector('.payment-line-bank');
                     if (!bankSel || !bankSel.value) {
                         isValid = false;
-                        errorMessage += '• Banco es requerido para pagos no efectivo\n';
+                        errorMessage += '• Banco es requerido para este tipo de pago\n';
                         break;
                     }
                     const accSel = row && row.querySelector('.payment-line-bank-account');
                     if (!accSel || !String(accSel.value || '').trim()) {
                         isValid = false;
-                        errorMessage += '• Cuenta bancaria es requerida para pagos no efectivo\n';
+                        errorMessage += '• Cuenta bancaria es requerida para este tipo de pago\n';
                         break;
                     }
                 }

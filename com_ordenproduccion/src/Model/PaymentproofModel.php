@@ -1807,6 +1807,50 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Map payment type code => whether bank fields are required on payment proof forms.
+     *
+     * @return  array<string, bool>
+     *
+     * @since   3.119.201
+     */
+    public function getPaymentTypeRequiresBankMap(): array
+    {
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $paymenttypeModel = $component->getMVCFactory()->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+            if ($paymenttypeModel && method_exists($paymenttypeModel, 'getPaymentTypeRequiresBankMap')) {
+                return $paymenttypeModel->getPaymentTypeRequiresBankMap();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return ['efectivo' => false];
+    }
+
+    /**
+     * @param   string  $code
+     *
+     * @return  bool
+     *
+     * @since   3.119.201
+     */
+    public function paymentTypeRequiresBank(string $code): bool
+    {
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $paymenttypeModel = $component->getMVCFactory()->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+            if ($paymenttypeModel && method_exists($paymenttypeModel, 'paymentTypeRequiresBank')) {
+                return $paymenttypeModel->paymentTypeRequiresBank($code);
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return strtolower(trim($code)) !== 'efectivo';
+    }
+
+    /**
      * True if this payment line belongs to the given payment proof.
      *
      * @param   int  $paymentProofLineId  Row id in payment_proof_lines

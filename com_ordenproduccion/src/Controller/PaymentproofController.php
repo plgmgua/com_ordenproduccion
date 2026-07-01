@@ -128,6 +128,24 @@ class PaymentproofController extends BaseController
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
             }
 
+            /** @var \Grimpsa\Component\Ordenproduccion\Site\Model\PaymentproofModel $proofModelForBank */
+            $proofModelForBank = $this->getModel('Paymentproof');
+            foreach ($validatedLines as &$validatedLine) {
+                $type = (string) ($validatedLine['payment_type'] ?? '');
+                if (!$proofModelForBank->paymentTypeRequiresBank($type)) {
+                    $validatedLine['bank'] = '';
+                    $validatedLine['bank_account_id'] = 0;
+                    continue;
+                }
+                if (trim((string) ($validatedLine['bank'] ?? '')) === '') {
+                    throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_BANK_REQUIRED'));
+                }
+                if ((int) ($validatedLine['bank_account_id'] ?? 0) < 1) {
+                    throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_BANK_ACCOUNT_REQUIRED'));
+                }
+            }
+            unset($validatedLine);
+
             // Validate payment orders array
             if (empty($paymentOrders) || !is_array($paymentOrders)) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_NO_ORDERS_SELECTED'));

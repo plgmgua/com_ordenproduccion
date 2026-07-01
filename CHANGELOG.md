@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.201-STABLE] - 2026-05-19
+
+### Fixed
+- **Payment types / comprobantes de pago:** Honor the **Requiere campo de banco** setting for all payment types (not only Efectivo). Types like internal credit notes can hide bank origin and destination fields.
+
 ## [3.119.200-STABLE] - 2026-05-19
 
 ### Added

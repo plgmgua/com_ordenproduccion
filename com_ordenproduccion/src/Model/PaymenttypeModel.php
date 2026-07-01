@@ -286,7 +286,84 @@ class PaymenttypeModel extends BaseDatabaseModel
     }
 
     /**
-     * Whether the given payment type code may be used by the current user.
+     * Map payment type code => whether bank origin / destination fields are required.
+     *
+     * @return  array<string, bool>
+     *
+     * @since   3.119.201
+     */
+    public function getPaymentTypeRequiresBankMap(): array
+    {
+        try {
+            $db = $this->getDatabase();
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_payment_types';
+            $exists = false;
+
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $tableName) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+
+            if (!$exists) {
+                return ['efectivo' => false];
+            }
+        } catch (\Throwable $e) {
+            return ['efectivo' => false];
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('code'),
+                $db->quoteName('requires_bank'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_types'))
+            ->where($db->quoteName('state') . ' = 1');
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map  = [];
+
+        foreach ($rows as $row) {
+            $code = trim((string) ($row->code ?? ''));
+            if ($code === '') {
+                continue;
+            }
+            $map[$code] = !empty($row->requires_bank);
+        }
+
+        return $map;
+    }
+
+    /**
+     * Whether the payment type requires bank origin / destination fields.
+     *
+     * @param   string  $code  Payment type code
+     *
+     * @return  bool
+     *
+     * @since   3.119.201
+     */
+    public function paymentTypeRequiresBank(string $code): bool
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return true;
+        }
+
+        $map = $this->getPaymentTypeRequiresBankMap();
+        if (array_key_exists($code, $map)) {
+            return (bool) $map[$code];
+        }
+
+        return strtolower($code) !== 'efectivo';
+    }
+
+    /**
      *
      * @param   string  $code  Payment type code
      *

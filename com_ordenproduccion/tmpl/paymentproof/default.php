@@ -81,6 +81,7 @@ if (empty($order)) :
         }
     } catch (\Exception $e) { /* ignore */ }
     $paymentTypeOptions = $this->getPaymentTypeOptions();
+    $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
     $availableOrders = json_decode($this->availableOrdersJson ?? '[]', true);
 ?>
 <div class="com-ordenproduccion-paymentproof">
@@ -274,27 +275,35 @@ document.addEventListener('DOMContentLoaded', function() {
     var defaultBankAccountId = <?php echo (int) $defaultBankAccountIdForPayment; ?>;
     var typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
     var typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
+    var paymentTypeRequiresBank = <?php echo json_encode($paymentTypeRequiresBank); ?>;
+    function paymentTypeNeedsBank(typeCode) {
+        if (!typeCode) return true;
+        if (Object.prototype.hasOwnProperty.call(paymentTypeRequiresBank, typeCode)) {
+            return !!paymentTypeRequiresBank[typeCode];
+        }
+        return typeCode !== 'efectivo';
+    }
     function toggleBankCell(row) {
         var typeSel = row && row.querySelector('.payment-line-type');
         var bankCell = row && row.querySelector('.bank-cell');
         var accCell = row && row.querySelector('.bank-account-cell');
         var bankSel = row && row.querySelector('.payment-line-bank');
         var accSel = row && row.querySelector('.payment-line-bank-account');
-        var isCash = typeSel && typeSel.value === 'efectivo';
-        if (bankCell) bankCell.style.visibility = isCash ? 'hidden' : 'visible';
-        if (accCell) accCell.style.visibility = isCash ? 'hidden' : 'visible';
+        var needsBank = typeSel && paymentTypeNeedsBank(typeSel.value);
+        if (bankCell) bankCell.style.visibility = needsBank ? 'visible' : 'hidden';
+        if (accCell) accCell.style.visibility = needsBank ? 'visible' : 'hidden';
         if (bankSel) {
-            bankSel.disabled = !!isCash;
-            if (isCash) {
+            bankSel.disabled = !needsBank;
+            if (!needsBank) {
                 bankSel.value = '';
             } else if (!bankSel.value && defaultBank) {
                 bankSel.value = defaultBank;
             }
         }
         if (accSel) {
-            accSel.disabled = !!isCash;
-            accSel.required = !isCash;
-            if (isCash) {
+            accSel.disabled = !needsBank;
+            accSel.required = !!needsBank;
+            if (!needsBank) {
                 accSel.value = '';
             } else if (!accSel.value && defaultBankAccountId) {
                 accSel.value = String(defaultBankAccountId);
@@ -385,6 +394,7 @@ try {
     }
 } catch (\Exception $e) { /* ignore */ }
 $paymentTypeOptions = $this->getPaymentTypeOptions();
+$paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
 ?>
 
 <div class="com-ordenproduccion-paymentproof">
@@ -1891,7 +1901,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultBankAccountId = <?php echo (int) $defaultBankAccountIdForPayment; ?>;
     const typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
     const typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
+    const paymentTypeRequiresBank = <?php echo json_encode($paymentTypeRequiresBank); ?>;
     let lineIndex = 1;
+
+    function paymentTypeNeedsBank(typeCode) {
+        if (!typeCode) return true;
+        if (Object.prototype.hasOwnProperty.call(paymentTypeRequiresBank, typeCode)) {
+            return !!paymentTypeRequiresBank[typeCode];
+        }
+        return typeCode !== 'efectivo';
+    }
 
     function toggleBankCell(row) {
         const typeSel = row.querySelector('.payment-line-type');
@@ -1900,21 +1919,21 @@ document.addEventListener('DOMContentLoaded', function () {
         const bankSel = row.querySelector('.payment-line-bank');
         const accSel = row.querySelector('.payment-line-bank-account');
         if (!typeSel) return;
-        const isCash = (typeSel.value === 'efectivo');
-        if (bankCell) bankCell.style.visibility = isCash ? 'hidden' : 'visible';
-        if (accCell) accCell.style.visibility = isCash ? 'hidden' : 'visible';
+        const needsBank = paymentTypeNeedsBank(typeSel.value);
+        if (bankCell) bankCell.style.visibility = needsBank ? 'visible' : 'hidden';
+        if (accCell) accCell.style.visibility = needsBank ? 'visible' : 'hidden';
         if (bankSel) {
-            bankSel.disabled = isCash;
-            if (isCash) {
+            bankSel.disabled = !needsBank;
+            if (!needsBank) {
                 bankSel.value = '';
             } else if (!bankSel.value && defaultBank) {
                 bankSel.value = defaultBank;
             }
         }
         if (accSel) {
-            accSel.disabled = isCash;
-            accSel.required = !isCash;
-            if (isCash) {
+            accSel.disabled = !needsBank;
+            accSel.required = needsBank;
+            if (!needsBank) {
                 accSel.value = '';
             } else if (!accSel.value && defaultBankAccountId) {
                 accSel.value = String(defaultBankAccountId);
