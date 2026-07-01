@@ -27,6 +27,8 @@ $blinkBaseUrl              = (string) ($snap['base_url'] ?? '');
 $blinkUsuario              = (string) ($snap['usuario'] ?? '');
 $blinkHasApiKey            = (bool) ($snap['api_key_set'] ?? false);
 $blinkHasClave             = (bool) ($snap['clave_set'] ?? false);
+$blinkHasPayBiKey          = (bool) ($snap['paybi_key_set'] ?? false);
+$blinkSocialNetworkCode    = (string) ($snap['social_network_code'] ?? BlinkGatewayConfigHelper::DEFAULT_SOCIAL_NETWORK_CODE);
 $blinkHealthUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkHealth&format=json', false);
 $blinkLoginUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkTestLogin&format=json', false);
 $blinkPaymentUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkCreatePaymentLink&format=json', false);
@@ -99,6 +101,18 @@ $blinkInstallmentChoices = [
                             <span class="badge bg-danger"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_MISSING'); ?></span>
                         <?php endif; ?>
                     </dd>
+
+                    <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_KEY_LABEL'); ?></dt>
+                    <dd class="col-sm-8">
+                        <?php if ($blinkHasPayBiKey) : ?>
+                            <span class="badge bg-success"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_SET'); ?></span>
+                        <?php else : ?>
+                            <span class="badge bg-warning text-dark"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_PAYBI_KEY_RECOMMENDED'); ?></span>
+                        <?php endif; ?>
+                    </dd>
+
+                    <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_SOCIAL_NETWORK_LABEL'); ?></dt>
+                    <dd class="col-sm-8"><code><?php echo htmlspecialchars($blinkSocialNetworkCode); ?></code></dd>
                 </dl>
 
                 <?php if (!$blinkCredentialsConfigured) : ?>
@@ -116,6 +130,12 @@ $blinkInstallmentChoices = [
                 <?php elseif (!$blinkEnabled) : ?>
                     <div class="alert alert-info">
                         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_DISABLED_NOTICE'); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($blinkCredentialsConfigured && !$blinkHasPayBiKey) : ?>
+                    <div class="alert alert-warning">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_PAYBI_KEY_HINT'); ?>
                     </div>
                 <?php endif; ?>
 
@@ -218,7 +238,8 @@ $blinkInstallmentChoices = [
     "referenceId": "test-manual-001",
     "installments": "VC00",
     "title": "Manual test",
-    "description": "Blink payment test"
+    "description": "Blink payment test",
+    "socialNetworkCode": "<?php echo htmlspecialchars($blinkSocialNetworkCode); ?>"
   }'</pre>
                 </div>
             </div>

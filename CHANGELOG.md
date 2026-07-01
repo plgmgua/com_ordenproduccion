@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.204-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink payment links:** Always send `title`, `description`, and `socialNetworkCode`; optional EBI Pay Bi API key (`credentials.key` / `PAYBI_KEY`) and channel config to address Pay Bi “Datos insuficientes” errors on link creation.
+
 ## [3.119.203-STABLE] - 2026-05-19
 
 ### Added

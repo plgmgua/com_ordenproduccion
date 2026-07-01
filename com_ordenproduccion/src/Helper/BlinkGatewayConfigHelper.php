@@ -28,7 +28,10 @@ class BlinkGatewayConfigHelper
     private const SECRET_CONFIG_KEYS = [
         'blink_api_key',
         'blink_paybi_clave',
+        'blink_paybi_key',
     ];
+
+    public const DEFAULT_SOCIAL_NETWORK_CODE = 'Botón de Pago';
 
     /**
      * @return  Registry
@@ -116,6 +119,36 @@ class BlinkGatewayConfigHelper
     }
 
     /**
+     * EBI Pay Bi API key (40-char hex), sent as credentials.key when set.
+     *
+     * @return  string
+     *
+     * @since   3.119.204
+     */
+    public static function getPayBiKey(): string
+    {
+        return self::resolveSecret(['PAYBI_KEY'], 'blink_paybi_key');
+    }
+
+    /**
+     * Pay Bi checkout channel code for link creation.
+     *
+     * @return  string
+     *
+     * @since   3.119.204
+     */
+    public static function getSocialNetworkCode(): string
+    {
+        $code = self::resolveString(
+            'PAYBI_SOCIAL_NETWORK_CODE',
+            'blink_social_network_code',
+            self::DEFAULT_SOCIAL_NETWORK_CODE
+        );
+
+        return $code !== '' ? $code : self::DEFAULT_SOCIAL_NETWORK_CODE;
+    }
+
+    /**
      * @return  array{
      *   enabled: bool,
      *   base_url: string,
@@ -123,6 +156,8 @@ class BlinkGatewayConfigHelper
      *   api_key_set: bool,
      *   usuario: string,
      *   clave_set: bool,
+     *   paybi_key_set: bool,
+     *   social_network_code: string,
      *   credentials_configured: bool,
      *   configured: bool
      * }
@@ -133,6 +168,7 @@ class BlinkGatewayConfigHelper
         $apiKey  = self::getApiKey();
         $usuario = self::getPayBiUsuario();
         $clave   = self::getPayBiClave();
+        $payBiKey = self::getPayBiKey();
         $enabled = self::isEnabled();
 
         $credentialsConfigured = $baseUrl !== ''
@@ -147,6 +183,8 @@ class BlinkGatewayConfigHelper
             'api_key_set'            => $apiKey !== '',
             'usuario'                => $usuario,
             'clave_set'              => $clave !== '',
+            'paybi_key_set'          => $payBiKey !== '',
+            'social_network_code'    => self::getSocialNetworkCode(),
             'credentials_configured' => $credentialsConfigured,
             'configured'             => $enabled && $credentialsConfigured,
         ];

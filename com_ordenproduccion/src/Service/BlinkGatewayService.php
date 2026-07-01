@@ -192,22 +192,31 @@ class BlinkGatewayService
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_REFERENCE_INVALID')];
         }
 
-        $payload = [
-            'credentials' => [
-                'usuario' => $cfg['usuario'],
-                'clave'   => BlinkGatewayConfigHelper::getPayBiClave(),
-            ],
-            'amount'       => round($amount, 2),
-            'installments' => $installments,
-            'referenceId'  => $referenceId,
+        $credentials = [
+            'usuario' => $cfg['usuario'],
+            'clave'   => BlinkGatewayConfigHelper::getPayBiClave(),
         ];
+        $payBiKey = BlinkGatewayConfigHelper::getPayBiKey();
+        if ($payBiKey !== '') {
+            $credentials['key'] = $payBiKey;
+        }
 
-        if ($title !== '') {
-            $payload['title'] = $title;
+        if ($title === '') {
+            $title = Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_TITLE_DEFAULT');
         }
-        if ($description !== '') {
-            $payload['description'] = $description;
+        if ($description === '') {
+            $description = Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_DESCRIPTION_DEFAULT');
         }
+
+        $payload = [
+            'credentials'        => $credentials,
+            'amount'             => round($amount, 2),
+            'installments'       => $installments,
+            'referenceId'        => $referenceId,
+            'title'              => $title,
+            'description'        => $description,
+            'socialNetworkCode'  => BlinkGatewayConfigHelper::getSocialNetworkCode(),
+        ];
 
         $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE);
         if ($jsonBody === false) {

@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.203-STABLE</version>
+    <version>3.119.204-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -565,6 +565,24 @@
                     description="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_CLAVE_DESC"
                     default=""
                     size="50"
+                    filter="string"
+                />
+                <field
+                    name="blink_paybi_key"
+                    type="password"
+                    label="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_KEY_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_BLINK_PAYBI_KEY_DESC"
+                    default=""
+                    size="50"
+                    filter="string"
+                />
+                <field
+                    name="blink_social_network_code"
+                    type="text"
+                    label="COM_ORDENPRODUCCION_CONFIG_BLINK_SOCIAL_NETWORK_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_BLINK_SOCIAL_NETWORK_DESC"
+                    default="Botón de Pago"
+                    size="40"
                     filter="string"
                 />
             </fieldset>

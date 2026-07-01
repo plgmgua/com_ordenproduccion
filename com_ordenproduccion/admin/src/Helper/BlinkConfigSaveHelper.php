@@ -26,6 +26,7 @@ class BlinkConfigSaveHelper
     private const SECRET_KEYS = [
         'blink_api_key',
         'blink_paybi_clave',
+        'blink_paybi_key',
     ];
 
     /**
