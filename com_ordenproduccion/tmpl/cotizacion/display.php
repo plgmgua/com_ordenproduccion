@@ -1422,6 +1422,9 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
             }
 
             timbrarBtn.addEventListener('click', function() {
+                if (timbrarBtn.dataset.issueInFlight === '1') {
+                    return;
+                }
                 if (alertEl) {
                     alertEl.classList.add('d-none');
                     alertEl.textContent = '';
@@ -1459,6 +1462,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                 var fdSave = new FormData(form);
                 fdSave.append('quotation_id', String(qid));
                 fdSave.append('fel_lines_json', JSON.stringify(lines));
+                timbrarBtn.dataset.issueInFlight = '1';
                 timbrarBtn.disabled = true;
                 openBtn.disabled = true;
                 fetch(saveLinesUrl, { method: 'POST', body: fdSave, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -1466,6 +1470,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                     .then(function(res) {
                         if (res.parseErr) {
                             showModalAlert(msgNet + (res.text ? ' ' + res.text.substring(0, 220) : ''));
+                            timbrarBtn.dataset.issueInFlight = '0';
                             timbrarBtn.disabled = false;
                             openBtn.disabled = false;
                             return Promise.resolve(null);
@@ -1473,12 +1478,14 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         var data = res.data;
                         if (!res.ok || !data) {
                             showModalAlert((data && data.message) ? data.message : ('HTTP ' + res.status));
+                            timbrarBtn.dataset.issueInFlight = '0';
                             timbrarBtn.disabled = false;
                             openBtn.disabled = false;
                             return Promise.resolve(null);
                         }
                         if (!data.success) {
                             showModalAlert((data && data.message) ? data.message : 'Error');
+                            timbrarBtn.dataset.issueInFlight = '0';
                             timbrarBtn.disabled = false;
                             openBtn.disabled = false;
                             return Promise.resolve(null);
@@ -1503,6 +1510,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         }
                         if (res2.parseErr) {
                             showModalAlert(msgNet + (res2.text ? ' ' + res2.text.substring(0, 220) : ''));
+                            timbrarBtn.dataset.issueInFlight = '0';
                             timbrarBtn.disabled = false;
                             openBtn.disabled = false;
                             return;
@@ -1510,6 +1518,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         var data2 = res2.data;
                         if (!res2.ok || !data2) {
                             showModalAlert((data2 && data2.message) ? data2.message : ('HTTP ' + res2.status));
+                            timbrarBtn.dataset.issueInFlight = '0';
                             timbrarBtn.disabled = false;
                             openBtn.disabled = false;
                             return;
@@ -1520,11 +1529,13 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                             return;
                         }
                         showModalAlert((data2 && data2.message) ? data2.message : 'Error');
+                        timbrarBtn.dataset.issueInFlight = '0';
                         timbrarBtn.disabled = false;
                         openBtn.disabled = false;
                     })
                     .catch(function() {
                         showModalAlert(msgNet);
+                        timbrarBtn.dataset.issueInFlight = '0';
                         timbrarBtn.disabled = false;
                         openBtn.disabled = false;
                     });

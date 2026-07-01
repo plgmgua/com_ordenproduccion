@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.202-STABLE] - 2026-05-19
+
+### Fixed
+- **FEL / Digifact certification:** Prevent duplicate `certify_nuc` calls with an atomic invoice lock, block re-certify when completed or in progress, and guard the Timbrar button against double submit.
+
 ## [3.119.201-STABLE] - 2026-05-19
 
 ### Fixed

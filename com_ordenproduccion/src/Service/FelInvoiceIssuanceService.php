@@ -43,6 +43,9 @@ class FelInvoiceIssuanceService
     /** @var string Time (24h) for scheduled FEL run on the chosen billing date (site timezone) */
     public const SCHEDULED_ISSUE_HOUR = '08:00:00';
 
+    /** Minutes before a stuck fel_issue_status=processing row may be reclaimed. */
+    private const FEL_CERTIFY_STALE_MINUTES = 20;
+
     /** @var DatabaseInterface */
     protected $db;
 
@@ -1121,6 +1124,18 @@ class FelInvoiceIssuanceService
             return ['success' => true, 'message' => 'Already completed', 'invoice_id' => $invoiceId];
         }
 
+        if ($status === 'processing') {
+            $block = $this->getFelCertificationBlockReason($inv);
+            if ($block !== '') {
+                return [
+                    'success'              => false,
+                    'message'              => $block,
+                    'invoice_id'           => $invoiceId,
+                    'duplicate_prevented'  => true,
+                ];
+            }
+        }
+
         if ($status === 'scheduled' && !$forceScheduled) {
             $schedRaw = $inv->fel_scheduled_at ?? null;
             if ($schedRaw !== null && $schedRaw !== '') {
@@ -1144,8 +1159,6 @@ class FelInvoiceIssuanceService
             return ['success' => false, 'message' => $waitOt, 'wait_precot_ot' => true];
         }
 
-        $this->setStatus($invoiceId, 'processing');
-
         try {
             if ($this->isDigifactIssuanceConfiguredForQueue()) {
                 $built = $this->buildDigifactNucDirectPayloadForQuotation($quotationId);
@@ -1166,6 +1179,16 @@ class FelInvoiceIssuanceService
                     $nucPayload,
                     $actingUserId
                 );
+            }
+
+            $lock = $this->tryAcquireFelCertificationLock($invoiceId);
+            if (!$lock['acquired']) {
+                return [
+                    'success'             => false,
+                    'message'             => (string) $lock['message'],
+                    'invoice_id'          => $invoiceId,
+                    'duplicate_prevented' => true,
+                ];
             }
 
             $quotation = $this->loadQuotation($quotationId);
@@ -1804,6 +1827,115 @@ class FelInvoiceIssuanceService
             'fel_issue_status' => $status,
             'modified'         => Factory::getDate()->toSql(),
         ]);
+    }
+
+    /**
+     * User-facing reason not to certify again (empty = OK to attempt).
+     *
+     * @since  3.119.202
+     */
+    protected function getFelCertificationBlockReason(?object $inv): string
+    {
+        if (!$inv) {
+            return '';
+        }
+
+        if ((string) ($inv->fel_issue_status ?? '') === 'completed') {
+            return Text::_('COM_ORDENPRODUCCION_FEL_CERTIFY_ALREADY_COMPLETED');
+        }
+
+        if (trim((string) ($inv->fel_autorizacion_uuid ?? '')) !== '') {
+            return Text::_('COM_ORDENPRODUCCION_FEL_CERTIFY_ALREADY_COMPLETED');
+        }
+
+        if ((string) ($inv->fel_issue_status ?? '') === 'processing' && !$this->isStaleFelProcessing($inv)) {
+            return Text::_('COM_ORDENPRODUCCION_FEL_CERTIFY_ALREADY_IN_PROGRESS');
+        }
+
+        return '';
+    }
+
+    /**
+     * @since  3.119.202
+     */
+    protected function isStaleFelProcessing(object $inv): bool
+    {
+        $modified = trim((string) ($inv->modified ?? ''));
+        if ($modified === '') {
+            return true;
+        }
+
+        try {
+            $ageSeconds = Factory::getDate()->toUnix() - Factory::getDate($modified)->toUnix();
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        return $ageSeconds >= (self::FEL_CERTIFY_STALE_MINUTES * 60);
+    }
+
+    /**
+     * Atomically claim an invoice for Digifact certification (prevents duplicate POST certify_nuc).
+     *
+     * @return  array{acquired:bool, message:string, invoice_id:int}
+     *
+     * @since  3.119.202
+     */
+    protected function tryAcquireFelCertificationLock(int $invoiceId): array
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1 || !$this->isEngineAvailable()) {
+            return ['acquired' => false, 'message' => 'Invalid invoice', 'invoice_id' => $invoiceId];
+        }
+
+        $inv = $this->loadInvoice($invoiceId);
+        if (!$inv || (int) ($inv->state ?? 0) !== 1) {
+            return ['acquired' => false, 'message' => Text::_('COM_ORDENPRODUCCION_FEL_ISSUE_INVOICE_INVALID'), 'invoice_id' => $invoiceId];
+        }
+
+        $block = $this->getFelCertificationBlockReason($inv);
+        if ($block !== '') {
+            return ['acquired' => false, 'message' => $block, 'invoice_id' => $invoiceId];
+        }
+
+        $db = $this->db;
+        $now = Factory::getDate()->toSql();
+        $staleCutoff = Factory::getDate('now - ' . self::FEL_CERTIFY_STALE_MINUTES . ' minutes')->toSql();
+        $allowed = ['none', 'pending', 'scheduled', 'failed'];
+        $quotedAllowed = implode(',', array_map([$db, 'quote'], $allowed));
+
+        $statusCol = $db->quoteName('fel_issue_status');
+        $uuidCol   = $db->quoteName('fel_autorizacion_uuid');
+        $modifiedCol = $db->quoteName('modified');
+
+        $whereAllowed = $statusCol . ' IN (' . $quotedAllowed . ')';
+        $whereStale = '(' . $statusCol . ' = ' . $db->quote('processing')
+            . ' AND ' . $modifiedCol . ' < ' . $db->quote($staleCutoff)
+            . ' AND (' . $uuidCol . ' IS NULL OR ' . $uuidCol . ' = ' . $db->quote('') . '))';
+
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_invoices'))
+            ->set($statusCol . ' = ' . $db->quote('processing'))
+            ->set($modifiedCol . ' = ' . $db->quote($now))
+            ->where($db->quoteName('id') . ' = ' . $invoiceId)
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('(' . $whereAllowed . ' OR ' . $whereStale . ')');
+
+        $db->setQuery($query);
+        $db->execute();
+
+        if ((int) $db->getAffectedRows() > 0) {
+            return ['acquired' => true, 'message' => '', 'invoice_id' => $invoiceId];
+        }
+
+        $inv = $this->loadInvoice($invoiceId);
+        $block = $this->getFelCertificationBlockReason($inv);
+
+        return [
+            'acquired'   => false,
+            'message'    => $block !== '' ? $block : Text::_('COM_ORDENPRODUCCION_FEL_CERTIFY_ALREADY_IN_PROGRESS'),
+            'invoice_id' => $invoiceId,
+        ];
     }
 
     /**
@@ -2585,7 +2717,6 @@ class FelInvoiceIssuanceService
         $this->linkInvoiceToQuotations($invoiceId, $quotationId, $allQuotationIds);
 
         $this->skipAutoLinkOrdensOnFinalize = true;
-        $this->setStatus($invoiceId, 'processing');
         $result = $this->executeDigifactCertificationForInvoice($invoiceId, $quotationId, $payload, $userId);
         $this->skipAutoLinkOrdensOnFinalize = false;
 
@@ -3529,7 +3660,6 @@ class FelInvoiceIssuanceService
         ]);
 
         $this->skipAutoLinkOrdensOnFinalize = true;
-        $this->setStatus($invoiceId, 'processing');
         $result = $this->executeDigifactCertificationForInvoice($invoiceId, 0, $payload, $userId);
         $this->skipAutoLinkOrdensOnFinalize = false;
 
@@ -4443,8 +4573,11 @@ class FelInvoiceIssuanceService
         }
 
         $existing = $this->getInvoiceByQuotationId($quotationId);
-        if ($existing && (string) ($existing->fel_issue_status ?? '') === 'completed') {
-            return ['success' => false, 'message' => 'Invoice already completed for this quotation.'];
+        if ($existing) {
+            $block = $this->getFelCertificationBlockReason($existing);
+            if ($block !== '') {
+                return ['success' => false, 'message' => $block];
+            }
         }
 
         $lines   = $this->loadQuotationLines($quotationId);
@@ -4758,6 +4891,16 @@ class FelInvoiceIssuanceService
         $userId = (int) $userId;
         if ($invoiceId < 1 || $userId < 1) {
             return ['success' => false, 'message' => 'Invalid ids'];
+        }
+
+        $lock = $this->tryAcquireFelCertificationLock($invoiceId);
+        if (!$lock['acquired']) {
+            return [
+                'success'             => false,
+                'message'             => (string) $lock['message'],
+                'invoice_id'          => $invoiceId,
+                'duplicate_prevented' => true,
+            ];
         }
 
         $creds = $this->getActiveCertificadorCredentials();
@@ -5112,12 +5255,23 @@ class FelInvoiceIssuanceService
         $payload = $built['payload'];
 
         $existing = $this->getInvoiceByQuotationId($quotationId);
-        $invoiceId = $existing ? (int) $existing->id : $this->createPendingInvoiceFromQuotation($quotationId, $userId);
+        if ($existing) {
+            $block = $this->getFelCertificationBlockReason($existing);
+            if ($block !== '') {
+                return [
+                    'success'             => false,
+                    'message'             => $block,
+                    'invoice_id'          => (int) $existing->id,
+                    'duplicate_prevented' => true,
+                ];
+            }
+            $invoiceId = (int) $existing->id;
+        } else {
+            $invoiceId = $this->createPendingInvoiceFromQuotation($quotationId, $userId);
+        }
         if ($invoiceId < 1) {
             return ['success' => false, 'message' => 'Could not create invoice row'];
         }
-
-        $this->setStatus($invoiceId, 'processing');
 
         return $this->executeDigifactCertificationForInvoice($invoiceId, $quotationId, $payload, $userId);
     }
