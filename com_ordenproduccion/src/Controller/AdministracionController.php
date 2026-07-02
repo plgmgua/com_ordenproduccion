@@ -3138,6 +3138,55 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Save Blink webhook secret and public base URL (Ajustes → Blink test).
+     *
+     * @return  void
+     *
+     * @since   3.119.211
+     */
+    public function saveBlinkWebhookSettings(): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=blink_test', false));
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+
+        try {
+            $model = $this->getModel('Administracion');
+            if (!$model->saveBlinkWebhookSettings($jform)) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR'), 'error');
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SETTINGS_SAVED'), 'success');
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=blink_test#blink-webhook-section', false));
+    }
+
+    /**
      * @param   callable  $runner  Returns BlinkGatewayService result array
      *
      * @return  void

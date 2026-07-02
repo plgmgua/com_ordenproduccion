@@ -51,9 +51,17 @@ foreach ([JPATH_SITE . '/components/com_ordenproduccion/VERSION', JPATH_SITE . '
 }
 $blinkVersionNumber = preg_replace('/-.*$/', '', $blinkComponentVersion);
 $blinkHasWebhookUi = $blinkVersionNumber !== '' && version_compare($blinkVersionNumber, '3.119.209', '>=');
-$blinkConfigUrl  = $user->authorise('core.admin')
-    ? Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion')
-    : '';
+$blinkWebhookPublicBaseParam = trim((string) BlinkGatewayConfigHelper::getParams()->get('blink_webhook_public_base', ''));
+$blinkWebhookEnvPublicBase = getenv('BLINK_WEBHOOK_PUBLIC_BASE');
+$blinkWebhookEnvSecret = getenv('BLINK_WEBHOOK_SECRET');
+$blinkConfigUrl = '';
+if ($user->authorise('core.admin')) {
+    $blinkConfigUrl = Route::link(
+        'administrator',
+        'index.php?option=com_config&view=component&component=com_ordenproduccion'
+    );
+}
+$blinkWebhookSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveBlinkWebhookSettings', false);
 $token = Session::getFormToken();
 $blinkTestReferenceDefault = 'test-manual-' . date('YmdHis');
 $blinkInstallmentChoices = [
@@ -266,11 +274,45 @@ $blinkInstallmentChoices = [
                 <?php if (!$blinkHasWebhookSecret) : ?>
                     <div class="alert alert-warning mb-3">
                         <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_MISSING'); ?>
-                        <?php if ($blinkConfigUrl !== '') : ?>
-                            <a href="<?php echo $blinkConfigUrl; ?>" class="alert-link"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_OPEN_CONFIG'); ?></a>
-                        <?php endif; ?>
+                        <?php echo ' ' . Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_FORM_HINT'); ?>
                     </div>
                 <?php endif; ?>
+
+                <form action="<?php echo $blinkWebhookSaveUrl; ?>" method="post" id="blink-webhook-settings-form" class="row g-3 mb-4 pb-3 border-bottom">
+                    <div class="col-12">
+                        <h4 class="h6 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SETTINGS_SECTION'); ?></h4>
+                        <p class="text-muted small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SETTINGS_DESC'); ?></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="blink-webhook-public-base" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_PUBLIC_BASE_LABEL'); ?></label>
+                        <input type="url" class="form-control form-control-sm" id="blink-webhook-public-base" name="jform[blink_webhook_public_base]" value="<?php echo htmlspecialchars($blinkWebhookPublicBaseParam); ?>" maxlength="255" placeholder="https://your-public-site.example.com" <?php echo ($blinkWebhookEnvPublicBase !== false && trim((string) $blinkWebhookEnvPublicBase) !== '') ? 'readonly disabled' : ''; ?>>
+                        <?php if ($blinkWebhookEnvPublicBase !== false && trim((string) $blinkWebhookEnvPublicBase) !== '') : ?>
+                            <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_ENV_PUBLIC_BASE'); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="blink-webhook-secret" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_SECRET_LABEL'); ?></label>
+                        <input type="password" class="form-control form-control-sm" id="blink-webhook-secret" name="jform[blink_webhook_secret]" value="" autocomplete="new-password" maxlength="255" placeholder="<?php echo $blinkHasWebhookSecret ? Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_KEEP_PLACEHOLDER') : ''; ?>" <?php echo ($blinkWebhookEnvSecret !== false && trim((string) $blinkWebhookEnvSecret) !== '') ? 'readonly disabled' : ''; ?>>
+                        <?php if ($blinkHasWebhookSecret) : ?>
+                            <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_KEEP_HINT'); ?></div>
+                        <?php endif; ?>
+                        <?php if ($blinkWebhookEnvSecret !== false && trim((string) $blinkWebhookEnvSecret) !== '') : ?>
+                            <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_ENV_SECRET'); ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-save"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SAVE_SETTINGS_BTN'); ?>
+                        </button>
+                        <?php if ($blinkConfigUrl !== '') : ?>
+                            <a href="<?php echo htmlspecialchars($blinkConfigUrl); ?>" class="small" target="_blank" rel="noopener noreferrer">
+                                <?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_OPEN_CONFIG'); ?>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                </form>
 
                 <form id="blink-webhook-form" class="row g-3 mb-3">
                     <div class="col-12">

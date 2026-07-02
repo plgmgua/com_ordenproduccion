@@ -14,6 +14,8 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Log\Log;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
+use Joomla\CMS\Table\Extension as TableExtension;
+use Joomla\Registry\Registry;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImapHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImportHelper;
@@ -6638,6 +6640,50 @@ class AdministracionModel extends BaseDatabaseModel
     public function getMt940RunLogList(int $limit, int $start): array
     {
         return \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper::getRunLogList($limit, $start);
+    }
+
+    /**
+     * Save Blink webhook public base URL and secret from Ajustes (site administracion).
+     *
+     * @param   array<string,mixed>  $data
+     *
+     * @return  bool
+     *
+     * @since   3.119.211
+     */
+    public function saveBlinkWebhookSettings(array $data): bool
+    {
+        $db    = Factory::getDbo();
+        $table = new TableExtension($db);
+        if (!$table->load(['type' => 'component', 'element' => 'com_ordenproduccion'])) {
+            $this->setError('Extension not found');
+
+            return false;
+        }
+
+        $registry = new Registry($table->params);
+        $existing = $registry->toArray();
+
+        if (\array_key_exists('blink_webhook_public_base', $data)) {
+            $registry->set('blink_webhook_public_base', trim((string) $data['blink_webhook_public_base']));
+        }
+
+        $newSecret = isset($data['blink_webhook_secret']) ? trim((string) $data['blink_webhook_secret']) : '';
+        if ($newSecret !== '') {
+            $registry->set('blink_webhook_secret', $newSecret);
+            $this->upsertOrdenproduccionConfigValue('blink_webhook_secret', $newSecret);
+        } elseif (!empty($existing['blink_webhook_secret'])) {
+            $registry->set('blink_webhook_secret', (string) $existing['blink_webhook_secret']);
+        }
+
+        $table->params = $registry->toString();
+        if (!$table->check() || !$table->store()) {
+            $this->setError($table->getError());
+
+            return false;
+        }
+
+        return true;
     }
 }
 

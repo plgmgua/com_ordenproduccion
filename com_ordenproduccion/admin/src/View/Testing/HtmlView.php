@@ -71,7 +71,10 @@ class HtmlView extends BaseHtmlView
         $this->blinkHasClave              = (bool) ($snap['clave_set'] ?? false);
         $this->blinkHealthUrl   = Route::_('index.php?option=com_ordenproduccion&task=testing.blinkHealth&format=json');
         $this->blinkTestLoginUrl = Route::_('index.php?option=com_ordenproduccion&task=testing.blinkTestLogin&format=json');
-        $this->blinkConfigUrl   = Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion');
+        $this->blinkConfigUrl   = Route::link(
+            'administrator',
+            'index.php?option=com_config&view=component&component=com_ordenproduccion'
+        );
 
         $this->addToolbar();
         parent::display($tpl);

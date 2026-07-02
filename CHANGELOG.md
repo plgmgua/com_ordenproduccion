@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.211-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink webhook config:** Component options link now opens Joomla administrator (`Route::link('administrator', …)`) instead of a broken site 404.
+
+### Added
+- **Blink Ajustes:** Inline webhook secret and public base URL form on the Blink test tab (no backend required).
+
 ## [3.119.210-STABLE] - 2026-05-19
 
 ### Changed
