@@ -438,7 +438,7 @@ class BlinkGatewayService
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
         }
 
-        $allowed = ['referenceId', 'requestId', 'gatewayOperation', 'from', 'to', 'success', 'limit', 'offset'];
+        $allowed = ['referenceId', 'requestId', 'referenceIdContains', 'gatewayOperation', 'from', 'to', 'success', 'limit', 'offset'];
         $query   = [];
         foreach ($allowed as $key) {
             if (!isset($filters[$key]) || $filters[$key] === '' || $filters[$key] === null) {

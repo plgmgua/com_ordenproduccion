@@ -215,6 +215,11 @@ class BlinkGatewayConfigHelper
      */
     public static function getLogWebhookPublicUrl(): string
     {
+        $fullUrl = trim((string) (getenv('BLINK_WEBHOOK_URL') ?: ''));
+        if ($fullUrl !== '') {
+            return $fullUrl;
+        }
+
         return self::getLogWebhookPublicRoot()
             . '/index.php?option=com_ordenproduccion&controller=blink&task=logWebhook&format=raw';
     }

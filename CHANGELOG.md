@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.214-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink log.created webhook:** Read log entry from `payload.data` (Blink spec); legacy `payload.payload.data` still accepted.
+- **Blink webhook URL:** `BLINK_WEBHOOK_URL` env var can override the full receiver URL.
+
+### Changed
+- **Blink exchange logs:** Pass through `referenceIdContains` filter to GET /gateway/logs.
+
 ## [3.119.213-STABLE] - 2026-05-19
 
 ### Fixed

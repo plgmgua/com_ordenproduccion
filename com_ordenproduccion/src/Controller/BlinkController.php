@@ -80,7 +80,7 @@ class BlinkController extends BaseController
 
         $event = trim((string) ($payload['event'] ?? ''));
         if ($event === 'log.created') {
-            $logData = $payload['payload']['data'] ?? null;
+            $logData = $payload['data'] ?? $payload['payload']['data'] ?? null;
             if (\is_array($logData)) {
                 BlinkWebhookLogHelper::storeLogEntry($logData, $event);
             }
