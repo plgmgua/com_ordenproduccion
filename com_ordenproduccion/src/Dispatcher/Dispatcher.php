@@ -44,7 +44,9 @@ class Dispatcher extends ComponentDispatcher
         $isMt940ScheduledImport = ($controllerLower === 'mt940' && $taskLower === 'runscheduledimport');
         // Telegram Bot API inbound updates: no Joomla session; auth is X-Telegram-Bot-Api-Secret-Token (see TelegramController::webhook).
         $isTelegramBotWebhook = ($controllerLower === 'telegram' && $taskLower === 'webhook');
-        if ($isTelegramQueueCron || $isTelegramBotWebhook || $isMt940ScheduledImport) {
+        // Blink gateway log.created webhook: no Joomla session; auth is X-Blink-Signature HMAC (see BlinkController::logWebhook).
+        $isBlinkLogWebhook = ($controllerLower === 'blink' && $taskLower === 'logwebhook');
+        if ($isTelegramQueueCron || $isTelegramBotWebhook || $isMt940ScheduledImport || $isBlinkLogWebhook) {
             $this->input->set('format', 'raw');
             $this->input->set('tmpl', 'component');
         }
@@ -81,8 +83,9 @@ class Dispatcher extends ComponentDispatcher
         // Exception: Telegram processQueue (cron / Postman) — secured by cron_key, not session
         // Exception: MT-940 runScheduledImport (cron) — secured by cron_key, not session
         // Exception: Telegram webhook (POST from Telegram servers) — secured by secret header, not session
+        // Exception: Blink log webhook (POST from Blink gateway) — secured by X-Blink-Signature HMAC, not session
         $user = Factory::getUser();
-        if ($user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport) {
+        if ($user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport && !$isBlinkLogWebhook) {
             $app = Factory::getApplication();
             $returnUrl = Uri::getInstance()->toString();
             $return = urlencode(base64_encode($returnUrl));
@@ -90,7 +93,7 @@ class Dispatcher extends ComponentDispatcher
             return;
         }
 
-        if (!$user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport) {
+        if (!$user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport && !$isBlinkLogWebhook) {
             UserSessionAuditHelper::recordFromRequest($this->input);
         }
 

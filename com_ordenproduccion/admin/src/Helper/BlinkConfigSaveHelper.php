@@ -27,6 +27,7 @@ class BlinkConfigSaveHelper
         'blink_api_key',
         'blink_paybi_clave',
         'blink_paybi_key',
+        'blink_webhook_secret',
     ];
 
     /**

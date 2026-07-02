@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.207-STABLE</version>
+    <version>3.119.208-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -583,6 +583,24 @@
                     description="COM_ORDENPRODUCCION_CONFIG_BLINK_SOCIAL_NETWORK_DESC"
                     default="1621282737059942b"
                     size="40"
+                    filter="string"
+                />
+                <field
+                    name="blink_webhook_public_base"
+                    type="url"
+                    label="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_PUBLIC_BASE_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_PUBLIC_BASE_DESC"
+                    default=""
+                    size="80"
+                    filter="url"
+                />
+                <field
+                    name="blink_webhook_secret"
+                    type="password"
+                    label="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_SECRET_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_SECRET_DESC"
+                    default=""
+                    size="50"
                     filter="string"
                 />
             </fieldset>

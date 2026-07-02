@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.208-STABLE] - 2026-05-19
+
+### Added
+- **Blink log webhook:** Public `POST` endpoint (`controller=blink&task=logWebhook`) verifies `X-Blink-Signature` (HMAC-SHA256), stores `log.created` `payload.data` in `#__ordenproduccion_blink_exchange_logs`, and returns `{"success": true}`.
+- **Blink webhook subscription:** `POST /api/v1/gateway/webhooks` client plus Ajustes → Blink test “Subscribe webhook” button; config/env for `BLINK_WEBHOOK_SECRET` and optional public HTTPS base URL.
+
 ## [3.119.207-STABLE] - 2026-05-19
 
 ### Added

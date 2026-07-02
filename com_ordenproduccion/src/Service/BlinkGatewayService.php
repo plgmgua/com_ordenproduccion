@@ -280,6 +280,85 @@ class BlinkGatewayService
     }
 
     /**
+     * Subscribe log.created webhook on the Blink gateway (POST /api/v1/gateway/webhooks).
+     *
+     * @param   string|null  $webhookUrl  Override public URL; defaults to {@see BlinkGatewayConfigHelper::getLogWebhookPublicUrl()}.
+     *
+     * @return  array{success: bool, message?: string, http_code?: int, data?: mixed, raw?: mixed, webhook_url?: string}
+     *
+     * @since   3.119.208
+     */
+    public function subscribeLogWebhook(?string $webhookUrl = null): array
+    {
+        BlinkGatewayConfigHelper::loadLanguage();
+        $cfg = BlinkGatewayConfigHelper::getSnapshot();
+        if (empty($cfg['credentials_configured'])) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
+        }
+
+        $secret = BlinkGatewayConfigHelper::getWebhookSecret();
+        if ($secret === '') {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_MISSING')];
+        }
+
+        $url = trim((string) ($webhookUrl ?? $cfg['webhook_url'] ?? ''));
+        if ($url === '') {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_URL_MISSING')];
+        }
+
+        $payload = [
+            'url'    => $url,
+            'secret' => $secret,
+            'events' => ['log.created'],
+            'active' => true,
+        ];
+
+        $jsonBody = json_encode($payload, JSON_UNESCAPED_UNICODE);
+        if ($jsonBody === false) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_REQUEST_ENCODE_FAILED')];
+        }
+
+        try {
+            $http     = HttpFactory::getHttp();
+            $response = $http->post(
+                $cfg['base_url'] . '/api/v1/gateway/webhooks',
+                $jsonBody,
+                [
+                    'Content-Type' => 'application/json',
+                    'Accept'       => 'application/json',
+                    'X-API-Key'    => $cfg['api_key'],
+                ],
+                30
+            );
+
+            $code = (int) ($response->code ?? 0);
+            $body = (string) ($response->body ?? '');
+            $json = json_decode($body, true);
+
+            if (($code === 200 || $code === 201) && \is_array($json) && !empty($json['success'])) {
+                return [
+                    'success'     => true,
+                    'message'     => Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SUBSCRIBE_OK'),
+                    'http_code'   => $code,
+                    'webhook_url' => $url,
+                    'data'        => self::redactResponse($json),
+                    'raw'         => self::redactResponse($json),
+                ];
+            }
+
+            return [
+                'success'     => false,
+                'message'     => $this->extractErrorMessage($code, $json, $body),
+                'http_code'   => $code,
+                'webhook_url' => $url,
+                'raw'         => self::redactResponse(\is_array($json) ? $json : ['body' => $body]),
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'http_code' => 0];
+        }
+    }
+
+    /**
      * Query Blink ↔ Pay Bi HTTP exchange logs (GET /api/v1/gateway/logs).
      *
      * @param   array<string, scalar|null>  $filters  referenceId, requestId, gatewayOperation, from, to, success, limit, offset

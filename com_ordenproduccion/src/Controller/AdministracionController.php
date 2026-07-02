@@ -3058,6 +3058,20 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * Register Blink log.created webhook on the gateway (JSON; Ajustes → Blink payment test).
+     *
+     * @return  void
+     *
+     * @since   3.119.208
+     */
+    public function blinkSubscribeWebhook(): void
+    {
+        $this->runBlinkGatewayJsonTask(static function () {
+            return (new BlinkGatewayService())->subscribeLogWebhook();
+        });
+    }
+
+    /**
      * @param   callable  $runner  Returns BlinkGatewayService result array
      *
      * @return  void
@@ -3118,6 +3132,9 @@ class AdministracionController extends BaseController
             if (isset($result['entries']) && \is_array($result['entries'])) {
                 $payload['entries'] = $result['entries'];
                 $payload['total']   = (int) ($result['total'] ?? \count($result['entries']));
+            }
+            if (!empty($result['webhook_url']) && \is_string($result['webhook_url'])) {
+                $payload['webhook_url'] = $result['webhook_url'];
             }
             if (!empty($result['api_key_hint']) && \is_array($result['api_key_hint'])) {
                 $payload['api_key_hint'] = $result['api_key_hint'];

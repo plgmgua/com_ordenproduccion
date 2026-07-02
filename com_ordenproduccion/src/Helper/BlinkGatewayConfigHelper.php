@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Uri\Uri;
 use Joomla\Database\DatabaseInterface;
 use Joomla\Registry\Registry;
 
@@ -29,6 +30,7 @@ class BlinkGatewayConfigHelper
         'blink_api_key',
         'blink_paybi_clave',
         'blink_paybi_key',
+        'blink_webhook_secret',
     ];
 
     public const DEFAULT_SOCIAL_NETWORK_CODE = '1621282737059942b';
@@ -154,6 +156,70 @@ class BlinkGatewayConfigHelper
     }
 
     /**
+     * HMAC secret for Blink log.created webhook (X-Blink-Signature).
+     *
+     * @return  string
+     *
+     * @since   3.119.208
+     */
+    public static function getWebhookSecret(): string
+    {
+        return self::resolveSecret(['BLINK_WEBHOOK_SECRET'], 'blink_webhook_secret');
+    }
+
+    /**
+     * Public HTTPS origin for Blink inbound webhooks (no trailing slash).
+     *
+     * @return  string
+     *
+     * @since   3.119.208
+     */
+    public static function getLogWebhookPublicRoot(): string
+    {
+        $raw = self::resolveString('BLINK_WEBHOOK_PUBLIC_BASE', 'blink_webhook_public_base', '');
+        if ($raw === '') {
+            return rtrim(Uri::root(), '/');
+        }
+
+        $raw = rtrim($raw, '/');
+        $p   = @parse_url($raw);
+        if (!\is_array($p) || empty($p['scheme']) || empty($p['host'])) {
+            return rtrim(Uri::root(), '/');
+        }
+        if (strtolower((string) $p['scheme']) !== 'https') {
+            return rtrim(Uri::root(), '/');
+        }
+
+        $host = (string) $p['host'];
+        if ($host === '' || preg_match('/[<>\s]/u', $host)) {
+            return rtrim(Uri::root(), '/');
+        }
+
+        $root = 'https://' . $host;
+        if (!empty($p['port']) && (int) $p['port'] > 0 && (int) $p['port'] !== 443) {
+            $root .= ':' . (int) $p['port'];
+        }
+        if (!empty($p['path']) && $p['path'] !== '/') {
+            $root .= rtrim((string) $p['path'], '/');
+        }
+
+        return $root;
+    }
+
+    /**
+     * Full POST URL for Blink log.created webhook subscription.
+     *
+     * @return  string
+     *
+     * @since   3.119.208
+     */
+    public static function getLogWebhookPublicUrl(): string
+    {
+        return self::getLogWebhookPublicRoot()
+            . '/index.php?option=com_ordenproduccion&controller=blink&task=logWebhook&format=raw';
+    }
+
+    /**
      * Truncate Pay Bi title (max 100 chars).
      *
      * @param   string  $title
@@ -209,6 +275,8 @@ class BlinkGatewayConfigHelper
      *   clave_set: bool,
      *   paybi_key_set: bool,
      *   social_network_code: string,
+     *   webhook_secret_set: bool,
+     *   webhook_url: string,
      *   credentials_configured: bool,
      *   configured: bool
      * }
@@ -221,6 +289,7 @@ class BlinkGatewayConfigHelper
         $clave   = self::getPayBiClave();
         $payBiKey = self::getPayBiKey();
         $socialCode = self::getSocialNetworkCode();
+        $webhookSecret = self::getWebhookSecret();
         $enabled = self::isEnabled();
 
         $credentialsConfigured = $baseUrl !== ''
@@ -238,6 +307,8 @@ class BlinkGatewayConfigHelper
             'paybi_key_set'          => $payBiKey !== '',
             'social_network_code'    => $socialCode !== '' ? $socialCode : self::DEFAULT_SOCIAL_NETWORK_CODE,
             'social_network_label'   => self::DEFAULT_SOCIAL_NETWORK_LABEL,
+            'webhook_secret_set'     => $webhookSecret !== '',
+            'webhook_url'            => self::getLogWebhookPublicUrl(),
             'credentials_configured' => $credentialsConfigured,
             'configured'             => $enabled && $credentialsConfigured,
         ];

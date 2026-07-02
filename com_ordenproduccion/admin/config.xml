@@ -461,5 +461,23 @@
             size="40"
             filter="string"
         />
+        <field
+            name="blink_webhook_public_base"
+            type="url"
+            label="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_PUBLIC_BASE_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_PUBLIC_BASE_DESC"
+            default=""
+            size="80"
+            filter="url"
+        />
+        <field
+            name="blink_webhook_secret"
+            type="password"
+            label="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_SECRET_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_SECRET_DESC"
+            default=""
+            size="50"
+            filter="string"
+        />
     </fieldset>
 </config>

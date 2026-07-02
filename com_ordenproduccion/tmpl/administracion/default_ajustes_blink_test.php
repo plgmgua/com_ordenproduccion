@@ -28,11 +28,14 @@ $blinkUsuario              = (string) ($snap['usuario'] ?? '');
 $blinkHasApiKey            = (bool) ($snap['api_key_set'] ?? false);
 $blinkHasClave             = (bool) ($snap['clave_set'] ?? false);
 $blinkHasPayBiKey          = (bool) ($snap['paybi_key_set'] ?? false);
+$blinkHasWebhookSecret     = (bool) ($snap['webhook_secret_set'] ?? false);
+$blinkWebhookPublicUrl     = (string) ($snap['webhook_url'] ?? BlinkGatewayConfigHelper::getLogWebhookPublicUrl());
 $blinkSocialNetworkCode    = (string) ($snap['social_network_code'] ?? BlinkGatewayConfigHelper::DEFAULT_SOCIAL_NETWORK_CODE);
 $blinkHealthUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkHealth&format=json', false);
 $blinkLoginUrl   = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkTestLogin&format=json', false);
 $blinkPaymentUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkCreatePaymentLink&format=json', false);
 $blinkLogsUrl    = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkGetExchangeLogs&format=json', false);
+$blinkWebhookUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkSubscribeWebhook&format=json', false);
 $blinkConfigUrl  = $user->authorise('core.admin')
     ? Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion')
     : '';
@@ -116,6 +119,20 @@ $blinkInstallmentChoices = [
                     <dd class="col-sm-8">
                         <code><?php echo htmlspecialchars($blinkSocialNetworkCode); ?></code>
                         <span class="text-muted small"> (<?php echo htmlspecialchars(BlinkGatewayConfigHelper::DEFAULT_SOCIAL_NETWORK_LABEL); ?>)</span>
+                    </dd>
+
+                    <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_SECRET_LABEL'); ?></dt>
+                    <dd class="col-sm-8">
+                        <?php if ($blinkHasWebhookSecret) : ?>
+                            <span class="badge bg-success"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_SET'); ?></span>
+                        <?php else : ?>
+                            <span class="badge bg-warning text-dark"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_MISSING'); ?></span>
+                        <?php endif; ?>
+                    </dd>
+
+                    <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_URL_LABEL'); ?></dt>
+                    <dd class="col-sm-8">
+                        <code class="small user-select-all"><?php echo htmlspecialchars($blinkWebhookPublicUrl); ?></code>
                     </dd>
                 </dl>
 
@@ -218,6 +235,17 @@ $blinkInstallmentChoices = [
 
                 <hr class="my-4">
 
+                <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION'); ?></h3>
+                <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION_DESC'); ?></p>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button type="button" class="btn btn-warning btn-sm" id="btn-blink-subscribe-webhook" data-url="<?php echo htmlspecialchars($blinkWebhookUrl); ?>" <?php echo ($blinkCredentialsConfigured && $blinkHasWebhookSecret) ? '' : 'disabled'; ?>>
+                        <i class="fas fa-bell"></i>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_SUBSCRIBE_WEBHOOK_BTN'); ?>
+                    </button>
+                </div>
+
+                <hr class="my-4">
+
                 <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_SECTION'); ?></h3>
                 <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_DESC'); ?></p>
                 <form id="blink-fetch-logs-form" class="row g-3 mb-3">
@@ -276,6 +304,19 @@ $blinkInstallmentChoices = [
                     <pre class="small mb-0" style="white-space: pre-wrap;">curl -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
   "<?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/logs?referenceId=OP-12345"</pre>
                 </div>
+                <div class="border rounded p-3 bg-light mt-3">
+                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_WEBHOOK_TITLE'); ?></h3>
+                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_WEBHOOK_DESC'); ?></p>
+                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/webhooks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
+  -d '{
+    "url": "<?php echo htmlspecialchars($blinkWebhookPublicUrl); ?>",
+    "secret": "YOUR_BLINK_WEBHOOK_SECRET",
+    "events": ["log.created"],
+    "active": true
+  }'</pre>
+                </div>
             </div>
         </div>
     </div>
@@ -287,6 +328,7 @@ $blinkInstallmentChoices = [
     var runningText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_RUNNING')); ?>;
     var networkErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_NETWORK')); ?>;
     var linkCopiedText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_LINK_COPIED')); ?>;
+    var webhookConfirmText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SUBSCRIBE_CONFIRM')); ?>;
     var resultBox = document.getElementById('blink-test-result');
     var alertBox = document.getElementById('blink-test-alert');
     var jsonBox = document.getElementById('blink-test-json');
@@ -522,6 +564,16 @@ $blinkInstallmentChoices = [
                     logsBtn.disabled = false;
                     logsBtn.innerHTML = origHtml;
                 });
+        });
+    }
+
+    var subscribeBtn = document.getElementById('btn-blink-subscribe-webhook');
+    if (subscribeBtn) {
+        subscribeBtn.addEventListener('click', function () {
+            if (!window.confirm(webhookConfirmText)) {
+                return;
+            }
+            runBlinkTest(subscribeBtn.getAttribute('data-url'), subscribeBtn);
         });
     }
 })();
