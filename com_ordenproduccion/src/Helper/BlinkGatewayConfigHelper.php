@@ -37,6 +37,9 @@ class BlinkGatewayConfigHelper
 
     public const DEFAULT_SOCIAL_NETWORK_LABEL = 'Botón de Pago';
 
+    /** Clean public path installed to {site}/api/blink/log-webhook/ (Blink rejects index.php?query URLs). */
+    public const LOG_WEBHOOK_PUBLIC_PATH = '/api/blink/log-webhook';
+
     /**
      * @return  Registry
      */
@@ -220,6 +223,18 @@ class BlinkGatewayConfigHelper
             return $fullUrl;
         }
 
+        return self::getLogWebhookPublicRoot() . self::LOG_WEBHOOK_PUBLIC_PATH;
+    }
+
+    /**
+     * Legacy Joomla SEF-less route (still handled by BlinkController; not accepted by Blink subscribe API).
+     *
+     * @return  string
+     *
+     * @since   3.119.215
+     */
+    public static function getLegacyLogWebhookJoomlaUrl(): string
+    {
         return self::getLogWebhookPublicRoot()
             . '/index.php?option=com_ordenproduccion&controller=blink&task=logWebhook&format=raw';
     }

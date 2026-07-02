@@ -404,6 +404,53 @@ function syncSiteVersionFile(InstallerAdapter $parent): bool
 }
 
 /**
+ * Install clean Blink webhook entry point at {JoomlaRoot}/api/blink/log-webhook/index.php.
+ *
+ * @return  bool
+ *
+ * @since   3.119.215
+ */
+function ordenproduccionInstallBlinkWebhookEndpoint(): bool
+{
+    $src = __DIR__ . '/public/api/blink/log-webhook/index.php';
+
+    if (!\is_file($src) || !\defined('JPATH_ROOT')) {
+        return true;
+    }
+
+    $destDir = JPATH_ROOT . '/api/blink/log-webhook';
+    $dest    = $destDir . '/index.php';
+
+    if (!\is_dir($destDir) && !@mkdir($destDir, 0755, true) && !\is_dir($destDir)) {
+        try {
+            Log::add('com_ordenproduccion: could not create ' . $destDir, Log::WARNING, 'com_ordenproduccion');
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        return false;
+    }
+
+    if (!@copy($src, $dest)) {
+        try {
+            Log::add('com_ordenproduccion: Blink webhook endpoint copy failed to ' . $dest, Log::WARNING, 'com_ordenproduccion');
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        return false;
+    }
+
+    try {
+        Log::add('com_ordenproduccion: installed Blink webhook endpoint at ' . $dest, Log::INFO, 'com_ordenproduccion');
+    } catch (\Exception $e) {
+        // ignore
+    }
+
+    return true;
+}
+
+/**
  * Script run on extension install.
  *
  * @param   InstallerAdapter  $parent  The installer adapter
@@ -417,6 +464,7 @@ function com_install($parent)
     ordenproduccionInstallBundledOpAdmlangPlugin();
     ordenproduccionInstallBundledOpImpersonatePlugin();
     ordenproduccionInstallBundledOpfelTaskPlugin();
+    ordenproduccionInstallBlinkWebhookEndpoint();
     ensureCotizacionMenuItem();
     return true;
 }
@@ -435,6 +483,7 @@ function com_update($parent)
     ordenproduccionInstallBundledOpAdmlangPlugin();
     ordenproduccionInstallBundledOpImpersonatePlugin();
     ordenproduccionInstallBundledOpfelTaskPlugin();
+    ordenproduccionInstallBlinkWebhookEndpoint();
     ensureCotizacionMenuItem();
     return true;
 }

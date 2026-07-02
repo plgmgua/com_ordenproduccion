@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.215-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink webhook subscribe:** Use clean URL `/api/blink/log-webhook` instead of `index.php?…` (Blink rejects query-string webhook URLs).
+
+### Added
+- **Public endpoint:** Installer copies `api/blink/log-webhook/index.php` to Joomla root on install/update.
+- **Pre-flight validation:** Clear error when webhook URL still contains `index.php` or query parameters.
+
 ## [3.119.214-STABLE] - 2026-05-19
 
 ### Fixed

@@ -369,6 +369,15 @@ class BlinkGatewayService
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_URL_MISSING')];
         }
 
+        $urlIssue = self::explainBlinkWebhookUrlIssue($url);
+        if ($urlIssue !== null) {
+            return [
+                'success'     => false,
+                'message'     => $urlIssue,
+                'webhook_url' => $url,
+            ];
+        }
+
         $payload = [
             'url'    => $url,
             'secret' => $secret,
@@ -686,5 +695,33 @@ class BlinkGatewayService
         }
 
         return $out;
+    }
+
+    /**
+     * Blink gateway rejects webhook URLs with query strings, index.php, etc.
+     *
+     * @param   string  $url
+     *
+     * @return  string|null  Localized error message, or null when acceptable
+     *
+     * @since   3.119.215
+     */
+    private static function explainBlinkWebhookUrlIssue(string $url): ?string
+    {
+        $lower = strtolower($url);
+
+        if (
+            str_contains($lower, 'index.php')
+            || str_contains($url, '?')
+            || str_contains($url, '&')
+            || str_contains($url, '=')
+        ) {
+            return Text::sprintf(
+                'COM_ORDENPRODUCCION_BLINK_WEBHOOK_URL_DISALLOWED',
+                BlinkGatewayConfigHelper::getLogWebhookPublicUrl()
+            );
+        }
+
+        return null;
     }
 }
