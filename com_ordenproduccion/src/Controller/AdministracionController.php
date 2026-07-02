@@ -3066,8 +3066,74 @@ class AdministracionController extends BaseController
      */
     public function blinkSubscribeWebhook(): void
     {
+        $webhookUrl = trim((string) Factory::getApplication()->input->post->getString('webhook_url', ''));
+
+        $this->runBlinkGatewayJsonTask(function () use ($webhookUrl) {
+            return (new BlinkGatewayService())->subscribeLogWebhook($webhookUrl !== '' ? $webhookUrl : null);
+        });
+    }
+
+    /**
+     * List webhooks registered on the Blink gateway (JSON; Ajustes → Blink payment test).
+     *
+     * @return  void
+     *
+     * @since   3.119.209
+     */
+    public function blinkListWebhooks(): void
+    {
         $this->runBlinkGatewayJsonTask(static function () {
-            return (new BlinkGatewayService())->subscribeLogWebhook();
+            return (new BlinkGatewayService())->listWebhooks();
+        });
+    }
+
+    /**
+     * List log entries received via Blink log.created webhook (JSON).
+     *
+     * @return  void
+     *
+     * @since   3.119.209
+     */
+    public function blinkListReceivedWebhookLogs(): void
+    {
+        $this->runBlinkGatewayJsonTask(static function () {
+            $input  = Factory::getApplication()->input;
+            $limit  = max(1, min(200, $input->getInt('limit', \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkWebhookLogHelper::PAGE_SIZE)));
+            $offset = max(0, $input->getInt('offset', 0));
+            $total  = \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkWebhookLogHelper::countEntries();
+            $rows   = \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkWebhookLogHelper::getRecentEntries($limit, $offset);
+
+            $entries = [];
+            foreach ($rows as $row) {
+                $entries[] = [
+                    'id'                => (int) ($row->id ?? 0),
+                    'received'          => (string) ($row->received ?? ''),
+                    'blink_log_id'      => (string) ($row->blink_log_id ?? ''),
+                    'request_id'        => (string) ($row->request_id ?? ''),
+                    'reference_id'      => (string) ($row->reference_id ?? ''),
+                    'gateway_operation' => (string) ($row->gateway_operation ?? ''),
+                    'event_type'        => (string) ($row->event_type ?? ''),
+                    'log_data'          => json_decode((string) ($row->log_data_json ?? ''), true),
+                ];
+            }
+
+            if ($total === 0 && !\Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkWebhookLogHelper::tableExists(
+                Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class)
+            )) {
+                return [
+                    'success' => false,
+                    'message' => Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_LOGS_TABLE_MISSING'),
+                ];
+            }
+
+            return [
+                'success' => true,
+                'message' => Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_LOGS_LIST_OK'),
+                'entries' => $entries,
+                'total'   => $total,
+                'limit'   => $limit,
+                'offset'  => $offset,
+            ];
         });
     }
 
@@ -3135,6 +3201,16 @@ class AdministracionController extends BaseController
             }
             if (!empty($result['webhook_url']) && \is_string($result['webhook_url'])) {
                 $payload['webhook_url'] = $result['webhook_url'];
+            }
+            if (isset($result['webhooks']) && \is_array($result['webhooks'])) {
+                $payload['webhooks'] = $result['webhooks'];
+                $payload['webhooks_total'] = (int) ($result['total'] ?? \count($result['webhooks']));
+            }
+            if (isset($result['limit'])) {
+                $payload['limit'] = (int) $result['limit'];
+            }
+            if (isset($result['offset'])) {
+                $payload['offset'] = (int) $result['offset'];
             }
             if (!empty($result['api_key_hint']) && \is_array($result['api_key_hint'])) {
                 $payload['api_key_hint'] = $result['api_key_hint'];

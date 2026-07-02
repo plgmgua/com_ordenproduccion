@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.209-STABLE] - 2026-05-19
+
+### Added
+- **Blink test UI:** Webhook setup form (URL, events, subscribe), gateway webhooks table (GET /api/v1/gateway/webhooks), and table of locally received `log.created` payloads.
+
 ## [3.119.208-STABLE] - 2026-05-19
 
 ### Added

@@ -21,6 +21,8 @@ use Joomla\Database\DatabaseInterface;
  */
 class BlinkWebhookLogHelper
 {
+    public const PAGE_SIZE = 25;
+
     /**
      * @param   \Joomla\Database\DatabaseInterface  $db
      *
@@ -92,6 +94,70 @@ class BlinkWebhookLogHelper
             return (int) ($row->id ?? 0);
         } catch (\Throwable $e) {
             return 0;
+        }
+    }
+
+    /**
+     * @return  int
+     */
+    public static function countEntries(): int
+    {
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+
+        if (!self::tableExists($db)) {
+            return 0;
+        }
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__ordenproduccion_blink_exchange_logs'))
+            );
+
+            return (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * @param   int  $limit
+     * @param   int  $offset
+     *
+     * @return  array<int,object>
+     */
+    public static function getRecentEntries(int $limit = self::PAGE_SIZE, int $offset = 0): array
+    {
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        if (!self::tableExists($db)) {
+            return [];
+        }
+
+        $limit  = max(1, min(200, $limit));
+        $offset = max(0, $offset);
+
+        try {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_blink_exchange_logs'))
+                    ->order($db->quoteName('received') . ' DESC')
+                    ->setLimit($limit, $offset)
+            );
+
+            return $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
         }
     }
 

@@ -280,6 +280,69 @@ class BlinkGatewayService
     }
 
     /**
+     * List webhooks registered on the Blink gateway (GET /api/v1/gateway/webhooks).
+     *
+     * @return  array{success: bool, message?: string, http_code?: int, webhooks?: array, total?: int, raw?: mixed}
+     *
+     * @since   3.119.209
+     */
+    public function listWebhooks(): array
+    {
+        BlinkGatewayConfigHelper::loadLanguage();
+        $cfg = BlinkGatewayConfigHelper::getSnapshot();
+        if (empty($cfg['credentials_configured'])) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_NOT_CONFIGURED')];
+        }
+
+        try {
+            $http     = HttpFactory::getHttp();
+            $response = $http->get(
+                $cfg['base_url'] . '/api/v1/gateway/webhooks',
+                [
+                    'Accept'    => 'application/json',
+                    'X-API-Key' => $cfg['api_key'],
+                ],
+                30
+            );
+
+            $code = (int) ($response->code ?? 0);
+            $body = (string) ($response->body ?? '');
+            $json = json_decode($body, true);
+
+            if ($code === 200 && \is_array($json) && !empty($json['success'])) {
+                $webhooks = [];
+                if (!empty($json['data']['webhooks']) && \is_array($json['data']['webhooks'])) {
+                    $webhooks = $json['data']['webhooks'];
+                } elseif (!empty($json['data']) && \is_array($json['data']) && array_is_list($json['data'])) {
+                    $webhooks = $json['data'];
+                } elseif (!empty($json['webhooks']) && \is_array($json['webhooks'])) {
+                    $webhooks = $json['webhooks'];
+                }
+
+                return [
+                    'success'   => true,
+                    'message'   => Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOKS_LIST_OK'),
+                    'http_code' => $code,
+                    'webhooks'  => $webhooks,
+                    'total'     => \count($webhooks),
+                    'raw'       => self::redactResponse($json),
+                ];
+            }
+
+            return [
+                'success'   => false,
+                'message'   => $this->extractErrorMessage($code, $json, $body),
+                'http_code' => $code,
+                'webhooks'  => [],
+                'total'     => 0,
+                'raw'       => self::redactResponse(\is_array($json) ? $json : ['body' => $body]),
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'http_code' => 0, 'webhooks' => [], 'total' => 0];
+        }
+    }
+
+    /**
      * Subscribe log.created webhook on the Blink gateway (POST /api/v1/gateway/webhooks).
      *
      * @param   string|null  $webhookUrl  Override public URL; defaults to {@see BlinkGatewayConfigHelper::getLogWebhookPublicUrl()}.

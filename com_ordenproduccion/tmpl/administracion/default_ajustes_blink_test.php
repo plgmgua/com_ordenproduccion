@@ -9,6 +9,7 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkWebhookLogHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -36,6 +37,11 @@ $blinkLoginUrl   = Route::_('index.php?option=com_ordenproduccion&task=administr
 $blinkPaymentUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkCreatePaymentLink&format=json', false);
 $blinkLogsUrl    = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkGetExchangeLogs&format=json', false);
 $blinkWebhookUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkSubscribeWebhook&format=json', false);
+$blinkWebhooksListUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkListWebhooks&format=json', false);
+$blinkReceivedLogsUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.blinkListReceivedWebhookLogs&format=json', false);
+$blinkReceivedLogsTableExists = BlinkWebhookLogHelper::tableExists(Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class));
+$blinkReceivedLogsInitial = $blinkReceivedLogsTableExists ? BlinkWebhookLogHelper::getRecentEntries(BlinkWebhookLogHelper::PAGE_SIZE) : [];
+$blinkReceivedLogsTotal = $blinkReceivedLogsTableExists ? BlinkWebhookLogHelper::countEntries() : 0;
 $blinkConfigUrl  = $user->authorise('core.admin')
     ? Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion')
     : '';
@@ -235,17 +241,6 @@ $blinkInstallmentChoices = [
 
                 <hr class="my-4">
 
-                <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION'); ?></h3>
-                <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION_DESC'); ?></p>
-                <div class="d-flex flex-wrap gap-2 mb-3">
-                    <button type="button" class="btn btn-warning btn-sm" id="btn-blink-subscribe-webhook" data-url="<?php echo htmlspecialchars($blinkWebhookUrl); ?>" <?php echo ($blinkCredentialsConfigured && $blinkHasWebhookSecret) ? '' : 'disabled'; ?>>
-                        <i class="fas fa-bell"></i>
-                        <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_SUBSCRIBE_WEBHOOK_BTN'); ?>
-                    </button>
-                </div>
-
-                <hr class="my-4">
-
                 <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_SECTION'); ?></h3>
                 <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_DESC'); ?></p>
                 <form id="blink-fetch-logs-form" class="row g-3 mb-3">
@@ -264,6 +259,123 @@ $blinkInstallmentChoices = [
                         </button>
                     </div>
                 </form>
+
+                <hr class="my-4">
+
+                <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION'); ?></h3>
+                <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION_DESC'); ?></p>
+
+                <?php if (!$blinkHasWebhookSecret) : ?>
+                    <div class="alert alert-warning mb-3">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_MISSING'); ?>
+                        <?php if ($blinkConfigUrl !== '') : ?>
+                            <a href="<?php echo $blinkConfigUrl; ?>" class="alert-link"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_OPEN_CONFIG'); ?></a>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <form id="blink-webhook-form" class="row g-3 mb-3">
+                    <div class="col-12">
+                        <label for="blink-webhook-url" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_URL_LABEL'); ?></label>
+                        <input type="url" class="form-control form-control-sm font-monospace" id="blink-webhook-url" name="webhook_url" value="<?php echo htmlspecialchars($blinkWebhookPublicUrl); ?>" maxlength="2048" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                        <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_URL_HINT'); ?></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="blink-webhook-events" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_EVENTS_LABEL'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-webhook-events" value="log.created" readonly disabled>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="blink-webhook-active" checked disabled>
+                            <label class="form-check-label" for="blink-webhook-active"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_ACTIVE_LABEL'); ?></label>
+                        </div>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-warning btn-sm" id="btn-blink-subscribe-webhook" data-url="<?php echo htmlspecialchars($blinkWebhookUrl); ?>" <?php echo ($blinkCredentialsConfigured && $blinkHasWebhookSecret) ? '' : 'disabled'; ?>>
+                            <i class="fas fa-bell"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_SUBSCRIBE_WEBHOOK_BTN'); ?>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-blink-refresh-webhooks" data-url="<?php echo htmlspecialchars($blinkWebhooksListUrl); ?>" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                            <i class="fas fa-sync-alt"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_REFRESH_WEBHOOKS_BTN'); ?>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-blink-refresh-received-logs" data-url="<?php echo htmlspecialchars($blinkReceivedLogsUrl); ?>" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                            <i class="fas fa-sync-alt"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_REFRESH_RECEIVED_LOGS_BTN'); ?>
+                        </button>
+                    </div>
+                </form>
+
+                <h4 class="h6 mt-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_GATEWAY_WEBHOOKS_TABLE_TITLE'); ?></h4>
+                <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_GATEWAY_WEBHOOKS_TABLE_DESC'); ?></p>
+                <div id="blink-gateway-webhooks-empty" class="text-muted small mb-3 d-none"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_GATEWAY_WEBHOOKS_EMPTY'); ?></div>
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-striped table-bordered align-middle mb-0" id="blink-gateway-webhooks-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_COL_URL'); ?></th>
+                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_COL_EVENTS'); ?></th>
+                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_COL_ACTIVE'); ?></th>
+                                <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_COL_ID'); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody id="blink-gateway-webhooks-body">
+                            <tr id="blink-gateway-webhooks-placeholder">
+                                <td colspan="4" class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_GATEWAY_WEBHOOKS_LOAD_HINT'); ?></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_TABLE_TITLE'); ?></h4>
+                <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_TABLE_DESC'); ?></p>
+                <?php if (!$blinkReceivedLogsTableExists) : ?>
+                    <div class="alert alert-warning"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_LOGS_TABLE_MISSING'); ?></div>
+                <?php else : ?>
+                    <p class="small text-muted mb-2" id="blink-received-logs-count">
+                        <?php echo Text::sprintf('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_COUNT', (int) $blinkReceivedLogsTotal); ?>
+                    </p>
+                    <div id="blink-received-logs-empty" class="text-muted small mb-3<?php echo $blinkReceivedLogsTotal > 0 ? ' d-none' : ''; ?>">
+                        <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_EMPTY'); ?>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-bordered align-middle mb-0" id="blink-received-logs-table">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COL_DATE'); ?></th>
+                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COL_REFERENCE'); ?></th>
+                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_REQUEST_ID_LABEL'); ?></th>
+                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_COL_OPERATION'); ?></th>
+                                    <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_COL_DETAIL'); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody id="blink-received-logs-body">
+                                <?php if ($blinkReceivedLogsTotal === 0) : ?>
+                                    <tr class="blink-received-log-empty-row">
+                                        <td colspan="5" class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_EMPTY'); ?></td>
+                                    </tr>
+                                <?php else : ?>
+                                    <?php foreach ($blinkReceivedLogsInitial as $logRow) : ?>
+                                        <?php
+                                        $logJson = (string) ($logRow->log_data_json ?? '');
+                                        $logPreview = $logJson !== '' ? $logJson : '{}';
+                                        if (strlen($logPreview) > 120) {
+                                            $logPreview = substr($logPreview, 0, 117) . '...';
+                                        }
+                                        ?>
+                                        <tr>
+                                            <td class="text-nowrap small"><?php echo htmlspecialchars((string) ($logRow->received ?? '')); ?></td>
+                                            <td class="small"><code><?php echo htmlspecialchars((string) ($logRow->reference_id ?? '—')); ?></code></td>
+                                            <td class="small"><code><?php echo htmlspecialchars((string) ($logRow->request_id ?? '—')); ?></code></td>
+                                            <td class="small"><?php echo htmlspecialchars((string) ($logRow->gateway_operation ?? '—')); ?></td>
+                                            <td class="small"><code class="user-select-all"><?php echo htmlspecialchars($logPreview); ?></code></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <div class="col-lg-4">
@@ -317,6 +429,12 @@ $blinkInstallmentChoices = [
     "active": true
   }'</pre>
                 </div>
+                <div class="border rounded p-3 bg-light mt-3">
+                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LIST_WEBHOOKS_TITLE'); ?></h3>
+                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LIST_WEBHOOKS_DESC'); ?></p>
+                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
+  "<?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/webhooks"</pre>
+                </div>
             </div>
         </div>
     </div>
@@ -329,6 +447,11 @@ $blinkInstallmentChoices = [
     var networkErr = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_CERTIFICADOR_FACT_TEST_NETWORK')); ?>;
     var linkCopiedText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_LINK_COPIED')); ?>;
     var webhookConfirmText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SUBSCRIBE_CONFIRM')); ?>;
+    var gatewayWebhooksEmptyText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_GATEWAY_WEBHOOKS_EMPTY')); ?>;
+    var receivedLogsEmptyText = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_EMPTY')); ?>;
+    var receivedLogsCountTpl = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_COUNT')); ?>;
+    var yesText = <?php echo json_encode(Text::_('JYES')); ?>;
+    var noText = <?php echo json_encode(Text::_('JNO')); ?>;
     var resultBox = document.getElementById('blink-test-result');
     var alertBox = document.getElementById('blink-test-alert');
     var jsonBox = document.getElementById('blink-test-json');
@@ -340,6 +463,176 @@ $blinkInstallmentChoices = [
     var exchangeLogsJson = document.getElementById('blink-exchange-logs-json');
     var logsReferenceInput = document.getElementById('blink-logs-reference');
     var logsRequestIdInput = document.getElementById('blink-logs-request-id');
+    var gatewayWebhooksBody = document.getElementById('blink-gateway-webhooks-body');
+    var gatewayWebhooksEmpty = document.getElementById('blink-gateway-webhooks-empty');
+    var receivedLogsBody = document.getElementById('blink-received-logs-body');
+    var receivedLogsEmpty = document.getElementById('blink-received-logs-empty');
+    var receivedLogsCount = document.getElementById('blink-received-logs-count');
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function renderGatewayWebhooks(webhooks) {
+        if (!gatewayWebhooksBody) {
+            return;
+        }
+        gatewayWebhooksBody.innerHTML = '';
+        if (!webhooks || !webhooks.length) {
+            if (gatewayWebhooksEmpty) {
+                gatewayWebhooksEmpty.classList.remove('d-none');
+            }
+            var emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="4" class="text-muted small">' + escapeHtml(gatewayWebhooksEmptyText) + '</td>';
+            gatewayWebhooksBody.appendChild(emptyRow);
+            return;
+        }
+        if (gatewayWebhooksEmpty) {
+            gatewayWebhooksEmpty.classList.add('d-none');
+        }
+        webhooks.forEach(function (hook) {
+            var events = hook.events;
+            if (Array.isArray(events)) {
+                events = events.join(', ');
+            }
+            var active = hook.active === true || hook.active === 1 || hook.active === '1';
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td class="small"><code class="user-select-all">' + escapeHtml(hook.url || '') + '</code></td>' +
+                '<td class="small">' + escapeHtml(events || '—') + '</td>' +
+                '<td class="small">' + (active ? escapeHtml(yesText) : escapeHtml(noText)) + '</td>' +
+                '<td class="small"><code>' + escapeHtml(hook.id || hook._id || '—') + '</code></td>';
+            gatewayWebhooksBody.appendChild(tr);
+        });
+    }
+
+    function renderReceivedLogs(entries, total) {
+        if (!receivedLogsBody) {
+            return;
+        }
+        receivedLogsBody.innerHTML = '';
+        if (receivedLogsCount && receivedLogsCountTpl) {
+            receivedLogsCount.textContent = receivedLogsCountTpl.replace('%d', String(total || 0));
+        }
+        if (!entries || !entries.length) {
+            if (receivedLogsEmpty) {
+                receivedLogsEmpty.classList.remove('d-none');
+            }
+            var emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="5" class="text-muted small">' + escapeHtml(receivedLogsEmptyText) + '</td>';
+            receivedLogsBody.appendChild(emptyRow);
+            return;
+        }
+        if (receivedLogsEmpty) {
+            receivedLogsEmpty.classList.add('d-none');
+        }
+        entries.forEach(function (entry) {
+            var preview = '{}';
+            if (entry.log_data) {
+                preview = JSON.stringify(entry.log_data);
+            }
+            if (preview.length > 120) {
+                preview = preview.substring(0, 117) + '...';
+            }
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td class="text-nowrap small">' + escapeHtml(entry.received || '') + '</td>' +
+                '<td class="small"><code>' + escapeHtml(entry.reference_id || '—') + '</code></td>' +
+                '<td class="small"><code>' + escapeHtml(entry.request_id || '—') + '</code></td>' +
+                '<td class="small">' + escapeHtml(entry.gateway_operation || '—') + '</td>' +
+                '<td class="small"><code class="user-select-all">' + escapeHtml(preview) + '</code></td>';
+            receivedLogsBody.appendChild(tr);
+        });
+    }
+
+    function fetchBlinkJson(url, options) {
+        options = options || {};
+        var method = options.method || 'GET';
+        var body = options.body || null;
+        var params = new URLSearchParams();
+        params.set(token, '1');
+        var fetchUrl = url;
+        if (method === 'GET') {
+            fetchUrl += (url.indexOf('?') >= 0 ? '&' : '?') + params.toString();
+        }
+        return fetch(fetchUrl, {
+            method: method,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            credentials: 'same-origin',
+            body: method === 'POST' ? body : null
+        }).then(function (response) {
+            return response.json();
+        });
+    }
+
+    function loadGatewayWebhooks(button) {
+        var url = button ? button.getAttribute('data-url') : '';
+        if (!url) {
+            return;
+        }
+        var origHtml = button ? button.innerHTML : '';
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + runningText;
+        }
+        fetchBlinkJson(url, { method: 'GET' })
+            .then(function (data) {
+                if (data.success && data.data && data.data.webhooks) {
+                    renderGatewayWebhooks(data.data.webhooks);
+                } else if (data.success && data.data && data.data.entries) {
+                    renderGatewayWebhooks(data.data.entries);
+                } else {
+                    renderGatewayWebhooks([]);
+                    if (!data.success && alertBox && resultBox) {
+                        resultBox.classList.remove('d-none');
+                        alertBox.className = 'alert alert-warning';
+                        alertBox.textContent = data.message || networkErr;
+                    }
+                }
+            })
+            .catch(function () {
+                renderGatewayWebhooks([]);
+            })
+            .finally(function () {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = origHtml;
+                }
+            });
+    }
+
+    function loadReceivedLogs(button) {
+        var url = button ? button.getAttribute('data-url') : '';
+        if (!url || !receivedLogsBody) {
+            return;
+        }
+        var origHtml = button ? button.innerHTML : '';
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + runningText;
+        }
+        fetchBlinkJson(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'limit=25', { method: 'GET' })
+            .then(function (data) {
+                if (data.success && data.data) {
+                    renderReceivedLogs(data.data.entries || [], data.data.total || 0);
+                }
+            })
+            .catch(function () {
+            })
+            .finally(function () {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = origHtml;
+                }
+            });
+    }
 
     function renderExchangeLogs(data) {
         var logs = (data && data.data && data.data.exchange_logs) ? data.data.exchange_logs : null;
@@ -568,12 +861,75 @@ $blinkInstallmentChoices = [
     }
 
     var subscribeBtn = document.getElementById('btn-blink-subscribe-webhook');
-    if (subscribeBtn) {
-        subscribeBtn.addEventListener('click', function () {
+    var webhookForm = document.getElementById('blink-webhook-form');
+    if (webhookForm && subscribeBtn) {
+        webhookForm.addEventListener('submit', function (event) {
+            event.preventDefault();
             if (!window.confirm(webhookConfirmText)) {
                 return;
             }
-            runBlinkTest(subscribeBtn.getAttribute('data-url'), subscribeBtn);
+            var url = subscribeBtn.getAttribute('data-url');
+            if (!url) {
+                return;
+            }
+            var origHtml = subscribeBtn.innerHTML;
+            subscribeBtn.disabled = true;
+            subscribeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + runningText;
+            resultBox.classList.remove('d-none');
+            alertBox.className = 'alert alert-info';
+            alertBox.textContent = runningText;
+
+            var body = new URLSearchParams();
+            var webhookUrlInput = document.getElementById('blink-webhook-url');
+            if (webhookUrlInput && webhookUrlInput.value) {
+                body.set('webhook_url', webhookUrlInput.value);
+            }
+            body.set(token, '1');
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                credentials: 'same-origin',
+                body: body.toString()
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    showBlinkResult(data);
+                    if (data.success) {
+                        var refreshBtn = document.getElementById('btn-blink-refresh-webhooks');
+                        if (refreshBtn) {
+                            loadGatewayWebhooks(refreshBtn);
+                        }
+                    }
+                })
+                .catch(function (err) {
+                    alertBox.className = 'alert alert-danger';
+                    alertBox.textContent = (err && err.message) ? err.message : networkErr;
+                })
+                .finally(function () {
+                    subscribeBtn.disabled = false;
+                    subscribeBtn.innerHTML = origHtml;
+                });
+        });
+    }
+
+    var refreshWebhooksBtn = document.getElementById('btn-blink-refresh-webhooks');
+    if (refreshWebhooksBtn) {
+        refreshWebhooksBtn.addEventListener('click', function () {
+            loadGatewayWebhooks(refreshWebhooksBtn);
+        });
+        if (<?php echo $blinkCredentialsConfigured ? 'true' : 'false'; ?>) {
+            loadGatewayWebhooks(refreshWebhooksBtn);
+        }
+    }
+
+    var refreshReceivedBtn = document.getElementById('btn-blink-refresh-received-logs');
+    if (refreshReceivedBtn) {
+        refreshReceivedBtn.addEventListener('click', function () {
+            loadReceivedLogs(refreshReceivedBtn);
         });
     }
 })();
