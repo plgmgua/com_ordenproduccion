@@ -28,7 +28,7 @@ $token = Session::getFormToken();
     </div>
 
     <div class="row">
-        <div class="col-lg-8">
+        <div class="col-12">
             <div class="card mb-4">
                 <div class="card-header">
                     <h3 class="card-title mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_TITLE'); ?></h3>
@@ -102,26 +102,6 @@ $token = Session::getFormToken();
                         <div id="blink-test-alert" class="alert" role="alert"></div>
                         <pre id="blink-test-json" class="bg-light border rounded p-3 small mb-0" style="max-height: 320px; overflow: auto;"></pre>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_TITLE'); ?></h4>
-                </div>
-                <div class="card-body">
-                    <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_DESC'); ?></p>
-                    <pre class="bg-light border rounded p-2 small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($this->blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/test-login \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
-  -d '{
-    "credentials": {
-      "usuario": "merchant@example.com",
-      "clave": "your-paybi-password"
-    }
-  }'</pre>
                 </div>
             </div>
         </div>

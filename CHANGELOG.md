@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.212-STABLE] - 2026-05-19
+
+### Removed
+- **Blink testing UI:** curl command examples from Ajustes Blink test tab and admin Testing view.
+
 ## [3.119.211-STABLE] - 2026-05-19
 
 ### Fixed

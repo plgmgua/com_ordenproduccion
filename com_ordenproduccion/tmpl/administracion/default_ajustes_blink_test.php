@@ -97,7 +97,7 @@ $blinkInstallmentChoices = [
         <?php endif; ?>
 
         <div class="row">
-            <div class="col-lg-8">
+            <div class="col-12">
                 <dl class="row mb-3">
                     <dt class="col-sm-4"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_ENABLED_LABEL'); ?></dt>
                     <dd class="col-sm-8">
@@ -438,65 +438,6 @@ $blinkInstallmentChoices = [
                         </button>
                     </div>
                 </form>
-            </div>
-
-            <div class="col-lg-4">
-                <div class="border rounded p-3 bg-light mb-3">
-                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_TITLE'); ?></h3>
-                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_DESC'); ?></p>
-                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/test-login \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
-  -d '{
-    "credentials": {
-      "usuario": "merchant@example.com",
-      "clave": "your-paybi-password"
-    }
-  }'</pre>
-                </div>
-                <div class="border rounded p-3 bg-light">
-                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_PAYMENTS_TITLE'); ?></h3>
-                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_TESTING_BLINK_CURL_PAYMENTS_DESC'); ?></p>
-                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/payments \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
-  -d '{
-    "credentials": {
-      "usuario": "merchant@example.com",
-      "clave": "your-paybi-password"
-    },
-    "amount": 1.00,
-    "installments": "VC00",
-    "title": "Manual test",
-    "description": "Blink payment test",
-    "referenceId": "OP-12345"
-  }'</pre>
-                </div>
-                <div class="border rounded p-3 bg-light mt-3">
-                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LOGS_TITLE'); ?></h3>
-                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LOGS_DESC'); ?></p>
-                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
-  "<?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/logs?referenceId=OP-12345"</pre>
-                </div>
-                <div class="border rounded p-3 bg-light mt-3">
-                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_WEBHOOK_TITLE'); ?></h3>
-                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_WEBHOOK_DESC'); ?></p>
-                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -X POST <?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/webhooks \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
-  -d '{
-    "url": "<?php echo htmlspecialchars($blinkWebhookPublicUrl); ?>",
-    "secret": "YOUR_BLINK_WEBHOOK_SECRET",
-    "events": ["log.created"],
-    "active": true
-  }'</pre>
-                </div>
-                <div class="border rounded p-3 bg-light mt-3">
-                    <h3 class="h6"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LIST_WEBHOOKS_TITLE'); ?></h3>
-                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_CURL_LIST_WEBHOOKS_DESC'); ?></p>
-                    <pre class="small mb-0" style="white-space: pre-wrap;">curl -H "X-API-Key: YOUR_GATEWAY_API_KEY" \
-  "<?php echo htmlspecialchars($blinkBaseUrl ?: 'http://localhost:3000'); ?>/api/v1/gateway/webhooks"</pre>
-                </div>
             </div>
         </div>
     </div>
