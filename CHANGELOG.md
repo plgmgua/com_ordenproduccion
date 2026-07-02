@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.213-STABLE] - 2026-05-19
+
+### Fixed
+- **Blink component options:** Pay Bi key, channel, and webhook fields show readable labels in Global Configuration (no raw language constants).
+- **Blink webhook form:** Clearer field labels and inline help on Ajustes → Prueba pago Blink.
+
+### Changed
+- **AdminLanguageSync:** Reloads both `com_ordenproduccion` and `com_ordenproduccion.sys` language files for com_config.
+
 ## [3.119.212-STABLE] - 2026-05-19
 
 ### Removed

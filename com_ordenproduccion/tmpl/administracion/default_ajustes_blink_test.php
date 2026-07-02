@@ -285,19 +285,23 @@ $blinkInstallmentChoices = [
                     </div>
                     <div class="col-md-6">
                         <label for="blink-webhook-public-base" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_PUBLIC_BASE_LABEL'); ?></label>
-                        <input type="url" class="form-control form-control-sm" id="blink-webhook-public-base" name="jform[blink_webhook_public_base]" value="<?php echo htmlspecialchars($blinkWebhookPublicBaseParam); ?>" maxlength="255" placeholder="https://your-public-site.example.com" <?php echo ($blinkWebhookEnvPublicBase !== false && trim((string) $blinkWebhookEnvPublicBase) !== '') ? 'readonly disabled' : ''; ?>>
+                        <input type="url" class="form-control form-control-sm" id="blink-webhook-public-base" name="jform[blink_webhook_public_base]" value="<?php echo htmlspecialchars($blinkWebhookPublicBaseParam); ?>" maxlength="255" placeholder="https://grimpsa.com" <?php echo ($blinkWebhookEnvPublicBase !== false && trim((string) $blinkWebhookEnvPublicBase) !== '') ? 'readonly disabled' : ''; ?>>
                         <?php if ($blinkWebhookEnvPublicBase !== false && trim((string) $blinkWebhookEnvPublicBase) !== '') : ?>
                             <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_ENV_PUBLIC_BASE'); ?></div>
+                        <?php else : ?>
+                            <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_PUBLIC_BASE_FORM_HELP'); ?></div>
                         <?php endif; ?>
                     </div>
                     <div class="col-md-6">
                         <label for="blink-webhook-secret" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_CONFIG_BLINK_WEBHOOK_SECRET_LABEL'); ?></label>
-                        <input type="password" class="form-control form-control-sm" id="blink-webhook-secret" name="jform[blink_webhook_secret]" value="" autocomplete="new-password" maxlength="255" placeholder="<?php echo $blinkHasWebhookSecret ? Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_KEEP_PLACEHOLDER') : ''; ?>" <?php echo ($blinkWebhookEnvSecret !== false && trim((string) $blinkWebhookEnvSecret) !== '') ? 'readonly disabled' : ''; ?>>
-                        <?php if ($blinkHasWebhookSecret) : ?>
+                        <input type="password" class="form-control form-control-sm" id="blink-webhook-secret" name="jform[blink_webhook_secret]" value="" autocomplete="new-password" maxlength="255" placeholder="<?php echo $blinkHasWebhookSecret ? Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_KEEP_PLACEHOLDER') : Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_FORM_PLACEHOLDER'); ?>" <?php echo ($blinkWebhookEnvSecret !== false && trim((string) $blinkWebhookEnvSecret) !== '') ? 'readonly disabled' : ''; ?>>
+                        <?php if ($blinkHasWebhookSecret && ($blinkWebhookEnvSecret === false || trim((string) $blinkWebhookEnvSecret) === '')) : ?>
                             <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_KEEP_HINT'); ?></div>
                         <?php endif; ?>
                         <?php if ($blinkWebhookEnvSecret !== false && trim((string) $blinkWebhookEnvSecret) !== '') : ?>
                             <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_ENV_SECRET'); ?></div>
+                        <?php else : ?>
+                            <div class="form-text"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECRET_FORM_HELP'); ?></div>
                         <?php endif; ?>
                     </div>
                     <div class="col-12 d-flex flex-wrap gap-2 align-items-center">

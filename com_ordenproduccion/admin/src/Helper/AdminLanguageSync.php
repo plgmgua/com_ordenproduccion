@@ -95,7 +95,9 @@ final class AdminLanguageSync
         $pComp = \JPATH_ADMINISTRATOR . '/components/com_ordenproduccion';
 
         // Extension folder first (full key set shipped with releases), then system folder (installer copies / overrides).
-        $lang->load('com_ordenproduccion', $pComp, null, true, false);
-        $lang->load('com_ordenproduccion', \JPATH_ADMINISTRATOR, null, true, true);
+        foreach (['com_ordenproduccion', 'com_ordenproduccion.sys'] as $extension) {
+            $lang->load($extension, $pComp, null, true, false);
+            $lang->load($extension, \JPATH_ADMINISTRATOR, null, true, true);
+        }
     }
 }
