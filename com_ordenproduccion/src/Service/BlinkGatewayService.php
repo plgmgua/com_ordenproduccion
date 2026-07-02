@@ -272,9 +272,9 @@ class BlinkGatewayService
         }
 
         $socialNetworkCode = BlinkGatewayConfigHelper::getSocialNetworkCode();
-        if ($socialNetworkCode !== '') {
-            $payload['socialNetworkCode'] = $socialNetworkCode;
-        }
+        $payload['socialNetworkCode'] = $socialNetworkCode !== ''
+            ? $socialNetworkCode
+            : BlinkGatewayConfigHelper::DEFAULT_SOCIAL_NETWORK_CODE;
 
         return $payload;
     }
@@ -505,30 +505,43 @@ class BlinkGatewayService
      */
     protected function fetchExchangeLogsForFailure(string $referenceId, string $requestId = ''): array
     {
-        $filters = [];
-        if ($requestId !== '') {
-            $filters['requestId'] = $requestId;
-        } elseif ($referenceId !== '') {
-            $filters['referenceId'] = $referenceId;
-        } else {
+        if ($requestId === '' && $referenceId === '') {
             return ['entries' => [], 'total' => 0];
         }
 
-        $filters['gatewayOperation'] = 'create-payment';
-        $filters['limit']            = min(200, max(1, (int) ($filters['limit'] ?? 50)));
+        $base = ['limit' => 50];
+        if ($requestId !== '') {
+            $base['requestId'] = $requestId;
+        } else {
+            $base['referenceId'] = $referenceId;
+        }
 
-        $logs = $this->getExchangeLogs($filters);
-        if (empty($logs['success'])) {
-            return [
-                'entries'     => [],
-                'total'       => 0,
-                'fetch_error' => (string) ($logs['message'] ?? Text::_('COM_ORDENPRODUCCION_BLINK_LOGS_FETCH_FAILED')),
-            ];
+        $attempts = [
+            $base + ['gatewayOperation' => 'create-payment'],
+            $base,
+            $base + ['success' => 'false'],
+        ];
+
+        $lastError = '';
+        foreach ($attempts as $filters) {
+            $logs = $this->getExchangeLogs($filters);
+            if (!empty($logs['success'])) {
+                $entries = \is_array($logs['entries'] ?? null) ? $logs['entries'] : [];
+                if ($entries !== []) {
+                    return [
+                        'entries' => $entries,
+                        'total'   => (int) ($logs['total'] ?? \count($entries)),
+                    ];
+                }
+            } else {
+                $lastError = (string) ($logs['message'] ?? '');
+            }
         }
 
         return [
-            'entries' => \is_array($logs['entries'] ?? null) ? $logs['entries'] : [],
-            'total'   => (int) ($logs['total'] ?? 0),
+            'entries'     => [],
+            'total'       => 0,
+            'fetch_error' => $lastError !== '' ? $lastError : Text::_('COM_ORDENPRODUCCION_BLINK_LOGS_FETCH_FAILED'),
         ];
     }
 

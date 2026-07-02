@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.210-STABLE] - 2026-05-19
+
+### Changed
+- **Blink test UI:** Move webhook section above exchange-log query (yellow bordered box), show installed component version, and warn when update 3.119.209+ is missing.
+- **Blink payments:** Always send default `socialNetworkCode` in payload; retry exchange-log fetch with alternate filters on payment failure.
+
 ## [3.119.209-STABLE] - 2026-05-19
 
 ### Added

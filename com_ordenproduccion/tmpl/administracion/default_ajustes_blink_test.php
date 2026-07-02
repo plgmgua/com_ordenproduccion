@@ -42,6 +42,15 @@ $blinkReceivedLogsUrl = Route::_('index.php?option=com_ordenproduccion&task=admi
 $blinkReceivedLogsTableExists = BlinkWebhookLogHelper::tableExists(Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class));
 $blinkReceivedLogsInitial = $blinkReceivedLogsTableExists ? BlinkWebhookLogHelper::getRecentEntries(BlinkWebhookLogHelper::PAGE_SIZE) : [];
 $blinkReceivedLogsTotal = $blinkReceivedLogsTableExists ? BlinkWebhookLogHelper::countEntries() : 0;
+$blinkComponentVersion = '';
+foreach ([JPATH_SITE . '/components/com_ordenproduccion/VERSION', JPATH_SITE . '/components/com_ordenproduccion/site/VERSION'] as $versionPath) {
+    if (is_file($versionPath)) {
+        $blinkComponentVersion = trim((string) file_get_contents($versionPath));
+        break;
+    }
+}
+$blinkVersionNumber = preg_replace('/-.*$/', '', $blinkComponentVersion);
+$blinkHasWebhookUi = $blinkVersionNumber !== '' && version_compare($blinkVersionNumber, '3.119.209', '>=');
 $blinkConfigUrl  = $user->authorise('core.admin')
     ? Route::_('index.php?option=com_config&view=component&component=com_ordenproduccion')
     : '';
@@ -65,10 +74,19 @@ $blinkInstallmentChoices = [
         <h2 class="card-title mb-0">
             <i class="fas fa-credit-card"></i>
             <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_TITLE'); ?>
+            <?php if ($blinkComponentVersion !== '') : ?>
+                <span class="badge bg-secondary ms-2"><?php echo htmlspecialchars($blinkComponentVersion); ?></span>
+            <?php endif; ?>
         </h2>
     </div>
     <div class="card-body">
         <p class="text-muted mb-4"><?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_BLINK_TEST_DESC'); ?></p>
+
+        <?php if (!$blinkHasWebhookUi) : ?>
+            <div class="alert alert-warning">
+                <?php echo Text::sprintf('COM_ORDENPRODUCCION_BLINK_WEBHOOK_UI_UPDATE_REQUIRED', $blinkComponentVersion !== '' ? $blinkComponentVersion : '?'); ?>
+            </div>
+        <?php endif; ?>
 
         <div class="row">
             <div class="col-lg-8">
@@ -241,27 +259,7 @@ $blinkInstallmentChoices = [
 
                 <hr class="my-4">
 
-                <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_SECTION'); ?></h3>
-                <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_DESC'); ?></p>
-                <form id="blink-fetch-logs-form" class="row g-3 mb-3">
-                    <div class="col-md-5">
-                        <label for="blink-logs-reference" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COL_REFERENCE'); ?></label>
-                        <input type="text" class="form-control form-control-sm" id="blink-logs-reference" name="referenceId" maxlength="100" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
-                    </div>
-                    <div class="col-md-5">
-                        <label for="blink-logs-request-id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_REQUEST_ID_LABEL'); ?></label>
-                        <input type="text" class="form-control form-control-sm" id="blink-logs-request-id" name="requestId" maxlength="64" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100" id="btn-blink-fetch-logs" data-url="<?php echo htmlspecialchars($blinkLogsUrl); ?>" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
-                            <i class="fas fa-list-alt"></i>
-                            <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_FETCH_LOGS_BTN'); ?>
-                        </button>
-                    </div>
-                </form>
-
-                <hr class="my-4">
-
+                <div id="blink-webhook-section" class="border border-warning rounded p-3 mb-0">
                 <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION'); ?></h3>
                 <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_SECTION_DESC'); ?></p>
 
@@ -310,7 +308,7 @@ $blinkInstallmentChoices = [
                 <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_GATEWAY_WEBHOOKS_TABLE_DESC'); ?></p>
                 <div id="blink-gateway-webhooks-empty" class="text-muted small mb-3 d-none"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_GATEWAY_WEBHOOKS_EMPTY'); ?></div>
                 <div class="table-responsive mb-4">
-                    <table class="table table-sm table-striped table-bordered align-middle mb-0" id="blink-gateway-webhooks-table">
+                    <table class="table table-sm table-striped table-bordered align-middle mb-0 bg-white" id="blink-gateway-webhooks-table">
                         <thead class="table-light">
                             <tr>
                                 <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_WEBHOOK_COL_URL'); ?></th>
@@ -339,7 +337,7 @@ $blinkInstallmentChoices = [
                         <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_RECEIVED_LOGS_EMPTY'); ?>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-sm table-striped table-bordered align-middle mb-0" id="blink-received-logs-table">
+                        <table class="table table-sm table-striped table-bordered align-middle mb-0 bg-white" id="blink-received-logs-table">
                             <thead class="table-light">
                                 <tr>
                                     <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COL_DATE'); ?></th>
@@ -376,6 +374,28 @@ $blinkInstallmentChoices = [
                         </table>
                     </div>
                 <?php endif; ?>
+                </div>
+
+                <hr class="my-4">
+
+                <h3 class="h5 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_SECTION'); ?></h3>
+                <p class="text-muted small mb-3"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_EXCHANGE_LOGS_QUERY_DESC'); ?></p>
+                <form id="blink-fetch-logs-form" class="row g-3 mb-3">
+                    <div class="col-md-5">
+                        <label for="blink-logs-reference" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_COL_REFERENCE'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-logs-reference" name="referenceId" maxlength="100" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="blink-logs-request-id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_BLINK_REQUEST_ID_LABEL'); ?></label>
+                        <input type="text" class="form-control form-control-sm" id="blink-logs-request-id" name="requestId" maxlength="64" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100" id="btn-blink-fetch-logs" data-url="<?php echo htmlspecialchars($blinkLogsUrl); ?>" <?php echo $blinkCredentialsConfigured ? '' : 'disabled'; ?>>
+                            <i class="fas fa-list-alt"></i>
+                            <?php echo Text::_('COM_ORDENPRODUCCION_BLINK_FETCH_LOGS_BTN'); ?>
+                        </button>
+                    </div>
+                </form>
             </div>
 
             <div class="col-lg-4">
@@ -666,6 +686,9 @@ $blinkInstallmentChoices = [
         var msg = data.message || (ok ? 'OK' : 'Error');
         if (!ok && data.data && data.data.exchange_total) {
             msg += ' (' + data.data.exchange_total + ' log entries)';
+        }
+        if (!ok && data.data && data.data.exchange_error) {
+            msg += ' — ' + data.data.exchange_error;
         }
         alertBox.textContent = msg;
         jsonBox.textContent = JSON.stringify(data, null, 2);
