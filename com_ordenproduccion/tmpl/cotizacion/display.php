@@ -162,9 +162,21 @@ $blinkPayReference = (string) ($blinkPaymentLinkState['reference'] ?? '');
 $blinkPayTitle = (string) ($blinkPaymentLinkState['title'] ?? '');
 $blinkPayMonto = round((float) ($blinkPaymentLinkState['monto'] ?? ($quotation->total_amount ?? 0)), 2);
 $blinkPayCuotasMeses = isset($blinkPaymentLinkState['cuotas_meses']) ? (int) $blinkPaymentLinkState['cuotas_meses'] : 0;
-$blinkPayCuotasLabel = $blinkPayCuotasMeses > 0
-    ? \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::formatCuotasLabelHuman($blinkPayCuotasMeses)
-    : '';
+if ($blinkPayCuotasMeses < 1) {
+    $blinkPayVc = trim((string) ($blinkPaymentLinkState['installments_vc'] ?? ''));
+    if ($blinkPayVc !== '') {
+        $blinkPayCuotasMeses = \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::installmentCodeToMeses($blinkPayVc);
+    }
+}
+$blinkPayCuotasLabel = '';
+if ($blinkPayCuotasMeses > 0) {
+    if ($blinkPayCuotasMeses <= 1) {
+        $blinkPayCuotasLabel = $l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_CONTADO', 'Single payment', 'Contado');
+    } else {
+        $blinkPayCuotasFmt = $l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_N', '%d installments', '%d cuotas');
+        $blinkPayCuotasLabel = sprintf($blinkPayCuotasFmt, $blinkPayCuotasMeses);
+    }
+}
 $blinkQuotationTotal = round((float) ($quotation->total_amount ?? 0), 2);
 $blinkCreateJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createBlinkPayment&format=json', false);
 

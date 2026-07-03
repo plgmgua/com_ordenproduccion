@@ -198,25 +198,13 @@ final class BlinkQuotationPaymentLinkHelper
      */
     public static function formatCuotasLabelHuman(int $meses): string
     {
-        $app  = Factory::getApplication();
-        $lang = $app->getLanguage();
-        $lang->load('com_ordenproduccion', JPATH_SITE);
-        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
-        $isEs = strpos($lang->getTag(), 'es') === 0;
+        $isEs = self::isSpanishUi();
 
         if ($meses <= 1) {
-            $t = \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_CONTADO');
-
-            return self::isUntranslatedKey($t)
-                ? ($isEs ? 'Contado' : 'Single payment')
-                : $t;
+            return $isEs ? 'Contado' : 'Single payment';
         }
 
-        $t = \Joomla\CMS\Language\Text::sprintf('COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_N', $meses);
-
-        return self::isUntranslatedKey($t)
-            ? ($isEs ? $meses . ' cuotas' : $meses . ' installments')
-            : $t;
+        return $isEs ? ($meses . ' cuotas') : ($meses . ' installments');
     }
 
     /**
@@ -238,11 +226,14 @@ final class BlinkQuotationPaymentLinkHelper
         return 1;
     }
 
-    /**
-     * @param   string  $text
-     */
-    private static function isUntranslatedKey(string $text): bool
+    private static function isSpanishUi(): bool
     {
-        return $text === '' || strpos($text, 'COM_ORDENPRODUCCION_') === 0;
+        try {
+            $tag = Factory::getApplication()->getLanguage()->getTag();
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        return strpos($tag, 'es') !== false;
     }
 }

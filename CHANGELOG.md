@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.219-STABLE] - 2026-05-19
+
+### Fixed
+- **Crear Link de Pago modal — Cuotas:** Build the display value in the template with `$l()` fallbacks (Contado / N cuotas); helper no longer uses `Text::_()` so raw `COM_ORDENPRODUCCION_*` keys cannot appear.
+
 ## [3.119.218-STABLE] - 2026-05-19
 
 ### Fixed
