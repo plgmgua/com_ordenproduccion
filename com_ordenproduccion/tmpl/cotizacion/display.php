@@ -862,8 +862,8 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
         <div class="alert alert-warning py-2 small mb-3">
             <?php echo htmlspecialchars($l(
                 'COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_MISMATCH',
-                'The number of installments must be the same on every pre-quotation with a credit card charge.',
-                'La cantidad de cuotas debe ser igual en todas las pre-cotizaciones con cargo de tarjeta de crédito.'
+                'Credit card installment count must be the same on every pre-quotation to generate the payment link.',
+                'La cantidad de cuotas con tarjeta de crédito debe ser igual en todas las pre-cotizaciones para poder generar el link de pago.'
             )); ?>
         </div>
         <?php endif; ?>

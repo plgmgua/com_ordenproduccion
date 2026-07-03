@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.223-STABLE] - 2026-05-19
+
+### Changed
+- **Cotización — cuotas mismatch:** Updated Spanish warning text for mismatched credit card installments across pre-cotizaciones.
+
 ## [3.119.222-STABLE] - 2026-05-19
 
 ### Fixed
