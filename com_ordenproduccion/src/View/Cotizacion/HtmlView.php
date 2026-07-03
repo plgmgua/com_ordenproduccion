@@ -25,7 +25,6 @@ use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\BlinkQuotationPaymentService;
-use Grimpsa\Component\Ordenproduccion\Site\Service\EbiPayLinkService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 
 /**
@@ -231,6 +230,14 @@ class HtmlView extends BaseHtmlView
     protected $ebipayMockAvailable = false;
 
     /**
+     * Blink payments table installed (#__ordenproduccion_blink_payments).
+     *
+     * @var    bool
+     * @since  3.119.217
+     */
+    protected $blinkPaymentTableAvailable = false;
+
+    /**
      * Blink card payment gateway configured and table installed.
      *
      * @var    bool
@@ -360,11 +367,10 @@ class HtmlView extends BaseHtmlView
                     $qcols = $db->getTableColumns('#__ordenproduccion_quotations', false);
                     $qcols = \is_array($qcols) ? array_change_key_case($qcols, CASE_LOWER) : [];
                     $this->facturacionUiAvailable = isset($qcols['facturacion_modo']);
-                    $ebipaySvc = new EbiPayLinkService();
-                    $this->ebipayMockAvailable = $ebipaySvc->isEngineAvailable();
                     $blinkSvc = new BlinkQuotationPaymentService();
-                    $this->blinkPaymentAvailable = $blinkSvc->isTableAvailable() && $blinkSvc->isConfigured();
-                    if ($this->blinkPaymentAvailable) {
+                    $this->blinkPaymentTableAvailable = $blinkSvc->isTableAvailable();
+                    $this->blinkPaymentAvailable      = $this->blinkPaymentTableAvailable && $blinkSvc->isConfigured();
+                    if ($this->blinkPaymentTableAvailable) {
                         $this->blinkPaymentsForQuotation = $blinkSvc->getPaymentsForQuotation($quotationId, 8);
                         $this->blinkInstallmentOptions    = $this->buildBlinkInstallmentOptions();
                         $this->blinkPaymentLinkState      = \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::analyze(

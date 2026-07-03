@@ -149,21 +149,9 @@ $canCompleteFactManApproval = $factManShouldCloseApproval
     && AccessHelper::canViewApprovalWorkflowTab();
 $completeFactManApprovalUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.completeFacturacionManualIfInvoiced', false);
 
-$ebipayMockAvailable = !empty($this->ebipayMockAvailable);
+$blinkPaymentTableAvailable = !empty($this->blinkPaymentTableAvailable);
 $blinkPaymentAvailable = !empty($this->blinkPaymentAvailable);
-$canEbiPay = $ebipayMockAvailable
-    && AccessHelper::isInStrictAdministracionGroup()
-    && !$blinkPaymentAvailable;
-$ebipayStoredLinks = [];
-$ebipayCodigoInterno = isset($quotation->ebipay_codigo_interno) ? trim((string) $quotation->ebipay_codigo_interno) : '';
-if (!empty($quotation->ebipay_mock_json)) {
-    $ebipayDecoded = json_decode($quotation->ebipay_mock_json, true);
-    if (\is_array($ebipayDecoded) && !empty($ebipayDecoded['links']) && \is_array($ebipayDecoded['links'])) {
-        $ebipayStoredLinks = $ebipayDecoded['links'];
-    }
-}
-$ebipayMockAt = isset($quotation->ebipay_mock_at) ? $quotation->ebipay_mock_at : null;
-$ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createEbiPayLink&format=json', false);
+$canShowPayLinkSection = $blinkPaymentTableAvailable && AccessHelper::isInStrictAdministracionGroup();
 
 $blinkPaymentsForQuotation = is_array($this->blinkPaymentsForQuotation ?? null) ? $this->blinkPaymentsForQuotation : [];
 $blinkInstallmentOptions = is_array($this->blinkInstallmentOptions ?? null) ? $this->blinkInstallmentOptions : [0 => 'VC00'];
@@ -175,7 +163,6 @@ $blinkPayTitle = (string) ($blinkPaymentLinkState['title'] ?? '');
 $blinkPayMonto = round((float) ($blinkPaymentLinkState['monto'] ?? ($quotation->total_amount ?? 0)), 2);
 $blinkPayCuotasLabel = (string) ($blinkPaymentLinkState['cuotas_label'] ?? '');
 $blinkQuotationTotal = round((float) ($quotation->total_amount ?? 0), 2);
-$canBlinkPay = $blinkPaymentAvailable && $blinkQuotationTotal > 0;
 $blinkCreateJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createBlinkPayment&format=json', false);
 
 $felForDirectCheck = new FelInvoiceIssuanceService();
@@ -835,19 +822,8 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
     </div>
     <?php endif; ?>
 
-    <?php if ($blinkPaymentAvailable) : ?>
+    <?php if ($canShowPayLinkSection) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-blink">
-        <h3 class="h6 text-uppercase text-muted mb-2">
-            <i class="fas fa-credit-card me-1"></i>
-            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_SECTION_PAY_LINK', 'Payment link', 'Link de pago')); ?>
-        </h3>
-        <p class="small text-muted mb-2">
-            <?php echo htmlspecialchars($l(
-                'COM_ORDENPRODUCCION_BLINK_PANEL_HELP',
-                'Creates a Pay Bi checkout link via the Blink gateway (server-side). The customer is redirected to the hosted payment page — do not embed in an iframe.',
-                'Genera un enlace de pago Pay Bi mediante el gateway Blink (solo servidor). El cliente es redirigido a la página de pago alojada — no usar en iframe.'
-            )); ?>
-        </p>
         <?php if ($blinkCuotasMismatch) : ?>
         <div class="alert alert-warning py-2 small mb-3">
             <?php echo htmlspecialchars($l(
@@ -862,18 +838,6 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
             <i class="fas fa-link"></i>
             <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_CREATE_PAY_LINK_BTN', 'Create payment link', 'Crear Link de Pago')); ?>
         </button>
-        <?php elseif (!$blinkCuotasMismatch && $canBlinkPay) : ?>
-        <p class="small text-muted mb-3">
-            <?php echo htmlspecialchars($l(
-                'COM_ORDENPRODUCCION_BLINK_PAY_LINK_NOT_ELIGIBLE',
-                'Every pre-quotation on this quotation must have a credit card charge with the same number of installments.',
-                'Todas las pre-cotizaciones de esta cotización deben tener cargo de tarjeta de crédito con la misma cantidad de cuotas.'
-            )); ?>
-        </p>
-        <?php elseif (!$canBlinkPay) : ?>
-        <div class="alert alert-warning py-2 small mb-3">
-            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_LINK_TOTAL_ZERO', 'Quotation total must be greater than zero to create a payment link.', 'El total de la cotización debe ser mayor que cero para crear un enlace de pago.')); ?>
-        </div>
         <?php endif; ?>
         <div id="blink-link-alert" class="small mb-3 d-none" role="status"></div>
         <?php if (!empty($blinkPaymentsForQuotation)) : ?>
@@ -1029,112 +993,6 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
         });
     })();
     </script>
-    <?php endif; ?>
-
-    <?php if ($canEbiPay) : ?>
-    <div class="mt-4 pt-3 border-top cotizacion-section-ebipay">
-        <h3 class="h6 text-uppercase text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_SECTION_EBIPAY', 'Payment link (test)', 'Link de pago (prueba)')); ?></h3>
-        <button type="button" class="btn btn-outline-info" id="ebipay-toggle-panel-btn" aria-expanded="false" aria-controls="ebipay-collapsible-wrap">
-            <i class="fas fa-credit-card"></i>
-            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_TOGGLE_SHOW', 'Show / hide ebi pay', 'Mostrar / ocultar ebi pay')); ?>
-        </button>
-        <div id="ebipay-collapsible-wrap" class="d-none mt-3">
-            <form id="ebipay-token-form" class="d-none" aria-hidden="true"><?php echo HTMLHelper::_('form.token'); ?></form>
-            <div class="alert alert-info border mb-0" id="ebipay-link-panel">
-                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
-                    <div>
-                        <strong><i class="fas fa-link me-1"></i><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_PANEL_TITLE', 'ebi pay — payment link (mock API)', 'ebi pay — link de pago (API simulada)')); ?></strong>
-                        <div class="small text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_PANEL_HELP', 'Simulates login → network/all → link/maintenance from the technical manual. Saves debug JSON and sample checkout pages under media. No real card processing.', 'Simula login → network/all → link/maintenance del manual. Guarda JSON de depuración y páginas de prueba en media. No procesa tarjetas reales.')); ?></div>
-                        <?php if ($ebipayCodigoInterno !== '') : ?>
-                        <div class="small mt-1"><span class="text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_CODIGO_INTERNO', 'Internal code', 'Código interno')); ?>:</span>
-                            <code><?php echo htmlspecialchars($ebipayCodigoInterno); ?></code>
-                            <?php if (!empty($ebipayMockAt)) : ?>
-                            <span class="text-muted ms-2"><?php echo HTMLHelper::_('date', $ebipayMockAt, Text::_('DATE_FORMAT_LC2')); ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2 align-items-center">
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="ebipay-create-link-btn-panel" data-quotation-id="<?php echo (int) $quotationId; ?>">
-                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_REGENERATE', 'Generate / refresh links', 'Generar / actualizar enlaces')); ?>
-                        </button>
-                    </div>
-                </div>
-                <?php if (!empty($ebipayStoredLinks)) : ?>
-                <ul class="list-unstyled small mb-0 mt-2" id="ebipay-links-list">
-                    <?php foreach ($ebipayStoredLinks as $lnk) :
-                        $ln = isset($lnk['nombre']) ? (string) $lnk['nombre'] : '';
-                        $lu = isset($lnk['url']) ? (string) $lnk['url'] : '';
-                        if ($lu === '') {
-                            continue;
-                        }
-                        ?>
-                    <li class="mb-1">
-                        <strong><?php echo htmlspecialchars($ln); ?>:</strong>
-                        <a href="<?php echo htmlspecialchars($lu); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($lu); ?></a>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-                <?php else : ?>
-                <p class="small text-muted mb-0 mt-2" id="ebipay-links-empty"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_EBIPAY_NO_LINKS_YET_BOTTOM', 'No links yet. Use the button above.', 'Aún no hay enlaces. Use el botón de arriba.')); ?></p>
-                <?php endif; ?>
-                <div id="ebipay-link-alert" class="small mt-2 d-none" role="status"></div>
-            </div>
-        </div>
-        <script>
-        (function() {
-            var toggle = document.getElementById('ebipay-toggle-panel-btn');
-            var wrap = document.getElementById('ebipay-collapsible-wrap');
-            if (toggle && wrap) {
-                toggle.addEventListener('click', function() {
-                    wrap.classList.toggle('d-none');
-                    var hidden = wrap.classList.contains('d-none');
-                    toggle.setAttribute('aria-expanded', hidden ? 'false' : 'true');
-                });
-            }
-        })();
-        </script>
-        <script>
-        (function() {
-            var url = <?php echo json_encode($ebipayCreateUrl); ?>;
-            var qid = <?php echo (int) $quotationId; ?>;
-            var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.')); ?>;
-            function run(btn) {
-                var f = document.getElementById('ebipay-token-form');
-                var fd = f ? new FormData(f) : new FormData();
-                fd.append('quotation_id', String(qid));
-                if (btn) { btn.disabled = true; }
-                fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (data && data.success) {
-                            window.location.reload();
-                            return;
-                        }
-                        var el = document.getElementById('ebipay-link-alert');
-                        if (el) {
-                            el.className = 'small mt-2 text-danger';
-                            el.textContent = (data && data.message) ? data.message : 'Error';
-                            el.classList.remove('d-none');
-                        }
-                    })
-                    .catch(function() {
-                        var el = document.getElementById('ebipay-link-alert');
-                        if (el) {
-                            el.className = 'small mt-2 text-danger';
-                            el.textContent = msgNet;
-                            el.classList.remove('d-none');
-                        }
-                    })
-                    .finally(function() {
-                        if (btn) { btn.disabled = false; }
-                    });
-            }
-            var b2 = document.getElementById('ebipay-create-link-btn-panel');
-            if (b2) { b2.addEventListener('click', function() { run(b2); }); }
-        })();
-        </script>
-    </div>
     <?php endif; ?>
 
     <?php if ($canSeeFacturaRelacionadaSection) : ?>

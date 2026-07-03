@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.217-STABLE] - 2026-05-19
+
+### Removed
+- **Cotización view:** ebi pay mock "Link de pago (prueba)" panel (toggle, help text, generate links).
+
+### Changed
+- **Cotización — Link de pago:** Show Blink "Crear Link de Pago" for Administración users when the Blink payments table exists, even if the gateway is not yet configured; eligibility is evaluated independently of gateway config.
+
 ## [3.119.216-STABLE] - 2026-05-19
 
 ### Added
