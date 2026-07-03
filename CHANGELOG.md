@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.218-STABLE] - 2026-05-19
+
+### Fixed
+- **Crear Link de Pago modal:** Cuotas field shows human-readable text (e.g. "Contado", "3 cuotas") instead of raw language keys or VC codes.
+- **Payment links table:** Installment and status columns use friendly Spanish/English labels.
+
 ## [3.119.217-STABLE] - 2026-05-19
 
 ### Removed

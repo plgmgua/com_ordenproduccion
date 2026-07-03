@@ -178,21 +178,71 @@ final class BlinkQuotationPaymentLinkHelper
         $meses = (int) $unique[0];
         $vc    = BlinkGatewayConfigHelper::cuotasToInstallmentCode($meses);
 
-        Factory::getLanguage()->load('com_ordenproduccion', JPATH_SITE);
-        $cuotasLabel = $meses <= 1
-            ? \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_SINGLE') . ' (' . $vc . ')'
-            : \Joomla\CMS\Language\Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', $meses) . ' (' . $vc . ')';
-
         return [
             'show_button'            => true,
             'show_cuotas_mismatch'   => false,
             'cuotas_meses'           => $meses,
             'installments_vc'        => $vc,
-            'cuotas_label'           => $cuotasLabel,
+            'cuotas_label'           => self::formatCuotasLabelHuman($meses),
             'pre_count'              => \count($preIds),
             'reference'              => $reference,
             'title'                  => $title,
             'monto'                  => $monto,
         ];
+    }
+
+    /**
+     * Human-readable installment label for UI (no VC codes or raw language keys).
+     *
+     * @since  3.119.218
+     */
+    public static function formatCuotasLabelHuman(int $meses): string
+    {
+        $app  = Factory::getApplication();
+        $lang = $app->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion');
+        $isEs = strpos($lang->getTag(), 'es') === 0;
+
+        if ($meses <= 1) {
+            $t = \Joomla\CMS\Language\Text::_('COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_CONTADO');
+
+            return self::isUntranslatedKey($t)
+                ? ($isEs ? 'Contado' : 'Single payment')
+                : $t;
+        }
+
+        $t = \Joomla\CMS\Language\Text::sprintf('COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_N', $meses);
+
+        return self::isUntranslatedKey($t)
+            ? ($isEs ? $meses . ' cuotas' : $meses . ' installments')
+            : $t;
+    }
+
+    /**
+     * Parse Blink VC installment code to months for display.
+     *
+     * @since  3.119.218
+     */
+    public static function installmentCodeToMeses(string $code): int
+    {
+        $code = strtoupper(trim($code));
+        if ($code === '' || $code === 'VC00') {
+            return 1;
+        }
+
+        if (preg_match('/^VC(\d+)$/', $code, $m)) {
+            return max(1, (int) $m[1]);
+        }
+
+        return 1;
+    }
+
+    /**
+     * @param   string  $text
+     */
+    private static function isUntranslatedKey(string $text): bool
+    {
+        return $text === '' || strpos($text, 'COM_ORDENPRODUCCION_') === 0;
     }
 }

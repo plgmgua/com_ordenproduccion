@@ -161,7 +161,10 @@ $blinkCuotasMismatch = !empty($blinkPaymentLinkState['show_cuotas_mismatch']);
 $blinkPayReference = (string) ($blinkPaymentLinkState['reference'] ?? '');
 $blinkPayTitle = (string) ($blinkPaymentLinkState['title'] ?? '');
 $blinkPayMonto = round((float) ($blinkPaymentLinkState['monto'] ?? ($quotation->total_amount ?? 0)), 2);
-$blinkPayCuotasLabel = (string) ($blinkPaymentLinkState['cuotas_label'] ?? '');
+$blinkPayCuotasMeses = isset($blinkPaymentLinkState['cuotas_meses']) ? (int) $blinkPaymentLinkState['cuotas_meses'] : 0;
+$blinkPayCuotasLabel = $blinkPayCuotasMeses > 0
+    ? \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::formatCuotasLabelHuman($blinkPayCuotasMeses)
+    : '';
 $blinkQuotationTotal = round((float) ($quotation->total_amount ?? 0), 2);
 $blinkCreateJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createBlinkPayment&format=json', false);
 
@@ -862,8 +865,21 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         <td class="text-nowrap small"><?php echo !empty($bp->created) ? HTMLHelper::_('date', $bp->created, Text::_('DATE_FORMAT_LC2')) : '—'; ?></td>
                         <td class="small"><code><?php echo htmlspecialchars((string) ($bp->reference_id ?? '')); ?></code></td>
                         <td class="text-end text-nowrap">Q <?php echo htmlspecialchars(number_format((float) ($bp->amount ?? 0), 2)); ?></td>
-                        <td class="small"><?php echo htmlspecialchars((string) ($bp->installments ?? '')); ?></td>
-                        <td class="small"><?php echo htmlspecialchars($bpStatus); ?></td>
+                        <td class="small"><?php
+                            $bpInst = (string) ($bp->installments ?? '');
+                            echo htmlspecialchars(\Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::formatCuotasLabelHuman(
+                                \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::installmentCodeToMeses($bpInst)
+                            ));
+                        ?></td>
+                        <td class="small"><?php
+                            $bpStatusLabel = match ($bpStatus) {
+                                'created' => $l('COM_ORDENPRODUCCION_BLINK_STATUS_CREATED', 'Created', 'Creado'),
+                                'pending' => $l('COM_ORDENPRODUCCION_BLINK_STATUS_PENDING', 'Pending', 'Pendiente'),
+                                'failed'  => $l('COM_ORDENPRODUCCION_BLINK_STATUS_FAILED', 'Failed', 'Fallido'),
+                                default   => $bpStatus,
+                            };
+                            echo htmlspecialchars($bpStatusLabel);
+                        ?></td>
                         <td class="text-nowrap">
                             <?php if ($bpUrl !== '' && $bpStatus === 'created') : ?>
                             <a href="<?php echo htmlspecialchars($bpUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-primary py-0" target="_blank" rel="noopener noreferrer">
