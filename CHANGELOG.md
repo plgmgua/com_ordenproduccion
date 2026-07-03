@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.224-STABLE] - 2026-05-19
+
+### Changed
+- **Cotización — Link de pago:** Members of Joomla user groups **8**, **11**, and **12** (plus super users) can view and use **Crear Link de Pago**; API endpoints enforce the same rule.
+
 ## [3.119.223-STABLE] - 2026-05-19
 
 ### Changed

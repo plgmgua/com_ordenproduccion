@@ -2642,6 +2642,11 @@ class CotizacionController extends BaseController
             $app->close();
         }
 
+        if (!AccessHelper::canUseBlinkPaymentLink()) {
+            echo json_encode(['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')]);
+            $app->close();
+        }
+
         $quotationId = $app->input->getInt('quotation_id', 0);
         if ($quotationId < 1 || !$this->loadPublishedQuotationForCurrentUserOrClose($quotationId)) {
             echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_ERROR_INVALID_QUOTATION')]);
@@ -2686,6 +2691,13 @@ class CotizacionController extends BaseController
         if ($user->guest) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
             $app->redirect(Route::_('index.php?option=com_users&view=login', false));
+
+            return;
+        }
+
+        if (!AccessHelper::canUseBlinkPaymentLink()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));
 
             return;
         }

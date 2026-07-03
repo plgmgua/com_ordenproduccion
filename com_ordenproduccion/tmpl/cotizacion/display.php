@@ -151,7 +151,7 @@ $completeFactManApprovalUrl = Route::_('index.php?option=com_ordenproduccion&tas
 
 $blinkPaymentTableAvailable = !empty($this->blinkPaymentTableAvailable);
 $blinkPaymentAvailable = !empty($this->blinkPaymentAvailable);
-$canShowPayLinkSection = $blinkPaymentTableAvailable && AccessHelper::isInStrictAdministracionGroup();
+$canShowPayLinkSection = $blinkPaymentTableAvailable && AccessHelper::canUseBlinkPaymentLink();
 
 $blinkPaymentsForQuotation = is_array($this->blinkPaymentsForQuotation ?? null) ? $this->blinkPaymentsForQuotation : [];
 $blinkInstallmentOptions = is_array($this->blinkInstallmentOptions ?? null) ? $this->blinkInstallmentOptions : [0 => 'VC00'];

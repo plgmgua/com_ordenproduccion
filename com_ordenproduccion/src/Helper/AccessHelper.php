@@ -412,6 +412,48 @@ class AccessHelper
     }
 
     /**
+     * Joomla user group ids allowed to view and create Blink payment links on cotización.
+     */
+    public const BLINK_PAYMENT_LINK_GROUP_IDS = [8, 11, 12];
+
+    /**
+     * Whether the current user may view and use **Crear Link de Pago** on cotización.
+     * Allowed: Joomla groups **8**, **11**, **12**, and global super users (`core.admin`).
+     *
+     * @return  bool
+     *
+     * @since   3.119.224
+     */
+    public static function canUseBlinkPaymentLink(): bool
+    {
+        $user = Factory::getUser();
+
+        if ($user->guest) {
+            return false;
+        }
+
+        if ($user->authorise('core.admin')) {
+            return true;
+        }
+
+        $userGroups = $user->getAuthorisedGroups();
+
+        if ($userGroups === []) {
+            return false;
+        }
+
+        $ids = array_map('intval', $userGroups);
+
+        foreach (self::BLINK_PAYMENT_LINK_GROUP_IDS as $groupId) {
+            if (in_array($groupId, $ids, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * **Administración** group only (id **12** or title **Administracion** / **Administración**).
      * Excludes **Admon-only** membership. Global super users (`core.admin`) are included.
      * Used for strict admin features (e.g. new Proveedores, Factura relacionada Digifact UI / direct issue).
