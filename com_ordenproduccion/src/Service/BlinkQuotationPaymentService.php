@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Service;
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
@@ -75,8 +76,14 @@ class BlinkQuotationPaymentService
     /**
      * @return  array{success: bool, message?: string, payment_url?: string, reference_id?: string, payment_id?: int}
      */
-    public function createPaymentForQuotation(int $quotationId, int $userId, string $installments = 'VC00'): array
-    {
+    public function createPaymentForQuotation(
+        int $quotationId,
+        int $userId,
+        string $installments = 'VC00',
+        ?string $referenceId = null,
+        ?string $title = null,
+        ?string $description = null
+    ): array {
         Factory::getLanguage()->load('com_ordenproduccion', JPATH_SITE);
 
         if ($quotationId < 1) {
@@ -107,18 +114,35 @@ class BlinkQuotationPaymentService
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_LINK_TOTAL_ZERO')];
         }
 
-        $installments = BlinkGatewayConfigHelper::normalizeInstallments($installments);
+        $eligibility = BlinkQuotationPaymentLinkHelper::analyze($quotationId, $row, $this->db);
+        if (empty($eligibility['show_button'])) {
+            if (!empty($eligibility['show_cuotas_mismatch'])) {
+                return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_MISMATCH')];
+            }
 
-        $num    = trim((string) ($row->quotation_number ?? ''));
-        $title  = $num !== '' ? $num : ('COT-' . $quotationId);
-        $client = trim((string) ($row->client_name ?? ''));
-        $titulo = $title . ($client !== '' ? ' — ' . $client : '');
-        $titulo = BlinkGatewayConfigHelper::truncatePaymentTitle($titulo);
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_PAY_LINK_NOT_ELIGIBLE')];
+        }
 
-        $description = BlinkGatewayConfigHelper::truncatePaymentDescription(
-            Text::sprintf('COM_ORDENPRODUCCION_BLINK_PAYMENT_DESCRIPTION', $title)
+        $installments = BlinkGatewayConfigHelper::normalizeInstallments((string) $eligibility['installments_vc']);
+
+        $titulo = BlinkGatewayConfigHelper::truncatePaymentTitle(
+            trim((string) ($title ?? '')) !== ''
+                ? trim((string) $title)
+                : (string) $eligibility['title']
         );
-        $referenceId = $this->buildReferenceId($quotationId);
+
+        $descInput = trim((string) ($description ?? ''));
+        $description = BlinkGatewayConfigHelper::truncatePaymentDescription(
+            $descInput !== ''
+                ? $descInput
+                : Text::sprintf('COM_ORDENPRODUCCION_BLINK_PAYMENT_DESCRIPTION', BlinkQuotationPaymentLinkHelper::formatQuotationReference($row))
+        );
+
+        $referenceId = trim((string) ($referenceId ?? ''));
+        if ($referenceId === '') {
+            $referenceId = (string) $eligibility['reference'];
+        }
+        $referenceId = substr($referenceId, 0, 100);
         $now         = Factory::getDate()->toSql();
 
         $pending = (object) [

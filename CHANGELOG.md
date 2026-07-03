@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.216-STABLE] - 2026-05-19
+
+### Added
+- **Cotización — Link de pago:** "Crear Link de Pago" button with eligibility rules based on pre-cotización credit card installments; modal shows Referencia, Cuotas, Monto, Título (read-only) and editable Descripción.
+- **BlinkQuotationPaymentLinkHelper:** Analyzes linked pre-cotizaciones for matching `tarjeta_credito_cuotas` before allowing payment link creation.
+
+### Changed
+- **Blink payment creation:** Server enforces eligibility and derives reference, title, and installment code from quotation/pre-cotización data.
+- **Cotización view:** Hides ebi pay mock panel when Blink payment gateway is configured.
+
 ## [3.119.215-STABLE] - 2026-05-19
 
 ### Fixed

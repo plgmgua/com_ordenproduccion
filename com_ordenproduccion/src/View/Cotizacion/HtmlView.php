@@ -255,6 +255,14 @@ class HtmlView extends BaseHtmlView
     protected $blinkInstallmentOptions = [];
 
     /**
+     * Blink "Crear Link de Pago" eligibility (pre-cotización tarjeta rules).
+     *
+     * @var    array<string, mixed>
+     * @since  3.119.216
+     */
+    protected $blinkPaymentLinkState = [];
+
+    /**
      * True when any active orden de trabajo is linked (via quotation line pre_cotizacion_id) to this quotation.
      *
      * @var    bool
@@ -359,6 +367,10 @@ class HtmlView extends BaseHtmlView
                     if ($this->blinkPaymentAvailable) {
                         $this->blinkPaymentsForQuotation = $blinkSvc->getPaymentsForQuotation($quotationId, 8);
                         $this->blinkInstallmentOptions    = $this->buildBlinkInstallmentOptions();
+                        $this->blinkPaymentLinkState      = \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::analyze(
+                            $quotationId,
+                            $this->quotation
+                        );
                     }
                     $felSvc = new FelInvoiceIssuanceService();
                     $this->felEngineAvailable = $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn();

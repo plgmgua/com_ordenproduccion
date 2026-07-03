@@ -150,8 +150,10 @@ $canCompleteFactManApproval = $factManShouldCloseApproval
 $completeFactManApprovalUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.completeFacturacionManualIfInvoiced', false);
 
 $ebipayMockAvailable = !empty($this->ebipayMockAvailable);
+$blinkPaymentAvailable = !empty($this->blinkPaymentAvailable);
 $canEbiPay = $ebipayMockAvailable
-    && AccessHelper::isInStrictAdministracionGroup();
+    && AccessHelper::isInStrictAdministracionGroup()
+    && !$blinkPaymentAvailable;
 $ebipayStoredLinks = [];
 $ebipayCodigoInterno = isset($quotation->ebipay_codigo_interno) ? trim((string) $quotation->ebipay_codigo_interno) : '';
 if (!empty($quotation->ebipay_mock_json)) {
@@ -163,12 +165,17 @@ if (!empty($quotation->ebipay_mock_json)) {
 $ebipayMockAt = isset($quotation->ebipay_mock_at) ? $quotation->ebipay_mock_at : null;
 $ebipayCreateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createEbiPayLink&format=json', false);
 
-$blinkPaymentAvailable = !empty($this->blinkPaymentAvailable);
 $blinkPaymentsForQuotation = is_array($this->blinkPaymentsForQuotation ?? null) ? $this->blinkPaymentsForQuotation : [];
 $blinkInstallmentOptions = is_array($this->blinkInstallmentOptions ?? null) ? $this->blinkInstallmentOptions : [0 => 'VC00'];
+$blinkPaymentLinkState = is_array($this->blinkPaymentLinkState ?? null) ? $this->blinkPaymentLinkState : [];
+$blinkShowCreateButton = !empty($blinkPaymentLinkState['show_button']);
+$blinkCuotasMismatch = !empty($blinkPaymentLinkState['show_cuotas_mismatch']);
+$blinkPayReference = (string) ($blinkPaymentLinkState['reference'] ?? '');
+$blinkPayTitle = (string) ($blinkPaymentLinkState['title'] ?? '');
+$blinkPayMonto = round((float) ($blinkPaymentLinkState['monto'] ?? ($quotation->total_amount ?? 0)), 2);
+$blinkPayCuotasLabel = (string) ($blinkPaymentLinkState['cuotas_label'] ?? '');
 $blinkQuotationTotal = round((float) ($quotation->total_amount ?? 0), 2);
 $canBlinkPay = $blinkPaymentAvailable && $blinkQuotationTotal > 0;
-$blinkRedirectUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.redirectBlinkPayment', false);
 $blinkCreateJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createBlinkPayment&format=json', false);
 
 $felForDirectCheck = new FelInvoiceIssuanceService();
@@ -832,7 +839,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
     <div class="mt-4 pt-3 border-top cotizacion-section-blink">
         <h3 class="h6 text-uppercase text-muted mb-2">
             <i class="fas fa-credit-card me-1"></i>
-            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_SECTION_BLINK', 'Card payment (Blink)', 'Pago con tarjeta (Blink)')); ?>
+            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_COTIZACION_SECTION_PAY_LINK', 'Payment link', 'Link de pago')); ?>
         </h3>
         <p class="small text-muted mb-2">
             <?php echo htmlspecialchars($l(
@@ -841,51 +848,34 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                 'Genera un enlace de pago Pay Bi mediante el gateway Blink (solo servidor). El cliente es redirigido a la página de pago alojada — no usar en iframe.'
             )); ?>
         </p>
-        <?php if ($canBlinkPay) : ?>
-        <div class="card border mb-3">
-            <div class="card-body py-3">
-                <form method="post" action="<?php echo htmlspecialchars($blinkRedirectUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer" class="row g-2 align-items-end flex-wrap">
-                    <?php echo HTMLHelper::_('form.token'); ?>
-                    <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>" />
-                    <div class="col-auto">
-                        <label for="blink-installments" class="form-label small mb-0">
-                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_LABEL', 'Installments', 'Cuotas')); ?>
-                        </label>
-                        <select name="installments" id="blink-installments" class="form-select form-select-sm">
-                            <?php foreach ($blinkInstallmentOptions as $cuotas => $vcCode) :
-                                $label = $cuotas <= 0
-                                    ? $l('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_SINGLE', 'Single payment', 'Contado')
-                                    : Text::sprintf('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_N', (int) $cuotas);
-                                ?>
-                            <option value="<?php echo htmlspecialchars($vcCode, ENT_QUOTES, 'UTF-8'); ?>">
-                                <?php echo htmlspecialchars($label); ?> (<?php echo htmlspecialchars($vcCode); ?>)
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <div class="small text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_AMOUNT_LABEL', 'Amount', 'Monto')); ?></div>
-                        <div class="fw-semibold">Q <?php echo htmlspecialchars(number_format($blinkQuotationTotal, 2)); ?></div>
-                    </div>
-                    <div class="col-auto d-flex flex-wrap gap-2">
-                        <button type="submit" class="btn btn-sm btn-primary">
-                            <i class="fas fa-external-link-alt"></i>
-                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAY_NOW', 'Pay with card', 'Pagar con tarjeta')); ?>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="blink-copy-link-btn" data-quotation-id="<?php echo (int) $quotationId; ?>">
-                            <i class="fas fa-link"></i>
-                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_COPY_LINK', 'Copy payment link', 'Copiar enlace de pago')); ?>
-                        </button>
-                    </div>
-                </form>
-                <div id="blink-link-alert" class="small mt-2 d-none" role="status"></div>
-            </div>
+        <?php if ($blinkCuotasMismatch) : ?>
+        <div class="alert alert-warning py-2 small mb-3">
+            <?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_BLINK_PAY_LINK_CUOTAS_MISMATCH',
+                'The number of installments must be the same on every pre-quotation with a credit card charge.',
+                'La cantidad de cuotas debe ser igual en todas las pre-cotizaciones con cargo de tarjeta de crédito.'
+            )); ?>
         </div>
-        <?php else : ?>
+        <?php endif; ?>
+        <?php if ($blinkShowCreateButton) : ?>
+        <button type="button" class="btn btn-primary btn-sm mb-3" data-bs-toggle="modal" data-bs-target="#blinkCreatePaymentModal" id="btn-blink-create-payment-link">
+            <i class="fas fa-link"></i>
+            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_CREATE_PAY_LINK_BTN', 'Create payment link', 'Crear Link de Pago')); ?>
+        </button>
+        <?php elseif (!$blinkCuotasMismatch && $canBlinkPay) : ?>
+        <p class="small text-muted mb-3">
+            <?php echo htmlspecialchars($l(
+                'COM_ORDENPRODUCCION_BLINK_PAY_LINK_NOT_ELIGIBLE',
+                'Every pre-quotation on this quotation must have a credit card charge with the same number of installments.',
+                'Todas las pre-cotizaciones de esta cotización deben tener cargo de tarjeta de crédito con la misma cantidad de cuotas.'
+            )); ?>
+        </p>
+        <?php elseif (!$canBlinkPay) : ?>
         <div class="alert alert-warning py-2 small mb-3">
             <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_LINK_TOTAL_ZERO', 'Quotation total must be greater than zero to create a payment link.', 'El total de la cotización debe ser mayor que cero para crear un enlace de pago.')); ?>
         </div>
         <?php endif; ?>
+        <div id="blink-link-alert" class="small mb-3 d-none" role="status"></div>
         <?php if (!empty($blinkPaymentsForQuotation)) : ?>
         <div class="table-responsive">
             <table class="table table-sm table-bordered mb-0">
@@ -923,59 +913,122 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
             </table>
         </div>
         <?php endif; ?>
-        <script>
-        (function() {
-            var btn = document.getElementById('blink-copy-link-btn');
-            if (!btn) { return; }
-            var url = <?php echo json_encode($blinkCreateJsonUrl); ?>;
-            var qid = <?php echo (int) $quotationId; ?>;
-            var sel = document.getElementById('blink-installments');
-            var alertEl = document.getElementById('blink-link-alert');
-            var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.')); ?>;
-            var msgCopied = <?php echo json_encode($l('COM_ORDENPRODUCCION_BLINK_LINK_COPIED', 'Payment link copied to clipboard.', 'Enlace de pago copiado al portapapeles.')); ?>;
-            btn.addEventListener('click', function() {
-                var fd = new FormData();
-                var tokenInput = document.querySelector('input[name="<?php echo Session::getFormToken(); ?>"]');
-                if (tokenInput) { fd.append(tokenInput.name, tokenInput.value); }
-                fd.append('quotation_id', String(qid));
-                if (sel) { fd.append('installments', sel.value); }
-                btn.disabled = true;
-                fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        if (data && data.success && data.payment_url) {
-                            if (navigator.clipboard && navigator.clipboard.writeText) {
-                                return navigator.clipboard.writeText(data.payment_url).then(function() {
-                                    if (alertEl) {
-                                        alertEl.className = 'small mt-2 text-success';
-                                        alertEl.textContent = msgCopied;
-                                        alertEl.classList.remove('d-none');
-                                    }
-                                    window.location.reload();
-                                });
-                            }
-                            window.open(data.payment_url, '_blank', 'noopener,noreferrer');
-                            window.location.reload();
-                            return;
-                        }
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = (data && data.message) ? data.message : 'Error';
-                            alertEl.classList.remove('d-none');
-                        }
-                    })
-                    .catch(function() {
-                        if (alertEl) {
-                            alertEl.className = 'small mt-2 text-danger';
-                            alertEl.textContent = msgNet;
-                            alertEl.classList.remove('d-none');
-                        }
-                    })
-                    .finally(function() { btn.disabled = false; });
-            });
-        })();
-        </script>
     </div>
+
+    <div class="modal fade" id="blinkCreatePaymentModal" tabindex="-1" aria-labelledby="blinkCreatePaymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="blinkCreatePaymentModalLabel">
+                        <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_CREATE_PAY_LINK_BTN', 'Create payment link', 'Crear Link de Pago')); ?>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo htmlspecialchars(Text::_('JCLOSE')); ?>"></button>
+                </div>
+                <form id="blink-create-payment-form">
+                    <div class="modal-body">
+                        <?php echo HTMLHelper::_('form.token'); ?>
+                        <input type="hidden" name="quotation_id" value="<?php echo (int) $quotationId; ?>" />
+                        <div class="mb-3">
+                            <label class="form-label" for="blink-pay-reference"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_COL_REFERENCE', 'Reference', 'Referencia')); ?></label>
+                            <input type="text" class="form-control form-control-sm" id="blink-pay-reference" value="<?php echo htmlspecialchars($blinkPayReference); ?>" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="blink-pay-cuotas"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_LABEL', 'Installments', 'Cuotas')); ?></label>
+                            <input type="text" class="form-control form-control-sm" id="blink-pay-cuotas" value="<?php echo htmlspecialchars($blinkPayCuotasLabel); ?>" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="blink-pay-monto"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_AMOUNT_LABEL', 'Amount', 'Monto')); ?></label>
+                            <input type="text" class="form-control form-control-sm" id="blink-pay-monto" value="<?php echo htmlspecialchars('Q ' . number_format($blinkPayMonto, 2)); ?>" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="blink-pay-titulo"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_TITLE_LABEL', 'Title', 'Título')); ?></label>
+                            <input type="text" class="form-control form-control-sm" id="blink-pay-titulo" value="<?php echo htmlspecialchars($blinkPayTitle); ?>" readonly>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="blink-pay-descripcion"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_DESC_LABEL', 'Description', 'Descripción')); ?></label>
+                            <textarea class="form-control form-control-sm" id="blink-pay-descripcion" name="description" rows="3" maxlength="500" placeholder="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_DESC_PLACEHOLDER', 'Optional note for the customer', 'Nota opcional para el cliente')); ?>"></textarea>
+                        </div>
+                        <div id="blink-create-modal-alert" class="small mt-3 d-none" role="alert"></div>
+                        <div id="blink-create-result-box" class="d-none mt-3">
+                            <label class="form-label small" for="blink-create-result-url"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_RESULT', 'Payment URL', 'URL de pago')); ?></label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control font-monospace" id="blink-create-result-url" readonly>
+                                <a href="#" class="btn btn-outline-primary" id="blink-create-open-link" target="_blank" rel="noopener noreferrer">
+                                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_OPEN_LINK', 'Open', 'Abrir')); ?>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('JCANCEL')); ?></button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="blink-create-payment-submit">
+                            <i class="fas fa-link"></i>
+                            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_CREATE_PAY_LINK_BTN', 'Create payment link', 'Crear Link de Pago')); ?>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var form = document.getElementById('blink-create-payment-form');
+        if (!form) { return; }
+        var submitBtn = document.getElementById('blink-create-payment-submit');
+        var alertEl = document.getElementById('blink-create-modal-alert');
+        var resultBox = document.getElementById('blink-create-result-box');
+        var resultUrl = document.getElementById('blink-create-result-url');
+        var openLink = document.getElementById('blink-create-open-link');
+        var outerAlert = document.getElementById('blink-link-alert');
+        var url = <?php echo json_encode($blinkCreateJsonUrl); ?>;
+        var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.')); ?>;
+        var msgOk = <?php echo json_encode($l('COM_ORDENPRODUCCION_BLINK_PAYMENT_CREATED', 'Payment link created.', 'Enlace de pago creado.')); ?>;
+        form.addEventListener('submit', function(ev) {
+            ev.preventDefault();
+            var fd = new FormData(form);
+            var desc = document.getElementById('blink-pay-descripcion');
+            if (desc) { fd.set('description', desc.value); }
+            if (submitBtn) { submitBtn.disabled = true; }
+            if (alertEl) { alertEl.className = 'small mt-3 d-none'; }
+            fetch(url, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data && data.success && data.payment_url) {
+                        if (resultBox) { resultBox.classList.remove('d-none'); }
+                        if (resultUrl) { resultUrl.value = data.payment_url; }
+                        if (openLink) { openLink.href = data.payment_url; }
+                        if (alertEl) {
+                            alertEl.className = 'small mt-3 text-success';
+                            alertEl.textContent = msgOk;
+                            alertEl.classList.remove('d-none');
+                        }
+                        if (outerAlert) {
+                            outerAlert.className = 'small mb-3 text-success';
+                            outerAlert.textContent = msgOk;
+                            outerAlert.classList.remove('d-none');
+                        }
+                        return;
+                    }
+                    var msg = (data && data.message) ? data.message : 'Error';
+                    if (alertEl) {
+                        alertEl.className = 'small mt-3 text-danger';
+                        alertEl.textContent = msg;
+                        alertEl.classList.remove('d-none');
+                    }
+                })
+                .catch(function() {
+                    if (alertEl) {
+                        alertEl.className = 'small mt-3 text-danger';
+                        alertEl.textContent = msgNet;
+                        alertEl.classList.remove('d-none');
+                    }
+                })
+                .finally(function() {
+                    if (submitBtn) { submitBtn.disabled = false; }
+                });
+        });
+    })();
+    </script>
     <?php endif; ?>
 
     <?php if ($canEbiPay) : ?>

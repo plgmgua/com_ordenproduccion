@@ -2652,8 +2652,10 @@ class CotizacionController extends BaseController
             $app->input->post->getString('installments', 'VC00')
         );
 
+        $description = trim((string) $app->input->post->getString('description', ''));
+
         $svc    = new BlinkQuotationPaymentService();
-        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments);
+        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments, null, null, $description);
 
         echo json_encode($result);
         $app->close();
@@ -2702,8 +2704,10 @@ class CotizacionController extends BaseController
             $app->input->post->getString('installments', 'VC00')
         );
 
+        $description = trim((string) $app->input->post->getString('description', ''));
+
         $svc    = new BlinkQuotationPaymentService();
-        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments);
+        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments, null, null, $description);
 
         if (!empty($result['success']) && !empty($result['payment_url'])) {
             $app->redirect((string) $result['payment_url']);
