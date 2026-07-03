@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Administrator\Helper;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper;
 use Joomla\CMS\Event\Extension\BeforeSaveEvent;
 use Joomla\CMS\Factory;
 use Joomla\Database\DatabaseInterface;
@@ -18,6 +19,7 @@ use Joomla\Registry\Registry;
 
 /**
  * Mirrors Blink secrets into #__ordenproduccion_config and keeps blank password inputs on save.
+ * Also preserves Imprenta → Parámetros values (not present in admin/config.xml) when Global Configuration is saved.
  *
  * @since  3.119.135
  */
@@ -60,6 +62,9 @@ class BlinkConfigSaveHelper
                 }
             }
         }
+
+        self::preserveImprentaParametros($existing, $incoming);
+        self::preserveAbsentParams($existing, $incoming);
 
         $table->params = $incoming->toString();
 
@@ -146,6 +151,37 @@ class BlinkConfigSaveHelper
 
             $db->execute();
         } catch (\Throwable $e) {
+        }
+    }
+
+    /**
+     * Imprenta percentages are saved from site → Parámetros, not admin/config.xml.
+     * com_config posts 0 for fields absent from the options form — restore previous values.
+     *
+     * @since  3.119.220
+     */
+    private static function preserveImprentaParametros(Registry $existing, Registry $incoming): void
+    {
+        foreach (array_keys(ImprentaParametrosHelper::getRequiredParamDefinitions()) as $key) {
+            $newVal = (float) $incoming->get($key, 0);
+            $oldVal = (float) $existing->get($key, 0);
+            if ($newVal <= 0 && $oldVal > 0) {
+                $incoming->set($key, $oldVal);
+            }
+        }
+    }
+
+    /**
+     * Keep params stored only on the site (e.g. ofertas user ids) when not submitted by com_config.
+     *
+     * @since  3.119.220
+     */
+    private static function preserveAbsentParams(Registry $existing, Registry $incoming): void
+    {
+        foreach ($existing->toArray() as $key => $value) {
+            if (!$incoming->exists($key)) {
+                $incoming->set($key, $value);
+            }
         }
     }
 }

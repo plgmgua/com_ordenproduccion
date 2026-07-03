@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.220-STABLE] - 2026-05-19
+
+### Fixed
+- **Imprenta Parámetros:** Preserve margen/IVA/ISR/comisión values in `#__extensions` when saving Global Configuration (Blink or other admin options); those fields are not in `admin/config.xml` and could be zeroed on save.
+
 ## [3.119.219-STABLE] - 2026-05-19
 
 ### Fixed
