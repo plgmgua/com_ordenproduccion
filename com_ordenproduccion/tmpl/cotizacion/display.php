@@ -179,6 +179,19 @@ if ($blinkPayCuotasMeses > 0) {
 }
 $blinkQuotationTotal = round((float) ($quotation->total_amount ?? 0), 2);
 $blinkCreateJsonUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.createBlinkPayment&format=json', false);
+$blinkActivePaymentUrl = '';
+$blinkActivePaymentReference = '';
+foreach ($blinkPaymentsForQuotation as $bpRow) {
+    $bpRowUrl = trim((string) ($bpRow->payment_url ?? ''));
+    if ((string) ($bpRow->status ?? '') === 'created' && $bpRowUrl !== '') {
+        $blinkActivePaymentUrl = $bpRowUrl;
+        $blinkActivePaymentReference = trim((string) ($bpRow->reference_id ?? ''));
+        break;
+    }
+}
+$blinkShowCreateButton = $blinkShowCreateButton && $blinkActivePaymentUrl === '';
+$blinkCotizacionViewUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotationId, false);
+$blinkPayJustCreated = Factory::getApplication()->input->getInt('blink_pay_ok', 0) === 1;
 
 $felForDirectCheck = new FelInvoiceIssuanceService();
 $digifactCredsCheck = $felForDirectCheck->getActiveCertificadorCredentials();
@@ -839,6 +852,12 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
 
     <?php if ($canShowPayLinkSection) : ?>
     <div class="mt-4 pt-3 border-top cotizacion-section-blink">
+        <?php if ($blinkPayJustCreated) : ?>
+        <div class="alert alert-success py-2 small mb-3" role="status">
+            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAYMENT_CREATED', 'Payment link created.', 'Enlace de pago creado.')); ?>
+            <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAYMENT_TELEGRAM_HINT', 'If your Telegram account is linked, the link was sent to your chat.', 'Si su cuenta de Telegram está vinculada, el enlace se envió a su chat.')); ?>
+        </div>
+        <?php endif; ?>
         <?php if ($blinkCuotasMismatch) : ?>
         <div class="alert alert-warning py-2 small mb-3">
             <?php echo htmlspecialchars($l(
@@ -853,58 +872,27 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
             <i class="fas fa-link"></i>
             <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_CREATE_PAY_LINK_BTN', 'Create payment link', 'Crear Link de Pago')); ?>
         </button>
-        <?php endif; ?>
-        <div id="blink-link-alert" class="small mb-3 d-none" role="status"></div>
-        <?php if (!empty($blinkPaymentsForQuotation)) : ?>
-        <div class="table-responsive">
-            <table class="table table-sm table-bordered mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_COL_DATE', 'Created', 'Creado')); ?></th>
-                        <th><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_COL_REFERENCE', 'Reference', 'Referencia')); ?></th>
-                        <th class="text-end"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_AMOUNT_LABEL', 'Amount', 'Monto')); ?></th>
-                        <th><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_INSTALLMENTS_LABEL', 'Installments', 'Cuotas')); ?></th>
-                        <th><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_STATUS', 'Status', 'Estado')); ?></th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($blinkPaymentsForQuotation as $bp) :
-                        $bpUrl = trim((string) ($bp->payment_url ?? ''));
-                        $bpStatus = (string) ($bp->status ?? '');
-                        ?>
-                    <tr>
-                        <td class="text-nowrap small"><?php echo !empty($bp->created) ? HTMLHelper::_('date', $bp->created, Text::_('DATE_FORMAT_LC2')) : '—'; ?></td>
-                        <td class="small"><code><?php echo htmlspecialchars((string) ($bp->reference_id ?? '')); ?></code></td>
-                        <td class="text-end text-nowrap">Q <?php echo htmlspecialchars(number_format((float) ($bp->amount ?? 0), 2)); ?></td>
-                        <td class="small"><?php
-                            $bpInst = (string) ($bp->installments ?? '');
-                            echo htmlspecialchars(\Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::formatCuotasLabelHuman(
-                                \Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper::installmentCodeToMeses($bpInst)
-                            ));
-                        ?></td>
-                        <td class="small"><?php
-                            $bpStatusLabel = match ($bpStatus) {
-                                'created' => $l('COM_ORDENPRODUCCION_BLINK_STATUS_CREATED', 'Created', 'Creado'),
-                                'pending' => $l('COM_ORDENPRODUCCION_BLINK_STATUS_PENDING', 'Pending', 'Pendiente'),
-                                'failed'  => $l('COM_ORDENPRODUCCION_BLINK_STATUS_FAILED', 'Failed', 'Fallido'),
-                                default   => $bpStatus,
-                            };
-                            echo htmlspecialchars($bpStatusLabel);
-                        ?></td>
-                        <td class="text-nowrap">
-                            <?php if ($bpUrl !== '' && $bpStatus === 'created') : ?>
-                            <a href="<?php echo htmlspecialchars($bpUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-primary py-0" target="_blank" rel="noopener noreferrer">
-                                <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_OPEN_LINK', 'Open', 'Abrir')); ?>
-                            </a>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+        <?php elseif ($blinkActivePaymentUrl !== '') : ?>
+        <div class="mb-3" id="blink-active-payment-wrap">
+            <label class="form-label small mb-1" for="blink-active-payment-url">
+                <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_ACTIVE_PAY_LINK_LABEL', 'Payment link', 'Enlace de pago')); ?>
+                <?php if ($blinkActivePaymentReference !== '') : ?>
+                <span class="text-muted">(<code><?php echo htmlspecialchars($blinkActivePaymentReference); ?></code>)</span>
+                <?php endif; ?>
+            </label>
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control font-monospace" id="blink-active-payment-url" readonly value="<?php echo htmlspecialchars($blinkActivePaymentUrl, ENT_QUOTES, 'UTF-8'); ?>">
+                <button type="button" class="btn btn-outline-secondary" id="btn-blink-copy-active-link" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_COPY_LINK', 'Copy payment link', 'Copiar enlace de pago')); ?>">
+                    <i class="fas fa-copy"></i>
+                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_COPY_LINK', 'Copy payment link', 'Copiar enlace de pago')); ?>
+                </button>
+                <a href="<?php echo htmlspecialchars($blinkActivePaymentUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer">
+                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_OPEN_LINK', 'Open', 'Abrir')); ?>
+                </a>
+            </div>
         </div>
         <?php endif; ?>
+        <div id="blink-link-alert" class="small mb-3 d-none" role="status"></div>
     </div>
 
     <div class="modal fade" id="blinkCreatePaymentModal" tabindex="-1" aria-labelledby="blinkCreatePaymentModalLabel" aria-hidden="true">
@@ -941,15 +929,6 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                             <textarea class="form-control form-control-sm" id="blink-pay-descripcion" name="description" rows="3" maxlength="500" placeholder="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_DESC_PLACEHOLDER', 'Optional note for the customer', 'Nota opcional para el cliente')); ?>"></textarea>
                         </div>
                         <div id="blink-create-modal-alert" class="small mt-3 d-none" role="alert"></div>
-                        <div id="blink-create-result-box" class="d-none mt-3">
-                            <label class="form-label small" for="blink-create-result-url"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_PAY_LINK_RESULT', 'Payment URL', 'URL de pago')); ?></label>
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control font-monospace" id="blink-create-result-url" readonly>
-                                <a href="#" class="btn btn-outline-primary" id="blink-create-open-link" target="_blank" rel="noopener noreferrer">
-                                    <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_BLINK_OPEN_LINK', 'Open', 'Abrir')); ?>
-                                </a>
-                            </div>
-                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><?php echo htmlspecialchars(Text::_('JCANCEL')); ?></button>
@@ -964,17 +943,44 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
     </div>
     <script>
     (function() {
+        var copyBtn = document.getElementById('btn-blink-copy-active-link');
+        var activeUrl = document.getElementById('blink-active-payment-url');
+        var msgCopied = <?php echo json_encode($l('COM_ORDENPRODUCCION_BLINK_LINK_COPIED', 'Payment link copied to clipboard.', 'Enlace de pago copiado al portapapeles.')); ?>;
+        if (copyBtn && activeUrl) {
+            copyBtn.addEventListener('click', function() {
+                var value = activeUrl.value || '';
+                if (!value) { return; }
+                var done = function() {
+                    copyBtn.classList.remove('btn-outline-secondary');
+                    copyBtn.classList.add('btn-success');
+                    var prev = copyBtn.innerHTML;
+                    copyBtn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(function() {
+                        copyBtn.classList.add('btn-outline-secondary');
+                        copyBtn.classList.remove('btn-success');
+                        copyBtn.innerHTML = prev;
+                    }, 1500);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(value).then(done).catch(function() {
+                        activeUrl.select();
+                        try { document.execCommand('copy'); done(); } catch (e) {}
+                    });
+                } else {
+                    activeUrl.select();
+                    try { document.execCommand('copy'); done(); } catch (e) {}
+                }
+            });
+        }
+
         var form = document.getElementById('blink-create-payment-form');
         if (!form) { return; }
         var submitBtn = document.getElementById('blink-create-payment-submit');
         var alertEl = document.getElementById('blink-create-modal-alert');
-        var resultBox = document.getElementById('blink-create-result-box');
-        var resultUrl = document.getElementById('blink-create-result-url');
-        var openLink = document.getElementById('blink-create-open-link');
-        var outerAlert = document.getElementById('blink-link-alert');
+        var modalEl = document.getElementById('blinkCreatePaymentModal');
+        var cotizacionUrl = <?php echo json_encode($blinkCotizacionViewUrl); ?>;
         var url = <?php echo json_encode($blinkCreateJsonUrl); ?>;
         var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.')); ?>;
-        var msgOk = <?php echo json_encode($l('COM_ORDENPRODUCCION_BLINK_PAYMENT_CREATED', 'Payment link created.', 'Enlace de pago creado.')); ?>;
         form.addEventListener('submit', function(ev) {
             ev.preventDefault();
             var fd = new FormData(form);
@@ -986,19 +992,11 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (data && data.success && data.payment_url) {
-                        if (resultBox) { resultBox.classList.remove('d-none'); }
-                        if (resultUrl) { resultUrl.value = data.payment_url; }
-                        if (openLink) { openLink.href = data.payment_url; }
-                        if (alertEl) {
-                            alertEl.className = 'small mt-3 text-success';
-                            alertEl.textContent = msgOk;
-                            alertEl.classList.remove('d-none');
+                        if (modalEl && window.bootstrap && bootstrap.Modal) {
+                            var inst = bootstrap.Modal.getInstance(modalEl);
+                            if (inst) { inst.hide(); }
                         }
-                        if (outerAlert) {
-                            outerAlert.className = 'small mb-3 text-success';
-                            outerAlert.textContent = msgOk;
-                            outerAlert.classList.remove('d-none');
-                        }
+                        window.location.href = cotizacionUrl + (cotizacionUrl.indexOf('?') >= 0 ? '&' : '?') + 'blink_pay_ok=1';
                         return;
                     }
                     var msg = (data && data.message) ? data.message : 'Error';
@@ -1007,6 +1005,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         alertEl.textContent = msg;
                         alertEl.classList.remove('d-none');
                     }
+                    if (submitBtn) { submitBtn.disabled = false; }
                 })
                 .catch(function() {
                     if (alertEl) {
@@ -1014,8 +1013,6 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         alertEl.textContent = msgNet;
                         alertEl.classList.remove('d-none');
                     }
-                })
-                .finally(function() {
                     if (submitBtn) { submitBtn.disabled = false; }
                 });
         });

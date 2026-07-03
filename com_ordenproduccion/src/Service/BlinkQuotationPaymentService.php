@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkQuotationPaymentLinkHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
@@ -183,6 +184,16 @@ class BlinkQuotationPaymentService
             $update->status      = 'created';
             $update->error_message = null;
             $this->db->updateObject('#__ordenproduccion_blink_payments', $update, 'id');
+
+            TelegramNotificationHelper::notifyBlinkPaymentLinkCreated(
+                $userId,
+                $referenceId,
+                $amount,
+                BlinkQuotationPaymentLinkHelper::formatCuotasLabelHuman(
+                    BlinkQuotationPaymentLinkHelper::installmentCodeToMeses($installments)
+                ),
+                (string) $gw['payment_url']
+            );
 
             return [
                 'success'      => true,

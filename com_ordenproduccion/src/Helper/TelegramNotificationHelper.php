@@ -40,6 +40,9 @@ class TelegramNotificationHelper
     /** Purchase order file attached on cotización (facturación), uploaded by quotation owner. */
     public const EVENT_ORDEN_COMPRA_COTIZACION = 'orden_compra_cotizacion';
 
+    /** Blink / Pay Bi payment link created on a cotización (DM to creator). */
+    public const EVENT_BLINK_PAYMENT_LINK = 'blink_payment_link';
+
     /** Duplicate payment document number registered (Administración channel alert). */
     public const EVENT_PAYMENT_PROOF_DUPLICATE = 'proof_duplicate';
 
@@ -522,6 +525,63 @@ class TelegramNotificationHelper
 
         $channelText = self::replaceTemplatePlaceholders($channelTemplate, $vars);
         self::sendToAdministracionBroadcastChannel($params, $channelText, self::EVENT_ORDEN_COMPRA_COTIZACION);
+    }
+
+    /**
+     * After a Blink payment link is created: DM the checkout URL to the Joomla user who created it.
+     *
+     * @since  3.119.221
+     */
+    public static function notifyBlinkPaymentLinkCreated(
+        int $createdByUserId,
+        string $quotationRef,
+        float $amount,
+        string $cuotasLabel,
+        string $paymentUrl
+    ): void {
+        $createdByUserId = (int) $createdByUserId;
+        $paymentUrl      = trim($paymentUrl);
+        $quotationRef    = trim($quotationRef);
+
+        if ($createdByUserId < 1 || $paymentUrl === '') {
+            return;
+        }
+
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        if ((int) $params->get('telegram_enabled', 0) !== 1) {
+            return;
+        }
+
+        $token = trim((string) $params->get('telegram_bot_token', ''));
+        if ($token === '') {
+            return;
+        }
+
+        if (self::getChatIdForUser($createdByUserId) === null) {
+            return;
+        }
+
+        self::ensureTelegramLanguageLoaded();
+        $isEs     = strpos(Factory::getApplication()->getLanguage()->getTag(), 'es') !== false;
+        $amountFmt = 'Q ' . number_format(round($amount, 2), 2);
+        $ref      = $quotationRef !== '' ? $quotationRef : '—';
+        $cuotas   = trim($cuotasLabel) !== '' ? trim($cuotasLabel) : ($isEs ? 'Contado' : 'Single payment');
+
+        if ($isEs) {
+            $text = "Enlace de pago creado\n\n"
+                . 'Cotización: ' . $ref . "\n"
+                . 'Monto: ' . $amountFmt . "\n"
+                . 'Cuotas: ' . $cuotas . "\n\n"
+                . $paymentUrl;
+        } else {
+            $text = "Payment link created\n\n"
+                . 'Quotation: ' . $ref . "\n"
+                . 'Amount: ' . $amountFmt . "\n"
+                . 'Installments: ' . $cuotas . "\n\n"
+                . $paymentUrl;
+        }
+
+        self::sendToUserId($token, $createdByUserId, $text);
     }
 
     /**

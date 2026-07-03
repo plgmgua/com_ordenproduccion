@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.221-STABLE] - 2026-05-19
+
+### Added
+- **Cotización — Link de pago:** After creating a Blink payment link, send the URL via Telegram to the creator (when Telegram is enabled and their chat is linked).
+- **Post-create UX:** Close the modal and return to the cotización view with the copyable payment link; hide **Crear Link de Pago** when an active link already exists.
+
 ## [3.119.220-STABLE] - 2026-05-19
 
 ### Fixed
