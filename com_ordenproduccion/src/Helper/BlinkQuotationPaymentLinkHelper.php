@@ -169,10 +169,10 @@ final class BlinkQuotationPaymentLinkHelper
 
         $unique = array_values(array_unique($cuotasByPre));
         if (\count($unique) > 1) {
-            return $empty + [
-                'show_cuotas_mismatch' => true,
-                'pre_count'            => \count($preIds),
-            ];
+            $empty['show_cuotas_mismatch'] = true;
+            $empty['pre_count']            = \count($preIds);
+
+            return $empty;
         }
 
         $meses = (int) $unique[0];

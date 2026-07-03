@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.222-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización — cuotas mismatch warning:** `show_cuotas_mismatch` was never set because PHP array union (`$empty + [...]`) keeps the left-hand `false` value; warning now displays when pre-cotizaciones have different installment counts.
+
 ## [3.119.221-STABLE] - 2026-05-19
 
 ### Added
