@@ -35,6 +35,10 @@ class Dispatcher extends ComponentDispatcher
             $this->input->set('format', 'raw');
             $this->input->set('tmpl', 'component');
         }
+        if ($taskLower === 'cotizacion.downloadpdf') {
+            $this->input->set('format', 'raw');
+            $this->input->set('tmpl', 'component');
+        }
         $isWebhookTask = in_array($taskLower, ['webhook.test', 'webhook.process', 'webhook.health', 'webhook.pendingprecotizaciones'], true);
 
         $controllerLower = strtolower($this->input->getCmd('controller', ''));

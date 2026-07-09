@@ -50,17 +50,13 @@
             if (pdfId) {
                 var pdfLink = document.getElementById(pdfId);
                 if (pdfLink) {
-                    var base = pdfLink.getAttribute('data-base-href') || pdfLink.href;
-                    var qIdx = base.indexOf('?');
-                    var path = qIdx >= 0 ? base.substring(0, qIdx) : base;
-                    var params = new URLSearchParams(qIdx >= 0 ? base.substring(qIdx + 1) : '');
+                    var baseHref = pdfLink.getAttribute('data-base-href') || pdfLink.getAttribute('href') || pdfLink.href;
                     if (cur === 'USD' && rate > 0) {
-                        params.set('display_currency', 'USD');
+                        var sep = baseHref.indexOf('?') >= 0 ? '&' : '?';
+                        pdfLink.href = baseHref + sep + 'display_currency=USD';
                     } else {
-                        params.delete('display_currency');
+                        pdfLink.href = baseHref;
                     }
-                    var qs = params.toString();
-                    pdfLink.href = qs ? path + '?' + qs : path;
                 }
             }
         },

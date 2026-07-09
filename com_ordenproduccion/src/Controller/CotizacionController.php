@@ -347,7 +347,10 @@ class CotizacionController extends BaseController
             return;
         }
 
-        $quotationId = (int) $app->input->get('id', 0);
+        $quotationId = (int) $app->input->getInt('id', 0);
+        if ($quotationId < 1) {
+            $quotationId = (int) $app->input->getInt('quotation_id', 0);
+        }
         if ($quotationId < 1) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_QUOTATION_NOT_FOUND'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false));

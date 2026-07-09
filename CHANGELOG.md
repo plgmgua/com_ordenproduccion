@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.226-STABLE] - 2026-05-19
+
+### Fixed
+- **Cotización PDF:** Currency toggle JS no longer strips the quotation `id` on SEF URLs; PDF link uses explicit `index.php?…&id=` task URL. `downloadPdf` accepts `quotation_id` fallback and runs as `format=raw`.
+
 ## [3.119.225-STABLE] - 2026-05-19
 
 ### Added

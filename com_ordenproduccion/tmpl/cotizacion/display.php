@@ -255,7 +255,10 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                 <i class="fas fa-arrow-left"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_LIST', 'Back to list', 'Volver a la lista'); ?>
             </a>
-            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId); ?>" class="btn btn-success" id="cotizacionPdfLink" data-base-href="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId), ENT_QUOTES, 'UTF-8'); ?>" target="_blank">
+            <?php
+            $cotizacionPdfTaskUrl = 'index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&format=raw&id=' . (int) $quotationId;
+            ?>
+            <a href="<?php echo htmlspecialchars($cotizacionPdfTaskUrl, ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-success" id="cotizacionPdfLink" data-base-href="<?php echo htmlspecialchars($cotizacionPdfTaskUrl, ENT_QUOTES, 'UTF-8'); ?>" target="_blank">
                 <i class="fas fa-file-pdf"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_GENERATE_PDF', 'Generate PDF', 'Generar PDF'); ?>
             </a>
