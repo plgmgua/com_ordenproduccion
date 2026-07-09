@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.225-STABLE] - 2026-05-19
+
+### Added
+- **Cotización — USD display:** GTQ/USD toggle on read and edit views; amounts stay stored in quetzales. New quotations save BANGUAT referencia (`exchange_rate` / `exchange_rate_date` on quote date). PDF respects `display_currency=USD` (USD amounts only). Older quotations without a stored rate show GTQ only.
+
 ## [3.119.224-STABLE] - 2026-05-19
 
 ### Changed

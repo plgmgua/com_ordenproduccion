@@ -14,6 +14,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionCurrencyHelper;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
@@ -48,6 +49,9 @@ $uploadOrdenCompraPostUrl = Route::_('index.php?option=com_ordenproduccion&task=
 
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
 $currency = $quotation->currency ?? 'Q';
+$cotizacionExchangeRate = CotizacionCurrencyHelper::getExchangeRate($quotation);
+$cotizacionExchangeRateDate = CotizacionCurrencyHelper::getExchangeRateDate($quotation);
+$cotizacionCurrencyCanUsd = CotizacionCurrencyHelper::canDisplayUsd($quotation);
 $quotationConfirmed = isset($quotation->cotizacion_confirmada) && (int) $quotation->cotizacion_confirmada === 1;
 $quotationLockedByOrdenTrabajo = !empty($this->quotationHasActiveOrdenTrabajo);
 $pendingCotizacionConfirmation = $this->pendingCotizacionConfirmation ?? null;
@@ -251,7 +255,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                 <i class="fas fa-arrow-left"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_BACK_TO_LIST', 'Back to list', 'Volver a la lista'); ?>
             </a>
-            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId); ?>" class="btn btn-success" target="_blank">
+            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId); ?>" class="btn btn-success" id="cotizacionPdfLink" data-base-href="<?php echo htmlspecialchars(Route::_('index.php?option=com_ordenproduccion&task=cotizacion.downloadPdf&id=' . $quotationId), ENT_QUOTES, 'UTF-8'); ?>" target="_blank">
                 <i class="fas fa-file-pdf"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_GENERATE_PDF', 'Generate PDF', 'Generar PDF'); ?>
             </a>
@@ -268,6 +272,13 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
             <?php endif; ?>
         </div>
     </div>
+
+    <?php
+    $cotizacionCurrencyQuotationId = $quotationId;
+    $cotizacionCurrencyPdfLinkId = 'cotizacionPdfLink';
+    $cotizacionCurrencyIsCreate = false;
+    include __DIR__ . '/currency_toggle.php';
+    ?>
 
     <?php
     $pendingFactManual = $this->pendingCotizacionFacturacionManual ?? null;
@@ -598,8 +609,8 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                             <td class="col-cotizacion-pre"><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                             <td class="col-cotizacion-qty text-center"><?php echo (int) $qty; ?></td>
                             <td class="col-cotizacion-desc"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
-                            <td class="col-cotizacion-unit text-end"><?php echo $currency . ' ' . number_format($unit, 4); ?></td>
-                            <td class="col-cotizacion-sub text-end"><?php echo $currency . ' ' . number_format($lineTotal, 2); ?></td>
+                            <td class="col-cotizacion-unit text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($unit, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="4"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($unit, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 4)); ?></span></td>
+                            <td class="col-cotizacion-sub text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($lineTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($lineTotal, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
                             <td class="col-cotizacion-images align-middle cotizacion-line-images-cell">
                                 <?php if ($thumbPaths !== []) : ?>
                                     <div class="cotizacion-display-line-images d-flex flex-wrap gap-1 align-items-center">
@@ -682,13 +693,13 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                     <tr class="table-secondary fw-bold">
                         <?php if ($quotationConfirmed) : ?>
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
-                        <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
+                        <td class="text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($totalAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($totalAmount, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
                         <td></td>
                         <td></td>
                         <td></td>
                         <?php else : ?>
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
-                        <td class="text-end"><?php echo $currency . ' ' . number_format($totalAmount, 2); ?></td>
+                        <td class="text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($totalAmount, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($totalAmount, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
                         <td></td>
                         <td></td>
                         <?php endif; ?>

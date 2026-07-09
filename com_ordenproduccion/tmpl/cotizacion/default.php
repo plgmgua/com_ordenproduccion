@@ -11,6 +11,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Language\Text;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionCurrencyHelper;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\Factory;
@@ -31,6 +32,10 @@ $l = function($key, $fallbackEn, $fallbackEs = null) {
 <?php
 $isEdit = !empty($this->quotation);
 $quotationId = $isEdit ? (int) $this->quotation->id : 0;
+$cotizacionExchangeRate = $isEdit ? CotizacionCurrencyHelper::getExchangeRate($this->quotation) : null;
+$cotizacionExchangeRateDate = $isEdit ? CotizacionCurrencyHelper::getExchangeRateDate($this->quotation) : '';
+$cotizacionCurrencyCanUsd = $isEdit && CotizacionCurrencyHelper::canDisplayUsd($this->quotation);
+$editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float) $this->quotation->total_amount : 0.0;
 ?>
 <div class="cotizacion-container">
     <div class="cotizacion-header">
@@ -181,6 +186,12 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ITEMS', 'Quotation Details', 'Detalles de la cotización'); ?>
             </h4>
             <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation (description is filled automatically). Quantity on each line matches the Pre-Cotización “Cantidad Total” and cannot be edited. Total is the sum of all line values.', 'Agregue líneas eligiendo una Pre-Cotización (la descripción se copia sola). La cantidad de cada línea corresponde a la “Cantidad Total” de la Pre-Cotización y no se puede editar. El total es la suma de todos los valores.'); ?></p>
+            <?php
+            $cotizacionCurrencyQuotationId = $quotationId;
+            $cotizacionCurrencyPdfLinkId = '';
+            $cotizacionCurrencyIsCreate = !$isEdit;
+            include __DIR__ . '/currency_toggle.php';
+            ?>
             <?php if (empty($this->preCotizacionesList)) : ?>
                 <p class="alert alert-info"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NO_PRE_COTIZACIONES', 'You have no Pre-Quotations yet. Create one from Pre-Cotizaciones first.', 'Aún no tiene Pre-Cotizaciones. Cree una en Pre-Cotizaciones primero.'); ?></p>
             <?php endif; ?>
@@ -305,13 +316,16 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end<?php echo $preId > 0 ? ' readonly-prepop bg-light' : ''; ?>" min="0" step="1" value="<?php echo $qty; ?>"<?php echo $preId > 0 ? ' readonly tabindex="-1"' : ''; ?>></td>
                         <td class="cotizacion-line-desc-cell"><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
-                        <td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad"><?php echo number_format($unitPriceDisplay, 4); ?></span></td>
-                        <td class="text-end">Q <span class="line-subtotal-ref"><?php echo number_format($subtotalRef, 2); ?></span></td>
-                        <td class="text-end align-middle">Q
-                            <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>">
-                            <div class="d-inline-block ms-1">
-                                <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" data-min="<?php echo number_format($minValor, 2, '.', ''); ?>" placeholder="<?php echo number_format($minValor, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
-                                <div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div>
+                        <td class="text-end line-precio-unidad-cell"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($unitPriceDisplay, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="4"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($unitPriceDisplay, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 4)); ?></span></td>
+                        <td class="text-end"><span class="cotizacion-amt line-subtotal-ref-amt" data-gtq="<?php echo htmlspecialchars(number_format($subtotalRef, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($subtotalRef, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
+                        <td class="text-end align-middle">
+                            <div class="d-inline-block text-nowrap">
+                                <span class="small text-muted me-1">Q</span>
+                                <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>">
+                                <div class="d-inline-block ms-1">
+                                    <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" data-min="<?php echo number_format($minValor, 2, '.', ''); ?>" placeholder="<?php echo number_format($minValor, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
+                                    <div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div>
+                                </div>
                             </div>
                         </td>
                         <td class="align-middle cotizacion-line-images-cell">
@@ -334,7 +348,10 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
                 <tfoot>
                     <tr>
                         <td colspan="5" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
-                        <td class="text-end"><input type="text" id="totalAmount" name="total_amount" value="0.00" readonly class="form-control form-control-sm d-inline-block text-end fw-bold" style="width: 90px; background: #f8f9fa;"></td>
+                        <td class="text-end">
+                            <input type="hidden" id="totalAmount" name="total_amount" value="<?php echo htmlspecialchars(number_format($editTotalAmountGtq, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
+                            <span class="cotizacion-amt cotizacion-total-amt fw-bold" id="totalAmountDisplay" data-gtq="<?php echo htmlspecialchars(number_format($editTotalAmountGtq, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($editTotalAmountGtq, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span>
+                        </td>
                         <td></td>
                         <td></td>
                     </tr>
@@ -510,20 +527,27 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             }
         });
         var totalInp = document.getElementById('totalAmount');
+        var totalDisplay = document.getElementById('totalAmountDisplay');
         if (totalInp) totalInp.value = total.toFixed(2);
+        if (totalDisplay) {
+            totalDisplay.setAttribute('data-gtq', total.toFixed(2));
+            if (window.CotizacionCurrency) window.CotizacionCurrency.refresh();
+        }
     }
 
     function updateUnitPriceDisplay(row) {
         var qtyInp = row.querySelector('input[name*="[cantidad]"]');
         var valueInp = row.querySelector('input[name*="[value]"]');
-        var span = row.querySelector('.line-precio-unidad');
-        if (!span || !qtyInp || !valueInp) return;
+        var amtEl = row.querySelector('.line-precio-unidad-cell .cotizacion-amt');
+        if (!amtEl || !qtyInp || !valueInp) return;
         var q = parseFloat(String(qtyInp.value).trim().replace(',', '.'), 10);
         if (isNaN(q) || q < 0) q = 0;
         var raw = String(valueInp.value).trim().replace(',', '.');
         var sub = parseFloat(raw, 10);
         if (isNaN(sub)) sub = 0;
-        span.textContent = q > 0 ? (sub / q).toFixed(4) : '0.0000';
+        var unit = q > 0 ? (sub / q) : 0;
+        amtEl.setAttribute('data-gtq', unit.toFixed(4));
+        if (window.CotizacionCurrency) window.CotizacionCurrency.refresh();
     }
 
     var msgValorFinalMin = '<?php echo addslashes($l('COM_ORDENPRODUCCION_VALOR_FINAL_CANNOT_LOWER', 'The value cannot be lower than the subtotal.', 'El valor no puede ser menor al subtotal.')); ?>';
@@ -671,9 +695,9 @@ $quotationId = $isEdit ? (int) $this->quotation->id : 0;
             tr.innerHTML = '<td>' + firstCell + '</td>' +
                 '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end readonly-prepop bg-light" readonly tabindex="-1" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
                 '<td class="cotizacion-line-desc-cell"><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
-                '<td class="text-end line-precio-unidad-cell">Q <span class="line-precio-unidad">' + unitPrice + '</span></td>' +
-                '<td class="text-end">Q <span class="line-subtotal-ref">' + baseTotal.toFixed(2) + '</span></td>' +
-                '<td class="text-end align-middle">Q <input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
+                '<td class="text-end line-precio-unidad-cell"><span class="cotizacion-amt" data-gtq="' + unitPrice + '" data-decimals="4"></span></td>' +
+                '<td class="text-end"><span class="cotizacion-amt line-subtotal-ref-amt" data-gtq="' + baseTotal.toFixed(2) + '" data-decimals="2"></span></td>' +
+                '<td class="text-end align-middle"><span class="small text-muted me-1">Q</span><input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
                 '<td class="align-middle cotizacion-line-images-cell">' +
                 '<input type="hidden" class="line-images-json-input" name="lines[' + lineIndex + '][line_images_json]" value="[]">' +
                 '<input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff,.tif,.tiff" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">' +

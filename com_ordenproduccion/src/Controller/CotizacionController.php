@@ -18,6 +18,7 @@ use Joomla\CMS\Input\Input;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Log\Log;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionCurrencyHelper;
 use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
@@ -428,6 +429,14 @@ class CotizacionController extends BaseController
 
         $currency = $quotation->currency ?? 'Q';
         $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
+
+        $displayCurrency = strtoupper(trim($app->input->getString('display_currency', CotizacionCurrencyHelper::DISPLAY_GTQ)));
+        $exchangeRate    = CotizacionCurrencyHelper::getExchangeRate($quotation);
+        if ($displayCurrency === CotizacionCurrencyHelper::DISPLAY_USD && $exchangeRate !== null && $exchangeRate > 0) {
+            $currency    = 'USD';
+            $totalAmount = CotizacionCurrencyHelper::gtqToUsd($totalAmount, $exchangeRate);
+            $pdfSettings['gtq_to_usd_rate'] = $exchangeRate;
+        }
 
         $formatVersion = isset($pdfSettings['format_version']) ? max(1, min(2, (int) $pdfSettings['format_version'])) : 1;
         try {
@@ -4509,6 +4518,7 @@ class CotizacionController extends BaseController
         $termY = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
         $pieX = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
         $pieY = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
+        $gtqToUsdRate = isset($pdfSettings['gtq_to_usd_rate']) ? (float) $pdfSettings['gtq_to_usd_rate'] : 0;
 
         $pdf->SetFont('Arial', '', 10);
         $pageW   = $pdf->GetPageWidth();
@@ -4551,6 +4561,9 @@ class CotizacionController extends BaseController
         foreach ($items as $item) {
             $qty       = isset($item->cantidad) ? (int) $item->cantidad : 1;
             $lineTotal = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : (isset($item->subtotal) ? (float) $item->subtotal : 0);
+            if ($gtqToUsdRate > 0) {
+                $lineTotal = CotizacionCurrencyHelper::gtqToUsd($lineTotal, $gtqToUsdRate);
+            }
             $unit      = $qty > 0 ? ($lineTotal / $qty) : 0;
             $desc      = $fixSpanishChars($item->descripcion ?? '');
             $codigo    = $fixSpanishChars(isset($item->pre_cotizacion_number) && trim((string) $item->pre_cotizacion_number) !== ''
@@ -4695,6 +4708,7 @@ class CotizacionController extends BaseController
         $termY = isset($pdfSettings['terminos_y']) ? (float) $pdfSettings['terminos_y'] : 0;
         $pieX = isset($pdfSettings['pie_x']) ? (float) $pdfSettings['pie_x'] : 0;
         $pieY = isset($pdfSettings['pie_y']) ? (float) $pdfSettings['pie_y'] : 0;
+        $gtqToUsdRate = isset($pdfSettings['gtq_to_usd_rate']) ? (float) $pdfSettings['gtq_to_usd_rate'] : 0;
 
         $pageW   = $pdf->GetPageWidth();
         $marginR = 15;
@@ -4777,6 +4791,9 @@ class CotizacionController extends BaseController
         foreach ($items as $item) {
             $qty       = isset($item->cantidad) ? (int) $item->cantidad : 1;
             $lineTotal = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : (isset($item->subtotal) ? (float) $item->subtotal : 0);
+            if ($gtqToUsdRate > 0) {
+                $lineTotal = CotizacionCurrencyHelper::gtqToUsd($lineTotal, $gtqToUsdRate);
+            }
             $unit      = $qty > 0 ? ($lineTotal / $qty) : 0;
             $desc      = $fixSpanishChars($item->descripcion ?? '');
             $codigo    = $fixSpanishChars(isset($item->pre_cotizacion_number) && trim((string) $item->pre_cotizacion_number) !== ''

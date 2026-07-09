@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\Controller\BaseController;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionCurrencyHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
@@ -485,6 +486,14 @@ class AjaxController extends BaseController
             }
             if ($hasSalesAgent) {
                 $quotationData->sales_agent = $salesAgent !== '' ? $salesAgent : null;
+            }
+
+            $rateSnapshot = CotizacionCurrencyHelper::resolveRateForNewQuotation($quoteDate);
+            if (isset($cols['exchange_rate']) && $rateSnapshot['rate'] !== null) {
+                $quotationData->exchange_rate = $rateSnapshot['rate'];
+            }
+            if (isset($cols['exchange_rate_date'])) {
+                $quotationData->exchange_rate_date = $rateSnapshot['date'];
             }
 
             $result = $db->insertObject('#__ordenproduccion_quotations', $quotationData, 'id');
