@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.227-STABLE] - 2026-05-19
+
+### Fixed
+- **Financiero → Cuentas bancarias:** Month filter dropdown labels no longer shift by one month (Guatemala TZ); selecting Mayo now filters May transactions, not June.
+
 ## [3.119.226-STABLE] - 2026-05-19
 
 ### Fixed

@@ -404,11 +404,24 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940FilterYear   = max(2000, min(2100, (int) ($this->financieroMt940FilterYear ?? (int) \date('Y'))));
     $mt940Rows         = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
     $mt940BalanceRows  = isset($this->financieroMt940BalanceRows) && \is_array($this->financieroMt940BalanceRows) ? $this->financieroMt940BalanceRows : [];
-    $mt940DatosQs      = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias'
-        . '&mt940_filter_month=' . $mt940FilterMonth . '&mt940_filter_year=' . $mt940FilterYear . $finItemSuffix;
-    $mt940FormAction   = Route::_($mt940DatosQs, false);
+    $mt940FormBaseQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
+    $mt940FormAction   = Route::_($mt940FormBaseQs, false);
     $mt940YearMin      = (int) \date('Y') - 5;
     $mt940YearMax      = (int) \date('Y') + 1;
+    $mt940MonthLangKeys = [
+        1  => 'JANUARY',
+        2  => 'FEBRUARY',
+        3  => 'MARCH',
+        4  => 'APRIL',
+        5  => 'MAY',
+        6  => 'JUNE',
+        7  => 'JULY',
+        8  => 'AUGUST',
+        9  => 'SEPTEMBER',
+        10 => 'OCTOBER',
+        11 => 'NOVEMBER',
+        12 => 'DECEMBER',
+    ];
 
     $fmtMt940Amount = static function ($amount, string $dc, string $currency): string {
         $n = round((float) $amount, 2);
@@ -468,7 +481,8 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_MONTH'); ?></label>
                 <select class="form-select form-select-sm" name="mt940_filter_month" style="min-width: 9rem;">
                     <?php for ($m = 1; $m <= 12; $m++) :
-                        $monthLabel = HTMLHelper::_('date', \sprintf('2020-%02d-01', $m), 'F'); ?>
+                        $monthKey   = $mt940MonthLangKeys[$m] ?? '';
+                        $monthLabel = $monthKey !== '' ? Text::_($monthKey) : (string) $m; ?>
                         <option value="<?php echo $m; ?>"<?php echo $mt940FilterMonth === $m ? ' selected' : ''; ?>>
                             <?php echo htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8'); ?>
                         </option>

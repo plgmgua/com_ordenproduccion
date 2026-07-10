@@ -2199,7 +2199,10 @@ class HtmlView extends BaseHtmlView
                         $this->financieroMt940FilterYear  = $filterYear;
                         $periodFrom                       = \sprintf('%04d-%02d-01', $filterYear, $filterMonth);
                         $this->financieroMt940FilterDateFrom = $periodFrom;
-                        $this->financieroMt940FilterDateTo   = \date('Y-m-t', \strtotime($periodFrom));
+                        $periodEnd = Factory::getDate($periodFrom . ' 00:00:00', 'America/Guatemala');
+                        $periodEnd->setDate((int) $filterYear, (int) $filterMonth, 1);
+                        $periodEnd->modify('last day of this month');
+                        $this->financieroMt940FilterDateTo = $periodEnd->format('Y-m-d');
 
                         if ($fst === 'cuentas_bancarias' && $this->financieroMt940SchemaOk) {
                             $limit      = max(10, min(200, (int) $input->getInt('mt940_limit', 25)));
