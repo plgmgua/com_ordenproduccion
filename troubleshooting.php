@@ -108,7 +108,7 @@ function tsRender(array $vars): void
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Odoo diagnostic — com_ordenproduccion</title>
+    <title>com_ordenproduccion diagnostics</title>
 <?php endif; ?>
     <style>
         .odoo-ts, .odoo-ts * { box-sizing: border-box; }
@@ -333,6 +333,53 @@ function tsRender(array $vars): void
             <?php endforeach; ?>
         <?php endforeach; ?>
     <?php endif; ?>
+
+    <?php if (!empty($paymentVerifyError)): ?>
+        <hr style="margin: 28px 0; border: 0; border-top: 1px solid #e0e0e0;">
+        <h1>Verificar pago — MT-940 &amp; aprobaciones</h1>
+        <p class="result-err">Payment verification diagnostic error: <?php echo htmlspecialchars((string) $paymentVerifyError); ?></p>
+    <?php elseif (!empty($paymentVerifyReport)): ?>
+        <hr style="margin: 28px 0; border: 0; border-top: 1px solid #e0e0e0;">
+        <h1>Verificar pago — MT-940 &amp; aprobaciones</h1>
+        <p class="subtitle">
+            Cron matching, component options, approval workflow <code>payment_proof</code>, and match log.
+            Options: <strong>Components → Orden Producción → Options → Configuration</strong>.
+            Workflow: <strong>Administración → Ajustes → Flujos de aprobaciones → Comprobante de pago</strong> (must be <em>Publicado</em>).
+        </p>
+        <?php
+        $pvMeta = $paymentVerifyReport['meta'] ?? [];
+        $pvStatus = (string) ($pvMeta['status'] ?? 'info');
+        $pvStatusLabel = $pvStatus === 'ok' ? 'OK' : ($pvStatus === 'fail' ? 'FAIL' : 'WARN');
+        $pvStatusClass = $pvStatus === 'ok' ? 'ok' : ($pvStatus === 'fail' ? 'err' : 'warn');
+        $pvCfg = $paymentVerifyReport['config'] ?? [];
+        ?>
+        <p>
+            <span class="badge <?php echo htmlspecialchars($pvStatusClass); ?>"><?php echo htmlspecialchars($pvStatusLabel); ?></span>
+            Failures: <?php echo (int) ($pvMeta['failures'] ?? 0); ?>
+            &nbsp; Warnings: <?php echo (int) ($pvMeta['warnings'] ?? 0); ?>
+            &nbsp; Run: <?php echo htmlspecialchars((string) ($pvMeta['time'] ?? '')); ?>
+        </p>
+        <div class="meta-grid">
+            <div class="meta-item"><strong>approval_workflow_payment_proof</strong><?php echo htmlspecialchars((string) ($pvCfg['approval_workflow_payment_proof'] ?? '')); ?></div>
+            <div class="meta-item"><strong>payment_proof_mt940_verification</strong><?php echo htmlspecialchars((string) ($pvCfg['payment_proof_mt940_verification'] ?? '')); ?></div>
+            <div class="meta-item"><strong>MT-940 mode active</strong><?php echo htmlspecialchars((string) ($pvCfg['mt940_verification_active'] ?? '')); ?></div>
+        </div>
+        <?php foreach ($paymentVerifyReport['sections'] ?? [] as $section): ?>
+            <h2><?php echo htmlspecialchars((string) ($section['title'] ?? '')); ?></h2>
+            <?php if (!empty($section['details']) && is_array($section['details'])): ?>
+                <?php foreach ($section['details'] as $dk => $dv): ?>
+                    <p><code><?php echo htmlspecialchars((string) $dk); ?></code>: <?php echo htmlspecialchars(is_scalar($dv) ? (string) $dv : json_encode($dv)); ?></p>
+                <?php endforeach; ?>
+            <?php endif; ?>
+            <?php foreach ($section['checks'] ?? [] as $check): ?>
+                <div class="check-row <?php echo htmlspecialchars(tsStatusClass($check)); ?>">
+                    <span class="badge <?php echo htmlspecialchars(tsStatusClass($check)); ?>"><?php echo htmlspecialchars((string) ($check['status'] ?? '')); ?></span>
+                    <strong><?php echo htmlspecialchars((string) ($check['label'] ?? '')); ?></strong>
+                    — <?php echo htmlspecialchars((string) ($check['detail'] ?? '')); ?>
+                </div>
+            <?php endforeach; ?>
+        <?php endforeach; ?>
+    <?php endif; ?>
 </div>
 </div>
 <?php if ($standalone): ?>
@@ -351,6 +398,8 @@ $odooError = null;
 $odooReport = null;
 $mt940Report = null;
 $mt940Error = null;
+$paymentVerifyReport = null;
+$paymentVerifyError = null;
 $odooUserId = 0;
 $odooLogin = '';
 $skipSaveTest = false;
@@ -400,6 +449,17 @@ try {
             }
         } else {
             $mt940Error = 'Mt940DiagnosticHelper not found. Deploy com_ordenproduccion 3.119.168+ and clear cache.';
+        }
+
+        $pvClass = \Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentVerificationDiagnosticHelper::class;
+        if (\class_exists($pvClass)) {
+            try {
+                $paymentVerifyReport = (new $pvClass())->run();
+            } catch (\Throwable $e) {
+                $paymentVerifyError = $e->getMessage();
+            }
+        } else {
+            $paymentVerifyError = 'PaymentVerificationDiagnosticHelper not found. Deploy com_ordenproduccion 3.119.229+ and clear cache.';
         }
     }
 
@@ -519,6 +579,8 @@ tsRender(compact(
     'odooReport',
     'mt940Report',
     'mt940Error',
+    'paymentVerifyReport',
+    'paymentVerifyError',
     'odooUserId',
     'odooLogin',
     'skipSaveTest',

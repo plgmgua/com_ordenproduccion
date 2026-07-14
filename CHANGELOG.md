@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.230-STABLE] - 2026-05-19
+
+### Added
+- **troubleshooting.php:** New section **Verificar pago — MT-940 & aprobaciones** via `PaymentVerificationDiagnosticHelper` (options, schema, workflow published, cron URLs, match log, Telegram).
+
 ## [3.119.229-STABLE] - 2026-05-19
 
 ### Fixed
