@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.233-STABLE] - 2026-05-19
+
+### Fixed
+- **Component options:** Human-friendly labels for payment verification toggles; added missing MT-940 strings to `admin/language/*/com_ordenproduccion.sys.ini` so Joomla Options no longer shows raw `COM_ORDENPRODUCCION_CONFIG_*` keys.
+
 ## [3.119.232-STABLE] - 2026-05-19
 
 ### Changed
