@@ -55,6 +55,29 @@
             <option value="0">JNO</option>
             <option value="1">JYES</option>
         </field>
+        <field
+            name="approval_workflow_payment_proof"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_APPROVAL_WORKFLOW_PAYMENT_PROOF_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_APPROVAL_WORKFLOW_PAYMENT_PROOF_DESC"
+            default="0"
+            class="btn-group btn-group-yesno"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
+        <field
+            name="payment_proof_mt940_verification"
+            type="radio"
+            label="COM_ORDENPRODUCCION_CONFIG_PAYMENT_PROOF_MT940_VERIFICATION_LABEL"
+            description="COM_ORDENPRODUCCION_CONFIG_PAYMENT_PROOF_MT940_VERIFICATION_DESC"
+            default="1"
+            class="btn-group btn-group-yesno"
+            showon="approval_workflow_payment_proof:1"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+        </field>
     </fieldset>
     <fieldset name="integraciones" label="Integrations">
         <field

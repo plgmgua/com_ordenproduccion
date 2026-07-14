@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.229-STABLE] - 2026-05-19
+
+### Fixed
+- **Component options:** Payment proof / MT-940 verification toggles now appear in Joomla backend **Configuration** tab (`admin/config.xml`); they were only in the manifest and invisible in the UI.
+
 ## [3.119.228-STABLE] - 2026-05-19
 
 ### Added
