@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.232-STABLE] - 2026-05-19
+
+### Changed
+- **troubleshooting.php:** Reduced to **Verificar pago — MT-940 & aprobaciones** only; removed Odoo/Mis Clientes, user impersonation, and MT-940 IMAP sections.
+
 ## [3.119.231-STABLE] - 2026-05-19
 
 ### Fixed

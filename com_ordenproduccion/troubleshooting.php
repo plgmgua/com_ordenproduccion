@@ -1,6 +1,6 @@
 <?php
 /**
- * Wrapper — forwards to Joomla root Odoo diagnostic.
+ * Wrapper — forwards to Joomla root Verificar pago diagnostic.
  *
  * Sourcerer: use ONLY one require line (do not paste the full root troubleshooting.php).
  *   require JPATH_ROOT . '/troubleshooting.php';
