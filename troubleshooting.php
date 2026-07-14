@@ -3,7 +3,11 @@
  * Odoo / Mis Clientes diagnostic for com_ordenproduccion.
  *
  * Standalone: https://yoursite.com/troubleshooting.php
- * Sourcerer (Joomla article): {source type=php}<?php require JPATH_ROOT . '/troubleshooting.php'; ?>{/source}
+ *
+ * Sourcerer (Joomla article) — do NOT paste this whole file into the article.
+ * Upload troubleshooting.php to the Joomla root, then put ONLY this in Sourcerer:
+ *   require JPATH_ROOT . '/troubleshooting.php';
+ * (Wrap that line in Sourcerer's php source tags in the article editor.)
  *
  * Optional params: odoo_user_id, odoo_login
  */
@@ -425,7 +429,7 @@ try {
     }
 
     if ($componentBootError === null) {
-        $helperClass = \Grimpsa\Component\Ordenproduccion\Site\Helper\OdooDiagnosticHelper::class;
+        $helperClass = 'Grimpsa\\Component\\Ordenproduccion\\Site\\Helper\\OdooDiagnosticHelper';
         if (!class_exists($helperClass)) {
             throw new \RuntimeException(
                 'OdooDiagnosticHelper not found. Deploy com_ordenproduccion and clear Joomla cache.'
@@ -440,8 +444,8 @@ try {
             'test_save_contact'   => !$skipSaveTest,
         ]);
 
-        $mt940Class = \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940DiagnosticHelper::class;
-        if (\class_exists($mt940Class)) {
+        $mt940Class = 'Grimpsa\\Component\\Ordenproduccion\\Site\\Helper\\Mt940DiagnosticHelper';
+        if (class_exists($mt940Class)) {
             try {
                 $mt940Report = (new $mt940Class())->run();
             } catch (\Throwable $e) {
@@ -451,8 +455,8 @@ try {
             $mt940Error = 'Mt940DiagnosticHelper not found. Deploy com_ordenproduccion 3.119.168+ and clear cache.';
         }
 
-        $pvClass = \Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentVerificationDiagnosticHelper::class;
-        if (\class_exists($pvClass)) {
+        $pvClass = 'Grimpsa\\Component\\Ordenproduccion\\Site\\Helper\\PaymentVerificationDiagnosticHelper';
+        if (class_exists($pvClass)) {
             try {
                 $paymentVerifyReport = (new $pvClass())->run();
             } catch (\Throwable $e) {

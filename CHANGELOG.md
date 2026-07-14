@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.231-STABLE] - 2026-05-19
+
+### Fixed
+- **troubleshooting.php:** Removed Sourcerer tag syntax from the file header comment (`{/source}` closed the plugin early when the full file was pasted into an article, causing `unexpected string content` near PaymentVerificationDiagnosticHelper). Use a one-line `require JPATH_ROOT . '/troubleshooting.php';` in Sourcerer instead.
+
 ## [3.119.230-STABLE] - 2026-05-19
 
 ### Added

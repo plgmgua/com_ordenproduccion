@@ -2,8 +2,9 @@
 /**
  * Wrapper — forwards to Joomla root Odoo diagnostic.
  *
- * Sourcerer article (either path works after deploy):
+ * Sourcerer: use ONLY one require line (do not paste the full root troubleshooting.php).
  *   require JPATH_ROOT . '/troubleshooting.php';
+ * or:
  *   require JPATH_ROOT . '/components/com_ordenproduccion/troubleshooting.php';
  */
 
