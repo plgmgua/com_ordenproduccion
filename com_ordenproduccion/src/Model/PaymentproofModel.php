@@ -389,8 +389,9 @@ class PaymentproofModel extends ItemModel
             $db->transactionCommit();
 
             // Optional: start approval workflow when a new proof is recorded (3.109.72+).
+            // MT-940 mode (3.119.228+): approval is created by cron after bank match, not on save.
             try {
-                if ((int) ComponentHelper::getParams('com_ordenproduccion')->get('approval_workflow_payment_proof', 0) === 1) {
+                if (\Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isLegacyPaymentProofApprovalOnSave()) {
                     $wfSvc       = new ApprovalWorkflowService();
                     $submitterId = (int) ($data['created_by'] ?? 0);
                     if ($wfSvc->hasSchema() && $submitterId > 0) {

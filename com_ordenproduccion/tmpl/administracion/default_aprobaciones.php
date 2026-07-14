@@ -9,7 +9,9 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -42,6 +44,8 @@ $entityLabel = static function (string $entityType): string {
 $approveAction = Route::_('index.php?option=com_ordenproduccion&task=administracion.approveApprovalWorkflow');
 $rejectAction  = Route::_('index.php?option=com_ordenproduccion&task=administracion.rejectApprovalWorkflow');
 $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administracion.cancelApprovalWorkflow');
+$mt940SearchUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.searchMt940ForPaymentApproval&format=json');
+$mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnabled();
 ?>
 
 <div class="approval-workflow-section" style="background:#fff;padding:25px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
@@ -98,6 +102,8 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                     ? ('COT-' . str_pad((string) $eid, 6, '0', STR_PAD_LEFT))
                                     : '';
                             }
+                        } elseif ($etype === 'payment_proof') {
+                            $refDisplay = $eid > 0 ? ('PA-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT)) : '';
                         } else {
                             $refDisplay = (string) (int) $eid;
                         }
@@ -185,6 +191,79 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
                                         <?php echo HTMLHelper::_('form.token'); ?>
                                         <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
                                         <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_DISMISS'); ?></button>
+                                    </form>
+                                </div>
+                                <?php elseif ($etype === 'payment_proof' && $mt940PaymentVerifyEnabled) : ?>
+                                <?php
+                                $ppMeta = Mt940PaymentMatchService::decodeVerificationMetadata(isset($row->metadata) ? (string) $row->metadata : '');
+                                $ppLines = ($ppMeta !== null && !empty($ppMeta['lines']) && is_array($ppMeta['lines'])) ? $ppMeta['lines'] : [];
+                                ?>
+                                <div class="payment-proof-mt940-approval" data-request-id="<?php echo (int) $rid; ?>">
+                                    <?php if ($ppLines !== []) : ?>
+                                    <div class="table-responsive mb-2">
+                                        <table class="table table-sm table-bordered mb-0 small">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_COL_COMPROBANTE'); ?></th>
+                                                    <th><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_COL_MT940'); ?></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach ($ppLines as $pl) :
+                                                    if (!is_array($pl)) {
+                                                        continue;
+                                                    }
+                                                    $mt = is_array($pl['mt940'] ?? null) ? $pl['mt940'] : [];
+                                                    $amtFmt = number_format((float) ($pl['amount'] ?? 0), 2);
+                                                    $mtAmtFmt = number_format((float) ($mt['amount'] ?? 0), 2);
+                                                    $lineId = (int) ($pl['line_id'] ?? 0);
+                                                    ?>
+                                                <tr data-line-id="<?php echo $lineId; ?>">
+                                                    <td>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?>:</strong> <?php echo htmlspecialchars((string) ($pl['document_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_DATE'); ?>:</strong> <?php echo htmlspecialchars((string) ($pl['document_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?>:</strong> Q <?php echo htmlspecialchars($amtFmt, ENT_QUOTES, 'UTF-8'); ?></div>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_ACCOUNT'); ?>:</strong> <?php echo htmlspecialchars((string) ($pl['account_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+                                                    </td>
+                                                    <td class="mt940-suggestion-cell">
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_REFERENCE'); ?>:</strong> <span class="mt940-ref"><?php echo htmlspecialchars((string) ($mt['reference'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></div>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_DATE'); ?>:</strong> <span class="mt940-date"><?php echo htmlspecialchars((string) ($mt['transaction_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></div>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?>:</strong> Q <span class="mt940-amount"><?php echo htmlspecialchars($mtAmtFmt, ENT_QUOTES, 'UTF-8'); ?></span></div>
+                                                        <div class="text-muted mt940-desc"><?php echo htmlspecialchars((string) ($mt['description'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
+                                                        <input type="hidden" class="mt940-tx-id" value="<?php echo (int) ($pl['mt940_transaction_id'] ?? 0); ?>" />
+                                                        <input type="hidden" class="mt940-bank-account-id" value="<?php echo (int) ($pl['bank_account_id'] ?? 0); ?>" />
+                                                        <input type="hidden" class="mt940-line-amount" value="<?php echo htmlspecialchars((string) ($pl['amount'] ?? '0'), ENT_QUOTES, 'UTF-8'); ?>" />
+                                                        <input type="hidden" class="mt940-line-date" value="<?php echo htmlspecialchars((string) ($pl['document_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" />
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm mt-1 pp-mt940-search-btn"><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_SEARCH_BTN'); ?></button>
+                                                        <div class="pp-mt940-search-results mt-1 d-none"></div>
+                                                    </td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <?php else : ?>
+                                    <p class="small text-muted mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_NO_SUGGESTION'); ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($docUrl !== '') : ?>
+                                    <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                                        <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_DOCUMENT'); ?></a>
+                                    </div>
+                                    <?php endif; ?>
+                                    <form method="post" action="<?php echo $approveAction; ?>" class="mb-2 pp-mt940-approve-form">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                        <input type="hidden" name="mt940_manual_override" class="pp-mt940-manual-override" value="" />
+                                        <label class="form-label small mb-0" for="approval-approve-pp-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
+                                        <textarea class="form-control form-control-sm mb-1" id="approval-approve-pp-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'); ?>"></textarea>
+                                        <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
+                                    </form>
+                                    <form method="post" action="<?php echo $rejectAction; ?>">
+                                        <?php echo HTMLHelper::_('form.token'); ?>
+                                        <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                        <label class="form-label small mb-0" for="approval-reject-pp-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
+                                        <textarea class="form-control form-control-sm mb-1" id="approval-reject-pp-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'); ?>"></textarea>
+                                        <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
                                     </form>
                                 </div>
                                 <?php elseif ($etype === 'orden_compra') : ?>
@@ -321,5 +400,92 @@ $cancelAction  = Route::_('index.php?option=com_ordenproduccion&task=administrac
   }
 
   document.querySelectorAll('.op-appr-odoo-finance[data-op-odoo-partner]').forEach(fillOdooFinanceBox);
+})();
+(function () {
+  var searchUrl = <?php echo json_encode((string) $mt940SearchUrl); ?>;
+
+  function collectOverrides(container) {
+    var lines = [];
+    container.querySelectorAll('tr[data-line-id]').forEach(function (tr) {
+      var lineId = parseInt(tr.getAttribute('data-line-id') || '0', 10);
+      var txInput = tr.querySelector('.mt940-tx-id');
+      var txId = txInput ? parseInt(txInput.value || '0', 10) : 0;
+      if (lineId > 0 && txId > 0) {
+        lines.push({ line_id: lineId, mt940_transaction_id: txId });
+      }
+    });
+    return JSON.stringify({ lines: lines });
+  }
+
+  document.querySelectorAll('.payment-proof-mt940-approval').forEach(function (wrap) {
+    var approveForm = wrap.querySelector('.pp-mt940-approve-form');
+    if (approveForm) {
+      approveForm.addEventListener('submit', function () {
+        var hidden = approveForm.querySelector('.pp-mt940-manual-override');
+        if (hidden) {
+          hidden.value = collectOverrides(wrap);
+        }
+      });
+    }
+
+    wrap.querySelectorAll('.pp-mt940-search-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var cell = btn.closest('.mt940-suggestion-cell');
+        if (!cell) return;
+        var bankId = parseInt((cell.querySelector('.mt940-bank-account-id') || {}).value || '0', 10);
+        var date = (cell.querySelector('.mt940-line-date') || {}).value || '';
+        var amount = parseFloat((cell.querySelector('.mt940-line-amount') || {}).value || '0');
+        var results = cell.querySelector('.pp-mt940-search-results');
+        if (!results) return;
+        results.classList.remove('d-none');
+        results.innerHTML = '…';
+        var qs = searchUrl + (searchUrl.indexOf('?') >= 0 ? '&' : '?')
+          + 'bank_account_id=' + encodeURIComponent(String(bankId))
+          + '&date=' + encodeURIComponent(date)
+          + '&amount=' + encodeURIComponent(String(amount));
+        fetch(qs)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.success || !data.data || !data.data.rows || !data.data.rows.length) {
+              results.innerHTML = '<span class="text-muted">Sin resultados</span>';
+              return;
+            }
+            var html = '<ul class="list-unstyled mb-0">';
+            data.data.rows.forEach(function (row) {
+              html += '<li class="mb-1"><button type="button" class="btn btn-link btn-sm p-0 pp-mt940-pick" data-tx-id="' + row.id + '" data-ref="' + (row.reference || '') + '" data-date="' + (row.transaction_date || '') + '" data-amount="' + row.amount + '" data-desc="' + (row.description || '').replace(/"/g, '&quot;') + '">'
+                + (row.reference || '—') + ' · ' + (row.transaction_date || '') + ' · Q ' + row.amount
+                + '</button></li>';
+            });
+            html += '</ul>';
+            results.innerHTML = html;
+            results.querySelectorAll('.pp-mt940-pick').forEach(function (pick) {
+              pick.addEventListener('click', function (ev) {
+                ev.stopPropagation();
+                var txId = parseInt(pick.getAttribute('data-tx-id') || '0', 10);
+                var ref = pick.getAttribute('data-ref') || '';
+                var dt = pick.getAttribute('data-date') || '';
+                var amt = pick.getAttribute('data-amount') || '';
+                var desc = pick.getAttribute('data-desc') || '';
+                var txInput = cell.querySelector('.mt940-tx-id');
+                if (txInput) txInput.value = String(txId);
+                var refEl = cell.querySelector('.mt940-ref');
+                if (refEl) refEl.textContent = ref;
+                var dateEl = cell.querySelector('.mt940-date');
+                if (dateEl) dateEl.textContent = dt;
+                var amtEl = cell.querySelector('.mt940-amount');
+                if (amtEl) amtEl.textContent = amt;
+                var descEl = cell.querySelector('.mt940-desc');
+                if (descEl) descEl.textContent = desc;
+                results.classList.add('d-none');
+              });
+            });
+          })
+          .catch(function () {
+            results.innerHTML = '<span class="text-danger">Error</span>';
+          });
+      });
+    });
+  });
 })();
 </script>

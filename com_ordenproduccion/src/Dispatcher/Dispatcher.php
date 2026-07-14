@@ -46,11 +46,13 @@ class Dispatcher extends ComponentDispatcher
         $isTelegramQueueCron = ($controllerLower === 'telegram' && $taskLower === 'processqueue');
         // MT-940 scheduled mailbox import: public; auth is cron_key (see Mt940Controller::runScheduledImport).
         $isMt940ScheduledImport = ($controllerLower === 'mt940' && $taskLower === 'runscheduledimport');
+        // MT-940 payment proof matching: public; auth is cron_key (see PaymentverificationController::runScheduledMatch).
+        $isPaymentMt940MatchCron = ($controllerLower === 'paymentverification' && $taskLower === 'runscheduledmatch');
         // Telegram Bot API inbound updates: no Joomla session; auth is X-Telegram-Bot-Api-Secret-Token (see TelegramController::webhook).
         $isTelegramBotWebhook = ($controllerLower === 'telegram' && $taskLower === 'webhook');
         // Blink gateway log.created webhook: no Joomla session; auth is X-Blink-Signature HMAC (see BlinkController::logWebhook).
         $isBlinkLogWebhook = ($controllerLower === 'blink' && $taskLower === 'logwebhook');
-        if ($isTelegramQueueCron || $isTelegramBotWebhook || $isMt940ScheduledImport || $isBlinkLogWebhook) {
+        if ($isTelegramQueueCron || $isTelegramBotWebhook || $isMt940ScheduledImport || $isPaymentMt940MatchCron || $isBlinkLogWebhook) {
             $this->input->set('format', 'raw');
             $this->input->set('tmpl', 'component');
         }
@@ -89,7 +91,7 @@ class Dispatcher extends ComponentDispatcher
         // Exception: Telegram webhook (POST from Telegram servers) — secured by secret header, not session
         // Exception: Blink log webhook (POST from Blink gateway) — secured by X-Blink-Signature HMAC, not session
         $user = Factory::getUser();
-        if ($user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport && !$isBlinkLogWebhook) {
+        if ($user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport && !$isPaymentMt940MatchCron && !$isBlinkLogWebhook) {
             $app = Factory::getApplication();
             $returnUrl = Uri::getInstance()->toString();
             $return = urlencode(base64_encode($returnUrl));
@@ -97,7 +99,7 @@ class Dispatcher extends ComponentDispatcher
             return;
         }
 
-        if (!$user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport && !$isBlinkLogWebhook) {
+        if (!$user->guest && !$isWebhookTask && !$isTelegramQueueCron && !$isTelegramBotWebhook && !$isMt940ScheduledImport && !$isPaymentMt940MatchCron && !$isBlinkLogWebhook) {
             UserSessionAuditHelper::recordFromRequest($this->input);
         }
 

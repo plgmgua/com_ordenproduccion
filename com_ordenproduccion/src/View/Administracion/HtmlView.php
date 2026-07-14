@@ -439,6 +439,9 @@ class HtmlView extends BaseHtmlView
      */
     protected $mt940CronCrontabLine = '';
 
+    /** @var string */
+    protected $paymentMt940MatchCronCrontabLine = '';
+
     /**
      * @var    bool
      * @since  3.119.158
@@ -1574,6 +1577,7 @@ class HtmlView extends BaseHtmlView
         $this->ajustesMt940SchemaOk                 = false;
         $this->ajustesMt940BankAccountOptions       = [];
         $this->mt940CronCrontabLine                 = '';
+        $this->paymentMt940MatchCronCrontabLine     = '';
         $this->mt940CronKeyConfigured               = false;
         $this->mt940RunLogRows                      = [];
         $this->mt940RunLogTotal                     = 0;
@@ -2953,6 +2957,7 @@ class HtmlView extends BaseHtmlView
 
                     $cronKey = $admMt940->getMt940CronKey();
                     $this->mt940CronCrontabLine       = $admMt940->getMt940CronCrontabLine();
+                    $this->paymentMt940MatchCronCrontabLine = $admMt940->getPaymentMt940MatchCronCrontabLine();
                     $this->mt940CronKeyConfigured     = ($cronKey !== '');
                 }
             } catch (\Throwable $e) {

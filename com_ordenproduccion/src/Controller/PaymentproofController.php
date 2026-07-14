@@ -18,6 +18,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Filesystem\File;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailBccHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailSendHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
@@ -858,7 +859,13 @@ class PaymentproofController extends BaseController
             return false;
         }
 
-        if (!AccessHelper::isInAdministracionOrAdmonGroup()) {
+        if (Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            if (!AccessHelper::isSuperUser()) {
+                $this->app->enqueueMessage('Solo Super Users pueden marcar comprobantes como verificados manualmente cuando la verificación MT-940 está activa.', 'error');
+                $this->setRedirect($redirectUrl);
+                return false;
+            }
+        } elseif (!AccessHelper::isInAdministracionOrAdmonGroup()) {
             $this->app->enqueueMessage('No tiene permiso para marcar comprobantes como verificados.', 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
             return false;
@@ -889,9 +896,19 @@ class PaymentproofController extends BaseController
             return true;
         }
 
-        // Optional: close open approval request when verifying (workflow started on proof save; 3.109.72+).
-        $useApprovalWorkflow = (int) ComponentHelper::getParams('com_ordenproduccion')->get('approval_workflow_payment_proof', 0) === 1;
-        $wfSvc               = new ApprovalWorkflowService();
+        // Close open MT-940 approval when superadmin verifies manually.
+        $wfSvc = new ApprovalWorkflowService();
+        if (Mt940PaymentMatchLogHelper::isMt940VerificationEnabled() && $wfSvc->hasSchema()) {
+            if (!$wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id)) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_VERIFY_WORKFLOW_ERROR'), 'error');
+                $this->setRedirect($redirectUrl);
+
+                return false;
+            }
+        }
+
+        // Legacy: close open approval request when verifying (workflow started on proof save).
+        $useApprovalWorkflow = Mt940PaymentMatchLogHelper::isLegacyPaymentProofApprovalOnSave();
         if ($useApprovalWorkflow && $wfSvc->hasSchema()) {
             if (!$wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id)) {
                 $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_VERIFY_WORKFLOW_ERROR'), 'error');

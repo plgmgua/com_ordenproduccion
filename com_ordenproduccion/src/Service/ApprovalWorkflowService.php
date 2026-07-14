@@ -946,6 +946,90 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Replace MT-940 line suggestions before approver confirms (manual search).
+     *
+     * @param   string  $overrideJson  JSON: {"lines":[{"line_id":N,"mt940_transaction_id":M},...]}
+     *
+     * @return  bool
+     *
+     * @since   3.119.228
+     */
+    public function applyManualMt940OverrideToPaymentProofRequest(int $requestId, string $overrideJson): bool
+    {
+        if (!$this->hasSchema() || $requestId < 1 || trim($overrideJson) === '') {
+            return false;
+        }
+
+        $req = $this->loadRequest($requestId);
+        if ($req === null || (string) ($req->status ?? '') !== 'pending') {
+            return false;
+        }
+
+        if (self::normalizeEntityType((string) ($req->entity_type ?? '')) !== self::ENTITY_PAYMENT_PROOF) {
+            return false;
+        }
+
+        $decoded = json_decode($overrideJson, true);
+        if (!\is_array($decoded) || empty($decoded['lines']) || !\is_array($decoded['lines'])) {
+            return false;
+        }
+
+        $meta = Mt940PaymentMatchService::decodeVerificationMetadata((string) ($req->metadata ?? ''));
+        if ($meta === null) {
+            return false;
+        }
+
+        $lineIndex = [];
+        foreach ($meta['lines'] as $idx => $row) {
+            if (\is_array($row) && !empty($row['line_id'])) {
+                $lineIndex[(int) $row['line_id']] = $idx;
+            }
+        }
+
+        $matchSvc = new Mt940PaymentMatchService();
+
+        foreach ($decoded['lines'] as $ov) {
+            if (!\is_array($ov)) {
+                continue;
+            }
+            $lineId = (int) ($ov['line_id'] ?? 0);
+            $txId   = (int) ($ov['mt940_transaction_id'] ?? 0);
+            if ($lineId < 1 || $txId < 1 || !isset($lineIndex[$lineId])) {
+                continue;
+            }
+
+            $q = $this->db->getQuery(true)
+                ->select('t.*')
+                ->from($this->db->quoteName('#__ordenproduccion_mt940_transactions', 't'))
+                ->where('t.' . $this->db->quoteName('id') . ' = ' . $txId);
+            $this->db->setQuery($q);
+            $tx = $this->db->loadObject();
+            if ($tx === null) {
+                continue;
+            }
+
+            $lineQ = $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                ->where($this->db->quoteName('id') . ' = ' . $lineId)
+                ->where($this->db->quoteName('payment_proof_id') . ' = ' . (int) ($req->entity_id ?? 0));
+            $this->db->setQuery($lineQ);
+            $line = $this->db->loadObject();
+            if ($line === null) {
+                continue;
+            }
+
+            $idx = $lineIndex[$lineId];
+            $meta['lines'][$idx] = $matchSvc->buildLineMatchPayload($line, $tx);
+            $meta['lines'][$idx]['manual_override'] = true;
+        }
+
+        $meta['manual_override_at'] = Factory::getDate()->toSql();
+
+        return $this->mergeRequestMetadataJson($requestId, $meta);
+    }
+
+    /**
      * Whether a published workflow exists for the entity type.
      *
      * @since   3.109.59
@@ -1493,6 +1577,13 @@ class ApprovalWorkflowService
                 /** OT persist runs in {@see \Grimpsa\Component\Ordenproduccion\Site\Controller\PrecotizacionController::completeCreacionOrdenTrabajoApprovalJson} before finalize approval. */
                 break;
 
+            case self::ENTITY_PAYMENT_PROOF:
+                if (\Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+                    ApprovalWorkflowEntityHelper::applyPaymentProofMt940LinksFromMetadata($this->db, $eid, $meta);
+                    ApprovalWorkflowEntityHelper::applyPaymentProofVerified($eid, $actorUserId);
+                }
+                break;
+
             default:
                 break;
         }
@@ -1523,6 +1614,12 @@ class ApprovalWorkflowService
                 break;
 
             case self::ENTITY_CREACION_ORDEN_TRABAJO:
+                break;
+
+            case self::ENTITY_PAYMENT_PROOF:
+                if (\Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+                    ApprovalWorkflowEntityHelper::clearPaymentProofMt940MatchState($this->db, $eid);
+                }
                 break;
 
             default:

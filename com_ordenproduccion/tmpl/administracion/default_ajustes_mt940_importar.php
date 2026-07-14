@@ -31,6 +31,7 @@ $mt940ClearUrl   = Route::_('index.php?option=com_ordenproduccion&task=administr
 $mt940CronSaveUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.saveMt940CronSettings', false);
 $mt940Token      = Session::getFormToken();
 $mt940CronLine   = isset($this->mt940CronCrontabLine) ? (string) $this->mt940CronCrontabLine : '';
+$paymentMatchCronLine = isset($this->paymentMt940MatchCronCrontabLine) ? (string) $this->paymentMt940MatchCronCrontabLine : '';
 $mt940CronKeyOk  = !empty($this->mt940CronKeyConfigured);
 ?>
 <p class="text-muted small"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_IMPORT_SUBTAB_INTRO'); ?></p>
@@ -60,7 +61,11 @@ $mt940CronKeyOk  = !empty($this->mt940CronKeyConfigured);
         </form>
         <?php if ($mt940CronLine !== '') : ?>
             <p class="small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_LINE_HELP'); ?></p>
-            <pre class="small mb-0 font-monospace bg-light p-2 rounded border" style="white-space: pre-wrap; word-break: break-all;"><?php echo htmlspecialchars($mt940CronLine, ENT_QUOTES, 'UTF-8'); ?></pre>
+            <pre class="small mb-2 font-monospace bg-light p-2 rounded border" style="white-space: pre-wrap; word-break: break-all;"><?php echo htmlspecialchars($mt940CronLine, ENT_QUOTES, 'UTF-8'); ?></pre>
+            <?php if ($paymentMatchCronLine !== '') : ?>
+                <p class="small text-muted mb-1"><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_MATCH_CRON_LINE_HELP'); ?></p>
+                <pre class="small mb-0 font-monospace bg-light p-2 rounded border" style="white-space: pre-wrap; word-break: break-all;"><?php echo htmlspecialchars($paymentMatchCronLine, ENT_QUOTES, 'UTF-8'); ?></pre>
+            <?php endif; ?>
             <?php if (!$mt940CronKeyOk) : ?>
                 <p class="small text-muted mt-2 mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_MT940_CRON_SAVE_KEY_FIRST'); ?></p>
             <?php endif; ?>

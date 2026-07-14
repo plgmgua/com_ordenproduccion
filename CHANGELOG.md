@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.119.227-STABLE] - 2026-05-19
+## [3.119.228-STABLE] - 2026-05-19
+
+### Added
+- **Verificar pago (MT-940):** Cron matches Ingresado payment proofs (transferencia/depósito lines) to imported bank credits by amount, same-day date, and account; creates `payment_proof` approval requests with side-by-side MT-940 suggestions in Aprobaciones. Approving sets **Verificado** and updates balances. Manual MT-940 search per line before approve. Ambiguous matches are skipped and logged.
+
+### Changed
+- **Comprobante de pago:** With MT-940 verification on, approval is no longer created on save; manual **Verificar** (green check) is restricted to Super Users.
+
+### Revert
+- Set component option **Verificar pago con MT-940** to **No**, or run `admin/sql/rollback/3.119.228_mt940_payment_match_rollback.sql`.
+
 
 ### Fixed
 - **Financiero → Cuentas bancarias:** Month filter dropdown labels no longer shift by one month (Guatemala TZ); selecting Mayo now filters May transactions, not June.

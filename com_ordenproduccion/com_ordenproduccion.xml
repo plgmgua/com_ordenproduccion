@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.227-STABLE</version>
+    <version>3.119.228-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -113,6 +113,18 @@
                     description="COM_ORDENPRODUCCION_CONFIG_APPROVAL_WORKFLOW_PAYMENT_PROOF_DESC"
                     default="0"
                     class="btn-group btn-group-yesno"
+                >
+                    <option value="1">JYES</option>
+                    <option value="0">JNO</option>
+                </field>
+                <field
+                    name="payment_proof_mt940_verification"
+                    type="radio"
+                    label="COM_ORDENPRODUCCION_CONFIG_PAYMENT_PROOF_MT940_VERIFICATION_LABEL"
+                    description="COM_ORDENPRODUCCION_CONFIG_PAYMENT_PROOF_MT940_VERIFICATION_DESC"
+                    default="1"
+                    class="btn-group btn-group-yesno"
+                    showon="approval_workflow_payment_proof:1"
                 >
                     <option value="1">JYES</option>
                     <option value="0">JNO</option>

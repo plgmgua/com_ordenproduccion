@@ -151,6 +151,9 @@ class HtmlView extends BaseHtmlView
         $this->user = $user;
         $this->canEditNoteOrAssociateOrder = AccessHelper::isInAdministracionOrAdmonGroup();
         $this->canSuperUserEditLineAmount  = AccessHelper::isSuperUser();
+        $this->canMarkVerificado = \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()
+            ? AccessHelper::isSuperUser()
+            : AccessHelper::isInAdministracionOrAdmonGroup();
 
         // Initialize empty item for new payment proof
         $this->item = new \stdClass();

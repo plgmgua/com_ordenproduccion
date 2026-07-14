@@ -6187,6 +6187,43 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Public cron URL for MT-940 payment proof matching (separate schedule from mailbox import).
+     *
+     * @param   string  $cronKey
+     *
+     * @return  string
+     *
+     * @since   3.119.228
+     */
+    public function getPaymentMt940MatchCronEndpointUrl(string $cronKey = ''): string
+    {
+        if ($cronKey === '') {
+            $cronKey = $this->getMt940CronKey();
+        }
+
+        $root = \rtrim((string) \Joomla\CMS\Uri\Uri::root(), '/');
+        $qs   = 'option=com_ordenproduccion&controller=paymentverification&task=runScheduledMatch&format=raw&cron_key='
+            . \rawurlencode($cronKey);
+
+        return $root . '/index.php?' . $qs;
+    }
+
+    /**
+     * Crontab line for payment MT-940 matching (e.g. every 30 minutes).
+     *
+     * @return  string
+     *
+     * @since   3.119.228
+     */
+    public function getPaymentMt940MatchCronCrontabLine(): string
+    {
+        $key = $this->getMt940CronKey();
+        $url = $this->getPaymentMt940MatchCronEndpointUrl($key !== '' ? $key : 'YOUR_SECRET');
+
+        return '*/30 * * * * wget -q -O - ' . \escapeshellarg($url);
+    }
+
+    /**
      * Save or generate the MT-940 cron secret. Blank input keeps the existing key; generates one if none exists.
      *
      * @param   string  $raw  Posted cron key (optional)

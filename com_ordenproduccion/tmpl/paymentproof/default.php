@@ -649,7 +649,7 @@ $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                             $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                             echo '<div class="payment-proof-actions-row mt-1">';
-                                            if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
+                                            if ($isIngresado && !empty($this->canMarkVerificado)) {
                                                 echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                                 echo HTMLHelper::_('form.token');
                                                 echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
@@ -786,7 +786,7 @@ $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                         echo '<div class="payment-proof-actions-row mt-1">';
-                                        if ($isIngresado && !empty($this->canEditNoteOrAssociateOrder)) {
+                                        if ($isIngresado && !empty($this->canMarkVerificado)) {
                                             echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                             echo HTMLHelper::_('form.token');
                                             echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';

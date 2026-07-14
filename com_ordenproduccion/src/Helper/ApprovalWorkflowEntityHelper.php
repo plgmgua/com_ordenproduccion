@@ -225,6 +225,85 @@ class ApprovalWorkflowEntityHelper
         return true;
     }
 
+    /**
+     * Persist MT-940 line links from approval metadata when Verificar pago is approved.
+     *
+     * @since  3.119.228
+     */
+    public static function applyPaymentProofMt940LinksFromMetadata(DatabaseInterface $db, int $proofId, ?string $metadataJson): void
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1 || $metadataJson === null || trim($metadataJson) === '') {
+            return;
+        }
+
+        $meta = \Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService::decodeVerificationMetadata($metadataJson);
+        if ($meta === null || empty($meta['lines']) || !\is_array($meta['lines'])) {
+            return;
+        }
+
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (!isset($cols['mt940_transaction_id'], $cols['mt940_match_status'])) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        foreach ($meta['lines'] as $lineRow) {
+            if (!\is_array($lineRow)) {
+                continue;
+            }
+            $lineId = (int) ($lineRow['line_id'] ?? 0);
+            $txId   = (int) ($lineRow['mt940_transaction_id'] ?? 0);
+            if ($lineId < 1 || $txId < 1) {
+                continue;
+            }
+
+            $q = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                ->set($db->quoteName('mt940_transaction_id') . ' = ' . $txId)
+                ->set($db->quoteName('mt940_match_status') . ' = ' . $db->quote('approved'))
+                ->where($db->quoteName('id') . ' = ' . $lineId)
+                ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId);
+            $db->setQuery($q);
+            $db->execute();
+        }
+    }
+
+    /**
+     * Clear provisional MT-940 match state so cron can retry after rejection.
+     *
+     * @since  3.119.228
+     */
+    public static function clearPaymentProofMt940MatchState(DatabaseInterface $db, int $proofId): void
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return;
+        }
+
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (!isset($cols['mt940_transaction_id'], $cols['mt940_match_status'])) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        $q = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+            ->set($db->quoteName('mt940_transaction_id') . ' = NULL')
+            ->set($db->quoteName('mt940_match_status') . ' = NULL')
+            ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId);
+        $db->setQuery($q);
+        $db->execute();
+    }
+
     public static function applyCotizacionConfirmationApproved(
         DatabaseInterface $db,
         int $quotationId,

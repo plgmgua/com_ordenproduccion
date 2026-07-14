@@ -2843,6 +2843,18 @@ class AdministracionController extends BaseController
 
                 return;
             }
+
+            if (
+                $reqPeek !== null
+                && $reqPeek->status === 'pending'
+                && $etPeek === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF
+                && \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()
+            ) {
+                $override = trim($app->input->post->getString('mt940_manual_override', ''));
+                if ($override !== '') {
+                    $svc->applyManualMt940OverrideToPaymentProofRequest($requestId, $override);
+                }
+            }
         }
 
         $ok = $action === 'approve'
@@ -2861,6 +2873,53 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect($redirect);
+    }
+
+    /**
+     * JSON: search MT-940 credits for manual payment approval matching.
+     *
+     * @return  void
+     *
+     * @since   3.119.228
+     */
+    public function searchMt940ForPaymentApproval(): void
+    {
+        $app = Factory::getApplication();
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->sendAdministracionJson(false, Text::_('JGLOBAL_AUTH_ALERT'));
+
+            return;
+        }
+
+        $bankAccountId = $app->input->getInt('bank_account_id', 0);
+        $date          = trim($app->input->getString('date', ''));
+        $amount        = (float) $app->input->get('amount', 0, 'FLOAT');
+
+        $svc  = new \Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService();
+        $rows = $svc->searchMt940Transactions([
+            'bank_account_id' => $bankAccountId,
+            'date'            => $date,
+            'amount'          => $amount,
+        ], 30);
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = [
+                'id'               => (int) ($row->id ?? 0),
+                'transaction_date' => (string) ($row->transaction_date ?? ''),
+                'value_date'       => (string) ($row->value_date ?? ''),
+                'reference'        => (string) ($row->reference ?? ''),
+                'description'      => (string) ($row->description ?? ''),
+                'amount'           => round((float) ($row->amount ?? 0), 2),
+                'currency'         => (string) ($row->currency ?? 'GTQ'),
+                'account_number'   => (string) ($row->account_number ?? ''),
+                'bank_account_name'=> (string) ($row->bank_account_name ?? ''),
+            ];
+        }
+
+        $this->sendAdministracionJson(true, '', ['rows' => $out]);
     }
 
     /**
