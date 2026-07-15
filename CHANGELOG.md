@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.234-STABLE] - 2026-05-19
+
+### Fixed
+- **PaymentVerificationDiagnosticHelper:** Read `mt940_cron_key` directly from `#__ordenproduccion_config` instead of `AdministracionModel::getInstance()` (failed under Sourcerer/troubleshooting and falsely reported cron secret missing).
+
 ## [3.119.233-STABLE] - 2026-05-19
 
 ### Fixed

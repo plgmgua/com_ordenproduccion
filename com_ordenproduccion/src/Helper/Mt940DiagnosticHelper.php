@@ -14,6 +14,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
+use Joomla\Database\DatabaseInterface;
 
 /**
  * MT-940 IMAP connectivity diagnostic (web troubleshooting + support).
@@ -217,20 +218,15 @@ class Mt940DiagnosticHelper
      */
     private function addCronSection(): void
     {
-        $cronKey   = '';
+        $cronKey   = $this->loadConfigValue('mt940_cron_key');
         $cronUrl   = '';
         $lastCron  = null;
         $logTable  = Mt940RunLogHelper::tableAvailable();
 
-        try {
-            BaseDatabaseModel::addIncludePath(JPATH_SITE . '/components/com_ordenproduccion/src/Model');
-            /** @var AdministracionModel|null $model */
-            $model = BaseDatabaseModel::getInstance('Administracion', 'Grimpsa\\Component\\Ordenproduccion\\Site\\Model');
-            if ($model) {
-                $cronKey = $model->getMt940CronKey();
-                $cronUrl = $model->getMt940CronEndpointUrl($cronKey !== '' ? $cronKey : 'YOUR_SECRET');
-            }
-        } catch (\Throwable $e) {
+        if ($cronKey !== '') {
+            $root    = \rtrim((string) \Joomla\CMS\Uri\Uri::root(), '/');
+            $cronUrl = $root . '/index.php?option=com_ordenproduccion&controller=mt940&task=runScheduledImport&format=raw&cron_key='
+                . \rawurlencode($cronKey);
         }
 
         if ($logTable) {
@@ -345,5 +341,27 @@ class Mt940DiagnosticHelper
             'label'  => $label,
             'detail' => $detail,
         ];
+    }
+
+    private function db(): DatabaseInterface
+    {
+        return Factory::getContainer()->get(DatabaseInterface::class);
+    }
+
+    private function loadConfigValue(string $settingKey): string
+    {
+        try {
+            $db = $this->db();
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('setting_value'))
+                ->from($db->quoteName('#__ordenproduccion_config'))
+                ->where($db->quoteName('setting_key') . ' = ' . $db->quote($settingKey));
+            $db->setQuery($query);
+            $value = $db->loadResult();
+
+            return $value === null ? '' : \trim((string) $value);
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 }
