@@ -57,6 +57,7 @@ $manualFelOrdensForClient = \is_array($this->manualFelOrdensForClient ?? null) ?
 $manualFelOtherQuotations = [];
 $manualFelLinesUrl = '';
 $manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
+$manualFelQuotationTotalGtq = 0.0;
 $manualFelSeedFromInvoice = $seed;
 if (!empty($this->manualFelAutoOpenDuplicate)) {
     $manualFelSeedFromInvoice['auto_open'] = true;

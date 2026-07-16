@@ -17,6 +17,7 @@
  * @var string $manualFelLinesUrl
  * @var string $manualFelExchangeRateUrl
  * @var string $manualFelIssueDateDefault
+ * @var float $manualFelQuotationTotalGtq
  * @var array<string, mixed>|null $manualFelSeedFromInvoice
  * @var int $manualFelSourceInvoiceId
  * @var bool $manualFelInvoiceDuplicateMode
@@ -41,6 +42,14 @@ if ($manualFelQuotationRef === '') {
     $manualFelQuotationRef = 'COT-' . (int) ($quotationId ?? 0);
 }
 $manualFelSeedFromInvoice = (isset($manualFelSeedFromInvoice) && \is_array($manualFelSeedFromInvoice)) ? $manualFelSeedFromInvoice : null;
+$manualFelQuotationTotalGtq = round((float) ($manualFelQuotationTotalGtq ?? 0), 2);
+$manualFelLinesInitialTotal = 0.0;
+foreach ($manualFelLinePresets as $presetRow) {
+    $pq = (float) ($presetRow['cantidad'] ?? 1);
+    $pu = (float) ($presetRow['precio_unitario'] ?? 0);
+    $manualFelLinesInitialTotal += round($pq * $pu, 2);
+}
+$manualFelLinesInitialTotal = round($manualFelLinesInitialTotal, 2);
 $manualFelBuyerAddressInitial = 'Ciudad';
 if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoice['buyer_address'] ?? '')) !== '') {
     $manualFelBuyerAddressInitial = trim((string) $manualFelSeedFromInvoice['buyer_address']);
@@ -198,6 +207,26 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="3" class="text-end fw-semibold"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total')); ?></td>
+                                <td class="text-end fw-semibold text-nowrap">
+                                    <span id="manual-fel-total-currency">GTQ</span>
+                                    <span id="manual-fel-invoice-total"><?php echo htmlspecialchars(number_format($manualFelLinesInitialTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                </td>
+                                <td></td>
+                            </tr>
+                            <?php if ($manualFelQuotationTotalGtq > 0 && !$manualFelInvoiceDuplicateMode) : ?>
+                            <tr id="manual-fel-quotation-total-row" class="small">
+                                <td colspan="3" class="text-end text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_QUOTATION_TOTAL_REF', 'Quotation total (reference)', 'Total cotización (referencia)')); ?></td>
+                                <td class="text-end text-muted text-nowrap">
+                                    <span id="manual-fel-quotation-total-currency">GTQ</span>
+                                    <span id="manual-fel-quotation-total-ref"><?php echo htmlspecialchars(number_format($manualFelQuotationTotalGtq, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                </td>
+                                <td></td>
+                            </tr>
+                            <?php endif; ?>
+                        </tfoot>
                     </table>
                 </div>
                 <?php if ($manualFelOrdensForClient !== []) : ?>
@@ -296,6 +325,12 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     var manualFelSeed = <?php echo json_encode($manualFelSeedFromInvoice, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var sourceInvoiceId = <?php echo (int) $manualFelSourceInvoiceId; ?>;
     var invoiceDuplicateMode = <?php echo $manualFelInvoiceDuplicateMode ? 'true' : 'false'; ?>;
+    var quotationTotalGtq = <?php echo json_encode($manualFelQuotationTotalGtq, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var manualFelTotalEl = document.getElementById('manual-fel-invoice-total');
+    var manualFelTotalCurrencyEl = document.getElementById('manual-fel-total-currency');
+    var manualFelQuotationTotalRefEl = document.getElementById('manual-fel-quotation-total-ref');
+    var manualFelQuotationTotalCurrencyEl = document.getElementById('manual-fel-quotation-total-currency');
+    var manualFelTotalCell = manualFelTotalEl ? manualFelTotalEl.closest('td') : null;
     var msgNet = <?php echo json_encode($l('COM_ORDENPRODUCCION_INSTRUCCIONES_MODAL_NETWORK_ERROR', 'Network error. Try again.', 'Error de red. Intente de nuevo.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgBuyerRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_BUYER_REQUIRED', 'Client name and NIT are required.', 'Nombre del cliente y NIT son obligatorios.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgLinesRequired = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED', 'Add at least one valid line.', 'Agregue al menos una línea válida.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
@@ -330,8 +365,38 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         return round2(total);
     }
     function syncFcamAmountFromLines() {
-        if (!fcamAmount) return;
-        fcamAmount.value = sumLineTotals().toFixed(2);
+        syncInvoiceTotalDisplay();
+    }
+    function syncInvoiceTotalDisplay() {
+        var total = sumLineTotals();
+        var currency = isUsdCurrency() ? 'USD' : 'GTQ';
+        if (manualFelTotalEl) {
+            manualFelTotalEl.textContent = total.toFixed(2);
+        }
+        if (manualFelTotalCurrencyEl) {
+            manualFelTotalCurrencyEl.textContent = currency;
+        }
+        if (fcamAmount) {
+            fcamAmount.value = total.toFixed(2);
+        }
+        if (quotationTotalGtq > 0 && manualFelQuotationTotalRefEl) {
+            var rate = getExchangeRateValue();
+            var refTotal = quotationTotalGtq;
+            if (isUsdCurrency() && rate > 0.000001) {
+                refTotal = gtqToUsdAmount(quotationTotalGtq, rate, 2);
+            }
+            manualFelQuotationTotalRefEl.textContent = refTotal.toFixed(2);
+            if (manualFelQuotationTotalCurrencyEl) {
+                manualFelQuotationTotalCurrencyEl.textContent = currency;
+            }
+            if (manualFelTotalCell) {
+                var matches = Math.abs(total - refTotal) < 0.02;
+                manualFelTotalCell.classList.toggle('text-success', matches);
+                manualFelTotalCell.classList.toggle('text-danger', !matches);
+            }
+        } else if (manualFelTotalCell) {
+            manualFelTotalCell.classList.remove('text-success', 'text-danger');
+        }
     }
     function toggleFcamPanel() {
         var isFcam = docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM';
@@ -633,6 +698,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     }
     tbody.querySelectorAll('.manual-fel-line-row').forEach(bindRow);
     toggleFcamPanel();
+    syncInvoiceTotalDisplay();
 
     function applyManualFelSeed(seed) {
         if (!seed || typeof seed !== 'object') {

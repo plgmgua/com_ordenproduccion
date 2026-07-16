@@ -231,6 +231,7 @@ $manualFelOtherQuotations = isset($this->manualFelOtherQuotations) && is_array($
 $manualFelLinesUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelQuotationLines&format=json', false);
 $manualFelExchangeRateUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelExchangeRate&format=json', false);
 $manualFelIssueDateDefault = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
+$manualFelQuotationTotalGtq = $totalAmount;
 $manualFelSeedFromInvoice = isset($this->manualFelSeedFromInvoice) && \is_array($this->manualFelSeedFromInvoice)
     ? $this->manualFelSeedFromInvoice
     : null;

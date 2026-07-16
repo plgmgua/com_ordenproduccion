@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.236-STABLE] - 2026-05-19
+
+### Added
+- **Factura manual:** Footer **Total** row under invoice lines with live sum; **Total cotización (referencia)** compares against quotation total (green when within Q 0.02 / USD equivalent).
+
 ## [3.119.235-STABLE] - 2026-05-19
 
 ### Fixed
