@@ -2947,6 +2947,14 @@ class FelInvoiceIssuanceService
 
         $issueDate = Factory::getDate('now', 'America/Guatemala')->format('Y-m-d');
 
+        $exchangeRate = null;
+        if ($currency === 'USD' && isset($felExtra['exchange_rate'])) {
+            $rateCandidate = (float) $felExtra['exchange_rate'];
+            if ($rateCandidate > 0.000001) {
+                $exchangeRate = $rateCandidate;
+            }
+        }
+
         return [
             'quotation_id'      => 0,
             'source_invoice_id' => (int) ($invoice->id ?? 0),
@@ -2955,6 +2963,7 @@ class FelInvoiceIssuanceService
             'buyer_address'   => $buyerAddr,
             'doc_type'        => $docType,
             'currency'        => $currency,
+            'exchange_rate'   => $exchangeRate,
             'observaciones'   => $observaciones,
             'fcam_abonos'     => $fcamAbonos,
             'lines'           => $lines,

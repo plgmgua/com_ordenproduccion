@@ -187,7 +187,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                                 $ps = round($pq * $pu, 2);
                                 $presetQid = (int) ($preset['quotation_id'] ?? ($quotationId ?? 0));
                                 ?>
-                            <tr class="manual-fel-line-row" data-quotation-id="<?php echo $presetQid; ?>">
+                            <tr class="manual-fel-line-row" data-quotation-id="<?php echo $presetQid; ?>" data-gtq-unit="<?php echo htmlspecialchars(number_format($pu, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-gtq-subtotal="<?php echo htmlspecialchars(number_format($ps, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
                                 <td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="<?php echo htmlspecialchars((string) $pq, ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="<?php echo htmlspecialchars((string) ($preset['descripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="<?php echo htmlspecialchars((string) $pu, ENT_QUOTES, 'UTF-8'); ?>" /></td>
@@ -359,6 +359,74 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             exchangeMsg.className = 'form-text small text-muted';
         }
     }
+    function getExchangeRateValue() {
+        return exchangeRateInput ? parseNum(exchangeRateInput.value) : 0;
+    }
+    function gtqToUsdAmount(gtq, rate, decimals) {
+        if (rate <= 0.000001) {
+            return gtq;
+        }
+        var factor = Math.pow(10, decimals);
+        return Math.round((gtq / rate) * factor) / factor;
+    }
+    function captureGtqBaselineFromCurrentDisplay(tr) {
+        if (!tr) {
+            return;
+        }
+        var unitInp = tr.querySelector('.manual-fel-unit');
+        var subInp = tr.querySelector('.manual-fel-subtotal');
+        if (!unitInp || !subInp) {
+            return;
+        }
+        tr.setAttribute('data-gtq-unit', String(round4(parseNum(unitInp.value))));
+        tr.setAttribute('data-gtq-subtotal', String(round2(parseNum(subInp.value))));
+    }
+    function syncRowGtqBaselineFromDisplay(tr) {
+        if (!tr) {
+            return;
+        }
+        var unitInp = tr.querySelector('.manual-fel-unit');
+        var subInp = tr.querySelector('.manual-fel-subtotal');
+        if (!unitInp || !subInp) {
+            return;
+        }
+        var unit = parseNum(unitInp.value);
+        var sub = parseNum(subInp.value);
+        var rate = getExchangeRateValue();
+        if (isUsdCurrency() && rate > 0.000001) {
+            tr.setAttribute('data-gtq-unit', String(round4(unit * rate)));
+            tr.setAttribute('data-gtq-subtotal', String(round2(sub * rate)));
+        } else {
+            tr.setAttribute('data-gtq-unit', String(round4(unit)));
+            tr.setAttribute('data-gtq-subtotal', String(round2(sub)));
+        }
+    }
+    function displayRowFromGtqBaseline(tr) {
+        if (!tr) {
+            return;
+        }
+        var unitInp = tr.querySelector('.manual-fel-unit');
+        var subInp = tr.querySelector('.manual-fel-subtotal');
+        if (!unitInp || !subInp) {
+            return;
+        }
+        var gtqUnit = parseNum(tr.getAttribute('data-gtq-unit') || '0');
+        var gtqSub = parseNum(tr.getAttribute('data-gtq-subtotal') || '0');
+        var rate = getExchangeRateValue();
+        if (isUsdCurrency() && rate > 0.000001) {
+            unitInp.value = gtqToUsdAmount(gtqUnit, rate, 4).toFixed(4);
+            subInp.value = gtqToUsdAmount(gtqSub, rate, 2).toFixed(2);
+        } else {
+            unitInp.value = round4(gtqUnit).toFixed(4);
+            subInp.value = round2(gtqSub).toFixed(2);
+        }
+    }
+    function applyDisplayCurrencyToAllRows() {
+        tbody.querySelectorAll('.manual-fel-line-row').forEach(function(tr) {
+            displayRowFromGtqBaseline(tr);
+        });
+        syncFcamAmountFromLines();
+    }
     function resetExchangeRateState() {
         exchangeRateLoaded = false;
         if (exchangeRateInput) {
@@ -369,18 +437,32 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             exchangeMsg.className = 'form-text small text-muted';
         }
     }
-    function toggleCurrencyPanel() {
+    function toggleCurrencyPanel(options) {
+        options = options || {};
         var usd = isUsdCurrency();
         if (exchangeWrap) {
             exchangeWrap.classList.toggle('d-none', !usd);
         }
         if (!usd) {
+            applyDisplayCurrencyToAllRows();
             resetExchangeRateState();
         } else {
-            fetchExchangeRate();
+            tbody.querySelectorAll('.manual-fel-line-row').forEach(function(tr) {
+                if (parseNum(tr.getAttribute('data-gtq-subtotal') || '0') <= 0) {
+                    captureGtqBaselineFromCurrentDisplay(tr);
+                }
+            });
+            if (options.skipFetch && hasValidExchangeRate()) {
+                exchangeRateLoaded = true;
+                applyDisplayCurrencyToAllRows();
+            } else {
+                fetchExchangeRate(function() {
+                    applyDisplayCurrencyToAllRows();
+                });
+            }
         }
     }
-    function fetchExchangeRate() {
+    function fetchExchangeRate(onReady) {
         if (!isUsdCurrency() || !tokenForm || !exchangeRateUrl || !issueDateInput) {
             return;
         }
@@ -423,6 +505,9 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                             : 'form-text small text-danger';
                     }
                 }
+                if (typeof onReady === 'function') {
+                    onReady();
+                }
             })
             .catch(function() {
                 exchangeRateLoading = false;
@@ -430,6 +515,9 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 if (exchangeMsg) {
                     exchangeMsg.textContent = msgNet;
                     exchangeMsg.className = 'form-text small text-danger';
+                }
+                if (typeof onReady === 'function') {
+                    onReady();
                 }
             });
     }
@@ -446,13 +534,25 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     if (issueDateInput) {
         issueDateInput.addEventListener('change', function() {
             if (isUsdCurrency()) {
-                fetchExchangeRate();
+                fetchExchangeRate(function() {
+                    applyDisplayCurrencyToAllRows();
+                });
             }
         });
     }
     if (exchangeRateInput) {
-        exchangeRateInput.addEventListener('input', syncExchangeRateLoadedFromInput);
-        exchangeRateInput.addEventListener('change', syncExchangeRateLoadedFromInput);
+        exchangeRateInput.addEventListener('input', function() {
+            syncExchangeRateLoadedFromInput();
+            if (isUsdCurrency() && hasValidExchangeRate()) {
+                applyDisplayCurrencyToAllRows();
+            }
+        });
+        exchangeRateInput.addEventListener('change', function() {
+            syncExchangeRateLoadedFromInput();
+            if (isUsdCurrency() && hasValidExchangeRate()) {
+                applyDisplayCurrencyToAllRows();
+            }
+        });
     }
     function hideAlert() {
         if (alertEl) {
@@ -487,9 +587,10 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         var qty = parseNum(qtyInp.value);
         var unit = parseNum(unitInp.value);
         subInp.value = round2(qty * unit).toFixed(2);
+        syncRowGtqBaselineFromDisplay(tr);
         syncFcamAmountFromLines();
     }
-    /** subtotal ÷ qty → unit (keeps subtotal when quantity changes) */
+    /** subtotal ÷ qty → unit (keeps subtotal when quantity changes; same as cotización valor final) */
     function updateRowUnitFromSubtotal(tr) {
         var qtyInp = tr.querySelector('.manual-fel-qty');
         var unitInp = tr.querySelector('.manual-fel-unit');
@@ -503,6 +604,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             return;
         }
         unitInp.value = round4(sub / qty).toFixed(4);
+        syncRowGtqBaselineFromDisplay(tr);
         syncFcamAmountFromLines();
     }
     function bindRow(tr) {
@@ -554,13 +656,18 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         if (currencySelect && seed.currency) {
             currencySelect.value = String(seed.currency).toUpperCase() === 'USD' ? 'USD' : 'GTQ';
         }
+        if (exchangeRateInput && seed.exchange_rate != null && parseNum(seed.exchange_rate) > 0) {
+            exchangeRateInput.value = Number(seed.exchange_rate).toFixed(5);
+            exchangeRateLoaded = true;
+        }
         if (observacionesInput && seed.observaciones != null) {
             observacionesInput.value = String(seed.observaciones);
         }
         if (Array.isArray(seed.lines) && seed.lines.length) {
             tbody.innerHTML = '';
+            var seedCur = String(seed.currency || 'GTQ').toUpperCase();
             seed.lines.forEach(function(line) {
-                addLineFromPreset(line, line.quotation_id || qid);
+                addLineFromPreset(line, line.quotation_id || qid, seedCur);
             });
         }
         toggleFcamPanel();
@@ -583,10 +690,10 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         } else if (!needsCfCui) {
             generarBtn.disabled = false;
         }
-        toggleCurrencyPanel();
+        toggleCurrencyPanel({ skipFetch: seed.exchange_rate != null && parseNum(seed.exchange_rate) > 0 });
     }
 
-    function addLineFromPreset(preset, quotationIdForRow) {
+    function addLineFromPreset(preset, quotationIdForRow, lineCurrency) {
         var tr = document.createElement('tr');
         tr.className = 'manual-fel-line-row';
         tr.setAttribute('data-quotation-id', String(quotationIdForRow || qid));
@@ -594,10 +701,29 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         var pu = preset && preset.precio_unitario != null ? preset.precio_unitario : 0;
         var ps = Math.round(parseFloat(pq) * parseFloat(pu) * 100) / 100;
         var desc = preset && preset.descripcion != null ? String(preset.descripcion) : '';
+        var presetCur = String(lineCurrency || 'GTQ').toUpperCase();
+        var rate = getExchangeRateValue();
+        var gtqUnit = round4(parseFloat(pu));
+        var gtqSub = round2(ps);
+        if (presetCur === 'USD' && rate > 0.000001) {
+            gtqUnit = round4(parseFloat(pu) * rate);
+            gtqSub = round2(ps * rate);
+        }
+        tr.setAttribute('data-gtq-unit', String(gtqUnit));
+        tr.setAttribute('data-gtq-subtotal', String(gtqSub));
+        var displayUnit = pu;
+        var displaySub = ps;
+        if (isUsdCurrency() && rate > 0.000001) {
+            displayUnit = gtqToUsdAmount(gtqUnit, rate, 4);
+            displaySub = gtqToUsdAmount(gtqSub, rate, 2);
+        } else if (presetCur === 'USD' && !isUsdCurrency()) {
+            displayUnit = gtqUnit;
+            displaySub = gtqSub;
+        }
         tr.innerHTML = '<td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="' + pq + '" /></td>'
             + '<td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="' + desc.replace(/"/g, '&quot;') + '" /></td>'
-            + '<td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="' + pu + '" /></td>'
-            + '<td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="' + ps.toFixed(2) + '" /></td>'
+            + '<td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="' + displayUnit.toFixed(4) + '" /></td>'
+            + '<td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="' + displaySub.toFixed(2) + '" /></td>'
             + '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger manual-fel-remove-line py-0 px-1">&times;</button></td>';
         tbody.appendChild(tr);
         bindRow(tr);
@@ -627,8 +753,11 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                     return;
                 }
                 j.lines.forEach(function(line) {
-                    addLineFromPreset(line, quotationIdForRow);
+                    addLineFromPreset(line, quotationIdForRow, 'GTQ');
                 });
+                if (isUsdCurrency() && hasValidExchangeRate()) {
+                    applyDisplayCurrencyToAllRows();
+                }
                 if (done) done(true);
             })
             .catch(function() {

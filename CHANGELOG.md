@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.235-STABLE] - 2026-05-19
+
+### Fixed
+- **Factura manual USD:** Line unit prices and subtotals convert to dollar equivalents when USD is selected (GTQ baseline ÷ BANGUAT rate). Editable subtotal still recalculates unit price at 4 decimals like cotización.
+
 ## [3.119.234-STABLE] - 2026-05-19
 
 ### Fixed
