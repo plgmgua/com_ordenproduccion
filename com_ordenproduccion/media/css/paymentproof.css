@@ -243,6 +243,48 @@
     max-width: 42px;
 }
 
+/* MT-940 match sub-row (approver only): distinct background, compact type, no overflow */
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-mt940-row td {
+    font-size: calc(0.78rem - 1pt);
+    line-height: 1.25;
+    vertical-align: middle;
+    background-color: #dcefe3;
+    border-top: 1px dashed #9ec9ad;
+    overflow: hidden;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-mt940-row td.payment-proof-mt940-label {
+    color: #2d6a4f;
+    font-weight: 600;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-mt940-row td.payment-proof-mt940-estado {
+    white-space: normal;
+    overflow: hidden;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-mt940-row .payment-proof-mt940-badge {
+    display: inline-block;
+    max-width: 100%;
+    font-size: calc(0.72rem - 1pt);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    padding: 0.2em 0.35em;
+    color: #1b5e3b;
+    background-color: #c8e6d4;
+    border: 1px solid #9ec9ad;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-mt940-row td.payment-proof-mt940-desc {
+    color: #495057;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    overflow: hidden;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-mt940-row td.payment-proof-mt940-actions {
+    white-space: nowrap;
+}
+
 /* Action column: tiny icon buttons, no gap */
 .com-ordenproduccion-paymentproof .payment-proof-actions-row {
     display: inline-flex;

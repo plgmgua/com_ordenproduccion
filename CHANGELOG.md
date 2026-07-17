@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.238-STABLE] - 2026-05-19
+
+### Fixed
+- **Comprobante MT-940 sub-row:** Distinct green background, font 1pt smaller, column layout fixed so badge and bank description no longer overlap.
+
 ## [3.119.237-STABLE] - 2026-05-19
 
 ### Added

@@ -49,21 +49,24 @@ foreach ($mt940Approver['lines'] as $pl) {
     $desc = trim((string) ($mt['description'] ?? ''));
     ?>
 <tr class="payment-proof-mt940-row">
-    <td class="text-muted small ps-3"><i class="fas fa-university me-1" aria-hidden="true"></i>MT-940</td>
-    <td><?php echo htmlspecialchars($ref !== '' ? $ref : '—', ENT_QUOTES, 'UTF-8'); ?></td>
+    <td class="payment-proof-mt940-label ps-3"><i class="fas fa-university me-1" aria-hidden="true"></i>MT-940</td>
+    <td class="payment-proof-doc-number"><?php echo htmlspecialchars($ref !== '' ? $ref : '—', ENT_QUOTES, 'UTF-8'); ?></td>
     <td class="text-nowrap"><?php echo htmlspecialchars($txDateDisplay, ENT_QUOTES, 'UTF-8'); ?></td>
-    <td class="small"><?php echo htmlspecialchars($this->labelMt940RowType ?? 'Movimiento bancario', ENT_QUOTES, 'UTF-8'); ?></td>
-    <td class="small"><?php echo htmlspecialchars($acct !== '' ? $acct : '—', ENT_QUOTES, 'UTF-8'); ?></td>
+    <td><?php echo htmlspecialchars($this->labelMt940RowType ?? 'Movimiento bancario', ENT_QUOTES, 'UTF-8'); ?></td>
+    <td><?php echo htmlspecialchars($acct !== '' ? $acct : '—', ENT_QUOTES, 'UTF-8'); ?></td>
     <td class="text-nowrap">Q <?php echo htmlspecialchars($mtAmount, ENT_QUOTES, 'UTF-8'); ?></td>
-    <td class="text-nowrap"><span class="badge bg-success-subtle text-success border border-success-subtle"><?php echo htmlspecialchars($this->labelMt940RowMatch ?? 'Coincidencia MT-940', ENT_QUOTES, 'UTF-8'); ?></span></td>
-    <td colspan="2" class="small text-muted"><?php
+    <td class="payment-proof-mt940-estado">
+        <span class="badge payment-proof-mt940-badge"><?php echo htmlspecialchars($this->labelMt940RowMatch ?? 'Coincidencia MT-940', ENT_QUOTES, 'UTF-8'); ?></span>
+    </td>
+    <td class="payment-proof-mt940-desc"><?php
         if ($desc !== '') {
-            echo htmlspecialchars(mb_strlen($desc) > 48 ? mb_substr($desc, 0, 45) . '…' : $desc, ENT_QUOTES, 'UTF-8');
+            echo htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
         } else {
             echo '<span class="text-muted">—</span>';
         }
     ?></td>
-    <td class="align-middle text-end">
+    <td class="text-center text-muted">—</td>
+    <td class="align-middle text-end payment-proof-mt940-actions">
         <form method="post" action="<?php echo htmlspecialchars($this->mt940ApproveAction ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="d-inline">
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="request_id" value="<?php echo $requestId; ?>" />

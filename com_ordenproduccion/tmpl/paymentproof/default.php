@@ -255,9 +255,6 @@ if (empty($order)) :
 /* Make action buttons column slim and right-aligned */
 #payment-orders-table th:last-child,
 #payment-orders-table td:last-child { text-align: right; }
-.payment-proof-mt940-row { background-color: rgba(25, 135, 84, 0.06); }
-.payment-proof-mt940-row td { border-top: 1px dashed rgba(25, 135, 84, 0.35); vertical-align: middle; }
-.payment-proof-mt940-row .badge.bg-success-subtle { background-color: rgba(25, 135, 84, 0.12) !important; }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
