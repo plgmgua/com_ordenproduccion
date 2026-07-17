@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.237-STABLE] - 2026-05-19
+
+### Added
+- **Comprobante de pago / MT-940:** Under each PA- row, approvers see a sub-row with the matched MT-940 bank movement (reference, date, account, amount) and a green button to approve verification in place; redirects back to the order payment page after approval.
+
 ## [3.119.236-STABLE] - 2026-05-19
 
 ### Added

@@ -14,7 +14,10 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService;
 
 class HtmlView extends BaseHtmlView
 {
@@ -30,6 +33,13 @@ class HtmlView extends BaseHtmlView
 
     /** @var bool Payment proofs have mismatch_note / mismatch_difference columns */
     protected $hasMismatchTicketFeature = false;
+
+    /**
+     * Pending MT-940 approval rows visible to the current user as approver (proof id => context).
+     *
+     * @var array<int, array{request_id: int, lines: array<int, array<string, mixed>>}>
+     */
+    protected $paymentProofMt940ApproverByProofId = [];
 
     /**
      * When &proof_id= points to a proof with a non-empty mismatch note, open mismatch ticket modal from header.
@@ -151,9 +161,10 @@ class HtmlView extends BaseHtmlView
         $this->user = $user;
         $this->canEditNoteOrAssociateOrder = AccessHelper::isInAdministracionOrAdmonGroup();
         $this->canSuperUserEditLineAmount  = AccessHelper::isSuperUser();
-        $this->canMarkVerificado = \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()
+        $this->canMarkVerificado = Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()
             ? AccessHelper::isSuperUser()
             : AccessHelper::isInAdministracionOrAdmonGroup();
+        $this->paymentProofMt940ApproverByProofId = $this->buildPaymentProofMt940ApproverMap();
 
         // Initialize empty item for new payment proof
         $this->item = new \stdClass();
@@ -214,8 +225,70 @@ class HtmlView extends BaseHtmlView
         $this->labelIngresado = $t('COM_ORDENPRODUCCION_PAYMENT_INGRESADO', 'Ingresado');
         $this->labelVerificado = $t('COM_ORDENPRODUCCION_PAYMENT_VERIFICADO', 'Verificado');
         $this->labelMarkVerificado = $t('COM_ORDENPRODUCCION_PAYMENT_MARK_VERIFICADO', 'Marcar como Verificado');
+        $this->labelMt940RowType = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_TYPE', 'Movimiento bancario');
+        $this->labelMt940RowMatch = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_MATCH', 'Coincidencia MT-940');
+        $this->labelMt940Approve = $t('COM_ORDENPRODUCCION_PP_MT940_APPROVE_BTN', 'Aprobar verificación');
+        $this->mt940ApproveAction = Route::_('index.php?option=com_ordenproduccion&task=administracion.approveApprovalWorkflow');
 
         parent::display($tpl);
+    }
+
+    /**
+     * Pending payment-proof approvals with MT-940 metadata where the current user is the step approver.
+     *
+     * @return  array<int, array{request_id: int, lines: array<int, array<string, mixed>>}>
+     */
+    protected function buildPaymentProofMt940ApproverMap(): array
+    {
+        if (!Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            return [];
+        }
+
+        $wfSvc = new ApprovalWorkflowService();
+        if (!$wfSvc->hasSchema()) {
+            return [];
+        }
+
+        $userId = (int) Factory::getUser()->id;
+        if ($userId < 1) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($this->existingPayments as $proof) {
+            $proofId = (int) ($proof->id ?? 0);
+            if ($proofId < 1) {
+                continue;
+            }
+
+            $status = trim((string) ($proof->verification_status ?? ''));
+            if ($status !== '' && strcasecmp($status, 'verificado') === 0) {
+                continue;
+            }
+
+            $req = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $proofId);
+            if ($req === null) {
+                continue;
+            }
+
+            $requestId = (int) ($req->id ?? 0);
+            if ($requestId < 1 || !$wfSvc->canUserActOnPendingStep($requestId, $userId)) {
+                continue;
+            }
+
+            $meta  = Mt940PaymentMatchService::decodeVerificationMetadata(isset($req->metadata) ? (string) $req->metadata : '');
+            $lines = ($meta !== null && !empty($meta['lines']) && \is_array($meta['lines'])) ? $meta['lines'] : [];
+            if ($lines === []) {
+                continue;
+            }
+
+            $map[$proofId] = [
+                'request_id' => $requestId,
+                'lines'      => $lines,
+            ];
+        }
+
+        return $map;
     }
 
     /**

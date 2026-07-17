@@ -255,6 +255,9 @@ if (empty($order)) :
 /* Make action buttons column slim and right-aligned */
 #payment-orders-table th:last-child,
 #payment-orders-table td:last-child { text-align: right; }
+.payment-proof-mt940-row { background-color: rgba(25, 135, 84, 0.06); }
+.payment-proof-mt940-row td { border-top: 1px dashed rgba(25, 135, 84, 0.35); vertical-align: middle; }
+.payment-proof-mt940-row .badge.bg-success-subtle { background-color: rgba(25, 135, 84, 0.12) !important; }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -514,6 +517,9 @@ $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
                                     $labelLineAmountSave = 'Guardar monto';
                                 }
                                 foreach ($existingPayments as $proof):
+                                    $proofIdForMt940 = (int) ($proof->id ?? 0);
+                                    $mt940Approver = $this->paymentProofMt940ApproverByProofId[$proofIdForMt940] ?? null;
+                                    $proofHasMt940Approver = ($mt940Approver !== null && !empty($mt940Approver['lines']));
                                     $isMerged = !empty($proof->_merged);
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
                                     if (!empty($lines)):
@@ -649,7 +655,7 @@ $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                             $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                             echo '<div class="payment-proof-actions-row mt-1">';
-                                            if ($isIngresado && !empty($this->canMarkVerificado)) {
+                                            if ($isIngresado && !empty($this->canMarkVerificado) && !$proofHasMt940Approver) {
                                                 echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                                 echo HTMLHelper::_('form.token');
                                                 echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
@@ -667,6 +673,8 @@ $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
                                 <?php
                                         $isFirstLine = false;
                                         endforeach;
+                                        $proofId = $proofIdForMt940;
+                                        include __DIR__ . '/mt940_approver_subrows.php';
                                         $totalMonto += $proofMonto;
                                         $proofOrders = method_exists($proofModel, 'getOrdersByPaymentProofId') ? $proofModel->getOrdersByPaymentProofId($proof->id ?? 0) : [];
                                 ?>
@@ -786,7 +794,7 @@ $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                         echo '<div class="payment-proof-actions-row mt-1">';
-                                        if ($isIngresado && !empty($this->canMarkVerificado)) {
+                                        if ($isIngresado && !empty($this->canMarkVerificado) && !$proofHasMt940Approver) {
                                             echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                             echo HTMLHelper::_('form.token');
                                             echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
@@ -800,6 +808,10 @@ $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
                                         echo '</div>';
                                     ?></td>
                                 </tr>
+                                <?php
+                                    $proofId = $proofIdForMt940;
+                                    include __DIR__ . '/mt940_approver_subrows.php';
+                                ?>
                                 <?php /* Removed duplicate simple "Orden #" list; keep detailed "Información de la Orden" table below. */ ?>
                                 <?php endif; endforeach; ?>
                                 <?php if (!empty($this->canEditNoteOrAssociateOrder)) : ?>
