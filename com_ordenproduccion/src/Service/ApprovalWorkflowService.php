@@ -343,6 +343,39 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Whether a payment proof is already marked verificado (stale pending approvals should be closed).
+     *
+     * @since  3.119.239
+     */
+    private function isPaymentProofVerified(int $proofId): bool
+    {
+        if ($proofId < 1) {
+            return false;
+        }
+
+        try {
+            $cols = $this->db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (!isset($cols['verification_status'])) {
+                return false;
+            }
+
+            $q = $this->db->getQuery(true)
+                ->select($this->db->quoteName('verification_status'))
+                ->from($this->db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->where($this->db->quoteName('id') . ' = ' . $proofId)
+                ->where($this->db->quoteName('state') . ' = 1')
+                ->setLimit(1);
+            $this->db->setQuery($q);
+            $status = strtolower(trim((string) $this->db->loadResult()));
+
+            return $status === 'verificado';
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Pending servicios/externos request still points at a published tercerizado line.
      *
      * @since   3.117.0
@@ -449,6 +482,17 @@ class ApprovalWorkflowService
                     continue;
                 }
             }
+            if ($et === self::ENTITY_PAYMENT_PROOF) {
+                $proofId = (int) ($row->entity_id ?? 0);
+                if ($proofId > 0 && $this->isPaymentProofVerified($proofId)) {
+                    try {
+                        $this->completePendingPaymentProofForVerification($proofId, $userId);
+                    } catch (\Throwable $e) {
+                    }
+
+                    continue;
+                }
+            }
             $out[] = $row;
         }
 
@@ -532,6 +576,17 @@ class ApprovalWorkflowService
                             $this->cancelRequest($rid, $userId, $lid < 1 ? 'entity_missing' : 'pre_cotizacion_missing');
                         } catch (\Throwable $e) {
                         }
+                    }
+
+                    continue;
+                }
+            }
+            if ($et === self::ENTITY_PAYMENT_PROOF) {
+                $proofId = (int) ($row->entity_id ?? 0);
+                if ($proofId > 0 && $this->isPaymentProofVerified($proofId)) {
+                    try {
+                        $this->completePendingPaymentProofForVerification($proofId, $userId);
+                    } catch (\Throwable $e) {
                     }
 
                     continue;
@@ -1753,10 +1808,14 @@ class ApprovalWorkflowService
 
                 ApprovalAuditHelper::log($requestId, 'approved_final', $userId, 'pending', 'approved', $comments);
                 $reqFresh = $this->loadRequest($requestId);
-                if ($reqFresh !== null) {
-                    $this->onRequestFullyApproved($reqFresh, $userId);
-                }
                 $this->db->transactionCommit();
+                if ($reqFresh !== null) {
+                    try {
+                        $this->onRequestFullyApproved($reqFresh, $userId);
+                    } catch (\Throwable $e) {
+                        // Approval row is committed; entity hooks must not leave request stuck pending.
+                    }
+                }
                 ApprovalEmailQueueHelper::notifySubmitterOutcome($requestId, 'approved', $userId, $comments);
 
                 return true;

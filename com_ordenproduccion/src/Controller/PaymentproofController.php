@@ -23,7 +23,9 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\MailBccHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailSendHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\OutboundEmailLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
+use Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService;
 
 class PaymentproofController extends BaseController
 {
@@ -837,6 +839,129 @@ class PaymentproofController extends BaseController
         }
 
         $this->setRedirect($redirectUrl);
+        return true;
+    }
+
+    /**
+     * Approve MT-940 payment verification from the comprobante page (closes approval + marks verificado).
+     *
+     * POST: request_id, proof_id, order_id
+     *
+     * @since  3.119.239
+     */
+    public function approveMt940Verification()
+    {
+        $proofId     = $this->input->post->getInt('proof_id', 0);
+        $orderId     = $this->input->post->getInt('order_id', 0);
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId . '&proof_id=' . $proofId);
+
+        if (!Session::checkToken()) {
+            $this->app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_ERROR_LOGIN_REQUIRED'), 'error');
+            $this->setRedirect(Route::_('index.php?option=com_users&view=login'));
+
+            return false;
+        }
+
+        if (!Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_APPROVE_DISABLED'), 'warning');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        $requestId = $this->input->post->getInt('request_id', 0);
+        if ($requestId < 1 || $proofId < 1 || $orderId < 1) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_INVALID_REQUEST'), 'warning');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        $wfSvc = new ApprovalWorkflowService();
+        if (!$wfSvc->hasSchema()) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_SCHEMA_MISSING'), 'error');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        $req = $wfSvc->fetchRequestById($requestId);
+        if (
+            $req === null
+            || $req->status !== 'pending'
+            || ApprovalWorkflowService::normalizeEntityType((string) ($req->entity_type ?? '')) !== ApprovalWorkflowService::ENTITY_PAYMENT_PROOF
+            || (int) ($req->entity_id ?? 0) !== $proofId
+        ) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_APPROVE_INVALID'), 'warning');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        if (!$wfSvc->canUserActOnPendingStep($requestId, (int) $user->id)) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED'), 'warning');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        $metaJson = isset($req->metadata) ? (string) $req->metadata : '';
+        if (Mt940PaymentMatchService::decodeVerificationMetadata($metaJson) === null) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_APPROVE_NO_METADATA'), 'warning');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        $ok = $wfSvc->approve($requestId, (int) $user->id, 'mt940_payment_proof_verified');
+
+        $reqAfter = $wfSvc->fetchRequestById($requestId);
+        $stillPending = ($reqAfter !== null && $reqAfter->status === 'pending');
+
+        if (!$ok) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED'), 'warning');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        if ($stillPending) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_APPROVE_STEP_FORWARDED'), 'notice');
+            $this->setRedirect($redirectUrl);
+
+            return true;
+        }
+
+        $openReq = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $proofId);
+        if ($openReq !== null) {
+            $wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id);
+        }
+
+        $model = $this->getModel('Paymentproof');
+        $proof = $model->getItem($proofId);
+        $isVerified = $proof && isset($proof->verification_status)
+            && strcasecmp(trim((string) $proof->verification_status), 'verificado') === 0;
+
+        if (!$isVerified) {
+            ApprovalWorkflowEntityHelper::applyPaymentProofMt940LinksFromMetadata(
+                Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class),
+                $proofId,
+                $metaJson
+            );
+            ApprovalWorkflowEntityHelper::applyPaymentProofVerified($proofId, (int) $user->id);
+        }
+
+        $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_APPROVE_OK'), 'success');
+        $this->setRedirect($redirectUrl);
+
         return true;
     }
 

@@ -228,7 +228,7 @@ class HtmlView extends BaseHtmlView
         $this->labelMt940RowType = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_TYPE', 'Movimiento bancario');
         $this->labelMt940RowMatch = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_MATCH', 'Coincidencia MT-940');
         $this->labelMt940Approve = $t('COM_ORDENPRODUCCION_PP_MT940_APPROVE_BTN', 'Aprobar verificación');
-        $this->mt940ApproveAction = Route::_('index.php?option=com_ordenproduccion&task=administracion.approveApprovalWorkflow');
+        $this->mt940ApproveAction = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.approveMt940Verification');
 
         parent::display($tpl);
     }

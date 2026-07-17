@@ -11,7 +11,6 @@
 defined('_JEXEC') or die;
 
 use Joomla\CMS\HTML\HTMLHelper;
-use Joomla\CMS\Router\Route;
 
 if (empty($mt940Approver) || empty($mt940Approver['lines']) || !\is_array($mt940Approver['lines'])) {
     return;
@@ -21,10 +20,6 @@ $requestId = (int) ($mt940Approver['request_id'] ?? 0);
 if ($requestId < 1) {
     return;
 }
-
-$returnEncoded = base64_encode(
-    Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . (int) $orderId . '&proof_id=' . (int) $proofId, false)
-);
 
 foreach ($mt940Approver['lines'] as $pl) {
     if (!\is_array($pl)) {
@@ -70,7 +65,8 @@ foreach ($mt940Approver['lines'] as $pl) {
         <form method="post" action="<?php echo htmlspecialchars($this->mt940ApproveAction ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="d-inline">
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="request_id" value="<?php echo $requestId; ?>" />
-            <input type="hidden" name="return" value="<?php echo htmlspecialchars($returnEncoded, ENT_QUOTES, 'UTF-8'); ?>" />
+            <input type="hidden" name="proof_id" value="<?php echo (int) $proofId; ?>" />
+            <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
             <button type="submit"
                     class="btn btn-sm btn-success payment-proof-action-btn"
                     title="<?php echo htmlspecialchars($this->labelMt940Approve ?? 'Aprobar verificación', ENT_QUOTES, 'UTF-8'); ?>"

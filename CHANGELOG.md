@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.239-STABLE] - 2026-05-19
+
+### Fixed
+- **MT-940 green verify button:** Dedicated `paymentproof.approveMt940Verification` task validates the request, completes the approval workflow, marks the comprobante verificado, and removes it from pending lists; stale pending rows auto-close when proof is already verificado; final approval entity hooks run after DB commit so a hook failure cannot leave the request stuck pending.
+
 ## [3.119.238-STABLE] - 2026-05-19
 
 ### Fixed
