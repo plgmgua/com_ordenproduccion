@@ -24,6 +24,47 @@ $token = HTMLHelper::_('form.token');
 $tokenName = Session::getFormToken();
 $langTag = $lang->getTag();
 $isSpanish = (strpos($langTag, 'es') === 0);
+
+// Bank options for default Banco Origen (code => label)
+$ptBankOptions = [];
+try {
+    $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+    $q = $db->getQuery(true)
+        ->select(['code', 'name', 'name_es', 'name_en'])
+        ->from($db->quoteName('#__ordenproduccion_banks'))
+        ->where($db->quoteName('state') . ' = 1')
+        ->order($db->quoteName('ordering') . ' ASC, id ASC');
+    $db->setQuery($q);
+    foreach ($db->loadObjectList() ?: [] as $b) {
+        if (empty($b->code)) {
+            continue;
+        }
+        $displayName = ($isSpanish && !empty($b->name_es))
+            ? trim($b->name_es)
+            : (trim($b->name_en ?? $b->name ?? '') ?: $b->code);
+        $ptBankOptions[$b->code] = $displayName;
+    }
+} catch (\Throwable $e) {
+    // Optional until banks table exists
+}
+
+// Destination account options for default Cuenta Destino (id => name)
+$ptBankAccountOptions = [];
+try {
+    $baMdl = Factory::getApplication()->bootComponent('com_ordenproduccion')
+        ->getMVCFactory()->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+    if ($baMdl !== null && method_exists($baMdl, 'getBankAccounts')) {
+        foreach ($baMdl->getBankAccounts() as $acc) {
+            $bid = (int) ($acc->id ?? 0);
+            if ($bid < 1 || (int) ($acc->state ?? 0) !== 1) {
+                continue;
+            }
+            $ptBankAccountOptions[$bid] = trim((string) ($acc->name ?? ''));
+        }
+    }
+} catch (\Throwable $e) {
+    // Optional until bank_accounts table exists
+}
 ?>
 
 <style>
@@ -101,6 +142,8 @@ $isSpanish = (strpos($langTag, 'es') === 0);
                 $displayName = ($isSpanish && !empty(trim($pt->name_es ?? ''))) ? trim($pt->name_es) : (trim($pt->name_en ?? $pt->name ?? '') ?: trim($pt->name ?? $pt->code));
                 $requiresBank = !empty($pt->requires_bank);
                 $superUserOnly = !empty($pt->super_user_only);
+                $defaultBank = trim((string) ($pt->default_bank ?? ''));
+                $defaultBankAccountId = (int) ($pt->default_bank_account_id ?? 0);
                 ?>
                 <div class="paymenttype-item" data-id="<?php echo (int) $pt->id; ?>" data-code="<?php echo htmlspecialchars($pt->code); ?>">
                     <div class="paymenttype-handle"><i class="fas fa-grip-vertical"></i></div>
@@ -112,7 +155,7 @@ $isSpanish = (strpos($langTag, 'es') === 0);
                         </div>
                     </div>
                     <div class="paymenttype-actions">
-                        <button class="btn-edit-paymenttype" onclick="editPT(<?php echo (int) $pt->id; ?>, '<?php echo htmlspecialchars($pt->code, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES); ?>', <?php echo $requiresBank ? '1' : '0'; ?>, <?php echo $superUserOnly ? '1' : '0'; ?>)">
+                        <button class="btn-edit-paymenttype" onclick="editPT(<?php echo (int) $pt->id; ?>, '<?php echo htmlspecialchars($pt->code, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES); ?>', <?php echo $requiresBank ? '1' : '0'; ?>, <?php echo $superUserOnly ? '1' : '0'; ?>, '<?php echo htmlspecialchars($defaultBank, ENT_QUOTES); ?>', <?php echo $defaultBankAccountId; ?>)">
                             <i class="fas fa-edit"></i> <?php echo Text::_('JEDIT'); ?>
                         </button>
                         <button class="btn-delete-paymenttype" onclick="deletePT(<?php echo (int) $pt->id; ?>)">
@@ -159,6 +202,26 @@ $isSpanish = (strpos($langTag, 'es') === 0);
                 <input type="checkbox" id="pt-super-user-only" name="super_user_only" value="1">
                 <label for="pt-super-user-only"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SUPER_USER_ONLY'); ?></label>
             </div>
+            <div class="pt-form-group" id="pt-default-bank-group">
+                <label for="pt-default-bank"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK'); ?></label>
+                <select id="pt-default-bank" name="default_bank">
+                    <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_NONE'); ?></option>
+                    <?php foreach ($ptBankOptions as $code => $label): ?>
+                        <option value="<?php echo htmlspecialchars($code); ?>"><?php echo htmlspecialchars($label); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <small style="color:#6c757d;"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK_DESC'); ?></small>
+            </div>
+            <div class="pt-form-group" id="pt-default-bank-account-group">
+                <label for="pt-default-bank-account"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK_ACCOUNT'); ?></label>
+                <select id="pt-default-bank-account" name="default_bank_account_id">
+                    <option value="0"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_NONE'); ?></option>
+                    <?php foreach ($ptBankAccountOptions as $accId => $accName): ?>
+                        <option value="<?php echo (int) $accId; ?>"><?php echo htmlspecialchars($accName); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <small style="color:#6c757d;"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK_ACCOUNT_DESC'); ?></small>
+            </div>
             <div class="pt-modal-actions">
                 <button type="button" class="pt-btn-cancel" onclick="closePTModal()"><?php echo Text::_('JCANCEL'); ?></button>
                 <button type="submit" class="pt-btn-save"><i class="fas fa-save"></i> <?php echo Text::_('JSAVE'); ?></button>
@@ -188,17 +251,36 @@ $isSpanish = (strpos($langTag, 'es') === 0);
         });
     }
 
+    function togglePTDefaultBankFields() {
+        var needsBank = document.getElementById('pt-requires-bank').checked;
+        var bankGroup = document.getElementById('pt-default-bank-group');
+        var accGroup = document.getElementById('pt-default-bank-account-group');
+        if (bankGroup) bankGroup.style.display = needsBank ? '' : 'none';
+        if (accGroup) accGroup.style.display = needsBank ? '' : 'none';
+        if (!needsBank) {
+            var bankSel = document.getElementById('pt-default-bank');
+            var accSel = document.getElementById('pt-default-bank-account');
+            if (bankSel) bankSel.value = '';
+            if (accSel) accSel.value = '0';
+        }
+    }
+
+    document.getElementById('pt-requires-bank').addEventListener('change', togglePTDefaultBankFields);
+
     window.openPTModal = function() {
         document.getElementById('pt-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_ADD_NEW')); ?>';
         document.getElementById('pt-form').reset();
         document.getElementById('pt-id').value = '0';
         document.getElementById('pt-code').readOnly = false;
+        document.getElementById('pt-default-bank').value = '';
+        document.getElementById('pt-default-bank-account').value = '0';
+        togglePTDefaultBankFields();
         document.getElementById('pt-modal').style.display = 'block';
     };
 
     window.closePTModal = function() { document.getElementById('pt-modal').style.display = 'none'; };
 
-    window.editPT = function(id, code, name, nameEn, nameEs, requiresBank, superUserOnly) {
+    window.editPT = function(id, code, name, nameEn, nameEs, requiresBank, superUserOnly, defaultBank, defaultBankAccountId) {
         document.getElementById('pt-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_EDIT')); ?>';
         document.getElementById('pt-id').value = id;
         document.getElementById('pt-code').value = code;
@@ -208,6 +290,9 @@ $isSpanish = (strpos($langTag, 'es') === 0);
         document.getElementById('pt-name-es').value = nameEs || '';
         document.getElementById('pt-requires-bank').checked = !!requiresBank;
         document.getElementById('pt-super-user-only').checked = !!superUserOnly;
+        document.getElementById('pt-default-bank').value = defaultBank || '';
+        document.getElementById('pt-default-bank-account').value = defaultBankAccountId ? String(defaultBankAccountId) : '0';
+        togglePTDefaultBankFields();
         document.getElementById('pt-modal').style.display = 'block';
     };
 
@@ -222,6 +307,12 @@ $isSpanish = (strpos($langTag, 'es') === 0);
         fd.append('name_es', formData.get('name_es') || '');
         fd.append('requires_bank', document.getElementById('pt-requires-bank').checked ? '1' : '0');
         fd.append('super_user_only', document.getElementById('pt-super-user-only').checked ? '1' : '0');
+        fd.append('default_bank', document.getElementById('pt-requires-bank').checked
+            ? (document.getElementById('pt-default-bank').value || '')
+            : '');
+        fd.append('default_bank_account_id', document.getElementById('pt-requires-bank').checked
+            ? (document.getElementById('pt-default-bank-account').value || '0')
+            : '0');
         fd.append(tokenName, '1');
 
         fetch(baseUrl + '&controller=paymenttype&task=save&format=json', { method: 'POST', body: fd })

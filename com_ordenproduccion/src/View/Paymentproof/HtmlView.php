@@ -91,6 +91,7 @@ class HtmlView extends BaseHtmlView
             $wa->registerAndUseScript('com_ordenproduccion.paymentproof', 'media/com_ordenproduccion/js/paymentproof.js', [], ['version' => 'auto']);
             $this->document->addScriptOptions('com_ordenproduccion.paymentproof', [
                 'paymentTypeRequiresBank' => $this->getPaymentTypeRequiresBankMap(),
+                'paymentTypeDefaults' => $this->getPaymentTypeDefaultsMap(),
             ]);
             parent::display($tpl);
             return;
@@ -426,6 +427,7 @@ class HtmlView extends BaseHtmlView
         $wa->registerAndUseScript('com_ordenproduccion.paymentproof', 'media/com_ordenproduccion/js/paymentproof.js', [], ['version' => 'auto']);
         $this->document->addScriptOptions('com_ordenproduccion.paymentproof', [
             'paymentTypeRequiresBank' => $this->getPaymentTypeRequiresBankMap(),
+            'paymentTypeDefaults' => $this->getPaymentTypeDefaultsMap(),
         ]);
     }
 
@@ -486,6 +488,20 @@ class HtmlView extends BaseHtmlView
         return method_exists($model, 'getPaymentTypeRequiresBankMap')
             ? $model->getPaymentTypeRequiresBankMap()
             : ['efectivo' => false];
+    }
+
+    /**
+     * @return  array<string, array{bank: string, bank_account_id: int}>
+     *
+     * @since   3.119.240
+     */
+    public function getPaymentTypeDefaultsMap(): array
+    {
+        $model = $this->getModel();
+
+        return method_exists($model, 'getPaymentTypeDefaultsMap')
+            ? $model->getPaymentTypeDefaultsMap()
+            : [];
     }
 
     public function getBankOptions()

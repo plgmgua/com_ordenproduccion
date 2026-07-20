@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.240-STABLE] - 2026-07-20
+
+### Added
+- **Tipo de pago:** Optional default **Banco Origen** and **Cuenta Destino**; when that payment type is selected on a new comprobante line, those fields auto-fill (falls back to the global bank/account defaults when unset).
+
 ## [3.119.239-STABLE] - 2026-05-19
 
 ### Fixed

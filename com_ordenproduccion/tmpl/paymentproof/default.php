@@ -82,6 +82,9 @@ if (empty($order)) :
     } catch (\Exception $e) { /* ignore */ }
     $paymentTypeOptions = $this->getPaymentTypeOptions();
     $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
+    $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
+        ? $this->getPaymentTypeDefaultsMap()
+        : [];
     $availableOrders = json_decode($this->availableOrdersJson ?? '[]', true);
 ?>
 <div class="com-ordenproduccion-paymentproof">
@@ -276,6 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
     var typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
     var paymentTypeRequiresBank = <?php echo json_encode($paymentTypeRequiresBank); ?>;
+    var paymentTypeDefaults = <?php echo json_encode($paymentTypeDefaults); ?>;
     function paymentTypeNeedsBank(typeCode) {
         if (!typeCode) return true;
         if (Object.prototype.hasOwnProperty.call(paymentTypeRequiresBank, typeCode)) {
@@ -283,21 +287,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return typeCode !== 'efectivo';
     }
-    function toggleBankCell(row) {
+    function getDefaultsForPaymentType(typeCode) {
+        var typeDef = (typeCode && paymentTypeDefaults && paymentTypeDefaults[typeCode]) ? paymentTypeDefaults[typeCode] : {};
+        var bank = (typeDef && typeDef.bank) ? typeDef.bank : '';
+        var accountId = (typeDef && typeDef.bank_account_id) ? parseInt(typeDef.bank_account_id, 10) : 0;
+        return {
+            bank: bank || defaultBank || '',
+            bankAccountId: accountId > 0 ? accountId : (defaultBankAccountId || 0),
+            hasTypeBank: !!(typeDef && typeDef.bank),
+            hasTypeAccount: !!(typeDef && typeDef.bank_account_id)
+        };
+    }
+    function toggleBankCell(row, forceApplyDefaults) {
         var typeSel = row && row.querySelector('.payment-line-type');
         var bankCell = row && row.querySelector('.bank-cell');
         var accCell = row && row.querySelector('.bank-account-cell');
         var bankSel = row && row.querySelector('.payment-line-bank');
         var accSel = row && row.querySelector('.payment-line-bank-account');
         var needsBank = typeSel && paymentTypeNeedsBank(typeSel.value);
+        var defs = getDefaultsForPaymentType(typeSel ? typeSel.value : '');
         if (bankCell) bankCell.style.visibility = needsBank ? 'visible' : 'hidden';
         if (accCell) accCell.style.visibility = needsBank ? 'visible' : 'hidden';
         if (bankSel) {
             bankSel.disabled = !needsBank;
             if (!needsBank) {
                 bankSel.value = '';
-            } else if (!bankSel.value && defaultBank) {
-                bankSel.value = defaultBank;
+            } else if (forceApplyDefaults && defs.hasTypeBank) {
+                bankSel.value = defs.bank;
+            } else if (!bankSel.value && defs.bank) {
+                bankSel.value = defs.bank;
             }
         }
         if (accSel) {
@@ -305,8 +323,10 @@ document.addEventListener('DOMContentLoaded', function() {
             accSel.required = !!needsBank;
             if (!needsBank) {
                 accSel.value = '';
-            } else if (!accSel.value && defaultBankAccountId) {
-                accSel.value = String(defaultBankAccountId);
+            } else if (forceApplyDefaults && defs.hasTypeAccount) {
+                accSel.value = String(defs.bankAccountId);
+            } else if (!accSel.value && defs.bankAccountId) {
+                accSel.value = String(defs.bankAccountId);
             }
         }
     }
@@ -343,17 +363,17 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             tbody.appendChild(clone);
             lineIndex++;
-            toggleBankCell(clone);
-            clone.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(clone); });
+            toggleBankCell(clone, false);
+            clone.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(clone, true); });
             clone.querySelector('.payment-line-amount').addEventListener('input', updateLinesTotal);
             var rm = clone.querySelector('.remove-payment-line-btn');
             if (rm) rm.addEventListener('click', function() { clone.remove(); updateLinesTotal(); });
             updateLinesTotal();
         });
     });
-    document.querySelectorAll('.payment-line-type').forEach(function(el) { el.addEventListener('change', function() { toggleBankCell(el.closest('tr')); }); });
+    document.querySelectorAll('.payment-line-type').forEach(function(el) { el.addEventListener('change', function() { toggleBankCell(el.closest('tr'), true); }); });
     document.querySelectorAll('.payment-line-amount').forEach(function(el) { el.addEventListener('input', updateLinesTotal); });
-    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r); });
+    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r, false); });
     updateLinesTotal();
 });
 window.validateFiles = function(input) {
@@ -395,6 +415,9 @@ try {
 } catch (\Exception $e) { /* ignore */ }
 $paymentTypeOptions = $this->getPaymentTypeOptions();
 $paymentTypeRequiresBank = $this->getPaymentTypeRequiresBankMap();
+$paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
+    ? $this->getPaymentTypeDefaultsMap()
+    : [];
 ?>
 
 <div class="com-ordenproduccion-paymentproof">
@@ -1911,6 +1934,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const typeOpts = <?php echo json_encode(array_keys($paymentTypeOptions)); ?>;
     const typeLabels = <?php echo json_encode($paymentTypeOptions); ?>;
     const paymentTypeRequiresBank = <?php echo json_encode($paymentTypeRequiresBank); ?>;
+    const paymentTypeDefaults = <?php echo json_encode($paymentTypeDefaults); ?>;
     let lineIndex = 1;
 
     function paymentTypeNeedsBank(typeCode) {
@@ -1921,7 +1945,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return typeCode !== 'efectivo';
     }
 
-    function toggleBankCell(row) {
+    function getDefaultsForPaymentType(typeCode) {
+        const typeDef = (typeCode && paymentTypeDefaults && paymentTypeDefaults[typeCode]) ? paymentTypeDefaults[typeCode] : {};
+        const bank = (typeDef && typeDef.bank) ? typeDef.bank : '';
+        const accountId = (typeDef && typeDef.bank_account_id) ? parseInt(typeDef.bank_account_id, 10) : 0;
+        return {
+            bank: bank || defaultBank || '',
+            bankAccountId: accountId > 0 ? accountId : (defaultBankAccountId || 0),
+            hasTypeBank: !!(typeDef && typeDef.bank),
+            hasTypeAccount: !!(typeDef && typeDef.bank_account_id)
+        };
+    }
+
+    function toggleBankCell(row, forceApplyDefaults) {
         const typeSel = row.querySelector('.payment-line-type');
         const bankCell = row.querySelector('.bank-cell');
         const accCell = row.querySelector('.bank-account-cell');
@@ -1929,14 +1965,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const accSel = row.querySelector('.payment-line-bank-account');
         if (!typeSel) return;
         const needsBank = paymentTypeNeedsBank(typeSel.value);
+        const defs = getDefaultsForPaymentType(typeSel.value);
         if (bankCell) bankCell.style.visibility = needsBank ? 'visible' : 'hidden';
         if (accCell) accCell.style.visibility = needsBank ? 'visible' : 'hidden';
         if (bankSel) {
             bankSel.disabled = !needsBank;
             if (!needsBank) {
                 bankSel.value = '';
-            } else if (!bankSel.value && defaultBank) {
-                bankSel.value = defaultBank;
+            } else if (forceApplyDefaults && defs.hasTypeBank) {
+                bankSel.value = defs.bank;
+            } else if (!bankSel.value && defs.bank) {
+                bankSel.value = defs.bank;
             }
         }
         if (accSel) {
@@ -1944,8 +1983,10 @@ document.addEventListener('DOMContentLoaded', function () {
             accSel.required = needsBank;
             if (!needsBank) {
                 accSel.value = '';
-            } else if (!accSel.value && defaultBankAccountId) {
-                accSel.value = String(defaultBankAccountId);
+            } else if (forceApplyDefaults && defs.hasTypeAccount) {
+                accSel.value = String(defs.bankAccountId);
+            } else if (!accSel.value && defs.bankAccountId) {
+                accSel.value = String(defs.bankAccountId);
             }
         }
     }
@@ -1987,8 +2028,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         tbody.appendChild(newRow);
         lineIndex++;
-        toggleBankCell(newRow);
-        newRow.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(newRow); });
+        toggleBankCell(newRow, false);
+        newRow.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(newRow, true); });
         newRow.querySelector('.payment-line-amount').addEventListener('input', updateLinesTotal);
         var rmBtn = newRow.querySelector('.remove-payment-line-btn');
         if (rmBtn) rmBtn.addEventListener('click', function() { newRow.remove(); updateLinesTotal(); });
@@ -1999,7 +2040,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function(e) { e.preventDefault(); addLine(); });
     });
     document.querySelectorAll('.payment-line-type').forEach(function(el) {
-        el.addEventListener('change', function() { toggleBankCell(el.closest('tr')); });
+        el.addEventListener('change', function() { toggleBankCell(el.closest('tr'), true); });
     });
     document.querySelectorAll('.payment-line-amount').forEach(function(el) {
         el.addEventListener('input', updateLinesTotal);
@@ -2010,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateLinesTotal();
         });
     });
-    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r); });
+    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r, false); });
     updateLinesTotal();
 })();
 </script>

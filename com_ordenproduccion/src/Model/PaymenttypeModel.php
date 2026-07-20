@@ -30,6 +30,13 @@ class PaymenttypeModel extends BaseDatabaseModel
     protected $paymentTypesHasSuperUserOnlyColumn;
 
     /**
+     * Cached: payment_types table has default_bank / default_bank_account_id columns.
+     *
+     * @var bool|null
+     */
+    protected $paymentTypesHasDefaultBankColumns;
+
+    /**
      * @return bool
      */
     protected function paymentTypesTableHasSuperUserOnlyColumn(): bool
@@ -48,6 +55,30 @@ class PaymenttypeModel extends BaseDatabaseModel
         }
 
         return $this->paymentTypesHasSuperUserOnlyColumn;
+    }
+
+    /**
+     * @return bool
+     *
+     * @since   3.119.240
+     */
+    protected function paymentTypesTableHasDefaultBankColumns(): bool
+    {
+        if ($this->paymentTypesHasDefaultBankColumns !== null) {
+            return $this->paymentTypesHasDefaultBankColumns;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $columns = $db->getTableColumns('#__ordenproduccion_payment_types', false);
+            $this->paymentTypesHasDefaultBankColumns = is_array($columns)
+                && isset($columns['default_bank'])
+                && isset($columns['default_bank_account_id']);
+        } catch (\Throwable $e) {
+            $this->paymentTypesHasDefaultBankColumns = false;
+        }
+
+        return $this->paymentTypesHasDefaultBankColumns;
     }
 
     /**
@@ -135,6 +166,12 @@ class PaymenttypeModel extends BaseDatabaseModel
         $obj->requires_bank = isset($data['requires_bank']) ? (int) $data['requires_bank'] : 1;
         if ($this->paymentTypesTableHasSuperUserOnlyColumn()) {
             $obj->super_user_only = isset($data['super_user_only']) ? (int) $data['super_user_only'] : 0;
+        }
+        if ($this->paymentTypesTableHasDefaultBankColumns()) {
+            $defaultBank = trim((string) ($data['default_bank'] ?? ''));
+            $obj->default_bank = $defaultBank !== '' ? $defaultBank : '';
+            $defaultAccountId = (int) ($data['default_bank_account_id'] ?? 0);
+            $obj->default_bank_account_id = $defaultAccountId > 0 ? $defaultAccountId : 0;
         }
         $obj->state = isset($data['state']) ? (int) $data['state'] : 1;
 
@@ -334,6 +371,76 @@ class PaymenttypeModel extends BaseDatabaseModel
                 continue;
             }
             $map[$code] = !empty($row->requires_bank);
+        }
+
+        return $map;
+    }
+
+    /**
+     * Map payment type code => default bank / destination account for new payment lines.
+     *
+     * @return  array<string, array{bank: string, bank_account_id: int}>
+     *
+     * @since   3.119.240
+     */
+    public function getPaymentTypeDefaultsMap(): array
+    {
+        if (!$this->paymentTypesTableHasDefaultBankColumns()) {
+            return [];
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_payment_types';
+            $exists = false;
+
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $tableName) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+
+            if (!$exists) {
+                return [];
+            }
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('code'),
+                $db->quoteName('default_bank'),
+                $db->quoteName('default_bank_account_id'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_types'))
+            ->where($db->quoteName('state') . ' = 1');
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map  = [];
+
+        foreach ($rows as $row) {
+            $code = trim((string) ($row->code ?? ''));
+            if ($code === '') {
+                continue;
+            }
+
+            $bank = trim((string) ($row->default_bank ?? ''));
+            $accountId = (int) ($row->default_bank_account_id ?? 0);
+
+            if ($bank === '' && $accountId < 1) {
+                continue;
+            }
+
+            $map[$code] = [
+                'bank'             => $bank,
+                'bank_account_id'  => $accountId > 0 ? $accountId : 0,
+            ];
         }
 
         return $map;

@@ -1830,6 +1830,28 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Map payment type code => default bank / destination account.
+     *
+     * @return  array<string, array{bank: string, bank_account_id: int}>
+     *
+     * @since   3.119.240
+     */
+    public function getPaymentTypeDefaultsMap(): array
+    {
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $paymenttypeModel = $component->getMVCFactory()->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+            if ($paymenttypeModel && method_exists($paymenttypeModel, 'getPaymentTypeDefaultsMap')) {
+                return $paymenttypeModel->getPaymentTypeDefaultsMap();
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return [];
+    }
+
+    /**
      * @param   string  $code
      *
      * @return  bool
