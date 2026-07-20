@@ -906,8 +906,15 @@ class PaymentproofController extends BaseController
             return false;
         }
 
+        if ($wfSvc->isBlockedFromActingOnOwnPaymentProof((int) $user->id, $req)) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_SELF_VERIFY_DENIED'), 'warning');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
         if (!$wfSvc->canUserActOnPendingStep($requestId, (int) $user->id)) {
-            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED'), 'warning');
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_NOT_ASSIGNED'), 'warning');
             $this->setRedirect($redirectUrl);
 
             return false;
@@ -1019,6 +1026,14 @@ class PaymentproofController extends BaseController
             $this->setRedirect($redirectUrl);
 
             return true;
+        }
+
+        // Never allow verifying a registro de pago created by the same user.
+        if ((int) ($proof->created_by ?? 0) === (int) $user->id) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_SELF_VERIFY_DENIED'), 'error');
+            $this->setRedirect($redirectUrl);
+
+            return false;
         }
 
         // Close open MT-940 approval when superadmin verifies manually.

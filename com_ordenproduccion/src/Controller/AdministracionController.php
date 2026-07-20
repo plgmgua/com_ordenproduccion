@@ -2857,6 +2857,18 @@ class AdministracionController extends BaseController
             }
         }
 
+        $reqForGate = $svc->fetchRequestById($requestId);
+        if (
+            $reqForGate !== null
+            && ApprovalWorkflowService::normalizeEntityType((string) ($reqForGate->entity_type ?? '')) === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF
+            && $svc->isBlockedFromActingOnOwnPaymentProof((int) $user->id, $reqForGate)
+        ) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_SELF_VERIFY_DENIED'), 'warning');
+            $app->redirect($redirect);
+
+            return;
+        }
+
         $ok = $action === 'approve'
             ? $svc->approve($requestId, (int) $user->id, $comment)
             : $svc->reject($requestId, (int) $user->id, $comment);
@@ -2869,7 +2881,14 @@ class AdministracionController extends BaseController
                 'success'
             );
         } else {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED'), 'warning');
+            $failMsg = Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED');
+            if (
+                $reqForGate !== null
+                && ApprovalWorkflowService::normalizeEntityType((string) ($reqForGate->entity_type ?? '')) === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF
+            ) {
+                $failMsg = Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_NOT_ASSIGNED');
+            }
+            $app->enqueueMessage($failMsg, 'warning');
         }
 
         $app->redirect($redirect);

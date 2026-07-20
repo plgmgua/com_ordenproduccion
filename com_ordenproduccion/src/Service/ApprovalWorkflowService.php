@@ -483,6 +483,10 @@ class ApprovalWorkflowService
                 }
             }
             if ($et === self::ENTITY_PAYMENT_PROOF) {
+                // Creator/submitter must not appear as approver for their own registro.
+                if ($this->isBlockedFromActingOnOwnPaymentProof($userId, $row)) {
+                    continue;
+                }
                 $proofId = (int) ($row->entity_id ?? 0);
                 if ($proofId > 0 && $this->isPaymentProofVerified($proofId)) {
                     try {
@@ -844,7 +848,12 @@ class ApprovalWorkflowService
             return 0;
         }
 
-        $approverIds = $this->resolveApproverUserIds($step);
+        $approverIds = $this->filterPaymentProofSelfApprovers(
+            $this->resolveApproverUserIds($step),
+            $entityType,
+            $entityId,
+            $submitterId
+        );
 
         if ($approverIds === []) {
             return 0;
@@ -1354,6 +1363,8 @@ class ApprovalWorkflowService
     /**
      * Whether the user has a pending step on the request's current step (may approve or reject).
      *
+     * For payment proofs: only workflow assignees may act, and never on their own registro.
+     *
      * @since  3.113.57
      */
     public function canUserActOnPendingStep(int $requestId, int $userId): bool
@@ -1365,6 +1376,10 @@ class ApprovalWorkflowService
         $req = $this->loadRequest($requestId);
 
         if ($req === null || $req->status !== 'pending') {
+            return false;
+        }
+
+        if ($this->isBlockedFromActingOnOwnPaymentProof($userId, $req)) {
             return false;
         }
 
@@ -1381,6 +1396,114 @@ class ApprovalWorkflowService
         $this->db->setQuery($q);
 
         return (int) $this->db->loadResult() > 0;
+    }
+
+    /**
+     * Payment proof: creator / submitter must not approve or verify their own registro.
+     *
+     * @param   int      $userId  Acting user
+     * @param   object   $req     Approval request row (entity_type, entity_id, submitter_id)
+     *
+     * @return  bool  True when the user must be blocked
+     *
+     * @since   3.119.243
+     */
+    public function isBlockedFromActingOnOwnPaymentProof(int $userId, object $req): bool
+    {
+        if ($userId < 1) {
+            return true;
+        }
+
+        $entityType = self::normalizeEntityType((string) ($req->entity_type ?? ''));
+        if ($entityType !== self::ENTITY_PAYMENT_PROOF) {
+            return false;
+        }
+
+        if ((int) ($req->submitter_id ?? 0) === $userId) {
+            return true;
+        }
+
+        $proofId = (int) ($req->entity_id ?? 0);
+        if ($proofId < 1) {
+            return false;
+        }
+
+        return $this->getPaymentProofCreatedBy($proofId) === $userId;
+    }
+
+    /**
+     * @param   int  $proofId  #__ordenproduccion_payment_proofs.id
+     *
+     * @return  int  created_by user id, or 0
+     *
+     * @since   3.119.243
+     */
+    public function getPaymentProofCreatedBy(int $proofId): int
+    {
+        if ($proofId < 1) {
+            return 0;
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select($this->db->quoteName('created_by'))
+                ->from($this->db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->where($this->db->quoteName('id') . ' = ' . (int) $proofId)
+                ->setLimit(1);
+            $this->db->setQuery($q);
+
+            return (int) $this->db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Drop the payment-proof creator/submitter from an approver id list.
+     *
+     * @param   int[]   $approverIds
+     * @param   string  $entityType
+     * @param   int     $entityId
+     * @param   int     $submitterId
+     *
+     * @return  int[]
+     *
+     * @since   3.119.243
+     */
+    protected function filterPaymentProofSelfApprovers(
+        array $approverIds,
+        string $entityType,
+        int $entityId,
+        int $submitterId
+    ): array {
+        if (self::normalizeEntityType($entityType) !== self::ENTITY_PAYMENT_PROOF) {
+            return $approverIds;
+        }
+
+        $blocked = [];
+        if ($submitterId > 0) {
+            $blocked[$submitterId] = true;
+        }
+
+        $createdBy = $this->getPaymentProofCreatedBy($entityId);
+        if ($createdBy > 0) {
+            $blocked[$createdBy] = true;
+        }
+
+        if ($blocked === []) {
+            return $approverIds;
+        }
+
+        $out = [];
+        foreach ($approverIds as $aid) {
+            $aid = (int) $aid;
+            if ($aid < 1 || isset($blocked[$aid])) {
+                continue;
+            }
+            $out[] = $aid;
+        }
+
+        return $out;
     }
 
     /**
@@ -1697,6 +1820,10 @@ class ApprovalWorkflowService
             return false;
         }
 
+        if ($this->isBlockedFromActingOnOwnPaymentProof($userId, $req)) {
+            return false;
+        }
+
         $stepNum = (int) $req->current_step_number;
 
         $q = $this->db->getQuery(true)
@@ -1838,7 +1965,18 @@ class ApprovalWorkflowService
                 return false;
             }
 
-            $nextApprovers = $this->resolveApproverUserIds($nextStep);
+            $nextApprovers = $this->filterPaymentProofSelfApprovers(
+                $this->resolveApproverUserIds($nextStep),
+                (string) ($req->entity_type ?? ''),
+                (int) ($req->entity_id ?? 0),
+                (int) ($req->submitter_id ?? 0)
+            );
+
+            if ($nextApprovers === []) {
+                $this->db->transactionRollback();
+
+                return false;
+            }
 
             foreach ($nextApprovers as $aid) {
                 $aid = (int) $aid;

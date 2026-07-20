@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.243-STABLE] - 2026-07-20
+
+### Changed
+- **Registro de pago approvals:** Only users assigned on the payment workflow step can approve/verify; the creator/submitter can never approve or verify their own payment record (MT-940 button, Aprobaciones, and manual Verificado).
+
 ## [3.119.242-STABLE] - 2026-07-20
 
 ### Fixed
