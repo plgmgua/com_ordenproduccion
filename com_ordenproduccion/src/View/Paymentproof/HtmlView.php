@@ -235,9 +235,10 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * Pending payment-proof approvals with MT-940 metadata where the current user is the step approver.
+     * MT-940 match rows for payment proofs — visible only to members of the payment_proof approval workflow.
+     * Approve action is available only when the user may act on the current pending step (not the creator).
      *
-     * @return  array<int, array{request_id: int, lines: array<int, array<string, mixed>>}>
+     * @return  array<int, array{request_id: int, lines: array<int, array<string, mixed>>, can_approve: bool}>
      */
     protected function buildPaymentProofMt940ApproverMap(): array
     {
@@ -251,41 +252,45 @@ class HtmlView extends BaseHtmlView
         }
 
         $userId = (int) Factory::getUser()->id;
-        if ($userId < 1) {
+        if ($userId < 1 || !$wfSvc->isUserOnPaymentProofApprovalWorkflow($userId)) {
             return [];
         }
 
-        $map = [];
+        $matchSvc = new Mt940PaymentMatchService();
+        $map      = [];
+
         foreach ($this->existingPayments as $proof) {
             $proofId = (int) ($proof->id ?? 0);
             if ($proofId < 1) {
                 continue;
             }
 
-            $status = trim((string) ($proof->verification_status ?? ''));
-            if ($status !== '' && strcasecmp($status, 'verificado') === 0) {
-                continue;
+            $openReq   = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $proofId);
+            $latestReq = $openReq ?? $wfSvc->getLatestRequestForEntity(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $proofId);
+            $requestId = (int) ($latestReq->id ?? 0);
+
+            $lines = [];
+            if ($latestReq !== null) {
+                $meta  = Mt940PaymentMatchService::decodeVerificationMetadata(isset($latestReq->metadata) ? (string) $latestReq->metadata : '');
+                $lines = ($meta !== null && !empty($meta['lines']) && \is_array($meta['lines'])) ? $meta['lines'] : [];
             }
 
-            $req = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $proofId);
-            if ($req === null) {
-                continue;
+            if ($lines === [] && method_exists($matchSvc, 'buildDisplayLinesFromLinkedTransactions')) {
+                $lines = $matchSvc->buildDisplayLinesFromLinkedTransactions($proofId);
             }
 
-            $requestId = (int) ($req->id ?? 0);
-            if ($requestId < 1 || !$wfSvc->canUserActOnPendingStep($requestId, $userId)) {
-                continue;
-            }
-
-            $meta  = Mt940PaymentMatchService::decodeVerificationMetadata(isset($req->metadata) ? (string) $req->metadata : '');
-            $lines = ($meta !== null && !empty($meta['lines']) && \is_array($meta['lines'])) ? $meta['lines'] : [];
             if ($lines === []) {
                 continue;
             }
 
+            $canApprove = $openReq !== null
+                && $requestId > 0
+                && $wfSvc->canUserActOnPendingStep($requestId, $userId);
+
             $map[$proofId] = [
-                'request_id' => $requestId,
-                'lines'      => $lines,
+                'request_id'  => $requestId,
+                'lines'       => $lines,
+                'can_approve' => $canApprove,
             ];
         }
 

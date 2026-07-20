@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService;
+use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
@@ -21,6 +22,18 @@ if (!is_array($rows)) {
     $rows = [];
 }
 $schemaOk = (bool) $this->get('approvalWorkflowSchemaAvailable');
+
+// MT-940 match details are only for members of the Registro de pago approval workflow.
+$canSeePaymentMt940Details = false;
+if (Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+    try {
+        $ppWfGate = new ApprovalWorkflowService();
+        $canSeePaymentMt940Details = $ppWfGate->hasSchema()
+            && $ppWfGate->isUserOnPaymentProofApprovalWorkflow((int) Factory::getUser()->id);
+    } catch (\Throwable $e) {
+        $canSeePaymentMt940Details = false;
+    }
+}
 
 $entityLabel = static function (string $entityType): string {
     $entityType = ApprovalWorkflowService::normalizeEntityType($entityType);
@@ -193,7 +206,7 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
                                         <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_DISMISS'); ?></button>
                                     </form>
                                 </div>
-                                <?php elseif ($etype === 'payment_proof' && $mt940PaymentVerifyEnabled) : ?>
+                                <?php elseif ($etype === 'payment_proof' && $mt940PaymentVerifyEnabled && $canSeePaymentMt940Details) : ?>
                                 <?php
                                 $ppMeta = Mt940PaymentMatchService::decodeVerificationMetadata(isset($row->metadata) ? (string) $row->metadata : '');
                                 $ppLines = ($ppMeta !== null && !empty($ppMeta['lines']) && is_array($ppMeta['lines'])) ? $ppMeta['lines'] : [];

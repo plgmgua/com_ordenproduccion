@@ -2912,6 +2912,13 @@ class AdministracionController extends BaseController
             return;
         }
 
+        $wfSvc = new ApprovalWorkflowService();
+        if (!$wfSvc->hasSchema() || !$wfSvc->isUserOnPaymentProofApprovalWorkflow((int) $user->id)) {
+            $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_NOT_ASSIGNED'));
+
+            return;
+        }
+
         $bankAccountId = $app->input->getInt('bank_account_id', 0);
         $date          = trim($app->input->getString('date', ''));
         $amount        = (float) $app->input->get('amount', 0, 'FLOAT');

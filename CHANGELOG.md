@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.244-STABLE] - 2026-07-20
+
+### Changed
+- **MT-940 on Registro de pago:** Match details (green sub-row, Aprobaciones MT-940 panel, search API) are visible only to users configured on the payment approval workflow; approve button still requires being able to act on the pending step (not the creator).
+
 ## [3.119.243-STABLE] - 2026-07-20
 
 ### Changed

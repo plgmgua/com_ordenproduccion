@@ -546,6 +546,65 @@ class Mt940PaymentMatchService
         return '';
     }
 
+    /**
+     * Rebuild display payloads from payment lines linked to MT-940 transactions (post-approval).
+     *
+     * @return  array<int, array<string, mixed>>
+     *
+     * @since   3.119.244
+     */
+    public function buildDisplayLinesFromLinkedTransactions(int $proofId): array
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1 || !$this->hasMatchColumns() || !$this->hasPaymentProofLinesTable()) {
+            return [];
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select([
+                    'l.*',
+                    $this->db->quoteName('t.id', 'tx_id'),
+                    $this->db->quoteName('t.transaction_date'),
+                    $this->db->quoteName('t.value_date'),
+                    $this->db->quoteName('t.reference'),
+                    $this->db->quoteName('t.description', 'tx_description'),
+                    $this->db->quoteName('t.amount', 'tx_amount'),
+                    $this->db->quoteName('t.currency'),
+                    $this->db->quoteName('t.debit_credit'),
+                ])
+                ->from($this->db->quoteName('#__ordenproduccion_payment_proof_lines', 'l'))
+                ->innerJoin(
+                    $this->db->quoteName('#__ordenproduccion_mt940_transactions', 't')
+                    . ' ON ' . $this->db->quoteName('t.id') . ' = ' . $this->db->quoteName('l.mt940_transaction_id')
+                )
+                ->where($this->db->quoteName('l.payment_proof_id') . ' = ' . $proofId)
+                ->where($this->db->quoteName('l.mt940_transaction_id') . ' > 0')
+                ->order($this->db->quoteName('l.ordering') . ' ASC, ' . $this->db->quoteName('l.id') . ' ASC');
+            $this->db->setQuery($q);
+            $rows = $this->db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $tx = (object) [
+                'id'               => (int) ($row->tx_id ?? 0),
+                'transaction_date' => (string) ($row->transaction_date ?? ''),
+                'value_date'       => (string) ($row->value_date ?? ''),
+                'reference'        => (string) ($row->reference ?? ''),
+                'description'      => (string) ($row->tx_description ?? ''),
+                'amount'           => (float) ($row->tx_amount ?? 0),
+                'currency'         => (string) ($row->currency ?? 'GTQ'),
+                'debit_credit'     => (string) ($row->debit_credit ?? ''),
+            ];
+            $out[] = $this->buildLineMatchPayload($row, $tx);
+        }
+
+        return $out;
+    }
+
     public function hasMatchColumns(): bool
     {
         try {

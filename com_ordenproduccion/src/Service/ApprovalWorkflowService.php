@@ -1507,6 +1507,69 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Whether the user is configured as an approver on any step of the published workflow for an entity type.
+     * Used to gate MT-940 payment match visibility (workflow members only, at any time).
+     *
+     * @since   3.119.244
+     */
+    public function isUserConfiguredApproverForEntityType(string $entityType, int $userId): bool
+    {
+        $userId = (int) $userId;
+        if ($userId < 1 || !$this->hasSchema()) {
+            return false;
+        }
+
+        $entityType = self::normalizeEntityType($entityType);
+        if ($entityType === '') {
+            return false;
+        }
+
+        static $cache = [];
+        $cacheKey = $entityType . ':' . $userId;
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        $wf = $this->getPublishedWorkflowByEntityType($entityType);
+        if ($wf === null) {
+            $cache[$cacheKey] = false;
+
+            return false;
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_approval_workflow_steps'))
+            ->where($this->db->quoteName('workflow_id') . ' = ' . (int) $wf->id)
+            ->order($this->db->quoteName('step_number') . ' ASC');
+        $this->db->setQuery($q);
+        $steps = $this->db->loadObjectList() ?: [];
+
+        foreach ($steps as $step) {
+            $ids = $this->resolveApproverUserIds($step);
+            if (in_array($userId, $ids, true)) {
+                $cache[$cacheKey] = true;
+
+                return true;
+            }
+        }
+
+        $cache[$cacheKey] = false;
+
+        return false;
+    }
+
+    /**
+     * Convenience: user is on the published Registro de pago (payment_proof) workflow.
+     *
+     * @since   3.119.244
+     */
+    public function isUserOnPaymentProofApprovalWorkflow(int $userId): bool
+    {
+        return $this->isUserConfiguredApproverForEntityType(self::ENTITY_PAYMENT_PROOF, $userId);
+    }
+
+    /**
      * Approve a pending step row for the current user.
      */
     public function approve(int $requestId, int $userId, string $comments = ''): bool
