@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.241-STABLE] - 2026-07-20
+
+### Fixed
+- **Tipo de pago edit modal:** Default Banco Origen / Cuenta Destino selectors are always visible (no longer hidden when “Requiere campo de banco” is unchecked).
+
 ## [3.119.240-STABLE] - 2026-07-20
 
 ### Added

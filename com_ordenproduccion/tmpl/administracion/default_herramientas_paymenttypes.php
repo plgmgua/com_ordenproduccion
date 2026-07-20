@@ -251,22 +251,6 @@ try {
         });
     }
 
-    function togglePTDefaultBankFields() {
-        var needsBank = document.getElementById('pt-requires-bank').checked;
-        var bankGroup = document.getElementById('pt-default-bank-group');
-        var accGroup = document.getElementById('pt-default-bank-account-group');
-        if (bankGroup) bankGroup.style.display = needsBank ? '' : 'none';
-        if (accGroup) accGroup.style.display = needsBank ? '' : 'none';
-        if (!needsBank) {
-            var bankSel = document.getElementById('pt-default-bank');
-            var accSel = document.getElementById('pt-default-bank-account');
-            if (bankSel) bankSel.value = '';
-            if (accSel) accSel.value = '0';
-        }
-    }
-
-    document.getElementById('pt-requires-bank').addEventListener('change', togglePTDefaultBankFields);
-
     window.openPTModal = function() {
         document.getElementById('pt-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_ADD_NEW')); ?>';
         document.getElementById('pt-form').reset();
@@ -274,7 +258,6 @@ try {
         document.getElementById('pt-code').readOnly = false;
         document.getElementById('pt-default-bank').value = '';
         document.getElementById('pt-default-bank-account').value = '0';
-        togglePTDefaultBankFields();
         document.getElementById('pt-modal').style.display = 'block';
     };
 
@@ -292,7 +275,6 @@ try {
         document.getElementById('pt-super-user-only').checked = !!superUserOnly;
         document.getElementById('pt-default-bank').value = defaultBank || '';
         document.getElementById('pt-default-bank-account').value = defaultBankAccountId ? String(defaultBankAccountId) : '0';
-        togglePTDefaultBankFields();
         document.getElementById('pt-modal').style.display = 'block';
     };
 
@@ -307,12 +289,8 @@ try {
         fd.append('name_es', formData.get('name_es') || '');
         fd.append('requires_bank', document.getElementById('pt-requires-bank').checked ? '1' : '0');
         fd.append('super_user_only', document.getElementById('pt-super-user-only').checked ? '1' : '0');
-        fd.append('default_bank', document.getElementById('pt-requires-bank').checked
-            ? (document.getElementById('pt-default-bank').value || '')
-            : '');
-        fd.append('default_bank_account_id', document.getElementById('pt-requires-bank').checked
-            ? (document.getElementById('pt-default-bank-account').value || '0')
-            : '0');
+        fd.append('default_bank', document.getElementById('pt-default-bank').value || '');
+        fd.append('default_bank_account_id', document.getElementById('pt-default-bank-account').value || '0');
         fd.append(tokenName, '1');
 
         fetch(baseUrl + '&controller=paymenttype&task=save&format=json', { method: 'POST', body: fd })
