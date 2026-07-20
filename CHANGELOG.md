@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.245-STABLE] - 2026-07-20
+
+### Changed
+- **Registro de pago green verify:** Available to members of the pago (`payment_proof`) approval workflow (wf users such as grosales/pgrant), not Super User only; creators still cannot verify their own records.
+
 ## [3.119.244-STABLE] - 2026-07-20
 
 ### Changed

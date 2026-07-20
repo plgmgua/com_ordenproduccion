@@ -913,7 +913,9 @@ class PaymentproofController extends BaseController
             return false;
         }
 
-        if (!$wfSvc->canUserActOnPendingStep($requestId, (int) $user->id)) {
+        $onPagoWorkflow = $wfSvc->isUserOnPaymentProofApprovalWorkflow((int) $user->id);
+        $canActOnStep   = $wfSvc->canUserActOnPendingStep($requestId, (int) $user->id);
+        if (!$canActOnStep && !$onPagoWorkflow && !AccessHelper::isSuperUser()) {
             $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_NOT_ASSIGNED'), 'warning');
             $this->setRedirect($redirectUrl);
 
@@ -928,10 +930,20 @@ class PaymentproofController extends BaseController
             return false;
         }
 
-        $ok = $wfSvc->approve($requestId, (int) $user->id, 'mt940_payment_proof_verified');
+        $ok = false;
+        $stillPending = false;
 
-        $reqAfter = $wfSvc->fetchRequestById($requestId);
-        $stillPending = ($reqAfter !== null && $reqAfter->status === 'pending');
+        if ($canActOnStep) {
+            $ok = $wfSvc->approve($requestId, (int) $user->id, 'mt940_payment_proof_verified');
+            $reqAfter = $wfSvc->fetchRequestById($requestId);
+            $stillPending = ($reqAfter !== null && $reqAfter->status === 'pending');
+        }
+
+        // Workflow members (or Super User) without a pending step row: complete verification directly.
+        if (!$ok && ($onPagoWorkflow || AccessHelper::isSuperUser())) {
+            $ok = $wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id);
+            $stillPending = false;
+        }
 
         if (!$ok) {
             $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED'), 'warning');
@@ -991,9 +1003,21 @@ class PaymentproofController extends BaseController
             return false;
         }
 
+        $proofId = $this->input->getInt('proof_id', 0);
+        $orderId = $this->input->getInt('order_id', 0);
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
+
         if (Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
-            if (!AccessHelper::isSuperUser()) {
-                $this->app->enqueueMessage('Solo Super Users pueden marcar comprobantes como verificados manualmente cuando la verificación MT-940 está activa.', 'error');
+            $onPagoWorkflow = false;
+            try {
+                $wfGate = new ApprovalWorkflowService();
+                $onPagoWorkflow = $wfGate->hasSchema()
+                    && $wfGate->isUserOnPaymentProofApprovalWorkflow((int) $user->id);
+            } catch (\Throwable $e) {
+                $onPagoWorkflow = false;
+            }
+            if (!AccessHelper::isSuperUser() && !$onPagoWorkflow) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_NOT_ASSIGNED'), 'error');
                 $this->setRedirect($redirectUrl);
                 return false;
             }
@@ -1002,10 +1026,6 @@ class PaymentproofController extends BaseController
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
             return false;
         }
-
-        $proofId = $this->input->getInt('proof_id', 0);
-        $orderId = $this->input->getInt('order_id', 0);
-        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
 
         if ($proofId <= 0) {
             $this->app->enqueueMessage('ID de comprobante inválido.', 'error');

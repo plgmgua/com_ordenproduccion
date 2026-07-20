@@ -162,8 +162,17 @@ class HtmlView extends BaseHtmlView
         $this->user = $user;
         $this->canEditNoteOrAssociateOrder = AccessHelper::isInAdministracionOrAdmonGroup();
         $this->canSuperUserEditLineAmount  = AccessHelper::isSuperUser();
+        $onPagoWorkflow = false;
+        try {
+            $pagoWfSvc = new ApprovalWorkflowService();
+            $onPagoWorkflow = $pagoWfSvc->hasSchema()
+                && $pagoWfSvc->isUserOnPaymentProofApprovalWorkflow((int) $user->id);
+        } catch (\Throwable $e) {
+            $onPagoWorkflow = false;
+        }
+        // Green verify: pago workflow members (and Super Users as override), not Super User only.
         $this->canMarkVerificado = Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()
-            ? AccessHelper::isSuperUser()
+            ? (AccessHelper::isSuperUser() || $onPagoWorkflow)
             : AccessHelper::isInAdministracionOrAdmonGroup();
         $this->paymentProofMt940ApproverByProofId = $this->buildPaymentProofMt940ApproverMap();
 
@@ -283,9 +292,10 @@ class HtmlView extends BaseHtmlView
                 continue;
             }
 
+            // Workflow members (already gated above) may verify any open request they did not create.
             $canApprove = $openReq !== null
                 && $requestId > 0
-                && $wfSvc->canUserActOnPendingStep($requestId, $userId);
+                && !$wfSvc->isBlockedFromActingOnOwnPaymentProof($userId, $openReq);
 
             $map[$proofId] = [
                 'request_id'  => $requestId,
