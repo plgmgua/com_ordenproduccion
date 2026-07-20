@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.242-STABLE] - 2026-07-20
+
+### Fixed
+- **Pending approvals module:** Pago rows show document ID as `PA-00000` (5-digit padded) instead of a bare numeric `entity_id`.
+
 ## [3.119.241-STABLE] - 2026-07-20
 
 ### Fixed

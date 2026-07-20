@@ -115,6 +115,10 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                             $idLabel = isset($row->quotation_number) && (string) $row->quotation_number !== ''
                                 ? (string) $row->quotation_number
                                 : ($eid > 0 ? 'COT-' . str_pad((string) $eid, 6, '0', STR_PAD_LEFT) : '');
+                        } elseif ($isPaymentProof) {
+                            $idLabel = $eid > 0
+                                ? ('PA-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT))
+                                : '';
                         } else {
                             $idLabel = (string) $eid;
                         }
