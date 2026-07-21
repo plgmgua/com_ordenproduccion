@@ -62,9 +62,13 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
     $fNit  = isset($qf['client_nit']) ? (string) $qf['client_nit'] : '';
     $fFrom = isset($qf['date_from']) ? (string) $qf['date_from'] : '';
     $fTo   = isset($qf['date_to']) ? (string) $qf['date_to'] : '';
+    $fEstado = isset($qf['estado']) ? (string) $qf['estado'] : '';
+    $fAgent  = isset($qf['sales_agent']) ? (string) $qf['sales_agent'] : '';
+    $salesAgentOptions = isset($this->salesAgentOptions) && \is_array($this->salesAgentOptions) ? $this->salesAgentOptions : [];
     $listLimit = isset($this->listLimit) ? (int) $this->listLimit : 20;
     $totalQuot = isset($this->totalQuotations) ? (int) $this->totalQuotations : 0;
-    $hasFilters = trim($fName) !== '' || trim($fNit) !== '' || trim($fFrom) !== '' || trim($fTo) !== '';
+    $hasFilters = trim($fName) !== '' || trim($fNit) !== '' || trim($fFrom) !== '' || trim($fTo) !== ''
+        || trim($fEstado) !== '' || trim($fAgent) !== '';
     $filterFormAction = Route::_('index.php?option=com_ordenproduccion&view=cotizaciones', false);
     ?>
     <form method="get" action="<?php echo htmlspecialchars($filterFormAction); ?>" class="cotizaciones-filters" id="cotizaciones-filters-form">
@@ -91,6 +95,24 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                 <label for="filter_date_to" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_DATE_TO', 'Quote date to', 'Fecha hasta'); ?></label>
                 <input type="date" class="form-control form-control-sm" name="filter_date_to" id="filter_date_to"
                        value="<?php echo htmlspecialchars($fTo); ?>">
+            </div>
+            <div class="cotizaciones-filter-field">
+                <label for="filter_estado" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_STATUS', 'Status', 'Estado'); ?></label>
+                <select class="form-select form-select-sm" name="filter_estado" id="filter_estado">
+                    <option value=""><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_ALL', 'All', 'Todos'); ?></option>
+                    <option value="creada"<?php echo $fEstado === 'creada' ? ' selected' : ''; ?>><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ESTADO_CREADA', 'Created', 'Creada'); ?></option>
+                    <option value="confirmada"<?php echo $fEstado === 'confirmada' ? ' selected' : ''; ?>><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ESTADO_CONFIRMADA', 'Confirmed', 'Confirmada'); ?></option>
+                    <option value="facturada"<?php echo $fEstado === 'facturada' ? ' selected' : ''; ?>><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ESTADO_FACTURADA', 'Invoiced', 'Facturada'); ?></option>
+                </select>
+            </div>
+            <div class="cotizaciones-filter-field">
+                <label for="filter_sales_agent" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_SALES_AGENT', 'Sales Agent', 'Agente de ventas'); ?></label>
+                <select class="form-select form-select-sm" name="filter_sales_agent" id="filter_sales_agent">
+                    <option value=""><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_FILTER_ALL', 'All', 'Todos'); ?></option>
+                    <?php foreach ($salesAgentOptions as $agentName) : ?>
+                    <option value="<?php echo htmlspecialchars($agentName); ?>"<?php echo $fAgent === $agentName ? ' selected' : ''; ?>><?php echo htmlspecialchars($agentName); ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="cotizaciones-filter-field cotizaciones-filter-field-limit">
                 <label for="cotizaciones_limit" class="form-label small mb-1"><?php echo $l('COM_ORDENPRODUCCION_COTIZACIONES_PAGE_SIZE', 'Per page', 'Por página'); ?></label>
@@ -126,7 +148,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
             <table class="quotations-table">
                 <thead>
                     <tr>
-                        <th><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NUMBER', 'Quotation Number', 'Número de cotización'); ?></th>
+                        <th class="col-cot-number"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_NUMBER', 'Quotation Number', 'Número de cotización'); ?></th>
                         <th><?php echo $l('COM_ORDENPRODUCCION_CLIENT_NAME', 'Client Name', 'Nombre del cliente'); ?></th>
                         <th class="col-cot-nit"><?php echo $l('COM_ORDENPRODUCCION_NIT', 'Tax ID (NIT)', 'NIT'); ?></th>
                         <th class="col-cot-date"><?php echo $l('COM_ORDENPRODUCCION_QUOTE_DATE', 'Quotation Date', 'Fecha de cotización'); ?></th>
@@ -138,7 +160,7 @@ $hasVentasAccess = $ventasGroupId && in_array($ventasGroupId, $userGroups);
                 <tbody>
                     <?php foreach ($this->quotations as $quotation): ?>
                     <tr>
-                        <td class="quotation-number">
+                        <td class="quotation-number col-cot-number">
                             <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $quotation->id); ?>">
                                 <strong><?php echo htmlspecialchars($quotation->quotation_number); ?></strong>
                             </a>

@@ -122,6 +122,21 @@
     color: #007cba;
 }
 
+.quotations-table .col-cot-number,
+.quotations-table th.col-cot-number,
+.quotations-table td.col-cot-number,
+.quotations-table td.quotation-number {
+    width: 7.5rem;
+    min-width: 7.5rem;
+    white-space: nowrap;
+}
+
+.quotations-table td.quotation-number a,
+.quotations-table td.col-cot-number a {
+    white-space: nowrap;
+    display: inline-block;
+}
+
 .quotations-table .col-cot-nit {
     width: 4.5rem;
     max-width: 6rem;

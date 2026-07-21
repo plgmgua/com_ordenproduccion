@@ -41,12 +41,20 @@ class HtmlView extends BaseHtmlView
     protected $pagination;
 
     /**
-     * Active list filters (client name, NIT, date range) for the template / pagination.
+     * Active list filters for the template / pagination.
      *
-     * @var    array{client_name: string, client_nit: string, date_from: string, date_to: string}
+     * @var    array{client_name: string, client_nit: string, date_from: string, date_to: string, estado: string, sales_agent: string}
      * @since  3.113.17
      */
     protected $quotationFilters = [];
+
+    /**
+     * Distinct sales agents available for the filter dropdown.
+     *
+     * @var    string[]
+     * @since  3.119.246
+     */
+    protected $salesAgentOptions = [];
 
     /**
      * Items per page for the list.
@@ -78,11 +86,14 @@ class HtmlView extends BaseHtmlView
         $this->quotations      = [];
         $this->pagination      = null;
         $this->quotationFilters = [
-            'client_name' => '',
-            'client_nit'  => '',
-            'date_from'   => '',
-            'date_to'     => '',
+            'client_name'  => '',
+            'client_nit'   => '',
+            'date_from'    => '',
+            'date_to'      => '',
+            'estado'       => '',
+            'sales_agent'  => '',
         ];
+        $this->salesAgentOptions = [];
         $this->listLimit       = 20;
         $this->totalQuotations = 0;
 
@@ -101,11 +112,18 @@ class HtmlView extends BaseHtmlView
             $invCols = $db->getTableColumns('#__ordenproduccion_invoices', false);
             $invCols = \is_array($invCols) ? array_change_key_case($invCols, CASE_LOWER) : [];
 
+            $estadoFilter = strtolower(trim($app->input->getString('filter_estado', '')));
+            if (!\in_array($estadoFilter, ['creada', 'confirmada', 'facturada'], true)) {
+                $estadoFilter = '';
+            }
+
             $this->quotationFilters = [
                 'client_name' => $app->input->getString('filter_client_name', ''),
                 'client_nit'  => $app->input->getString('filter_client_nit', ''),
                 'date_from'   => $app->input->getString('filter_date_from', ''),
                 'date_to'     => $app->input->getString('filter_date_to', ''),
+                'estado'      => $estadoFilter,
+                'sales_agent' => $app->input->getString('filter_sales_agent', ''),
             ];
 
             $limit = $app->input->getInt('limit', (int) $app->get('list_limit', 20));
@@ -119,7 +137,8 @@ class HtmlView extends BaseHtmlView
 
             $limitstart = $app->input->getUint('limitstart', 0);
 
-            $wheres = $this->buildQuotationListWheres($db, $user, $this->quotationFilters);
+            $wheres = $this->buildQuotationListWheres($db, $user, $this->quotationFilters, $invCols);
+            $this->salesAgentOptions = $this->loadSalesAgentFilterOptions($db, $user);
 
             $countQuery = $db->getQuery(true)
                 ->select('COUNT(*)')
@@ -134,31 +153,8 @@ class HtmlView extends BaseHtmlView
                 ->where(implode(' AND ', $wheres))
                 ->order($db->quoteName('q.created') . ' DESC');
 
-            if (isset($invCols['quotation_id'])) {
-                if (isset($invCols['fel_issue_status'])) {
-                    if (isset($invCols['invoice_source'])) {
-                        $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
-                            . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
-                            . ' AND ' . $db->quoteName('i.state') . ' = 1'
-                            . ' AND ('
-                            . $db->quoteName('i.fel_issue_status') . ' = ' . $db->quote('completed')
-                            . ' OR COALESCE(' . $db->quoteName('i.invoice_source') . ', ' . $db->quote('') . ') != ' . $db->quote('cotizacion_fel')
-                            . '))';
-                    } else {
-                        $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
-                            . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
-                            . ' AND ' . $db->quoteName('i.state') . ' = 1'
-                            . ' AND ' . $db->quoteName('i.fel_issue_status') . ' = ' . $db->quote('completed') . ')';
-                    }
-                } else {
-                    $sub = '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
-                        . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
-                        . ' AND ' . $db->quoteName('i.state') . ' = 1)';
-                }
-                $query->select($sub . ' AS ' . $db->quoteName('quotation_invoice_count'));
-            } else {
-                $query->select('0 AS ' . $db->quoteName('quotation_invoice_count'));
-            }
+            $invCountExpr = $this->buildQuotationInvoiceCountExpression($db, $invCols);
+            $query->select($invCountExpr . ' AS ' . $db->quoteName('quotation_invoice_count'));
 
             if ($this->totalQuotations > 0 && $limitstart >= $this->totalQuotations) {
                 $limitstart = (int) (floor(($this->totalQuotations - 1) / $limit) * $limit);
@@ -187,7 +183,7 @@ class HtmlView extends BaseHtmlView
                 'com_ordenproduccion.cotizaciones',
                 'media/com_ordenproduccion/css/cotizaciones.css',
                 [],
-                ['version' => '3.114.15']
+                ['version' => '3.119.246']
             );
         } catch (\Exception $e) {
             Factory::getApplication()->enqueueMessage($e->getMessage(), 'error');
@@ -199,17 +195,104 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
+     * SQL expression: count of completed/active invoices linked to quotation q.id.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   array<string, mixed>                $invCols  Lowercased invoice table columns
+     *
+     * @return  string
+     *
+     * @since   3.119.246
+     */
+    protected function buildQuotationInvoiceCountExpression($db, array $invCols): string
+    {
+        if (!isset($invCols['quotation_id'])) {
+            return '0';
+        }
+
+        if (isset($invCols['fel_issue_status'])) {
+            if (isset($invCols['invoice_source'])) {
+                return '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
+                    . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
+                    . ' AND ' . $db->quoteName('i.state') . ' = 1'
+                    . ' AND ('
+                    . $db->quoteName('i.fel_issue_status') . ' = ' . $db->quote('completed')
+                    . ' OR COALESCE(' . $db->quoteName('i.invoice_source') . ', ' . $db->quote('') . ') != ' . $db->quote('cotizacion_fel')
+                    . '))';
+            }
+
+            return '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
+                . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
+                . ' AND ' . $db->quoteName('i.state') . ' = 1'
+                . ' AND ' . $db->quoteName('i.fel_issue_status') . ' = ' . $db->quote('completed') . ')';
+        }
+
+        return '(SELECT COUNT(*) FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'i')
+            . ' WHERE ' . $db->quoteName('i.quotation_id') . ' = ' . $db->quoteName('q.id')
+            . ' AND ' . $db->quoteName('i.state') . ' = 1)';
+    }
+
+    /**
+     * Distinct sales_agent values for quotations the user may list.
+     *
+     * @param   \Joomla\Database\DatabaseInterface  $db
+     * @param   \Joomla\CMS\User\User               $user
+     *
+     * @return  string[]
+     *
+     * @since   3.119.246
+     */
+    protected function loadSalesAgentFilterOptions($db, $user): array
+    {
+        try {
+            $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+            $qCols = \is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+            if (!isset($qCols['sales_agent'])) {
+                return [];
+            }
+
+            $wheres = [$db->quoteName('q.state') . ' = 1'];
+            if (!AccessHelper::canViewAllCotizacionesLikePrecot() && isset($qCols['created_by'])) {
+                $wheres[] = $db->quoteName('q.created_by') . ' = ' . (int) $user->id;
+            }
+            $wheres[] = $db->quoteName('q.sales_agent') . ' IS NOT NULL';
+            $wheres[] = 'TRIM(' . $db->quoteName('q.sales_agent') . ') != ' . $db->quote('');
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('DISTINCT ' . $db->quoteName('q.sales_agent'))
+                    ->from($db->quoteName('#__ordenproduccion_quotations', 'q'))
+                    ->where(implode(' AND ', $wheres))
+                    ->order($db->quoteName('q.sales_agent') . ' ASC')
+            );
+            $rows = $db->loadColumn() ?: [];
+            $out  = [];
+            foreach ($rows as $name) {
+                $name = trim((string) $name);
+                if ($name !== '') {
+                    $out[] = $name;
+                }
+            }
+
+            return $out;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
      * WHERE clauses for active quotations list (state, access, optional filters).
      *
      * @param   \Joomla\Database\DatabaseInterface  $db       Database.
      * @param   \Joomla\CMS\User\User               $user     Current user.
-     * @param   array                               $filters  Keys: client_name, client_nit, date_from, date_to (Y-m-d).
+     * @param   array                               $filters  Keys: client_name, client_nit, date_from, date_to, estado, sales_agent.
+     * @param   array<string, mixed>|null           $invCols  Lowercased invoice columns (optional).
      *
      * @return  array  Array of SQL fragments for Query::where($wheres, 'AND').
      *
      * @since   3.113.17
      */
-    protected function buildQuotationListWheres($db, $user, array $filters): array
+    protected function buildQuotationListWheres($db, $user, array $filters, ?array $invCols = null): array
     {
         $wheres = [$db->quoteName('q.state') . ' = 1'];
 
@@ -239,6 +322,37 @@ class HtmlView extends BaseHtmlView
         $dateTo = isset($filters['date_to']) ? trim((string) $filters['date_to']) : '';
         if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
             $wheres[] = $db->quoteName('q.quote_date') . ' <= ' . $db->quote($dateTo);
+        }
+
+        $salesAgent = isset($filters['sales_agent']) ? trim((string) $filters['sales_agent']) : '';
+        if ($salesAgent !== '' && isset($qCols['sales_agent'])) {
+            $wheres[] = $db->quoteName('q.sales_agent') . ' = ' . $db->quote($salesAgent);
+        }
+
+        $estado = isset($filters['estado']) ? strtolower(trim((string) $filters['estado'])) : '';
+        if (\in_array($estado, ['creada', 'confirmada', 'facturada'], true)) {
+            if ($invCols === null) {
+                $invCols = $db->getTableColumns('#__ordenproduccion_invoices', false);
+                $invCols = \is_array($invCols) ? array_change_key_case($invCols, CASE_LOWER) : [];
+            }
+            $invCountExpr = $this->buildQuotationInvoiceCountExpression($db, $invCols);
+
+            if ($estado === 'facturada') {
+                $wheres[] = $invCountExpr . ' > 0';
+            } else {
+                $wheres[] = $invCountExpr . ' = 0';
+                if (isset($qCols['cotizacion_confirmada'])) {
+                    if ($estado === 'confirmada') {
+                        $wheres[] = $db->quoteName('q.cotizacion_confirmada') . ' = 1';
+                    } else {
+                        $wheres[] = '(' . $db->quoteName('q.cotizacion_confirmada') . ' = 0 OR '
+                            . $db->quoteName('q.cotizacion_confirmada') . ' IS NULL)';
+                    }
+                } elseif ($estado === 'confirmada') {
+                    // Column missing: no rows can be Confirmada.
+                    $wheres[] = '0 = 1';
+                }
+            }
         }
 
         return $wheres;

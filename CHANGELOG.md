@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.246-STABLE] - 2026-07-21
+
+### Added
+- **Lista de cotizaciones:** Filters for **Estado** (Creada / Confirmada / Facturada) and **Agente de ventas**.
+
+### Fixed
+- **Lista de cotizaciones:** Quotation numbers like `COT-000735` stay on one line in the number column.
+
 ## [3.119.245-STABLE] - 2026-07-20
 
 ### Changed
