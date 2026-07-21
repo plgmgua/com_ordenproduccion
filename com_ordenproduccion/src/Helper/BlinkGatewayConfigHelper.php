@@ -274,8 +274,9 @@ class BlinkGatewayConfigHelper
     public static function truncatePaymentDescription(string $description): string
     {
         $description = trim($description);
+        // Blink Pay Bi requires a non-empty description; a single dot avoids blank/raw labels.
         if ($description === '') {
-            return '';
+            return '.';
         }
 
         if (\strlen($description) > 500) {

@@ -132,12 +132,9 @@ class BlinkQuotationPaymentService
                 : (string) $eligibility['title']
         );
 
-        $descInput = trim((string) ($description ?? ''));
-        $description = BlinkGatewayConfigHelper::truncatePaymentDescription(
-            $descInput !== ''
-                ? $descInput
-                : Text::sprintf('COM_ORDENPRODUCCION_BLINK_PAYMENT_DESCRIPTION', BlinkQuotationPaymentLinkHelper::formatQuotationReference($row))
-        );
+        // Blink checkout shows the description as-is; empty must not fall back to a language key.
+        $descInput   = trim((string) ($description ?? ''));
+        $description = BlinkGatewayConfigHelper::truncatePaymentDescription($descInput !== '' ? $descInput : '.');
 
         $referenceId = trim((string) ($referenceId ?? ''));
         if ($referenceId === '') {

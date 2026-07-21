@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.248-STABLE] - 2026-07-21
+
+### Fixed
+- **Blink payment link:** Empty description now sends `.` to Blink instead of a language key that could appear as `COM_ORDENPRODUCCION_BLINK_PAYMENT_DESCRIPTION` on the checkout page.
+
 ## [3.119.247-STABLE] - 2026-07-21
 
 ### Fixed
