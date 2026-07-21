@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.247-STABLE] - 2026-07-21
+
+### Fixed
+- **Blink payment link:** Creating a link for a cotización no longer fails with duplicate `reference_id` (`COT-######`) when a prior failed/pending attempt already occupies that unique key. The create flow reuses the existing row and retries Blink; if a successful link already exists, it is returned instead of inserting again.
+
 ## [3.119.246-STABLE] - 2026-07-21
 
 ### Added

@@ -146,27 +146,97 @@ class BlinkQuotationPaymentService
         $referenceId = substr($referenceId, 0, 100);
         $now         = Factory::getDate()->toSql();
 
-        $pending = (object) [
-            'quotation_id'  => $quotationId,
-            'reference_id'  => $referenceId,
-            'amount'        => $amount,
-            'installments'  => $installments,
-            'title'         => $titulo,
-            'description'   => $description,
-            'payment_url'   => null,
-            'status'        => 'pending',
-            'blink_response_json' => null,
-            'error_message' => null,
-            'created'       => $now,
-            'created_by'    => max(0, $userId),
-            'modified'      => null,
-        ];
-
-        if (!$this->db->insertObject('#__ordenproduccion_blink_payments', $pending, 'id')) {
-            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_SAVE_FAILED')];
+        // Reuse an existing successful link (UI only shows Create when no created URL is found).
+        $existingCreated = $this->findCreatedPaymentWithUrl($quotationId, $referenceId);
+        if ($existingCreated !== null) {
+            return [
+                'success'      => true,
+                'message'      => Text::_('COM_ORDENPRODUCCION_BLINK_PAYMENT_ALREADY_EXISTS'),
+                'payment_url'  => (string) $existingCreated->payment_url,
+                'reference_id' => (string) ($existingCreated->reference_id ?? $referenceId),
+                'payment_id'   => (int) ($existingCreated->id ?? 0),
+            ];
         }
 
-        $paymentId = (int) ($pending->id ?? 0);
+        // A prior failed/pending row keeps reference_id (unique). Reuse it instead of inserting again.
+        $existingRow = $this->findPaymentByReference($referenceId);
+        $paymentId   = 0;
+
+        if ($existingRow === null) {
+            $pending = (object) [
+                'quotation_id'        => $quotationId,
+                'reference_id'        => $referenceId,
+                'amount'              => $amount,
+                'installments'        => $installments,
+                'title'               => $titulo,
+                'description'         => $description,
+                'payment_url'         => null,
+                'status'              => 'pending',
+                'blink_response_json' => null,
+                'error_message'       => null,
+                'created'             => $now,
+                'created_by'          => max(0, $userId),
+                'modified'            => null,
+            ];
+
+            $inserted = false;
+
+            try {
+                $inserted = (bool) $this->db->insertObject('#__ordenproduccion_blink_payments', $pending, 'id');
+            } catch (\Throwable $e) {
+                $inserted = false;
+            }
+
+            if ($inserted) {
+                $paymentId = (int) ($pending->id ?? 0);
+            } else {
+                // Duplicate key / race: load the row that won and reuse it below.
+                $existingRow = $this->findPaymentByReference($referenceId);
+                if ($existingRow === null) {
+                    return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_SAVE_FAILED')];
+                }
+
+                $createdUrl = trim((string) ($existingRow->payment_url ?? ''));
+                if ((string) ($existingRow->status ?? '') === 'created' && $createdUrl !== '') {
+                    return [
+                        'success'      => true,
+                        'message'      => Text::_('COM_ORDENPRODUCCION_BLINK_PAYMENT_ALREADY_EXISTS'),
+                        'payment_url'  => $createdUrl,
+                        'reference_id' => $referenceId,
+                        'payment_id'   => (int) ($existingRow->id ?? 0),
+                    ];
+                }
+            }
+        }
+
+        if ($paymentId < 1 && $existingRow !== null) {
+            $paymentId = (int) ($existingRow->id ?? 0);
+            $reuse     = (object) [
+                'id'                  => $paymentId,
+                'quotation_id'        => $quotationId,
+                'amount'              => $amount,
+                'installments'        => $installments,
+                'title'               => $titulo,
+                'description'         => $description,
+                'payment_url'         => null,
+                'status'              => 'pending',
+                'blink_response_json' => null,
+                'error_message'       => null,
+                'modified'            => $now,
+            ];
+
+            try {
+                if (!$this->db->updateObject('#__ordenproduccion_blink_payments', $reuse, 'id')) {
+                    return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_SAVE_FAILED')];
+                }
+            } catch (\Throwable $e) {
+                return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_SAVE_FAILED')];
+            }
+        }
+
+        if ($paymentId < 1) {
+            return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_BLINK_SAVE_FAILED')];
+        }
 
         $gw = $this->gateway->createPaymentLink($amount, $installments, $referenceId, $titulo, $description);
 
@@ -220,10 +290,69 @@ class BlinkQuotationPaymentService
         ];
     }
 
-    protected function buildReferenceId(int $quotationId): string
+    /**
+     * @return  object|null
+     */
+    protected function findPaymentByReference(string $referenceId): ?object
     {
-        $suffix = bin2hex(random_bytes(4));
+        $referenceId = trim($referenceId);
+        if ($referenceId === '' || !$this->isTableAvailable()) {
+            return null;
+        }
 
-        return 'cot-' . $quotationId . '-' . $suffix;
+        $query = $this->db->getQuery(true)
+            ->select('*')
+            ->from($this->db->quoteName('#__ordenproduccion_blink_payments'))
+            ->where($this->db->quoteName('reference_id') . ' = ' . $this->db->quote($referenceId));
+        $this->db->setQuery($query, 0, 1);
+        $row = $this->db->loadObject();
+
+        return $row ?: null;
+    }
+
+    /**
+     * Prefer an active created link for this quotation (or exact reference).
+     *
+     * @return  object|null
+     */
+    protected function findCreatedPaymentWithUrl(int $quotationId, string $referenceId): ?object
+    {
+        if (!$this->isTableAvailable()) {
+            return null;
+        }
+
+        $referenceId = trim($referenceId);
+
+        if ($quotationId > 0) {
+            $query = $this->db->getQuery(true)
+                ->select('*')
+                ->from($this->db->quoteName('#__ordenproduccion_blink_payments'))
+                ->where($this->db->quoteName('quotation_id') . ' = ' . (int) $quotationId)
+                ->where($this->db->quoteName('status') . ' = ' . $this->db->quote('created'))
+                ->where($this->db->quoteName('payment_url') . ' != ' . $this->db->quote(''))
+                ->where($this->db->quoteName('payment_url') . ' IS NOT NULL')
+                ->order($this->db->quoteName('created') . ' DESC');
+            $this->db->setQuery($query, 0, 1);
+            $row = $this->db->loadObject();
+            if ($row) {
+                return $row;
+            }
+        }
+
+        if ($referenceId === '') {
+            return null;
+        }
+
+        $byRef = $this->findPaymentByReference($referenceId);
+        if ($byRef === null) {
+            return null;
+        }
+
+        $url = trim((string) ($byRef->payment_url ?? ''));
+        if ((string) ($byRef->status ?? '') === 'created' && $url !== '') {
+            return $byRef;
+        }
+
+        return null;
     }
 }

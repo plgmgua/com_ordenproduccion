@@ -2671,8 +2671,15 @@ class CotizacionController extends BaseController
 
         $description = trim((string) $app->input->post->getString('description', ''));
 
-        $svc    = new BlinkQuotationPaymentService();
-        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments, null, null, $description);
+        try {
+            $svc    = new BlinkQuotationPaymentService();
+            $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments, null, null, $description);
+        } catch (\Throwable $e) {
+            $result = [
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_BLINK_SAVE_FAILED'),
+            ];
+        }
 
         echo json_encode($result);
         $app->close();
@@ -2730,8 +2737,16 @@ class CotizacionController extends BaseController
 
         $description = trim((string) $app->input->post->getString('description', ''));
 
-        $svc    = new BlinkQuotationPaymentService();
-        $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments, null, null, $description);
+        $svc = new BlinkQuotationPaymentService();
+
+        try {
+            $result = $svc->createPaymentForQuotation($quotationId, (int) $user->id, $installments, null, null, $description);
+        } catch (\Throwable $e) {
+            $result = [
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_BLINK_SAVE_FAILED'),
+            ];
+        }
 
         if (!empty($result['success']) && !empty($result['payment_url'])) {
             $app->redirect((string) $result['payment_url']);
