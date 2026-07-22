@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.250-STABLE] - 2026-07-22
+
+### Fixed
+- **Impuesto de imprenta on pre-cotización:** Auto-create the `impuesto_imprenta` column if the SQL update was skipped, so the amount is stored and shown on the pre-cot after saving a cotización with volante/afiche in the description. Re-save the cotización once after deploy to backfill.
+
 ## [3.119.249-STABLE] - 2026-07-22
 
 ### Added

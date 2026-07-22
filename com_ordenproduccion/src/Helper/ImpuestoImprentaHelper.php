@@ -19,12 +19,60 @@ use Joomla\Database\DatabaseInterface;
  */
 final class ImpuestoImprentaHelper
 {
+    /** @var bool|null */
+    private static $columnReady;
+
     private function __construct()
     {
     }
 
     /**
-     * True when description contains volante/volantes or afiche/afiches (word boundary).
+     * Ensure `#__ordenproduccion_pre_cotizacion.impuesto_imprenta` exists (migration may not have run yet).
+     */
+    public static function ensureColumn(?DatabaseInterface $db = null): bool
+    {
+        if (self::$columnReady === true) {
+            return true;
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (isset($cols['impuesto_imprenta'])) {
+                return self::$columnReady = true;
+            }
+
+            $table = $db->replacePrefix('#__ordenproduccion_pre_cotizacion');
+            $db->setQuery(
+                'ALTER TABLE ' . $db->quoteName($table)
+                . ' ADD COLUMN ' . $db->quoteName('impuesto_imprenta')
+                . ' DECIMAL(12,2) NULL DEFAULT NULL'
+                . " COMMENT 'Impuesto de imprenta (volante/afiche) amount from param %'"
+            );
+            $db->execute();
+
+            return self::$columnReady = true;
+        } catch (\Throwable $e) {
+            // Re-check: concurrent create or column already present under another error.
+            try {
+                $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+                $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+                if (isset($cols['impuesto_imprenta'])) {
+                    return self::$columnReady = true;
+                }
+            } catch (\Throwable $e2) {
+            }
+
+            self::$columnReady = false;
+
+            return false;
+        }
+    }
+
+    /**
+     * True when description contains volante/volantes or afiche/afiches.
      */
     public static function descriptionMatches(string $description): bool
     {
@@ -33,7 +81,8 @@ final class ImpuestoImprentaHelper
             return false;
         }
 
-        return (bool) preg_match('/\b(volantes?|afiches?)\b/iu', $description);
+        // Unicode-aware boundaries (PHP \b is ASCII-only even with /u).
+        return (bool) preg_match('/(?<![\p{L}\p{N}_])(volantes?|afiches?)(?![\p{L}\p{N}_])/iu', $description);
     }
 
     /**
@@ -57,13 +106,11 @@ final class ImpuestoImprentaHelper
 
         $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
 
-        try {
-            $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
-            if (!isset($cols['impuesto_imprenta'])) {
-                return 0.0;
-            }
+        if (!self::ensureColumn($db)) {
+            return 0.0;
+        }
 
+        try {
             $query = $db->getQuery(true)
                 ->select($db->quoteName('impuesto_imprenta'))
                 ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
@@ -83,22 +130,38 @@ final class ImpuestoImprentaHelper
     /**
      * Resolve pre-tax base, impuesto amount, and final line value (idempotent on re-save).
      *
+     * @param   float  $minimumValor  Minimum allowed pre-tax valor final (pre-cot total / TC min).
+     *
      * @return  array{valor_base: float, impuesto: float|null, valor_final: float}
      */
-    public static function resolveLineValue(float $formValor, string $description, float $previousImpuesto = 0.0): array
-    {
-        $formValor         = round(max(0.0, $formValor), 2);
-        $previousImpuesto  = round(max(0.0, $previousImpuesto), 2);
-        $valorBase         = $formValor;
+    public static function resolveLineValue(
+        float $formValor,
+        string $description,
+        float $previousImpuesto = 0.0,
+        float $minimumValor = 0.0
+    ): array {
+        $formValor        = round(max(0.0, $formValor), 2);
+        $previousImpuesto = round(max(0.0, $previousImpuesto), 2);
+        $minimumValor     = round(max(0.0, $minimumValor), 2);
+        $valorBase        = $formValor;
+        $pct              = self::getParamPercent();
 
         if ($previousImpuesto > 0 && $formValor >= $previousImpuesto) {
             $valorBase = round($formValor - $previousImpuesto, 2);
+        } elseif (
+            $previousImpuesto <= 0
+            && $pct > 0
+            && $minimumValor > 0
+            && self::descriptionMatches($description)
+            && self::formValorLooksTaxInclusive($formValor, $pct, $minimumValor)
+        ) {
+            // Recovery when tax was applied to the cotización but not stored on pre-cot (missing column).
+            $valorBase = round($formValor / (1.0 + $pct / 100.0), 2);
         }
 
-        $pct = self::getParamPercent();
         if ($pct > 0 && self::descriptionMatches($description)) {
-            $impuesto    = round($valorBase * ($pct / 100.0), 2);
-            $valorFinal  = round($valorBase + $impuesto, 2);
+            $impuesto   = round($valorBase * ($pct / 100.0), 2);
+            $valorFinal = round($valorBase + $impuesto, 2);
 
             return [
                 'valor_base'  => $valorBase,
@@ -112,6 +175,27 @@ final class ImpuestoImprentaHelper
             'impuesto'    => null,
             'valor_final' => $valorBase,
         ];
+    }
+
+    /**
+     * True when form value is higher than min×(1+%) and equals base+tax for that %.
+     */
+    private static function formValorLooksTaxInclusive(float $formValor, float $pct, float $minimumValor): bool
+    {
+        if ($pct <= 0 || $formValor <= 0 || $minimumValor <= 0) {
+            return false;
+        }
+
+        $minWithTax = round($minimumValor * (1.0 + $pct / 100.0), 2);
+        if ($formValor <= $minWithTax + 0.005) {
+            return false;
+        }
+
+        $base    = round($formValor / (1.0 + $pct / 100.0), 2);
+        $tax     = round($base * ($pct / 100.0), 2);
+        $rebuilt = round($base + $tax, 2);
+
+        return $base + 0.001 >= $minimumValor && abs($rebuilt - $formValor) <= 0.02;
     }
 
     /**
@@ -133,6 +217,7 @@ final class ImpuestoImprentaHelper
         }
 
         $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+        self::ensureColumn($db);
 
         try {
             $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);

@@ -412,12 +412,12 @@ class AjaxController extends BaseController
                             exit;
                         }
                         $lineDesc = $desc !== '' ? $desc : 'PRE-' . $preId;
-                        $prevImpuesto = ImpuestoImprentaHelper::getStoredAmount($preId, $db);
-                        $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto);
-                        $valorBase = (float) $resolved['valor_base'];
-                        $value = (float) $resolved['valor_final'];
                         $baseTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
                         $minTotal = $precotModel ? (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId) : $baseTotal;
+                        $prevImpuesto = ImpuestoImprentaHelper::getStoredAmount($preId, $db);
+                        $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto, $minTotal);
+                        $valorBase = (float) $resolved['valor_base'];
+                        $value = (float) $resolved['valor_final'];
                         if ($valorBase < $minTotal) {
                             $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
                             echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
@@ -703,14 +703,17 @@ class AjaxController extends BaseController
                     exit;
                 }
                 $lineDesc = $desc !== '' ? $desc : ('PRE-' . $preId);
-                $prevImpuesto = $preId > 0 ? ImpuestoImprentaHelper::getStoredAmount($preId, $db) : 0.0;
-                $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto);
-                $valorBase = (float) $resolved['valor_base'];
-                $value = (float) $resolved['valor_final'];
                 $baseTotal = null;
+                $minTotal = 0.0;
                 if ($preId > 0 && $precotModel) {
                     $baseTotal = (float) $precotModel->getTotalForPreCotizacion($preId);
                     $minTotal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId);
+                }
+                $prevImpuesto = $preId > 0 ? ImpuestoImprentaHelper::getStoredAmount($preId, $db) : 0.0;
+                $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto, $minTotal);
+                $valorBase = (float) $resolved['valor_base'];
+                $value = (float) $resolved['valor_final'];
+                if ($preId > 0 && $precotModel) {
                     if ($valorBase < $minTotal) {
                         $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
                         echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
