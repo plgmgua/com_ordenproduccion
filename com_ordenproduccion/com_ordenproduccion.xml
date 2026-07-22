@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.248-STABLE</version>
+    <version>3.119.249-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -174,6 +174,16 @@
                     type="number"
                     label="COM_ORDENPRODUCCION_PARAM_COMISION_MARGEN_ADICIONAL"
                     description="COM_ORDENPRODUCCION_PARAM_COMISION_MARGEN_ADICIONAL_DESC"
+                    default="0"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                />
+                <field
+                    name="impuesto_imprenta"
+                    type="number"
+                    label="COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA"
+                    description="COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_DESC"
                     default="0"
                     min="0"
                     max="100"

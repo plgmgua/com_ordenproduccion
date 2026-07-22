@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.249-STABLE] - 2026-07-22
+
+### Added
+- **Parámetros:** New **Impuesto de imprenta** (%). On cotización create/update, if a line description contains `volante`/`volantes` or `afiche`/`afiches`, the % is applied to the line value (before this tax), stored on the linked pre-cotización (`impuesto_imprenta`), and added to the cotización total (same pattern as margen adicional).
+
 ## [3.119.248-STABLE] - 2026-07-21
 
 ### Fixed

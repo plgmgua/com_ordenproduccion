@@ -112,7 +112,8 @@ $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
 $paramComisionMargenAdicional = isset($this->paramComisionMargenAdicional) ? (float) $this->paramComisionMargenAdicional : 0;
 $margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== '') ? (float) $item->margen_adicional : 0;
 $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adicional) && $item->comision_margen_adicional !== null && $item->comision_margen_adicional !== '') ? (float) $item->comision_margen_adicional : 0;
-$displayTotal = $linesTotalFinal + $margenAdicional;
+$impuestoImprentaAmount = ($item && isset($item->impuesto_imprenta) && $item->impuesto_imprenta !== null && $item->impuesto_imprenta !== '') ? (float) $item->impuesto_imprenta : 0;
+$displayTotal = $linesTotalFinal + $margenAdicional + $impuestoImprentaAmount;
 $pctMaUi = (float) $paramComisionMargenAdicional;
 $precotComisionMaPctText = (\abs($pctMaUi - \round($pctMaUi)) < 0.000001)
     ? (string) (int) \round($pctMaUi)
@@ -980,6 +981,13 @@ $solicitarDescuentoAction   = Route::_(
                         <td></td>
                     </tr>
                     <?php endif; ?>
+                    <?php if ($impuestoImprentaAmount > 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($impuestoImprentaAmount, 2, '.', ''); ?></td>
+                        <td></td>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
                         <td class="text-end"><span id="precot-footer-grand-total">Q <?php echo number_format($displayTotal, 2); ?></span></td>
@@ -1032,6 +1040,7 @@ $solicitarDescuentoAction   = Route::_(
             'paramIsr' => (float) $paramIsr,
             'paramComision' => (float) $paramComision,
             'margenAdicional' => (float) $margenAdicional,
+            'impuestoImprenta' => (float) $impuestoImprentaAmount,
             'lineTotals' => $precotLt,
             'showMargenRow' => $canSeePrecotInternalTax && $paramMargen != 0,
             'showIvaRow' => (bool) $precotFooterShowIva,
@@ -1150,7 +1159,7 @@ $solicitarDescuentoAction   = Route::_(
         var comisionAmount = linesSubtotal * (cfg.paramComision / 100);
         var linesTotal = linesSubtotal + margenAmount + ivaAmount + isrAmount + comisionAmount;
         linesTotal = Math.round(linesTotal * 100) / 100;
-        var displayTotal = Math.round((linesTotal + cfg.margenAdicional) * 100) / 100;
+        var displayTotal = Math.round((linesTotal + cfg.margenAdicional + (cfg.impuestoImprenta || 0)) * 100) / 100;
         var margenCombined = Math.round((margenAmount + cfg.margenAdicional) * 100) / 100;
         var el;
         el = document.getElementById('precot-footer-subtotal');

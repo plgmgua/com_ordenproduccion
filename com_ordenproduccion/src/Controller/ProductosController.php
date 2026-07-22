@@ -534,11 +534,13 @@ class ProductosController extends BaseController
         $isr = (float) $input->post->get('isr', 0, 'raw');
         $comisionVenta = (float) $input->post->get('comision_venta', 0, 'raw');
         $comisionMargenAdicional = (float) $input->post->get('comision_margen_adicional', 0, 'raw');
+        $impuestoImprenta = (float) $input->post->get('impuesto_imprenta', 0, 'raw');
         $margen = max(0, min(100, $margen));
         $iva = max(0, min(100, $iva));
         $isr = max(0, min(100, $isr));
         $comisionVenta = max(0, min(100, $comisionVenta));
         $comisionMargenAdicional = max(0, min(100, $comisionMargenAdicional));
+        $impuestoImprenta = max(0, min(100, $impuestoImprenta));
 
         $params = ComponentHelper::getParams('com_ordenproduccion');
         $params->set('margen_ganancia', $margen);
@@ -546,6 +548,7 @@ class ProductosController extends BaseController
         $params->set('isr', $isr);
         $params->set('comision_venta', $comisionVenta);
         $params->set('comision_margen_adicional', $comisionMargenAdicional);
+        $params->set('impuesto_imprenta', $impuestoImprenta);
 
         $db = Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
         $table = new TableExtension($db);

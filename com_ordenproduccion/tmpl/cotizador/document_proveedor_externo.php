@@ -95,7 +95,9 @@ $margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adi
     ? (float) $item->margen_adicional : 0;
 $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adicional) && $item->comision_margen_adicional !== null && $item->comision_margen_adicional !== '')
     ? (float) $item->comision_margen_adicional : 0;
-$displayTotal = $linesTotalFinal + $margenAdicional;
+$impuestoImprentaAmount = ($item && isset($item->impuesto_imprenta) && $item->impuesto_imprenta !== null && $item->impuesto_imprenta !== '')
+    ? (float) $item->impuesto_imprenta : 0;
+$displayTotal = $linesTotalFinal + $margenAdicional + $impuestoImprentaAmount;
 $pctMaUi = (float) $paramComisionMargenAdicional;
 $precotComisionMaPctText = (\abs($pctMaUi - \round($pctMaUi)) < 0.000001)
     ? (string) (int) \round($pctMaUi)
@@ -1226,6 +1228,12 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <tr>
                     <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_TOTAL'); ?></td>
                     <td class="text-end">Q <?php echo \number_format($margenTotal, 2, '.', ''); ?></td>
+                </tr>
+                <?php endif; ?>
+                <?php if ($impuestoImprentaAmount > 0) : ?>
+                <tr>
+                    <td class="text-end pe-3"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA'); ?></td>
+                    <td class="text-end">Q <?php echo number_format($impuestoImprentaAmount, 2, '.', ''); ?></td>
                 </tr>
                 <?php endif; ?>
                 <tr class="table-secondary">

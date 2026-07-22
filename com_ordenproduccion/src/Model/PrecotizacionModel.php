@@ -392,7 +392,7 @@ class PrecotizacionModel extends ListModel
         if (isset($tableCols['vendor_quote_attachment'])) {
             $cols[] = 'a.vendor_quote_attachment';
         }
-        foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional'] as $snapCol) {
+        foreach (['lines_subtotal', 'margen_amount', 'iva_amount', 'isr_amount', 'comision_amount', 'total', 'total_final', 'margen_adicional', 'comision_margen_adicional', 'impuesto_imprenta'] as $snapCol) {
             if (isset($tableCols[$snapCol])) {
                 $cols[] = 'a.' . $snapCol;
             }
@@ -2083,7 +2083,10 @@ class PrecotizacionModel extends ListModel
             $margenAdic = isset($tableCols['margen_adicional']) && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== ''
                 ? (float) $item->margen_adicional
                 : 0.0;
-            $baseSinTarjeta = round((float) $total + $margenAdic, 2);
+            $impuestoImp = isset($tableCols['impuesto_imprenta']) && isset($item->impuesto_imprenta) && $item->impuesto_imprenta !== null && $item->impuesto_imprenta !== ''
+                ? (float) $item->impuesto_imprenta
+                : 0.0;
+            $baseSinTarjeta = round((float) $total + $margenAdic + $impuestoImp, 2);
             $qTc = $db->getQuery(true)
                 ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
                 ->where($db->quoteName('id') . ' = ' . $preCotizacionId);

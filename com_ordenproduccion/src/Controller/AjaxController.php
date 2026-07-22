@@ -11,7 +11,6 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
-use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -19,6 +18,7 @@ use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\HistorialHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionCurrencyHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 
@@ -411,9 +411,14 @@ class AjaxController extends BaseController
                             echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_CANTIDAD_REQUIRED')]);
                             exit;
                         }
+                        $lineDesc = $desc !== '' ? $desc : 'PRE-' . $preId;
+                        $prevImpuesto = ImpuestoImprentaHelper::getStoredAmount($preId, $db);
+                        $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto);
+                        $valorBase = (float) $resolved['valor_base'];
+                        $value = (float) $resolved['valor_final'];
                         $baseTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
                         $minTotal = $precotModel ? (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId) : $baseTotal;
-                        if ($value < $minTotal) {
+                        if ($valorBase < $minTotal) {
                             $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
                             echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
                             exit;
@@ -422,10 +427,12 @@ class AjaxController extends BaseController
                         $lineItems[] = [
                             'line_order' => $lineOrder,
                             'cantidad' => $cantidad,
-                            'descripcion' => $desc !== '' ? $desc : 'PRE-' . $preId,
+                            'descripcion' => $lineDesc,
                             'valor_unitario' => $valorUnitario,
                             'subtotal' => $value,
                             'valor_final' => $value,
+                            'valor_base' => $valorBase,
+                            'impuesto_imprenta' => $resolved['impuesto'],
                             'pre_cotizacion_id' => $preId,
                             'pre_cotizacion_total' => $baseTotal,
                             'line_images_json' => QuotationLineImagesHelper::normalizeJsonFromInput(isset($line['line_images_json']) ? (string) $line['line_images_json'] : ''),
@@ -524,42 +531,21 @@ class AjaxController extends BaseController
                     }
                     $db->insertObject('#__ordenproduccion_quotation_items', $itemData, 'id');
                     if (isset($item['pre_cotizacion_id']) && (int) $item['pre_cotizacion_id'] > 0) {
+                        $preIdSync = (int) $item['pre_cotizacion_id'];
                         $preTotal = isset($item['pre_cotizacion_total']) ? (float) $item['pre_cotizacion_total'] : 0;
-                        $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
-                        if ($valorFinal > $preTotal) {
-                            $margenAdicional = round($valorFinal - $preTotal, 2);
-                            $paramPct = (float) ComponentHelper::getParams('com_ordenproduccion')->get('comision_margen_adicional', 0);
-                            $comisionMargenAdicional = round($margenAdicional * $paramPct / 100, 2);
-                            $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-                            $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
-                            $hasComisionCol = isset($pcCols['comision_margen_adicional']);
-                            try {
-                                $q = $db->getQuery(true)
-                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                    ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
-                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
-                                if ($hasComisionCol) {
-                                    $q->set($db->quoteName('comision_margen_adicional') . ' = ' . (float) $comisionMargenAdicional);
-                                }
-                                $db->setQuery($q)->execute();
-                            } catch (\Exception $e) {
-                                // Column may not exist yet; run migration 3.88.0 / 3.94.0
-                            }
-                        } else {
-                            $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-                            $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
-                            $hasComisionCol = isset($pcCols['comision_margen_adicional']);
-                            try {
-                                $q = $db->getQuery(true)
-                                    ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                    ->set($db->quoteName('margen_adicional') . ' = NULL')
-                                    ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
-                                if ($hasComisionCol) {
-                                    $q->set($db->quoteName('comision_margen_adicional') . ' = NULL');
-                                }
-                                $db->setQuery($q)->execute();
-                            } catch (\Exception $e) {
-                            }
+                        $valorBase = isset($item['valor_base'])
+                            ? (float) $item['valor_base']
+                            : (isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal']);
+                        $impuestoAmt = \array_key_exists('impuesto_imprenta', $item) ? $item['impuesto_imprenta'] : null;
+                        ImpuestoImprentaHelper::syncPreCotizacionFromQuotationLine(
+                            $preIdSync,
+                            $valorBase,
+                            $preTotal,
+                            $impuestoAmt !== null ? (float) $impuestoAmt : null,
+                            $db
+                        );
+                        if ($precotModel) {
+                            $precotModel->refreshPreCotizacionTotalsSnapshot($preIdSync);
                         }
                     }
                     if ($hasLineImages && !empty($itemData->id)) {
@@ -716,11 +702,16 @@ class AjaxController extends BaseController
                     echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_QUOTATION_LINE_CANTIDAD_REQUIRED')]);
                     exit;
                 }
+                $lineDesc = $desc !== '' ? $desc : ('PRE-' . $preId);
+                $prevImpuesto = $preId > 0 ? ImpuestoImprentaHelper::getStoredAmount($preId, $db) : 0.0;
+                $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto);
+                $valorBase = (float) $resolved['valor_base'];
+                $value = (float) $resolved['valor_final'];
                 $baseTotal = null;
                 if ($preId > 0 && $precotModel) {
                     $baseTotal = (float) $precotModel->getTotalForPreCotizacion($preId);
                     $minTotal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId);
-                    if ($value < $minTotal) {
+                    if ($valorBase < $minTotal) {
                         $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
                         echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
                         exit;
@@ -730,10 +721,12 @@ class AjaxController extends BaseController
                 $lineItems[] = [
                     'line_order' => $lineOrder,
                     'cantidad' => $cantidad,
-                    'descripcion' => $desc !== '' ? $desc : ('PRE-' . $preId),
+                    'descripcion' => $lineDesc,
                     'valor_unitario' => $valorUnitario,
                     'subtotal' => $value,
                     'valor_final' => $value,
+                    'valor_base' => $valorBase,
+                    'impuesto_imprenta' => $resolved['impuesto'],
                     'pre_cotizacion_id' => $preId > 0 ? $preId : null,
                     'pre_cotizacion_total' => $baseTotal,
                     'line_images_json' => QuotationLineImagesHelper::normalizeJsonFromInput(isset($line['line_images_json']) ? (string) $line['line_images_json'] : ''),
@@ -790,42 +783,21 @@ class AjaxController extends BaseController
                 }
                 $db->insertObject('#__ordenproduccion_quotation_items', $itemData, 'id');
                 if (isset($item['pre_cotizacion_id']) && (int) $item['pre_cotizacion_id'] > 0) {
+                    $preIdSync = (int) $item['pre_cotizacion_id'];
                     $preTotal = isset($item['pre_cotizacion_total']) ? (float) $item['pre_cotizacion_total'] : 0;
-                    $valorFinal = isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal'];
-                    if ($valorFinal > $preTotal) {
-                        $margenAdicional = round($valorFinal - $preTotal, 2);
-                        $paramPct = (float) ComponentHelper::getParams('com_ordenproduccion')->get('comision_margen_adicional', 0);
-                        $comisionMargenAdicional = round($margenAdicional * $paramPct / 100, 2);
-                        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-                        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
-                        $hasComisionCol = isset($pcCols['comision_margen_adicional']);
-                        try {
-                            $q = $db->getQuery(true)
-                                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                ->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional)
-                                ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
-                            if ($hasComisionCol) {
-                                $q->set($db->quoteName('comision_margen_adicional') . ' = ' . (float) $comisionMargenAdicional);
-                            }
-                            $db->setQuery($q)->execute();
-                        } catch (\Exception $e) {
-                            // Column may not exist; run migration 3.88.0 / 3.94.0
-                        }
-                    } else {
-                        $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
-                        $pcCols = is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
-                        $hasComisionCol = isset($pcCols['comision_margen_adicional']);
-                        try {
-                            $q = $db->getQuery(true)
-                                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                                ->set($db->quoteName('margen_adicional') . ' = NULL')
-                                ->where($db->quoteName('id') . ' = ' . (int) $item['pre_cotizacion_id']);
-                            if ($hasComisionCol) {
-                                $q->set($db->quoteName('comision_margen_adicional') . ' = NULL');
-                            }
-                            $db->setQuery($q)->execute();
-                        } catch (\Exception $e) {
-                        }
+                    $valorBase = isset($item['valor_base'])
+                        ? (float) $item['valor_base']
+                        : (isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal']);
+                    $impuestoAmt = \array_key_exists('impuesto_imprenta', $item) ? $item['impuesto_imprenta'] : null;
+                    ImpuestoImprentaHelper::syncPreCotizacionFromQuotationLine(
+                        $preIdSync,
+                        $valorBase,
+                        $preTotal,
+                        $impuestoAmt !== null ? (float) $impuestoAmt : null,
+                        $db
+                    );
+                    if ($precotModel) {
+                        $precotModel->refreshPreCotizacionTotalsSnapshot($preIdSync);
                     }
                 }
                 if ($hasLineImages && !empty($itemData->id)) {

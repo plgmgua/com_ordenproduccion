@@ -34,6 +34,7 @@ $iva = isset($this->iva) ? (float) $this->iva : 0;
 $isr = isset($this->isr) ? (float) $this->isr : 0;
 $comisionVenta = isset($this->comisionVenta) ? (float) $this->comisionVenta : 0;
 $comisionMargenAdicional = isset($this->comisionMargenAdicional) ? (float) $this->comisionMargenAdicional : 0;
+$impuestoImprenta = isset($this->impuestoImprenta) ? (float) $this->impuestoImprenta : 0;
 $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this->imprentaParametrosConfigured);
 ?>
 <div class="com-ordenproduccion-productos">
@@ -131,6 +132,20 @@ $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this-
                             <input type="number" name="comision_margen_adicional" id="param_comision_margen_adicional"
                                    class="form-control" min="0" max="100" step="0.01"
                                    value="<?php echo htmlspecialchars((string) $comisionMargenAdicional, ENT_QUOTES, 'UTF-8'); ?>" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="param_impuesto_imprenta" class="form-label">
+                                <?php echo $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta'); ?> (%)
+                            </label>
+                            <input type="number" name="impuesto_imprenta" id="param_impuesto_imprenta"
+                                   class="form-control" min="0" max="100" step="0.01"
+                                   value="<?php echo htmlspecialchars((string) $impuestoImprenta, ENT_QUOTES, 'UTF-8'); ?>" />
+                            <div class="form-text">
+                                <?php echo $l(
+                                    'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_DESC',
+                                    'Applied on cotización save when a line description contains volante/volantes or afiche/afiches. Added to the pre-cotización and to the cotización total.'
+                                ); ?>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <?php echo Text::_('JSAVE'); ?>

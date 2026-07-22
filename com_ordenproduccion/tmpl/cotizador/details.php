@@ -64,7 +64,8 @@ $paramComision = isset($this->paramComision) ? (float) $this->paramComision : 0;
 $paramComisionMargenAdicional = isset($this->paramComisionMargenAdicional) ? (float) $this->paramComisionMargenAdicional : 0;
 $margenAdicional = ($item && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== '') ? (float) $item->margen_adicional : 0;
 $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adicional) && $item->comision_margen_adicional !== null && $item->comision_margen_adicional !== '') ? (float) $item->comision_margen_adicional : 0;
-$displayTotal = $linesTotalFinal + $margenAdicional;
+$impuestoImprentaAmount = ($item && isset($item->impuesto_imprenta) && $item->impuesto_imprenta !== null && $item->impuesto_imprenta !== '') ? (float) $item->impuesto_imprenta : 0;
+$displayTotal = $linesTotalFinal + $margenAdicional + $impuestoImprentaAmount;
 $tcCuotasSel = 0;
 $tcMonto = 0.0;
 $tcTasa = 0.0;
@@ -199,6 +200,12 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($margenAdicional, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($impuestoImprentaAmount > 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpanPe; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($impuestoImprentaAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
                     <tr class="table-secondary fw-bold">
@@ -386,6 +393,12 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                     <tr>
                         <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_MARGEN_ADICIONAL'); ?></td>
                         <td class="text-end">Q <?php echo number_format($margenAdicional, 2); ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    <?php if ($impuestoImprentaAmount > 0) : ?>
+                    <tr>
+                        <td colspan="<?php echo $tfootLabelSpan; ?>" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA'); ?></td>
+                        <td class="text-end">Q <?php echo number_format($impuestoImprentaAmount, 2); ?></td>
                     </tr>
                     <?php endif; ?>
                     <tr class="table-secondary fw-bold">
