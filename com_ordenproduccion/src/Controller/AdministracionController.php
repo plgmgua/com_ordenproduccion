@@ -372,8 +372,7 @@ class AdministracionController extends BaseController
             if ($cliente === '') {
                 $cliente = '—';
             }
-            $moneda = $invoice->currency ?? 'Q';
-            $total = number_format((float) ($invoice->invoice_amount ?? 0), 2, '.', '') . ' ' . $moneda;
+            $total = round((float) ($invoice->invoice_amount ?? 0), 2);
             $rows[] = [$serieNumero, $fechaStr, $nit, $tipoLabel, $cliente, $total];
         }
 
@@ -588,6 +587,11 @@ class AdministracionController extends BaseController
         foreach ($rows as $row) {
             $sheet->fromArray($row, null, 'A' . $rowIndex);
             $rowIndex++;
+        }
+        if ($rowIndex > 2) {
+            $sheet->getStyle('F2:F' . ($rowIndex - 1))
+                ->getNumberFormat()
+                ->setFormatCode('#,##0.00');
         }
         foreach (range('A', 'F') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);

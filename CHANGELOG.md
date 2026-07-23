@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.255-STABLE] - 2026-07-23
+
+### Fixed
+- **Facturas → Exportar a Excel:** Total Factura is exported as a numeric value (no `Q` suffix) so Excel can sum/filter it.
+
 ## [3.119.254-STABLE] - 2026-07-23
 
 ### Fixed
