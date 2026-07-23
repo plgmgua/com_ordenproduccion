@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.262-STABLE] - 2026-07-23
+
+### Changed
+- **Retenciones import:** Matching autorización now **overwrites** the existing row (and restores soft-deleted ones) instead of skipping as “already exists”.
+
 ## [3.119.261-STABLE] - 2026-07-23
 
 ### Added

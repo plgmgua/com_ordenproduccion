@@ -136,12 +136,19 @@ $esc = static function ($value, $default = '—') {
                         $file = $r['file'] ?? '';
                         $status = $r['status'] ?? '';
                         $msg = $r['message'] ?? '';
-                        $statusLabel = $status === 'imported'
-                            ? Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_IMPORTED')
-                            : ($status === 'skipped'
-                                ? Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_SKIPPED')
-                                : Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_ERROR'));
-                        $rowClass = $status === 'imported' ? 'table-success' : ($status === 'skipped' ? 'table-warning' : 'table-danger');
+                        if ($status === 'imported') {
+                            $statusLabel = Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_IMPORTED');
+                            $rowClass = 'table-success';
+                        } elseif ($status === 'updated') {
+                            $statusLabel = Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_STATUS_UPDATED');
+                            $rowClass = 'table-info';
+                        } elseif ($status === 'skipped') {
+                            $statusLabel = Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_SKIPPED');
+                            $rowClass = 'table-warning';
+                        } else {
+                            $statusLabel = Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_ERROR');
+                            $rowClass = 'table-danger';
+                        }
                     ?>
                     <tr class="<?php echo $rowClass; ?>">
                         <td><?php echo htmlspecialchars($file, ENT_QUOTES, 'UTF-8'); ?></td>

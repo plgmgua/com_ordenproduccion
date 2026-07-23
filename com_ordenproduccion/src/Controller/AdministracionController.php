@@ -2657,9 +2657,12 @@ class AdministracionController extends BaseController
         }
 
         $imported = 0;
-        $skipped = 0;
+        $updated = 0;
         $report = [];
         $now = Factory::getDate()->toSql();
+
+        $cols = $db->getTableColumns('#__ordenproduccion_retenciones', false);
+        $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
 
         foreach ($files as $file) {
             $tmpPath = $file['tmp_name'] ?? '';
@@ -2695,18 +2698,22 @@ class AdministracionController extends BaseController
                     continue;
                 }
 
-                $existsQuery = $db->getQuery(true)
-                    ->select('1')
+                // Match by autorización including soft-deleted rows so delete + re-import works,
+                // and active duplicates are overwritten instead of skipped.
+                $existingQuery = $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('id'),
+                        $db->quoteName('state'),
+                        $db->quoteName('created'),
+                        $db->quoteName('created_by'),
+                    ])
                     ->from($db->quoteName('#__ordenproduccion_retenciones'))
-                    ->where($db->quoteName('autorizacion') . ' = ' . $db->quote($autorizacion));
-                $db->setQuery($existsQuery);
-                if ((bool) $db->loadResult()) {
-                    $skipped++;
-                    $report[] = ['file' => $fileName, 'status' => 'skipped', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_ALREADY_EXISTS')];
-                    continue;
-                }
+                    ->where($db->quoteName('autorizacion') . ' = ' . $db->quote($autorizacion))
+                    ->order($db->quoteName('id') . ' DESC');
+                $db->setQuery($existingQuery, 0, 1);
+                $existing = $db->loadObject();
 
-                $obj = (object) [
+                $payload = [
                     'tipo_documento'    => trim((string) ($data['tipo_documento'] ?? '')),
                     'autorizacion'      => $autorizacion,
                     'serie'             => strtoupper(trim((string) ($data['serie'] ?? ''))),
@@ -2722,26 +2729,56 @@ class AdministracionController extends BaseController
                     'fecha_emision'     => $data['fecha_emision'] ?? null,
                     'source_filename'   => $fileName,
                     'state'             => 1,
-                    'created'           => $now,
-                    'created_by'        => (int) $user->id,
+                    'modified'          => $now,
+                    'modified_by'       => (int) $user->id,
                 ];
 
-                // Only set columns that exist (supports DBs not yet migrated for tipo_documento).
-                $cols = $db->getTableColumns('#__ordenproduccion_retenciones', false);
-                $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
                 $row = [];
-                foreach ((array) $obj as $k => $v) {
+                foreach ($payload as $k => $v) {
                     if (array_key_exists(strtolower($k), $cols)) {
                         $row[$k] = $v;
                     }
                 }
-                $obj = (object) $row;
 
-                $db->insertObject('#__ordenproduccion_retenciones', $obj, 'id');
-                $imported++;
-                $tipo = trim((string) ($obj->tipo_documento ?? ''));
-                $detail = trim(($tipo !== '' ? $tipo . ' — ' : '') . ($obj->serie ?? '') . ' | ' . ($obj->numero ?? '') . ' → Fact ' . ($obj->fact_serie ?? '') . ' | ' . ($obj->fact_numero ?? ''));
-                $report[] = ['file' => $fileName, 'status' => 'imported', 'message' => $detail];
+                $tipo = trim((string) ($row['tipo_documento'] ?? ''));
+                $detail = trim(
+                    ($tipo !== '' ? $tipo . ' — ' : '')
+                    . ($row['serie'] ?? '') . ' | ' . ($row['numero'] ?? '')
+                    . ' → Fact ' . ($row['fact_serie'] ?? '') . ' | ' . ($row['fact_numero'] ?? '')
+                );
+
+                if ($existing && (int) ($existing->id ?? 0) > 0) {
+                    $row['id'] = (int) $existing->id;
+                    // Keep original created audit trail when overwriting / restoring
+                    if (array_key_exists('created', $cols) && !empty($existing->created)) {
+                        $row['created'] = $existing->created;
+                    }
+                    if (array_key_exists('created_by', $cols)) {
+                        $row['created_by'] = (int) ($existing->created_by ?? $user->id);
+                    }
+                    $obj = (object) $row;
+                    $db->updateObject('#__ordenproduccion_retenciones', $obj, 'id');
+                    $updated++;
+                    $wasDeleted = (int) ($existing->state ?? 1) === 0;
+                    $report[] = [
+                        'file'    => $fileName,
+                        'status'  => 'updated',
+                        'message' => $wasDeleted
+                            ? Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_RESTORED') . ($detail !== '' ? ' — ' . $detail : '')
+                            : Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_OVERWRITTEN') . ($detail !== '' ? ' — ' . $detail : ''),
+                    ];
+                } else {
+                    if (array_key_exists('created', $cols)) {
+                        $row['created'] = $now;
+                    }
+                    if (array_key_exists('created_by', $cols)) {
+                        $row['created_by'] = (int) $user->id;
+                    }
+                    $obj = (object) $row;
+                    $db->insertObject('#__ordenproduccion_retenciones', $obj, 'id');
+                    $imported++;
+                    $report[] = ['file' => $fileName, 'status' => 'imported', 'message' => $detail];
+                }
             } catch (\Throwable $e) {
                 $report[] = ['file' => $fileName, 'status' => 'error', 'message' => $e->getMessage()];
             }
@@ -2751,8 +2788,8 @@ class AdministracionController extends BaseController
         if ($imported > 0) {
             $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_IMPORTED_COUNT', $imported), 'success');
         }
-        if ($skipped > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_SKIPPED_COUNT', $skipped), 'notice');
+        if ($updated > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_UPDATED_COUNT', $updated), 'success');
         }
         $errorCount = count(array_filter($report, static function ($r) {
             return ($r['status'] ?? '') === 'error';
