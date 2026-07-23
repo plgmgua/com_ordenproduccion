@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.252-STABLE] - 2026-07-23
+
+### Added
+- **Financiero → Listado PRE:** Column **Fecha factura** (from `fel_fecha_emision` / `invoice_date` of the same invoice as Nº factura) on the table and Excel/CSV export.
+
 ## [3.119.251-STABLE] - 2026-07-23
 
 ### Added

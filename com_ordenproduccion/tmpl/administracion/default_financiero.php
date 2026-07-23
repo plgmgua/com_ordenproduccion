@@ -110,6 +110,20 @@ $fmtProofVerified = static function ($v): string {
     }
 };
 
+$fmtInvoiceDate = static function ($v): string {
+    if ($v === null || $v === '' || $v === '0000-00-00 00:00:00' || $v === '0000-00-00') {
+        return '—';
+    }
+
+    try {
+        return HTMLHelper::_('date', $v, Text::_('DATE_FORMAT_LC4'));
+    } catch (\Throwable $e) {
+        $ts = strtotime((string) $v);
+
+        return $ts ? date('Y-m-d', $ts) : '—';
+    }
+};
+
 $pagoConfirmadoBadge = static function ($r): string {
     if (!\property_exists($r, 'financiero_pago_confirmado')) {
         return '—';
@@ -278,6 +292,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_DATE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_NUMBER'); ?></th>
                         <th class="align-top">
                             <div><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PAYMENT_PROOF_VERIFIED_DATE'); ?></div>
@@ -307,6 +322,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                         $qid               = isset($r->linked_quotation_id) ? (int) $r->linked_quotation_id : 0;
                         $qnum              = isset($r->linked_quotation_number) ? trim((string) $r->linked_quotation_number) : '';
                         $invDisplay        = isset($r->financiero_invoice_number) ? trim((string) $r->financiero_invoice_number) : '';
+                        $invDateDisplay    = $fmtInvoiceDate($r->financiero_invoice_date ?? null);
                         $ppDoc             = isset($r->financiero_payment_proof_number) ? trim((string) $r->financiero_payment_proof_number) : '';
                         $ordenIdFin        = isset($r->financiero_orden_id) ? (int) $r->financiero_orden_id : 0;
                         $ordenLabelFin     = $fmtOrdenLabel($r->financiero_orden_trabajo ?? '', $ordenIdFin);
@@ -332,6 +348,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                             echo $ag !== '' ? htmlspecialchars($ag) : '—';
 ?></td>
                         <td><?php echo $invDisplay !== '' ? htmlspecialchars($invDisplay) : '—'; ?></td>
+                        <td><?php echo htmlspecialchars($invDateDisplay); ?></td>
                         <td><?php echo $ppDoc !== '' ? htmlspecialchars($ppDoc) : '—'; ?></td>
                         <td><?php echo htmlspecialchars($fmtProofVerified($r->financiero_payment_proof_verified_date ?? null)); ?></td>
                         <td><?php echo htmlspecialchars($pagoConfirmadoBadge($r)); ?></td>
@@ -361,7 +378,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                     ?>
                 <tfoot class="table-secondary fw-bold">
                     <tr>
-                        <td colspan="9"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
+                        <td colspan="10"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_margen_amount ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt(($agg->sum_margen_amount ?? 0) + ($agg->sum_margen_adicional ?? 0))); ?></td>

@@ -5350,24 +5350,55 @@ class AdministracionModel extends BaseDatabaseModel
         $ppCols     = isset($ctx['pp_cols']) && \is_array($ctx['pp_cols']) ? array_change_key_case($ctx['pp_cols'], CASE_LOWER) : [];
         $hasPo      = !empty($ctx['has_payment_orders']);
 
-        // --- Invoice number ---
-        $byQuotationSql = '';
+        // --- Invoice number + date (same invoice resolution: quotation, else orden×pre) ---
+        $invDateColSql = static function (string $aliasBare) use ($db, $invCols): string {
+            $a = $db->quoteName($aliasBare);
+
+            if (isset($invCols['fel_fecha_emision'], $invCols['invoice_date'])) {
+                return 'COALESCE(' . $a . '.' . $db->quoteName('fel_fecha_emision')
+                    . ', ' . $a . '.' . $db->quoteName('invoice_date') . ')';
+            }
+
+            if (isset($invCols['fel_fecha_emision'])) {
+                return $a . '.' . $db->quoteName('fel_fecha_emision');
+            }
+
+            if (isset($invCols['invoice_date'])) {
+                return $a . '.' . $db->quoteName('invoice_date');
+            }
+
+            return '';
+        };
+
+        $byQuotationSql     = '';
+        $byQuotationDateSql = '';
 
         if ($joinQuotations && isset($invCols['quotation_id'], $invCols['invoice_number'], $invCols['state'])) {
-            $ivQ       = $db->quoteName('iv_q');
+            $ivQ            = $db->quoteName('iv_q');
             $byQuotationSql = '(SELECT ' . $ivQ . '.' . $db->quoteName('invoice_number')
                 . ' FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'iv_q')
                 . ' WHERE ' . $ivQ . '.' . $db->quoteName('quotation_id')
                 . ' = ' . $q . '.' . $db->quoteName('id')
                 . ' AND ' . $ivQ . '.' . $db->quoteName('state') . ' = 1'
                 . ' ORDER BY ' . $ivQ . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+            $dateExprQ = $invDateColSql('iv_q');
+
+            if ($dateExprQ !== '') {
+                $byQuotationDateSql = '(SELECT ' . $dateExprQ
+                    . ' FROM ' . $db->quoteName('#__ordenproduccion_invoices', 'iv_q')
+                    . ' WHERE ' . $ivQ . '.' . $db->quoteName('quotation_id')
+                    . ' = ' . $q . '.' . $db->quoteName('id')
+                    . ' AND ' . $ivQ . '.' . $db->quoteName('state') . ' = 1'
+                    . ' ORDER BY ' . $ivQ . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+            }
         }
 
-        $byPrecotOrdenSql = '';
+        $byPrecotOrdenSql     = '';
+        $byPrecotOrdenDateSql = '';
 
         if (isset($ordenCols['pre_cotizacion_id'], $invCols['invoice_number'], $invCols['orden_id'], $invCols['state'])) {
-            $ivO           = $db->quoteName('iv_o');
-            $byPrecotOrdenSql = '(SELECT ' . $ivO . '.' . $db->quoteName('invoice_number')
+            $ivO                = $db->quoteName('iv_o');
+            $byPrecotOrdenSql   = '(SELECT ' . $ivO . '.' . $db->quoteName('invoice_number')
                 . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'opc_iv')
                 . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_invoices', 'iv_o')
                 . ' ON ' . $ivO . '.' . $db->quoteName('orden_id') . ' = ' . $db->quoteName('opc_iv') . '.' . $db->quoteName('id')
@@ -5375,6 +5406,18 @@ class AdministracionModel extends BaseDatabaseModel
                 . ' = ' . $pc . '.' . $db->quoteName('id')
                 . ' AND ' . $ivO . '.' . $db->quoteName('state') . ' = 1'
                 . ' ORDER BY ' . $ivO . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+            $dateExprO = $invDateColSql('iv_o');
+
+            if ($dateExprO !== '') {
+                $byPrecotOrdenDateSql = '(SELECT ' . $dateExprO
+                    . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'opc_iv')
+                    . ' INNER JOIN ' . $db->quoteName('#__ordenproduccion_invoices', 'iv_o')
+                    . ' ON ' . $ivO . '.' . $db->quoteName('orden_id') . ' = ' . $db->quoteName('opc_iv') . '.' . $db->quoteName('id')
+                    . ' WHERE ' . $db->quoteName('opc_iv') . '.' . $db->quoteName('pre_cotizacion_id')
+                    . ' = ' . $pc . '.' . $db->quoteName('id')
+                    . ' AND ' . $ivO . '.' . $db->quoteName('state') . ' = 1'
+                    . ' ORDER BY ' . $ivO . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+            }
         }
 
         $invCombined = '';
@@ -5391,6 +5434,22 @@ class AdministracionModel extends BaseDatabaseModel
             $extras[] = [$invCombined, 'financiero_invoice_number'];
         } else {
             $extras[] = ['CAST(NULL AS CHAR)', 'financiero_invoice_number'];
+        }
+
+        $invDateCombined = '';
+
+        if ($byQuotationDateSql !== '' && $byPrecotOrdenDateSql !== '') {
+            $invDateCombined = 'COALESCE(' . $byQuotationDateSql . ', ' . $byPrecotOrdenDateSql . ')';
+        } elseif ($byQuotationDateSql !== '') {
+            $invDateCombined = $byQuotationDateSql;
+        } elseif ($byPrecotOrdenDateSql !== '') {
+            $invDateCombined = $byPrecotOrdenDateSql;
+        }
+
+        if ($invDateCombined !== '') {
+            $extras[] = [$invDateCombined, 'financiero_invoice_date'];
+        } else {
+            $extras[] = ['CAST(NULL AS DATETIME)', 'financiero_invoice_date'];
         }
 
         // --- Payment proof lines (orden.pre_cotizacion_id) ---
