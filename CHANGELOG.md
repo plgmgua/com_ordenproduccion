@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.266-STABLE] - 2026-07-23
+
+### Fixed
+- **Retenciones SAT:** Flash messages show human-readable Spanish/English text (language load + fallbacks).
+
 ## [3.119.265-STABLE] - 2026-07-23
 
 ### Fixed

@@ -3056,6 +3056,7 @@ class AdministracionController extends BaseController
         $app = Factory::getApplication();
         $user = Factory::getUser();
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones', false);
+        $this->loadRetencionesLanguage();
 
         if (!Session::checkToken()) {
             $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
@@ -3073,7 +3074,7 @@ class AdministracionController extends BaseController
 
         $files = self::normalizeUploadedFiles($app->input->files->get('sat_excel', [], 'array'));
         if (empty($files)) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_NO_FILE'), 'warning');
+            $app->enqueueMessage($this->retencionesText('COM_ORDENPRODUCCION_RETENCIONES_SAT_NO_FILE', 'No se seleccionó ningún archivo Excel SAT.'), 'warning');
             $app->redirect($redirectUrl);
 
             return;
@@ -3083,7 +3084,7 @@ class AdministracionController extends BaseController
         $cols = $db->getTableColumns('#__ordenproduccion_retenciones', false);
         $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
         if (!isset($cols['sat_validated'])) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_SCHEMA_MISSING'), 'error');
+            $app->enqueueMessage($this->retencionesText('COM_ORDENPRODUCCION_RETENCIONES_SAT_SCHEMA_MISSING', 'Faltan columnas de validación SAT. Ejecute SQL 3.119.264.'), 'error');
             $app->redirect($redirectUrl);
 
             return;
@@ -3099,13 +3100,13 @@ class AdministracionController extends BaseController
             $tmpPath = $file['tmp_name'] ?? '';
             $fileName = $file['name'] ?? 'file.xlsx';
             if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
-                $fileReports[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_READ_ERROR')];
+                $fileReports[] = ['file' => $fileName, 'status' => 'error', 'message' => $this->retencionesText('COM_ORDENPRODUCCION_RETENCIONES_SAT_READ_ERROR', 'No se pudo leer el archivo Excel.')];
                 continue;
             }
 
             $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
             if (!in_array($ext, ['xlsx', 'xls'], true)) {
-                $fileReports[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_NOT_EXCEL')];
+                $fileReports[] = ['file' => $fileName, 'status' => 'error', 'message' => $this->retencionesText('COM_ORDENPRODUCCION_RETENCIONES_SAT_NOT_EXCEL', 'El archivo no es Excel (.xlsx).')];
                 continue;
             }
 
@@ -3114,7 +3115,7 @@ class AdministracionController extends BaseController
                 $fileReports[] = [
                     'file'    => $fileName,
                     'status'  => 'error',
-                    'message' => $parsed['error'] ?? Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_PARSE_ERROR'),
+                    'message' => $parsed['error'] ?? $this->retencionesText('COM_ORDENPRODUCCION_RETENCIONES_SAT_PARSE_ERROR', 'No se pudo leer el reporte SAT.'),
                 ];
                 continue;
             }
@@ -3254,8 +3255,9 @@ class AdministracionController extends BaseController
             $fileReports[] = [
                 'file'    => $fileName,
                 'status'  => 'ok',
-                'message' => Text::sprintf(
+                'message' => $this->retencionesSprintf(
                     'COM_ORDENPRODUCCION_RETENCIONES_SAT_FILE_SUMMARY',
+                    '%1$s: %2$d en Excel, %3$d validadas, %4$d sin PDF importado.',
                     $tipoExcel,
                     count($excelRows),
                     $matchedInFile,
@@ -3270,19 +3272,85 @@ class AdministracionController extends BaseController
         ]);
 
         if ($validated > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_SAT_VALIDATED_COUNT', $validated), 'success');
+            $app->enqueueMessage($this->retencionesSprintf(
+                'COM_ORDENPRODUCCION_RETENCIONES_SAT_VALIDATED_COUNT',
+                '%d retención(es) marcada(s) como validadas contra SAT.',
+                $validated
+            ), 'success');
         }
         if ($mismatched > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_SAT_AMOUNT_MISMATCH_COUNT', $mismatched), 'warning');
+            $app->enqueueMessage($this->retencionesSprintf(
+                'COM_ORDENPRODUCCION_RETENCIONES_SAT_AMOUNT_MISMATCH_COUNT',
+                '%d con monto distinto al TOTAL RETENCION del Excel.',
+                $mismatched
+            ), 'warning');
         }
         if (count($missing) > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_SAT_MISSING_COUNT', count($missing)), 'warning');
+            $app->enqueueMessage($this->retencionesSprintf(
+                'COM_ORDENPRODUCCION_RETENCIONES_SAT_MISSING_COUNT',
+                '%d constancia(s) del Excel no existen en los PDF importados.',
+                count($missing)
+            ), 'warning');
         }
         if ($validated === 0 && count($missing) === 0) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_NO_MATCHES'), 'notice');
+            $app->enqueueMessage($this->retencionesText(
+                'COM_ORDENPRODUCCION_RETENCIONES_SAT_NO_MATCHES',
+                'No se encontró ninguna coincidencia entre el Excel SAT y los PDF importados.'
+            ), 'notice');
         }
 
         $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Ensure frontend (+ admin) language strings for Retenciones are loaded.
+     *
+     * @return  void
+     *
+     * @since   3.119.266
+     */
+    private function loadRetencionesLanguage(): void
+    {
+        $lang = Factory::getApplication()->getLanguage();
+        $lang->load('com_ordenproduccion', JPATH_SITE, null, false, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', null, false, true);
+        $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenproduccion', null, false, true);
+    }
+
+    /**
+     * Translate a key, or use a human-readable fallback if the key was not found.
+     *
+     * @param   string  $key       Language key
+     * @param   string  $fallback  Spanish fallback
+     *
+     * @return  string
+     *
+     * @since   3.119.266
+     */
+    private function retencionesText(string $key, string $fallback): string
+    {
+        $text = Text::_($key);
+
+        return ($text === $key || $text === '') ? $fallback : $text;
+    }
+
+    /**
+     * sprintf a language string with fallback when the key is missing.
+     *
+     * @param   string  $key       Language key
+     * @param   string  $fallback  Fallback format string
+     * @param   mixed   ...$args   sprintf args
+     *
+     * @return  string
+     *
+     * @since   3.119.266
+     */
+    private function retencionesSprintf(string $key, string $fallback, ...$args): string
+    {
+        $translated = Text::_($key);
+        $format = ($translated === $key || $translated === '') ? $fallback : $translated;
+
+        return sprintf($format, ...$args);
     }
 
     /**
