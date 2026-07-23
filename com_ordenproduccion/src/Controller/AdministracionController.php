@@ -2815,8 +2815,9 @@ class AdministracionController extends BaseController
             'Fact. Serie',
             'Fact. Numero',
             'Fact IVA exento',
-            'Retención (Q)',
+            'Retención',
             'Fecha emision',
+            'Total',
             'NIT Receptor',
             'Nombre Receptor',
         ];
@@ -2836,6 +2837,7 @@ class AdministracionController extends BaseController
                 round((float) ($row->fact_iva_exento ?? 0), 2),
                 round((float) ($row->monto_retencion ?? 0), 2),
                 $fechaStr,
+                RetencionPdfHelper::resolveMontoTotal($row),
                 (string) ($row->nit_receptor ?? ''),
                 (string) ($row->nombre_receptor ?? ''),
             ];
@@ -2898,8 +2900,11 @@ class AdministracionController extends BaseController
             $rowIndex++;
         }
         if ($rowIndex > 2) {
-            // I = Fact IVA exento, J = Retención
+            // I = Fact IVA exento, J = Retención, L = Total
             $sheet->getStyle('I2:J' . ($rowIndex - 1))
+                ->getNumberFormat()
+                ->setFormatCode('#,##0.00');
+            $sheet->getStyle('L2:L' . ($rowIndex - 1))
                 ->getNumberFormat()
                 ->setFormatCode('#,##0.00');
         }

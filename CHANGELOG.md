@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.260-STABLE] - 2026-07-23
+
+### Changed
+- **Retenciones:** TOTAL / RETENCIÓN amounts strip the `Q` currency prefix before storing numeric values.
+- **Retenciones:** Final **Total** column shows Fact. IVA exento or Retención/ISR amount (whichever applies).
+
 ## [3.119.259-STABLE] - 2026-07-23
 
 ### Added

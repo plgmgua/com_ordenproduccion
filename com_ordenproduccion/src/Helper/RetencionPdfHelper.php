@@ -371,13 +371,10 @@ class RetencionPdfHelper
             $out['fact_numero'] = trim($m[2]);
         }
 
-        // RETENCIÓN / TOTAL amount (prefer TOTAL: Qx.xx)
-        if (preg_match('/\bTOTAL\s*\n\s*Q\s*([\d,]+\.\d{2})/i', $folded, $m)
-            || preg_match('/\bTotal\s*:?\s*\n?\s*Q\s*([\d,]+\.\d{2})/i', $folded, $m)
-        ) {
-            $out['monto_retencion'] = self::parseMoney($m[1]);
-        } elseif (preg_match('/\bRETENCION\b[\s\S]{0,200}?Q\s*([\d,]+\.\d{2})/i', $folded, $m)) {
-            $out['monto_retencion'] = self::parseMoney($m[1]);
+        // RETENCIÓN / TOTAL amount — strip leading "Q" (Quetzales). Prefer last TOTAL match.
+        $totalAmt = self::extractTotalRetencionAmount($folded);
+        if ($totalAmt !== null) {
+            $out['monto_retencion'] = $totalAmt;
         }
 
         // Fecha: Día / Mes / Año then three numbers
@@ -677,13 +674,96 @@ class RetencionPdfHelper
     }
 
     /**
-     * @param   string  $raw  Amount string
+     * Extract numeric TOTAL retención amount from SAT forms (Q601.56 → 601.56).
+     *
+     * @param   string  $folded  Accent-folded text
+     *
+     * @return  float|null
+     *
+     * @since   3.119.260
+     */
+    protected static function extractTotalRetencionAmount(string $folded): ?float
+    {
+        $candidates = [];
+
+        // TOTAL then amount on next line(s): TOTAL / Q601.56  or  TOTAL / 601.56
+        if (preg_match_all('/\bTOTAL\b\s*:?\s*(?:\n\s*)?(Q\s*)?([\d,]+\.\d{2})/i', $folded, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $candidates[] = self::parseMoney(($m[1] ?? '') . ($m[2] ?? ''));
+            }
+        }
+
+        // Same-line variants already covered; also "Total:" near end of form
+        if (preg_match_all('/\bTotal\b\s*:?\s*(?:\n\s*)?(Q\s*)?([\d,]+\.\d{2})/i', $folded, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $candidates[] = self::parseMoney(($m[1] ?? '') . ($m[2] ?? ''));
+            }
+        }
+
+        // Fallback: first Q-amount after the RETENCIÓN header in the detalle block
+        if ($candidates === []
+            && preg_match('/\bRETENCION\b[\s\S]{0,240}?(Q\s*)([\d,]+\.\d{2})/i', $folded, $m)
+        ) {
+            $candidates[] = self::parseMoney(($m[1] ?? '') . ($m[2] ?? ''));
+        }
+
+        $candidates = array_values(array_filter($candidates, static function ($v) {
+            return is_numeric($v) && (float) $v > 0;
+        }));
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        // Prefer the last TOTAL (matches the TOTAL row in the table)
+        return round((float) end($candidates), 2);
+    }
+
+    /**
+     * Unified display total: Fact. IVA exento (exención) or Retención/ISR amount.
+     *
+     * @param   object|array  $row  Retención row or parsed data
+     *
+     * @return  float
+     *
+     * @since   3.119.260
+     */
+    public static function resolveMontoTotal($row): float
+    {
+        $get = static function ($key) use ($row) {
+            if (is_array($row)) {
+                return $row[$key] ?? 0;
+            }
+
+            return $row->{$key} ?? 0;
+        };
+
+        $iva = round((float) $get('fact_iva_exento'), 2);
+        $ret = round((float) $get('monto_retencion'), 2);
+
+        // Document types are mutually exclusive for these amounts; use whichever is set.
+        if ($ret > 0) {
+            return $ret;
+        }
+
+        return $iva > 0 ? $iva : 0.0;
+    }
+
+    /**
+     * @param   string  $raw  Amount string (may include Q / spaces / thousands separators)
      *
      * @return  float
      */
     protected static function parseMoney(string $raw): float
     {
-        $s = trim(str_replace(['Q', 'q', ' '], '', $raw));
+        $s = trim($raw);
+        // Remove Quetzal prefix and any leftover currency letters around the number
+        $s = preg_replace('/^[Qq]\s*/', '', $s) ?? $s;
+        $s = str_replace(['Q', 'q', ' '], '', $s);
+        $s = trim($s);
+        if ($s === '') {
+            return 0.0;
+        }
         if (strpos($s, ',') !== false && strpos($s, '.') !== false) {
             $s = str_replace(',', '', $s);
         } else {
