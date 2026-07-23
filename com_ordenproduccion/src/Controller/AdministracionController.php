@@ -647,6 +647,8 @@ class AdministracionController extends BaseController
 
         $cols = [
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_ORDEN'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_CLIENT'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'),
@@ -721,6 +723,23 @@ class AdministracionController extends BaseController
             return (int) $r->financiero_pago_confirmado === 1 ? $lang->_('JYES') : $lang->_('JNO');
         };
 
+        $fmtOrdenExport = static function (object $r): string {
+            $raw = isset($r->financiero_orden_trabajo) ? trim((string) $r->financiero_orden_trabajo) : '';
+            $oid = isset($r->financiero_orden_id) ? (int) $r->financiero_orden_id : 0;
+            if ($raw !== '') {
+                if (preg_match('/^\d+$/', $raw)) {
+                    return 'ORD-' . str_pad($raw, 6, '0', STR_PAD_LEFT);
+                }
+
+                return $raw;
+            }
+            if ($oid > 0) {
+                return 'ORD-' . str_pad((string) $oid, 6, '0', STR_PAD_LEFT);
+            }
+
+            return '—';
+        };
+
         $outRows = [];
 
         foreach ($rows as $r) {
@@ -732,6 +751,7 @@ class AdministracionController extends BaseController
             $margenTotDisplay   = round($margenAm + $margenAd, 2);
             $qnum               = isset($r->linked_quotation_number) ? trim((string) $r->linked_quotation_number) : '';
             $ag                 = isset($r->financiero_agent_label) ? trim((string) $r->financiero_agent_label) : '';
+            $clientX            = isset($r->financiero_client_name) ? trim((string) $r->financiero_client_name) : '';
 
             $comisionVentas = isset($r->comision_amount) ? (float) $r->comision_amount : 0.0;
             $comisionMaAmt  = isset($r->comision_margen_adicional) ? (float) $r->comision_margen_adicional : 0.0;
@@ -741,6 +761,8 @@ class AdministracionController extends BaseController
 
             $outRows[] = [
                 $rowPrecotLabel($r),
+                $fmtOrdenExport($r),
+                $clientX !== '' ? $clientX : '—',
                 $facturarLabel($r),
                 $ag !== '' ? $ag : '—',
                 $invX !== '' ? $invX : '—',

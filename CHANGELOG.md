@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.251-STABLE] - 2026-07-23
+
+### Added
+- **Financiero → Listado PRE:** Columns **Orden de trabajo** (`ORD-######`) and **Cliente** on the screen table and Excel/CSV export (from linked orden / cotización).
+
 ## [3.119.250-STABLE] - 2026-07-22
 
 ### Fixed

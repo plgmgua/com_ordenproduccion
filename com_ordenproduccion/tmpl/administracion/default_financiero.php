@@ -58,6 +58,27 @@ $urlCot    = static function ($qid): string {
     return Route::_('index.php?option=com_ordenproduccion&view=cotizacion&id=' . (int) $qid);
 };
 
+$urlOrden = static function ($oid): string {
+    return Route::_('index.php?option=com_ordenproduccion&view=orden&id=' . (int) $oid);
+};
+
+$fmtOrdenLabel = static function ($raw, $oid = 0): string {
+    $raw = trim((string) $raw);
+    $oid = (int) $oid;
+    if ($raw !== '') {
+        if (preg_match('/^\d+$/', $raw)) {
+            return 'ORD-' . str_pad($raw, 6, '0', STR_PAD_LEFT);
+        }
+
+        return $raw;
+    }
+    if ($oid > 0) {
+        return 'ORD-' . str_pad((string) $oid, 6, '0', STR_PAD_LEFT);
+    }
+
+    return '';
+};
+
 $confirmBadge = static function ($r): string {
     if (!property_exists($r, 'cotizacion_confirmada') || $r->cotizacion_confirmada === null) {
         return '—';
@@ -252,6 +273,8 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <thead class="table-light">
                     <tr>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_ORDEN'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_CLIENT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_INVOICE_NUMBER'); ?></th>
@@ -285,11 +308,24 @@ $pagoConfirmadoBadge = static function ($r): string {
                         $qnum              = isset($r->linked_quotation_number) ? trim((string) $r->linked_quotation_number) : '';
                         $invDisplay        = isset($r->financiero_invoice_number) ? trim((string) $r->financiero_invoice_number) : '';
                         $ppDoc             = isset($r->financiero_payment_proof_number) ? trim((string) $r->financiero_payment_proof_number) : '';
+                        $ordenIdFin        = isset($r->financiero_orden_id) ? (int) $r->financiero_orden_id : 0;
+                        $ordenLabelFin     = $fmtOrdenLabel($r->financiero_orden_trabajo ?? '', $ordenIdFin);
+                        $clientNameFin     = isset($r->financiero_client_name) ? trim((string) $r->financiero_client_name) : '';
                         ?>
                     <tr>
                         <td>
                             <a href="<?php echo htmlspecialchars($urlPrecot($pid)); ?>"><?php echo htmlspecialchars($rowPrecotLabel($r)); ?></a>
                         </td>
+                        <td>
+                            <?php if ($ordenLabelFin !== '' && $ordenIdFin > 0) : ?>
+                                <a href="<?php echo htmlspecialchars($urlOrden($ordenIdFin)); ?>"><?php echo htmlspecialchars($ordenLabelFin); ?></a>
+                            <?php elseif ($ordenLabelFin !== '') : ?>
+                                <?php echo htmlspecialchars($ordenLabelFin); ?>
+                            <?php else : ?>
+                                —
+                            <?php endif; ?>
+                        </td>
+                        <td><?php echo $clientNameFin !== '' ? htmlspecialchars($clientNameFin) : '—'; ?></td>
                         <td><?php echo htmlspecialchars($facturarSiNo($r)); ?></td>
                         <td><?php
                             $ag = isset($r->financiero_agent_label) ? trim((string) $r->financiero_agent_label) : '';
@@ -325,7 +361,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                     ?>
                 <tfoot class="table-secondary fw-bold">
                     <tr>
-                        <td colspan="7"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
+                        <td colspan="9"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_margen_amount ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt(($agg->sum_margen_amount ?? 0) + ($agg->sum_margen_adicional ?? 0))); ?></td>

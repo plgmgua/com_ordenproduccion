@@ -5457,6 +5457,74 @@ class AdministracionModel extends BaseDatabaseModel
 
         $extras[] = [$this->financieroPrecotPagoConfirmadoSelectExpr($db, $ctx), 'financiero_pago_confirmado'];
 
+        // --- Orden de trabajo (linked by pre_cotizacion_id) ---
+        $otCol = null;
+        if (isset($ordenCols['orden_de_trabajo'])) {
+            $otCol = 'orden_de_trabajo';
+        } elseif (isset($ordenCols['order_number'])) {
+            $otCol = 'order_number';
+        }
+
+        if (isset($ordenCols['pre_cotizacion_id']) && $otCol !== null) {
+            $oo = $db->quoteName('oo_fin');
+            $otState = isset($ordenCols['state'])
+                ? ' AND ' . $oo . '.' . $db->quoteName('state') . ' = 1'
+                : '';
+            $extras[] = [
+                '(SELECT ' . $oo . '.' . $db->quoteName($otCol)
+                . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'oo_fin')
+                . ' WHERE ' . $oo . '.' . $db->quoteName('pre_cotizacion_id')
+                . ' = ' . $pc . '.' . $db->quoteName('id')
+                . $otState
+                . ' ORDER BY ' . $oo . '.' . $db->quoteName('id') . ' DESC LIMIT 1)',
+                'financiero_orden_trabajo',
+            ];
+            $extras[] = [
+                '(SELECT ' . $oo . '.' . $db->quoteName('id')
+                . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'oo_fin')
+                . ' WHERE ' . $oo . '.' . $db->quoteName('pre_cotizacion_id')
+                . ' = ' . $pc . '.' . $db->quoteName('id')
+                . $otState
+                . ' ORDER BY ' . $oo . '.' . $db->quoteName('id') . ' DESC LIMIT 1)',
+                'financiero_orden_id',
+            ];
+        } else {
+            $extras[] = ['CAST(NULL AS CHAR)', 'financiero_orden_trabajo'];
+            $extras[] = ['CAST(NULL AS UNSIGNED)', 'financiero_orden_id'];
+        }
+
+        // --- Client name (quotation, else orden) ---
+        $qColsCtx = isset($ctx['q_cols']) && \is_array($ctx['q_cols'])
+            ? array_change_key_case($ctx['q_cols'], CASE_LOWER)
+            : [];
+        $clientParts = [];
+
+        if ($joinQuotations && isset($qColsCtx['client_name'])) {
+            $clientParts[] = 'NULLIF(TRIM(' . $q . '.' . $db->quoteName('client_name') . '), \'\')';
+        }
+
+        if (isset($ordenCols['pre_cotizacion_id'], $ordenCols['client_name'])) {
+            $oc = $db->quoteName('oc_fin');
+            $ocState = isset($ordenCols['state'])
+                ? ' AND ' . $oc . '.' . $db->quoteName('state') . ' = 1'
+                : '';
+            $clientParts[] = '(SELECT NULLIF(TRIM(' . $oc . '.' . $db->quoteName('client_name') . '), \'\')'
+                . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'oc_fin')
+                . ' WHERE ' . $oc . '.' . $db->quoteName('pre_cotizacion_id')
+                . ' = ' . $pc . '.' . $db->quoteName('id')
+                . $ocState
+                . ' ORDER BY ' . $oc . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+        }
+
+        if ($clientParts !== []) {
+            $extras[] = [
+                \count($clientParts) === 1 ? $clientParts[0] : ('COALESCE(' . implode(', ', $clientParts) . ')'),
+                'financiero_client_name',
+            ];
+        } else {
+            $extras[] = ['CAST(NULL AS CHAR)', 'financiero_client_name'];
+        }
+
         return $extras;
     }
 
