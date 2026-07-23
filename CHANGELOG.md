@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.258-STABLE] - 2026-07-23
+
+### Added
+- **Retenciones:** Capture and display **Tipo de documento** from the PDF title (e.g. `Constancia de Exención de IVA`).
+
 ## [3.119.257-STABLE] - 2026-07-23
 
 ### Added

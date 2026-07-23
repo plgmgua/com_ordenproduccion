@@ -155,6 +155,7 @@ $esc = static function ($value, $default = '—') {
             <table class="retenciones-table">
                 <thead>
                     <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_TIPO_DOCUMENTO'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_AUTORIZACION'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_SERIE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_NUMERO'); ?></th>
@@ -172,6 +173,7 @@ $esc = static function ($value, $default = '—') {
                         $iva = isset($row->fact_iva_exento) ? number_format((float) $row->fact_iva_exento, 2, '.', ',') : '—';
                     ?>
                     <tr>
+                        <td><?php echo $esc($row->tipo_documento ?? ''); ?></td>
                         <td class="uuid"><?php echo $esc($row->autorizacion ?? ''); ?></td>
                         <td><?php echo $esc($row->serie ?? ''); ?></td>
                         <td><?php echo $esc($row->numero ?? ''); ?></td>

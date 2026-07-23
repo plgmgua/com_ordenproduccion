@@ -29,7 +29,7 @@ class RetencionesModel extends ListModel
     {
         if (empty($config['filter_fields'])) {
             $config['filter_fields'] = [
-                'id', 'autorizacion', 'serie', 'numero', 'fact_autorizacion',
+                'id', 'tipo_documento', 'autorizacion', 'serie', 'numero', 'fact_autorizacion',
                 'fact_serie', 'fact_numero', 'fact_iva_exento', 'fecha_emision', 'created',
             ];
         }
@@ -81,7 +81,8 @@ class RetencionesModel extends ListModel
             $like = $db->quote('%' . $db->escape($search, true) . '%');
             $query->where(
                 '('
-                . $db->quoteName('r.autorizacion') . ' LIKE ' . $like
+                . $db->quoteName('r.tipo_documento') . ' LIKE ' . $like
+                . ' OR ' . $db->quoteName('r.autorizacion') . ' LIKE ' . $like
                 . ' OR ' . $db->quoteName('r.serie') . ' LIKE ' . $like
                 . ' OR ' . $db->quoteName('r.numero') . ' LIKE ' . $like
                 . ' OR ' . $db->quoteName('r.fact_autorizacion') . ' LIKE ' . $like

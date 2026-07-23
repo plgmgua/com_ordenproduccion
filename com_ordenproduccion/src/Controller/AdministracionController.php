@@ -2707,6 +2707,7 @@ class AdministracionController extends BaseController
                 }
 
                 $obj = (object) [
+                    'tipo_documento'    => trim((string) ($data['tipo_documento'] ?? '')),
                     'autorizacion'      => $autorizacion,
                     'serie'             => strtoupper(trim((string) ($data['serie'] ?? ''))),
                     'numero'            => trim((string) ($data['numero'] ?? '')),
@@ -2724,9 +2725,21 @@ class AdministracionController extends BaseController
                     'created_by'        => (int) $user->id,
                 ];
 
+                // Only set columns that exist (supports DBs not yet migrated for tipo_documento).
+                $cols = $db->getTableColumns('#__ordenproduccion_retenciones', false);
+                $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
+                $row = [];
+                foreach ((array) $obj as $k => $v) {
+                    if (array_key_exists(strtolower($k), $cols)) {
+                        $row[$k] = $v;
+                    }
+                }
+                $obj = (object) $row;
+
                 $db->insertObject('#__ordenproduccion_retenciones', $obj, 'id');
                 $imported++;
-                $detail = trim(($obj->serie ?? '') . ' | ' . ($obj->numero ?? '') . ' → Fact ' . ($obj->fact_serie ?? '') . ' | ' . ($obj->fact_numero ?? ''));
+                $tipo = trim((string) ($obj->tipo_documento ?? ''));
+                $detail = trim(($tipo !== '' ? $tipo . ' — ' : '') . ($obj->serie ?? '') . ' | ' . ($obj->numero ?? '') . ' → Fact ' . ($obj->fact_serie ?? '') . ' | ' . ($obj->fact_numero ?? ''));
                 $report[] = ['file' => $fileName, 'status' => 'imported', 'message' => $detail];
             } catch (\Throwable $e) {
                 $report[] = ['file' => $fileName, 'status' => 'error', 'message' => $e->getMessage()];
@@ -2793,6 +2806,7 @@ class AdministracionController extends BaseController
 
         $cols = [
             'ID',
+            'Tipo documento',
             'Autorizacion',
             'Serie',
             'Numero',
@@ -2810,6 +2824,7 @@ class AdministracionController extends BaseController
             $fechaStr = $fecha ? Factory::getDate($fecha)->format('d-m-Y H:i:s') : '';
             $rows[] = [
                 (int) ($row->id ?? 0),
+                (string) ($row->tipo_documento ?? ''),
                 (string) ($row->autorizacion ?? ''),
                 (string) ($row->serie ?? ''),
                 (string) ($row->numero ?? ''),
@@ -2880,7 +2895,8 @@ class AdministracionController extends BaseController
             $rowIndex++;
         }
         if ($rowIndex > 2) {
-            $sheet->getStyle('H2:H' . ($rowIndex - 1))
+            // Column I = Fact IVA exento (after Tipo documento was inserted as B)
+            $sheet->getStyle('I2:I' . ($rowIndex - 1))
                 ->getNumberFormat()
                 ->setFormatCode('#,##0.00');
         }

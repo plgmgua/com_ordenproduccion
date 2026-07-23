@@ -135,6 +135,7 @@ class RetencionPdfHelper
         $compact    = preg_replace('/[ \t]+/u', ' ', $normalized) ?? $normalized;
         // PDF extractors often mangle accents (N�mero); fold for matching.
         $folded = self::foldAccents($compact);
+        $tipoDocumento = self::extractTipoDocumento($compact, $folded);
 
         $autorizacion = self::matchFirst($folded, '/NUMERO\s+DE\s+AUTORIZACION\s*:?\s*([A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12})/i');
         $serie        = '';
@@ -235,6 +236,7 @@ class RetencionPdfHelper
         $fechaEmision    = self::parseGuatemalaDateTime(trim(preg_split('/\n/', $fechaEmisionRaw)[0] ?? $fechaEmisionRaw));
 
         return [
+            'tipo_documento'    => $tipoDocumento,
             'autorizacion'      => strtoupper(trim($autorizacion)),
             'serie'             => strtoupper(trim($serie)),
             'numero'            => trim($numero),
@@ -248,6 +250,49 @@ class RetencionPdfHelper
             'fecha_emision'     => $fechaEmision,
             'fact_fecha'        => $factFecha,
         ];
+    }
+
+    /**
+     * Document title from the PDF header (e.g. "Constancia de Exención de IVA").
+     *
+     * @param   string  $compact  Original text
+     * @param   string  $folded   Accent-folded text
+     *
+     * @return  string
+     *
+     * @since   3.119.258
+     */
+    protected static function extractTipoDocumento(string $compact, string $folded): string
+    {
+        // Prefer Latin-1 → UTF-8 so accents are preserved for storage/display.
+        $utf8 = $compact;
+        if (!mb_check_encoding($utf8, 'UTF-8')) {
+            $converted = @mb_convert_encoding($utf8, 'UTF-8', 'Windows-1252');
+            if (is_string($converted) && $converted !== '') {
+                $utf8 = $converted;
+            }
+        }
+
+        if (preg_match('/Constancia\s+de\s+Exenci[oó]n\s+de\s+IVA/iu', $utf8, $m)) {
+            return 'Constancia de Exención de IVA';
+        }
+        if (preg_match('/Constancia\s+de\s+Exencion\s+de\s+IVA/i', $folded)) {
+            return 'Constancia de Exención de IVA';
+        }
+
+        // Fallback: first meaningful line that looks like a document title
+        foreach (preg_split('/\n+/', $utf8) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '' || preg_match('/^\d+$/', $line)) {
+                continue;
+            }
+            if (preg_match('/^Constancia\b/iu', $line)) {
+                return preg_replace('/\s+/u', ' ', $line) ?? $line;
+            }
+            break;
+        }
+
+        return '';
     }
 
     /**

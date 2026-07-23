@@ -3,6 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS `#__ordenproduccion_retenciones` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tipo_documento` varchar(128) NOT NULL DEFAULT '' COMMENT 'Document title from PDF (e.g. Constancia de Exención de IVA)',
   `autorizacion` varchar(64) NOT NULL DEFAULT '' COMMENT 'UUID autorización DTE retención',
   `serie` varchar(32) NOT NULL DEFAULT '',
   `numero` varchar(32) NOT NULL DEFAULT '' COMMENT 'Número de DTE',
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_retenciones` (
   `modified_by` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_retencion_autorizacion` (`autorizacion`),
+  KEY `idx_tipo_documento` (`tipo_documento`),
   KEY `idx_serie_numero` (`serie`, `numero`),
   KEY `idx_fact_autorizacion` (`fact_autorizacion`),
   KEY `idx_state` (`state`),
