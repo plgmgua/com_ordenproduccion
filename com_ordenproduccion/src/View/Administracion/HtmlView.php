@@ -76,6 +76,30 @@ class HtmlView extends BaseHtmlView
     protected $invoicesPagination = null;
 
     /**
+     * Retenciones list
+     *
+     * @var    array
+     * @since  3.119.257
+     */
+    protected $retenciones = [];
+
+    /**
+     * Retenciones pagination
+     *
+     * @var    object|null
+     * @since  3.119.257
+     */
+    protected $retencionesPagination = null;
+
+    /**
+     * Whether retenciones table exists
+     *
+     * @var    bool
+     * @since  3.119.257
+     */
+    protected $retencionesTableAvailable = false;
+
+    /**
      * Model state
      *
      * @var    object
@@ -1184,11 +1208,14 @@ class HtmlView extends BaseHtmlView
         $data = parent::getLayoutData();
         // Guarantee keys exist so AbstractView line 197 never sees undefined "invoices"
         $data = array_merge(
-            ['invoices' => [], 'invoicesPagination' => null],
+            ['invoices' => [], 'invoicesPagination' => null, 'retenciones' => [], 'retencionesPagination' => null],
             $data,
             [
                 'invoices' => is_array($this->invoices) ? $this->invoices : [],
                 'invoicesPagination' => $this->invoicesPagination ?? null,
+                'retenciones' => is_array($this->retenciones ?? null) ? $this->retenciones : [],
+                'retencionesPagination' => $this->retencionesPagination ?? null,
+                'retencionesTableAvailable' => (bool) ($this->retencionesTableAvailable ?? false),
                 'invoicesSubtab' => $this->invoicesSubtab ?? 'lista',
                 'invoiceOrdenMatchRows' => is_array($this->invoiceOrdenMatchRows ?? null) ? $this->invoiceOrdenMatchRows : [],
                 'invoiceOrdenMatchTableAvailable' => (bool) ($this->invoiceOrdenMatchTableAvailable ?? false),
@@ -1239,6 +1266,15 @@ class HtmlView extends BaseHtmlView
         }
         if ($property === 'invoicesPagination') {
             return $this->invoicesPagination ?? null;
+        }
+        if ($property === 'retenciones') {
+            return isset($this->retenciones) && is_array($this->retenciones) ? $this->retenciones : [];
+        }
+        if ($property === 'retencionesPagination') {
+            return $this->retencionesPagination ?? null;
+        }
+        if ($property === 'retencionesTableAvailable') {
+            return (bool) ($this->retencionesTableAvailable ?? false);
         }
         if ($property === 'invoicesSubtab') {
             return $this->invoicesSubtab ?? 'lista';
@@ -1396,8 +1432,8 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: invoices, herramientas, ajustes
-        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'herramientas', 'ajustes'], true)) {
+        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: invoices, retenciones, herramientas, ajustes
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'retenciones', 'herramientas', 'ajustes'], true)) {
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }
@@ -1768,6 +1804,41 @@ class HtmlView extends BaseHtmlView
                     $this->invoices = [];
                     $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
                 }
+            }
+        }
+
+        // Load retenciones (Constancia de Exención de IVA) tab
+        if ($activeTab === 'retenciones') {
+            $this->retenciones = [];
+            $this->retencionesPagination = null;
+            $this->retencionesTableAvailable = false;
+            try {
+                $retModel = $this->getModel('Retenciones');
+                if (!$retModel && class_exists(\Grimpsa\Component\Ordenproduccion\Site\Model\RetencionesModel::class)) {
+                    $retModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                        ->getMVCFactory()->createModel('Retenciones', 'Site', ['ignore_request' => false]);
+                }
+                if ($retModel) {
+                    $this->retencionesTableAvailable = $retModel->isTableAvailable();
+                    if ($this->retencionesTableAvailable) {
+                        $this->retenciones = $retModel->getItems();
+                        $this->retencionesPagination = $retModel->getPagination();
+                        $this->state = $retModel->getState();
+                        if ($this->retencionesPagination) {
+                            $st = $this->state;
+                            $this->retencionesPagination->setAdditionalUrlParam('option', 'com_ordenproduccion');
+                            $this->retencionesPagination->setAdditionalUrlParam('view', 'administracion');
+                            $this->retencionesPagination->setAdditionalUrlParam('tab', 'retenciones');
+                            $this->retencionesPagination->setAdditionalUrlParam('limit', (int) $st->get('list.limit', 20) ?: 20);
+                            $this->retencionesPagination->setAdditionalUrlParam('filter_search', $st->get('filter.search', ''));
+                            $this->retencionesPagination->setAdditionalUrlParam('filter_fecha_from', $st->get('filter.fecha_from', ''));
+                            $this->retencionesPagination->setAdditionalUrlParam('filter_fecha_to', $st->get('filter.fecha_to', ''));
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->retenciones = [];
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_LOAD_ERROR') . ': ' . $e->getMessage(), 'warning');
             }
         }
 

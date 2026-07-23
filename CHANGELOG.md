@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.257-STABLE] - 2026-07-23
+
+### Added
+- **Administración → Retenciones:** New tab (like Facturas) to import Constancia de Exención de IVA PDFs and list Autorización, Serie, Número plus Referencias de Constancias (Fact. Autorización, Fact. Serie, Fact. Número, Fact. IVA exento). Includes Excel export and table `#__ordenproduccion_retenciones`.
+
+## [3.119.256-STABLE] - 2026-07-23
+
+### Added
+- **Facturas → Exportar a Excel:** First column **ID** with `FAC-000000` (invoice number, or padded id when missing).
+
 ## [3.119.255-STABLE] - 2026-07-23
 
 ### Fixed

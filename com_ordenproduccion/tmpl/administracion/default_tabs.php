@@ -144,6 +144,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-file-invoice-dollar"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_INVOICES'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones'); ?>"
+       class="admin-tab <?php echo $activeTab === 'retenciones' ? 'active' : ''; ?>">
+        <i class="fas fa-receipt"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_TAB_RETENCIONES'); ?>
+    </a>
     <?php endif; ?>
 
     <?php if ($canSeeVentasTabs) : ?>
@@ -202,6 +207,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php echo $this->loadTemplate('resumen'); ?>
     <?php elseif ($activeTab === 'invoices'): ?>
         <?php echo $this->loadTemplate('invoices'); ?>
+    <?php elseif ($activeTab === 'retenciones'): ?>
+        <?php echo $this->loadTemplate('retenciones'); ?>
     <?php elseif ($activeTab === 'statistics'): ?>
         <?php echo $this->loadTemplate('statistics'); ?>
     <?php elseif ($activeTab === 'reportes'): ?>

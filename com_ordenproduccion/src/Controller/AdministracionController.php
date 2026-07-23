@@ -27,6 +27,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940MailboxImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\RetencionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
@@ -2593,6 +2594,307 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Import Constancia de Exención de IVA PDFs into retenciones.
+     *
+     * @return  void
+     *
+     * @since   3.119.257
+     */
+    public function importRetencionesPdf()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones', false);
+
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $files = self::normalizeUploadedFiles($app->input->files->get('retencion_pdf', [], 'array'));
+        if (empty($files)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_NO_FILE'), 'warning');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
+        try {
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = strtolower($prefix . 'ordenproduccion_retenciones');
+            $hasTable = false;
+            foreach ($tables as $t) {
+                if (strtolower((string) $t) === $tableName) {
+                    $hasTable = true;
+                    break;
+                }
+            }
+            if (!$hasTable) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_TABLE_MISSING'), 'error');
+                $app->redirect($redirectUrl);
+
+                return;
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_TABLE_MISSING'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $imported = 0;
+        $skipped = 0;
+        $report = [];
+        $now = Factory::getDate()->toSql();
+
+        foreach ($files as $file) {
+            $tmpPath = $file['tmp_name'] ?? '';
+            $fileName = $file['name'] ?? 'file.pdf';
+            $canRead = $tmpPath !== '' && is_uploaded_file($tmpPath);
+
+            if (!$canRead) {
+                $report[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_READ_ERROR')];
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            if ($ext !== 'pdf') {
+                $report[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_NOT_PDF')];
+                continue;
+            }
+
+            try {
+                $parsed = RetencionPdfHelper::parseFile($tmpPath);
+                if (empty($parsed['success']) || empty($parsed['data'])) {
+                    $report[] = [
+                        'file'    => $fileName,
+                        'status'  => 'error',
+                        'message' => $parsed['error'] ?? Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_PARSE_ERROR'),
+                    ];
+                    continue;
+                }
+
+                $data = $parsed['data'];
+                $autorizacion = strtoupper(trim((string) ($data['autorizacion'] ?? '')));
+                if ($autorizacion === '') {
+                    $report[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_MISSING_AUTORIZACION')];
+                    continue;
+                }
+
+                $existsQuery = $db->getQuery(true)
+                    ->select('1')
+                    ->from($db->quoteName('#__ordenproduccion_retenciones'))
+                    ->where($db->quoteName('autorizacion') . ' = ' . $db->quote($autorizacion));
+                $db->setQuery($existsQuery);
+                if ((bool) $db->loadResult()) {
+                    $skipped++;
+                    $report[] = ['file' => $fileName, 'status' => 'skipped', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_ALREADY_EXISTS')];
+                    continue;
+                }
+
+                $obj = (object) [
+                    'autorizacion'      => $autorizacion,
+                    'serie'             => strtoupper(trim((string) ($data['serie'] ?? ''))),
+                    'numero'            => trim((string) ($data['numero'] ?? '')),
+                    'fact_autorizacion' => strtoupper(trim((string) ($data['fact_autorizacion'] ?? ''))),
+                    'fact_serie'        => strtoupper(trim((string) ($data['fact_serie'] ?? ''))),
+                    'fact_numero'       => trim((string) ($data['fact_numero'] ?? '')),
+                    'fact_iva_exento'   => round((float) ($data['fact_iva_exento'] ?? 0), 2),
+                    'nit_emisor'        => trim((string) ($data['nit_emisor'] ?? '')) ?: null,
+                    'nit_receptor'      => trim((string) ($data['nit_receptor'] ?? '')) ?: null,
+                    'nombre_receptor'   => trim((string) ($data['nombre_receptor'] ?? '')) ?: null,
+                    'fecha_emision'     => $data['fecha_emision'] ?? null,
+                    'source_filename'   => $fileName,
+                    'state'             => 1,
+                    'created'           => $now,
+                    'created_by'        => (int) $user->id,
+                ];
+
+                $db->insertObject('#__ordenproduccion_retenciones', $obj, 'id');
+                $imported++;
+                $detail = trim(($obj->serie ?? '') . ' | ' . ($obj->numero ?? '') . ' → Fact ' . ($obj->fact_serie ?? '') . ' | ' . ($obj->fact_numero ?? ''));
+                $report[] = ['file' => $fileName, 'status' => 'imported', 'message' => $detail];
+            } catch (\Throwable $e) {
+                $report[] = ['file' => $fileName, 'status' => 'error', 'message' => $e->getMessage()];
+            }
+        }
+
+        $app->getSession()->set('com_ordenproduccion.retenciones_import_report', $report);
+        if ($imported > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_IMPORTED_COUNT', $imported), 'success');
+        }
+        if ($skipped > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_SKIPPED_COUNT', $skipped), 'notice');
+        }
+        $errorCount = count(array_filter($report, static function ($r) {
+            return ($r['status'] ?? '') === 'error';
+        }));
+        if ($errorCount > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_ERROR_COUNT', $errorCount), 'error');
+        }
+
+        $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Export retenciones list to Excel (.xlsx) or CSV.
+     *
+     * @return  void
+     *
+     * @since   3.119.257
+     */
+    public function exportRetencionesExcel()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones', false);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $input = $app->input;
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Retenciones', 'Site', ['ignore_request' => true]);
+        if (!$model) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_LOAD_ERROR'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $model->setState('filter.search', $input->getString('filter_search', ''));
+        $model->setState('filter.fecha_from', $input->getString('filter_fecha_from', ''));
+        $model->setState('filter.fecha_to', $input->getString('filter_fecha_to', ''));
+        $model->getState('list.limit');
+        $model->setState('list.limit', 1000000);
+        $model->setState('list.start', 0);
+
+        $items = $model->getItems();
+        if (!is_array($items)) {
+            $items = [];
+        }
+
+        $cols = [
+            'ID',
+            'Autorizacion',
+            'Serie',
+            'Numero',
+            'Fact. Autorizacion',
+            'Fact. Serie',
+            'Fact. Numero',
+            'Fact IVA exento',
+            'Fecha emision',
+            'NIT Receptor',
+            'Nombre Receptor',
+        ];
+        $rows = [];
+        foreach ($items as $row) {
+            $fecha = !empty($row->fecha_emision) ? $row->fecha_emision : ($row->created ?? null);
+            $fechaStr = $fecha ? Factory::getDate($fecha)->format('d-m-Y H:i:s') : '';
+            $rows[] = [
+                (int) ($row->id ?? 0),
+                (string) ($row->autorizacion ?? ''),
+                (string) ($row->serie ?? ''),
+                (string) ($row->numero ?? ''),
+                (string) ($row->fact_autorizacion ?? ''),
+                (string) ($row->fact_serie ?? ''),
+                (string) ($row->fact_numero ?? ''),
+                round((float) ($row->fact_iva_exento ?? 0), 2),
+                $fechaStr,
+                (string) ($row->nit_receptor ?? ''),
+                (string) ($row->nombre_receptor ?? ''),
+            ];
+        }
+
+        $autoload = JPATH_ROOT . '/vendor/autoload.php';
+        if (is_file($autoload)) {
+            require_once $autoload;
+            if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
+                try {
+                    $this->exportRetencionesXlsx($cols, $rows, $app);
+
+                    return;
+                } catch (\Throwable $e) {
+                    // Fall through to CSV
+                }
+            }
+        }
+
+        $filename = 'retenciones-' . date('Y-m-d-His') . '.csv';
+        @ob_clean();
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, must-revalidate');
+        $out = fopen('php://output', 'w');
+        fprintf($out, "\xEF\xBB\xBF");
+        fputcsv($out, $cols);
+        foreach ($rows as $row) {
+            fputcsv($out, $row);
+        }
+        fclose($out);
+        $app->close();
+    }
+
+    /**
+     * Export retenciones to .xlsx
+     *
+     * @param   array  $cols  Headers
+     * @param   array  $rows  Data rows
+     * @param   mixed  $app   Application
+     *
+     * @return  void
+     *
+     * @since   3.119.257
+     */
+    protected function exportRetencionesXlsx(array $cols, array $rows, $app)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Retenciones');
+        $sheet->fromArray($cols, null, 'A1');
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($cols));
+        $headerStyle = $sheet->getStyle('A1:' . $lastCol . '1');
+        $headerStyle->getFont()->setBold(true);
+        $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+        $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
+        $rowIndex = 2;
+        foreach ($rows as $row) {
+            $sheet->fromArray($row, null, 'A' . $rowIndex);
+            $rowIndex++;
+        }
+        if ($rowIndex > 2) {
+            $sheet->getStyle('H2:H' . ($rowIndex - 1))
+                ->getNumberFormat()
+                ->setFormatCode('#,##0.00');
+        }
+        foreach (range('A', $lastCol) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        $filename = 'retenciones-' . date('Y-m-d-His') . '.xlsx';
+        @ob_clean();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        $app->close();
     }
 
     /**
