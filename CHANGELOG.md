@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.259-STABLE] - 2026-07-23
+
+### Added
+- **Retenciones:** Import also supports SAT **Constancia de Retención de IVA** (SAT-2229) and **ISR** (SAT-1911): Número de Constancia, Fact. Serie/Número, and **Retención (Q)**.
+
 ## [3.119.258-STABLE] - 2026-07-23
 
 ### Added

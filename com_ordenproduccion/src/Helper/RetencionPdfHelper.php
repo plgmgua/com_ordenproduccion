@@ -1,6 +1,6 @@
 <?php
 /**
- * Parse Constancia de Exención de IVA (retención) PDFs.
+ * Parse SAT retención / exención PDFs (Exención IVA, Retención IVA, Retención ISR).
  *
  * @package     Grimpsa\Component\Ordenproduccion\Site\Helper
  * @since       3.119.257
@@ -38,10 +38,12 @@ class RetencionPdfHelper
         }
 
         $data = self::parseText($text);
-        if (empty($data['autorizacion']) && empty($data['serie']) && empty($data['numero'])) {
+        $hasIdentity = !empty($data['autorizacion']) || !empty($data['serie']) || !empty($data['numero']);
+        $hasFactRef  = !empty($data['fact_serie']) || !empty($data['fact_numero']);
+        if (!$hasIdentity && !$hasFactRef) {
             return [
                 'success'  => false,
-                'error'    => 'PDF does not look like a Constancia de Exención de IVA',
+                'error'    => 'PDF does not look like a Constancia de retención / exención SAT',
                 'raw_text' => $text,
             ];
         }
@@ -235,6 +237,44 @@ class RetencionPdfHelper
         $fechaEmisionRaw = self::matchFirst($folded, '/Fecha\s+y\s+hora\s+de\s+emision\s*:?\s*(.+)/i');
         $fechaEmision    = self::parseGuatemalaDateTime(trim(preg_split('/\n/', $fechaEmisionRaw)[0] ?? $fechaEmisionRaw));
 
+        $montoRetencion = null;
+
+        // SAT-2229 / SAT-1911 agent-retention forms (different layout than FEL Exención PDF)
+        $satForm = self::parseSatAgenteRetenedorForm($folded);
+        if (!empty($satForm)) {
+            if (!empty($satForm['tipo_documento'])) {
+                $tipoDocumento = $satForm['tipo_documento'];
+            }
+            if (!empty($satForm['numero_constancia'])) {
+                $numero = $satForm['numero_constancia'];
+                // Unique key: these forms have no UUID — use número de constancia.
+                if ($autorizacion === '') {
+                    $autorizacion = $satForm['numero_constancia'];
+                }
+            }
+            if (!empty($satForm['fact_serie'])) {
+                $factSerie = $satForm['fact_serie'];
+            }
+            if (!empty($satForm['fact_numero'])) {
+                $factNumero = $satForm['fact_numero'];
+            }
+            if (!empty($satForm['monto_retencion'])) {
+                $montoRetencion = (float) $satForm['monto_retencion'];
+            }
+            if (!empty($satForm['fecha_emision'])) {
+                $fechaEmision = $satForm['fecha_emision'];
+            }
+            if (!empty($satForm['nit_receptor'])) {
+                $nitReceptor = $satForm['nit_receptor'];
+            }
+            if (!empty($satForm['nombre_receptor'])) {
+                $nombreReceptor = $satForm['nombre_receptor'];
+            }
+            if (!empty($satForm['nit_emisor'])) {
+                $nitEmisor = $satForm['nit_emisor'];
+            }
+        }
+
         return [
             'tipo_documento'    => $tipoDocumento,
             'autorizacion'      => strtoupper(trim($autorizacion)),
@@ -244,12 +284,136 @@ class RetencionPdfHelper
             'fact_serie'        => strtoupper(trim($factSerie)),
             'fact_numero'       => trim($factNumero),
             'fact_iva_exento'   => $factIvaExento !== null ? round((float) $factIvaExento, 2) : 0.0,
+            'monto_retencion'   => $montoRetencion !== null ? round((float) $montoRetencion, 2) : 0.0,
             'nit_emisor'        => trim($nitEmisor),
             'nit_receptor'      => trim($nitReceptor),
             'nombre_receptor'   => trim($nombreReceptor),
             'fecha_emision'     => $fechaEmision,
             'fact_fecha'        => $factFecha,
         ];
+    }
+
+    /**
+     * Parse SAT-2229 (Retención IVA) / SAT-1911 (Retención ISR) agent forms.
+     *
+     * @param   string  $folded  Accent-folded text
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.259
+     */
+    protected static function parseSatAgenteRetenedorForm(string $folded): array
+    {
+        $isIva = (bool) preg_match('/CONSTANCIA\s+DE\s+RETENCION\s+DE\s+IVA/i', $folded);
+        $isIsr = (bool) preg_match('/CONSTANCIA\s+DE\s+RETENCION\s+DE\s*\n?\s*ISR/i', $folded)
+            || (bool) preg_match('/CONSTANCIA\s+DE\s+RETENCION\s+DE\s+ISR/i', $folded)
+            || ((bool) preg_match('/CONSTANCIA\s+DE\s+RETENCION\s+DE/i', $folded) && (bool) preg_match('/\bSAT-1911\b/i', $folded));
+
+        if (!$isIva && !$isIsr && !preg_match('/\bSAT-2229\b|\bSAT-1911\b/i', $folded)) {
+            return [];
+        }
+        if (!$isIva && !$isIsr) {
+            if (preg_match('/\bSAT-2229\b/i', $folded)) {
+                $isIva = true;
+            } elseif (preg_match('/\bSAT-1911\b/i', $folded)) {
+                $isIsr = true;
+            }
+        }
+
+        $out = [
+            'tipo_documento' => $isIsr
+                ? 'Constancia de Retención de ISR'
+                : 'Constancia de Retención de IVA',
+        ];
+
+        // Número de Constancia (often split: "Número de" / "Constancia" / value)
+        if (preg_match('/Numero\s+de\s*\n\s*Constancia\s*\n\s*(\d{8,})/i', $folded, $m)
+            || preg_match('/Numero\s+de\s+Constancia\s*:?\s*(\d{8,})/i', $folded, $m)
+        ) {
+            $out['numero_constancia'] = trim($m[1]);
+        }
+
+        // Invoice serie + number — ISR form: labels then values
+        if (preg_match(
+            '/\bSerie\s*\n\s*Numero\s+de\s+factura\s*\n\s*([A-Z0-9]+)\s*\n\s*(\d{6,})/i',
+            $folded,
+            $m
+        )) {
+            $out['fact_serie']  = strtoupper(trim($m[1]));
+            $out['fact_numero'] = trim($m[2]);
+        }
+
+        // IVA form: values often appear before labels (Cantidad / Serie / Número de Factura)
+        if (empty($out['fact_serie']) || empty($out['fact_numero'])) {
+            if (preg_match(
+                '/([A-Z0-9]{6,})\s*\n\s*(\d{8,})\s*\n\s*(\d+)\s*\n\s*Numero\s+de\s+Factura\s*\n\s*Serie\s*\n\s*Cantidad\s+de\s+Facturas/i',
+                $folded,
+                $m
+            )) {
+                $out['fact_serie']  = strtoupper(trim($m[1]));
+                $out['fact_numero'] = trim($m[2]);
+            }
+        }
+        if (empty($out['fact_serie']) && preg_match('/\bSerie\s*\n\s*([A-Z0-9]{6,})\b/i', $folded, $m)) {
+            // Avoid matching wrong "Serie" — only if looks like FEL series hex
+            if (preg_match('/^[A-F0-9]{6,}$/i', $m[1])) {
+                $out['fact_serie'] = strtoupper(trim($m[1]));
+            }
+        }
+        if (empty($out['fact_numero']) && preg_match('/Numero\s+de\s+[Ff]actura\s*\n\s*(\d{6,})/i', $folded, $m)) {
+            $out['fact_numero'] = trim($m[1]);
+        }
+        // Values-before-label fallback for serie/numero near invoice block
+        if ((empty($out['fact_serie']) || empty($out['fact_numero']))
+            && preg_match('/([A-F0-9]{6,})\s*\n\s*(\d{8,})\s*\n\s*\d+\s*\n\s*Numero\s+de\s+Factura/i', $folded, $m)
+        ) {
+            $out['fact_serie']  = strtoupper(trim($m[1]));
+            $out['fact_numero'] = trim($m[2]);
+        }
+
+        // RETENCIÓN / TOTAL amount (prefer TOTAL: Qx.xx)
+        if (preg_match('/\bTOTAL\s*\n\s*Q\s*([\d,]+\.\d{2})/i', $folded, $m)
+            || preg_match('/\bTotal\s*:?\s*\n?\s*Q\s*([\d,]+\.\d{2})/i', $folded, $m)
+        ) {
+            $out['monto_retencion'] = self::parseMoney($m[1]);
+        } elseif (preg_match('/\bRETENCION\b[\s\S]{0,200}?Q\s*([\d,]+\.\d{2})/i', $folded, $m)) {
+            $out['monto_retencion'] = self::parseMoney($m[1]);
+        }
+
+        // Fecha: Día / Mes / Año then three numbers
+        if (preg_match(
+            '/Fecha\s+de\s+emision\s+de\s+la\s+constancia\s*\n\s*Dia\s*\n\s*Mes\s*\n\s*Ano\s*\n\s*(\d{1,2})\s*\n\s*(\d{1,2})\s*\n\s*(\d{4})/i',
+            $folded,
+            $m
+        )) {
+            $out['fecha_emision'] = sprintf(
+                '%04d-%02d-%02d 00:00:00',
+                (int) $m[3],
+                (int) $m[2],
+                (int) $m[1]
+            );
+        }
+
+        // Contribuyente (receptor) NIT + name after labels
+        if (preg_match(
+            '/NIT\s+del\s+contribuyente\s*\n\s*Nombre[^\n]*\n\s*([0-9A-Za-z\-]+)\s*\n\s*(.+)/i',
+            $folded,
+            $m
+        )) {
+            $out['nit_receptor']     = trim($m[1]);
+            $out['nombre_receptor']  = trim(preg_split('/\n/', $m[2])[0] ?? $m[2]);
+        }
+
+        // Agente retenedor NIT
+        if (preg_match(
+            '/IDENTIFICACION\s+DEL\s+AGENTE\s+RETENEDOR\s*\n\s*NIT\s*\n\s*([0-9A-Za-z\-]+)/i',
+            $folded,
+            $m
+        )) {
+            $out['nit_emisor'] = trim($m[1]);
+        }
+
+        return $out;
     }
 
     /**
@@ -273,11 +437,31 @@ class RetencionPdfHelper
             }
         }
 
-        if (preg_match('/Constancia\s+de\s+Exenci[oó]n\s+de\s+IVA/iu', $utf8, $m)) {
+        if (preg_match('/Constancia\s+de\s+Exenci[oó]n\s+de\s+IVA/iu', $utf8)
+            || preg_match('/Constancia\s+de\s+Exencion\s+de\s+IVA/i', $folded)
+        ) {
             return 'Constancia de Exención de IVA';
         }
-        if (preg_match('/Constancia\s+de\s+Exencion\s+de\s+IVA/i', $folded)) {
-            return 'Constancia de Exención de IVA';
+
+        if (preg_match('/CONSTANCIA\s+DE\s+RETENCION\s+DE\s+IVA/i', $folded)
+            || preg_match('/Constancia\s+de\s+Retenci[oó]n\s+de\s+IVA/iu', $utf8)
+        ) {
+            return 'Constancia de Retención de IVA';
+        }
+
+        if (preg_match('/CONSTANCIA\s+DE\s+RETENCION\s+DE\s*\n?\s*ISR/i', $folded)
+            || preg_match('/\bSAT-1911\b/i', $folded)
+        ) {
+            return 'Constancia de Retención de ISR';
+        }
+
+        // Multi-line title: "CONSTANCIA DE RETENCIÓN DE" + "ISR"
+        if (preg_match('/CONSTANCIA\s+DE\s+RETENCION\s+DE/i', $folded)) {
+            if (preg_match('/\bISR\b/', $folded)) {
+                return 'Constancia de Retención de ISR';
+            }
+
+            return 'Constancia de Retención';
         }
 
         // Fallback: first meaningful line that looks like a document title

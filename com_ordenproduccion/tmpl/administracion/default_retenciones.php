@@ -163,6 +163,7 @@ $esc = static function ($value, $default = '—') {
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FACT_SERIE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FACT_NUMERO'); ?></th>
                         <th style="text-align:right;"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FACT_IVA_EXENTO'); ?></th>
+                        <th style="text-align:right;"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_MONTO_RETENCION'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FECHA'); ?></th>
                     </tr>
                 </thead>
@@ -171,6 +172,7 @@ $esc = static function ($value, $default = '—') {
                         $fecha = !empty($row->fecha_emision) ? $row->fecha_emision : ($row->created ?? null);
                         $fechaStr = $fecha ? HTMLHelper::_('date', $fecha, 'd-m-Y H:i') : '—';
                         $iva = isset($row->fact_iva_exento) ? number_format((float) $row->fact_iva_exento, 2, '.', ',') : '—';
+                        $ret = isset($row->monto_retencion) ? number_format((float) $row->monto_retencion, 2, '.', ',') : '—';
                     ?>
                     <tr>
                         <td><?php echo $esc($row->tipo_documento ?? ''); ?></td>
@@ -181,6 +183,7 @@ $esc = static function ($value, $default = '—') {
                         <td><?php echo $esc($row->fact_serie ?? ''); ?></td>
                         <td><?php echo $esc($row->fact_numero ?? ''); ?></td>
                         <td class="num"><?php echo htmlspecialchars($iva, ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td class="num"><?php echo htmlspecialchars($ret, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($fechaStr, ENT_QUOTES, 'UTF-8'); ?></td>
                     </tr>
                     <?php endforeach; ?>

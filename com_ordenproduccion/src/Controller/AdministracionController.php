@@ -2715,6 +2715,7 @@ class AdministracionController extends BaseController
                     'fact_serie'        => strtoupper(trim((string) ($data['fact_serie'] ?? ''))),
                     'fact_numero'       => trim((string) ($data['fact_numero'] ?? '')),
                     'fact_iva_exento'   => round((float) ($data['fact_iva_exento'] ?? 0), 2),
+                    'monto_retencion'   => round((float) ($data['monto_retencion'] ?? 0), 2),
                     'nit_emisor'        => trim((string) ($data['nit_emisor'] ?? '')) ?: null,
                     'nit_receptor'      => trim((string) ($data['nit_receptor'] ?? '')) ?: null,
                     'nombre_receptor'   => trim((string) ($data['nombre_receptor'] ?? '')) ?: null,
@@ -2814,6 +2815,7 @@ class AdministracionController extends BaseController
             'Fact. Serie',
             'Fact. Numero',
             'Fact IVA exento',
+            'Retención (Q)',
             'Fecha emision',
             'NIT Receptor',
             'Nombre Receptor',
@@ -2832,6 +2834,7 @@ class AdministracionController extends BaseController
                 (string) ($row->fact_serie ?? ''),
                 (string) ($row->fact_numero ?? ''),
                 round((float) ($row->fact_iva_exento ?? 0), 2),
+                round((float) ($row->monto_retencion ?? 0), 2),
                 $fechaStr,
                 (string) ($row->nit_receptor ?? ''),
                 (string) ($row->nombre_receptor ?? ''),
@@ -2895,8 +2898,8 @@ class AdministracionController extends BaseController
             $rowIndex++;
         }
         if ($rowIndex > 2) {
-            // Column I = Fact IVA exento (after Tipo documento was inserted as B)
-            $sheet->getStyle('I2:I' . ($rowIndex - 1))
+            // I = Fact IVA exento, J = Retención
+            $sheet->getStyle('I2:J' . ($rowIndex - 1))
                 ->getNumberFormat()
                 ->setFormatCode('#,##0.00');
         }

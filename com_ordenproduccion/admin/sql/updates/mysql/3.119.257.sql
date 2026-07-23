@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_retenciones` (
   `fact_serie` varchar(32) NOT NULL DEFAULT '',
   `fact_numero` varchar(32) NOT NULL DEFAULT '',
   `fact_iva_exento` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'Monto IVA exento (Referencias)',
+  `monto_retencion` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'Monto RETENCIÓN (Q) from SAT-2229/SAT-1911',
   `nit_emisor` varchar(32) DEFAULT NULL,
   `nit_receptor` varchar(32) DEFAULT NULL,
   `nombre_receptor` varchar(255) DEFAULT NULL,
