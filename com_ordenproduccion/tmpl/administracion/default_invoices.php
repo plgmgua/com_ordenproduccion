@@ -18,6 +18,7 @@ use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\RetencionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 // Get invoices data from view (get() ensures value when layout data is used)
@@ -994,8 +995,17 @@ tr.invoice-row-cancelled { background: #faf5f5; }
     </div>
     <?php endif; ?>
 
-    <!-- Invoices Table: Serie|Numero, Fecha de Emision, NIT, Description (FEL lines), Total Factura (Q) -->
-    <?php if (!empty($invoices)): ?>
+    <!-- Invoices Table: Serie|Numero, Fecha de Emision, NIT, Description (FEL lines), Total Factura (Q), Ret. IVA, Ret. ISR -->
+    <?php if (!empty($invoices)):
+        $retencionPairs = [];
+        foreach ($invoices as $invForRet) {
+            [$sRet, $nRet] = InvoiceListHelper::resolveAutorizacionSerieNumero($invForRet);
+            if ($sRet !== '' && $nRet !== '') {
+                $retencionPairs[] = [$sRet, $nRet];
+            }
+        }
+        $retencionByFactura = RetencionPdfHelper::getRetencionTotalsByFactura($retencionPairs);
+    ?>
         <table class="invoices-table">
             <thead>
                 <tr>
@@ -1007,11 +1017,16 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_CLIENT_NAME'); ?></th>
                     <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_DESCRIPTION'); ?></th>
                     <th style="text-align: right;">Total Factura (Q)</th>
+                    <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_RET_IVA'); ?></th>
+                    <th style="text-align: right;"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_COL_RET_ISR'); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($invoices as $invoice):
                     [$serie, $numero] = InvoiceListHelper::resolveAutorizacionSerieNumero($invoice);
+                    $retKey = ($serie !== '' && $numero !== '') ? RetencionPdfHelper::facturaMatchKey($serie, $numero) : '';
+                    $retIva = $retKey !== '' ? (float) ($retencionByFactura[$retKey]['ret_iva'] ?? 0) : 0.0;
+                    $retIsr = $retKey !== '' ? (float) ($retencionByFactura[$retKey]['ret_isr'] ?? 0) : 0.0;
                     $fechaEmision = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
                     if ($fechaEmision) {
                         $fechaEmision = HTMLHelper::_('date', $fechaEmision, 'd-m-Y H:i:s');
@@ -1088,6 +1103,8 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                 <?php endif; ?>
                             </div>
                         </td>
+                        <td class="text-end text-nowrap"><?php echo $retIva > 0 ? number_format($retIva, 2) : '—'; ?></td>
+                        <td class="text-end text-nowrap"><?php echo $retIsr > 0 ? number_format($retIsr, 2) : '—'; ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

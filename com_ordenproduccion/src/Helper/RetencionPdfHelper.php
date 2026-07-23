@@ -750,6 +750,152 @@ class RetencionPdfHelper
     }
 
     /**
+     * Match key for Facturas ↔ Retenciones (Fact. Serie + Fact. Número).
+     *
+     * @param   string  $serie   Invoice / fact serie
+     * @param   string  $numero  Invoice / fact número
+     *
+     * @return  string
+     *
+     * @since   3.119.263
+     */
+    public static function facturaMatchKey(string $serie, string $numero): string
+    {
+        return strtoupper(trim($serie)) . '|' . trim($numero);
+    }
+
+    /**
+     * Classify retención document type for Facturas columns: iva | isr | null.
+     *
+     * @param   string  $tipoDocumento  tipo_documento value
+     *
+     * @return  string|null
+     *
+     * @since   3.119.263
+     */
+    public static function classifyRetencionBucket(string $tipoDocumento): ?string
+    {
+        $folded = strtoupper(self::foldAccents($tipoDocumento));
+
+        if ($folded === '') {
+            return null;
+        }
+
+        if (strpos($folded, 'ISR') !== false) {
+            return 'isr';
+        }
+
+        if (strpos($folded, 'EXENCION') !== false && strpos($folded, 'IVA') !== false) {
+            return 'iva';
+        }
+
+        if (strpos($folded, 'RETENCION') !== false && strpos($folded, 'IVA') !== false) {
+            return 'iva';
+        }
+
+        return null;
+    }
+
+    /**
+     * Batch lookup of Ret. IVA / Ret. ISR totals keyed by Fact. Serie|Número.
+     *
+     * Ret. IVA = sum of Exención de IVA + Retención de IVA matching the factura.
+     * Ret. ISR = sum of Retención de ISR matching the factura.
+     *
+     * @param   array<int, array{0:string,1:string}>  $serieNumeroPairs  List of [serie, numero]
+     *
+     * @return  array<string, array{ret_iva:float,ret_isr:float}>
+     *
+     * @since   3.119.263
+     */
+    public static function getRetencionTotalsByFactura(array $serieNumeroPairs): array
+    {
+        $keys = [];
+        foreach ($serieNumeroPairs as $pair) {
+            $serie  = strtoupper(trim((string) ($pair[0] ?? '')));
+            $numero = trim((string) ($pair[1] ?? ''));
+            if ($serie === '' || $numero === '') {
+                continue;
+            }
+            $keys[self::facturaMatchKey($serie, $numero)] = [$serie, $numero];
+        }
+
+        if ($keys === []) {
+            return [];
+        }
+
+        try {
+            $db = \Joomla\CMS\Factory::getContainer()->get(\Joomla\Database\DatabaseInterface::class);
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = strtolower($prefix . 'ordenproduccion_retenciones');
+            $hasTable = false;
+            foreach ($tables as $t) {
+                if (strtolower((string) $t) === $tableName) {
+                    $hasTable = true;
+                    break;
+                }
+            }
+            if (!$hasTable) {
+                return [];
+            }
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $orParts = [];
+        foreach ($keys as [$serie, $numero]) {
+            $orParts[] = '('
+                . $db->quoteName('fact_serie') . ' = ' . $db->quote($serie)
+                . ' AND ' . $db->quoteName('fact_numero') . ' = ' . $db->quote($numero)
+                . ')';
+        }
+
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('tipo_documento'),
+                $db->quoteName('fact_serie'),
+                $db->quoteName('fact_numero'),
+                $db->quoteName('fact_iva_exento'),
+                $db->quoteName('monto_retencion'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_retenciones'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->where('(' . implode(' OR ', $orParts) . ')');
+
+        try {
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $out = [];
+        foreach (array_keys($keys) as $key) {
+            $out[$key] = ['ret_iva' => 0.0, 'ret_isr' => 0.0];
+        }
+
+        foreach ($rows as $row) {
+            $key = self::facturaMatchKey((string) ($row->fact_serie ?? ''), (string) ($row->fact_numero ?? ''));
+            if (!isset($out[$key])) {
+                $out[$key] = ['ret_iva' => 0.0, 'ret_isr' => 0.0];
+            }
+            $bucket = self::classifyRetencionBucket((string) ($row->tipo_documento ?? ''));
+            $amount = self::resolveMontoTotal($row);
+            if ($amount <= 0) {
+                continue;
+            }
+            if ($bucket === 'iva') {
+                $out[$key]['ret_iva'] = round($out[$key]['ret_iva'] + $amount, 2);
+            } elseif ($bucket === 'isr') {
+                $out[$key]['ret_isr'] = round($out[$key]['ret_isr'] + $amount, 2);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * @param   string  $raw  Amount string (may include Q / spaces / thousands separators)
      *
      * @return  float

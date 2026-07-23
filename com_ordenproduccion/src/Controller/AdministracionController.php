@@ -360,7 +360,16 @@ class AdministracionController extends BaseController
             $items = [];
         }
 
-        $cols = ['ID', 'Serie | Número', 'Fecha de Emisión', 'NIT', 'Tipo', 'Cliente', 'Total Factura (Q)'];
+        $cols = ['ID', 'Serie | Número', 'Fecha de Emisión', 'NIT', 'Tipo', 'Cliente', 'Total Factura (Q)', 'Ret. IVA', 'Ret. ISR'];
+        $retencionPairs = [];
+        foreach ($items as $invoice) {
+            [$serie, $numero] = InvoiceListHelper::resolveAutorizacionSerieNumero($invoice);
+            if ($serie !== '' && $numero !== '') {
+                $retencionPairs[] = [$serie, $numero];
+            }
+        }
+        $retencionByFactura = RetencionPdfHelper::getRetencionTotalsByFactura($retencionPairs);
+
         $rows = [];
         foreach ($items as $invoice) {
             $invId = (int) ($invoice->id ?? 0);
@@ -381,7 +390,10 @@ class AdministracionController extends BaseController
                 $cliente = '—';
             }
             $total = round((float) ($invoice->invoice_amount ?? 0), 2);
-            $rows[] = [$facId, $serieNumero, $fechaStr, $nit, $tipoLabel, $cliente, $total];
+            $retKey = ($serie !== '' && $numero !== '') ? RetencionPdfHelper::facturaMatchKey($serie, $numero) : '';
+            $retIva = $retKey !== '' ? round((float) ($retencionByFactura[$retKey]['ret_iva'] ?? 0), 2) : 0.0;
+            $retIsr = $retKey !== '' ? round((float) ($retencionByFactura[$retKey]['ret_isr'] ?? 0), 2) : 0.0;
+            $rows[] = [$facId, $serieNumero, $fechaStr, $nit, $tipoLabel, $cliente, $total, $retIva, $retIsr];
         }
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
@@ -587,7 +599,8 @@ class AdministracionController extends BaseController
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Facturas');
         $sheet->fromArray($cols, null, 'A1');
-        $headerStyle = $sheet->getStyle('A1:G1');
+        $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($cols));
+        $headerStyle = $sheet->getStyle('A1:' . $lastCol . '1');
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
@@ -597,11 +610,12 @@ class AdministracionController extends BaseController
             $rowIndex++;
         }
         if ($rowIndex > 2) {
-            $sheet->getStyle('G2:G' . ($rowIndex - 1))
+            // G = Total Factura, H = Ret. IVA, I = Ret. ISR
+            $sheet->getStyle('G2:I' . ($rowIndex - 1))
                 ->getNumberFormat()
                 ->setFormatCode('#,##0.00');
         }
-        foreach (range('A', 'G') as $col) {
+        foreach (range('A', $lastCol) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         $filename = 'facturas-' . date('Y-m-d-His') . '.xlsx';

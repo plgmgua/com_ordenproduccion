@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.263-STABLE] - 2026-07-23
+
+### Added
+- **Facturas lista/export:** Columns **Ret. IVA** (Exención de IVA + Retención de IVA) and **Ret. ISR**, matched to Retenciones by Fact. Serie + Fact. Número.
+
 ## [3.119.262-STABLE] - 2026-07-23
 
 ### Changed
