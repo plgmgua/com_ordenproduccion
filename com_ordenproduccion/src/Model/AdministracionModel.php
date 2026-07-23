@@ -5529,27 +5529,49 @@ class AdministracionModel extends BaseDatabaseModel
             $otState = isset($ordenCols['state'])
                 ? ' AND ' . $oo . '.' . $db->quoteName('state') . ' = 1'
                 : '';
-            $extras[] = [
-                '(SELECT ' . $oo . '.' . $db->quoteName($otCol)
-                . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'oo_fin')
+            $otFromWhere = ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'oo_fin')
                 . ' WHERE ' . $oo . '.' . $db->quoteName('pre_cotizacion_id')
                 . ' = ' . $pc . '.' . $db->quoteName('id')
                 . $otState
-                . ' ORDER BY ' . $oo . '.' . $db->quoteName('id') . ' DESC LIMIT 1)',
+                . ' ORDER BY ' . $oo . '.' . $db->quoteName('id') . ' DESC LIMIT 1)';
+            $extras[] = [
+                '(SELECT ' . $oo . '.' . $db->quoteName($otCol) . $otFromWhere,
                 'financiero_orden_trabajo',
             ];
             $extras[] = [
-                '(SELECT ' . $oo . '.' . $db->quoteName('id')
-                . ' FROM ' . $db->quoteName('#__ordenproduccion_ordenes', 'oo_fin')
-                . ' WHERE ' . $oo . '.' . $db->quoteName('pre_cotizacion_id')
-                . ' = ' . $pc . '.' . $db->quoteName('id')
-                . $otState
-                . ' ORDER BY ' . $oo . '.' . $db->quoteName('id') . ' DESC LIMIT 1)',
+                '(SELECT ' . $oo . '.' . $db->quoteName('id') . $otFromWhere,
                 'financiero_orden_id',
             ];
+
+            $otDateCol = null;
+            foreach ([
+                'fecha_de_solicitud',
+                'marca_temporal',
+                'created',
+                'fecha',
+                'fecha_orden',
+                'request_date',
+                'order_date',
+                'fecha_creacion',
+            ] as $candidate) {
+                if (isset($ordenCols[$candidate])) {
+                    $otDateCol = $candidate;
+                    break;
+                }
+            }
+
+            if ($otDateCol !== null) {
+                $extras[] = [
+                    '(SELECT ' . $oo . '.' . $db->quoteName($otDateCol) . $otFromWhere,
+                    'financiero_orden_date',
+                ];
+            } else {
+                $extras[] = ['CAST(NULL AS DATETIME)', 'financiero_orden_date'];
+            }
         } else {
             $extras[] = ['CAST(NULL AS CHAR)', 'financiero_orden_trabajo'];
             $extras[] = ['CAST(NULL AS UNSIGNED)', 'financiero_orden_id'];
+            $extras[] = ['CAST(NULL AS DATETIME)', 'financiero_orden_date'];
         }
 
         // --- Client name (quotation, else orden) ---

@@ -648,6 +648,7 @@ class AdministracionController extends BaseController
         $cols = [
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_ORDEN'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_ORDEN_DATE'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_CLIENT'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'),
@@ -725,6 +726,8 @@ class AdministracionController extends BaseController
             return $ts ? date('Y-m-d', $ts) : '—';
         };
 
+        $fmtOrdenDateExport = $fmtInvoiceDateExport;
+
         $pagoConfirmLabel = static function (object $r) use ($lang): string {
             if (!\property_exists($r, 'financiero_pago_confirmado')) {
                 return '—';
@@ -772,6 +775,7 @@ class AdministracionController extends BaseController
             $outRows[] = [
                 $rowPrecotLabel($r),
                 $fmtOrdenExport($r),
+                $fmtOrdenDateExport($r->financiero_orden_date ?? null),
                 $clientX !== '' ? $clientX : '—',
                 $facturarLabel($r),
                 $ag !== '' ? $ag : '—',

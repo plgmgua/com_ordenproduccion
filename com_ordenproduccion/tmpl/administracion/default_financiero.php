@@ -124,6 +124,8 @@ $fmtInvoiceDate = static function ($v): string {
     }
 };
 
+$fmtOrdenDate = $fmtInvoiceDate;
+
 $pagoConfirmadoBadge = static function ($r): string {
     if (!\property_exists($r, 'financiero_pago_confirmado')) {
         return '—';
@@ -288,6 +290,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                     <tr>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_PRECOT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_ORDEN'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_ORDEN_DATE'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_CLIENT'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_FACTURAR'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_COL_AGENTE'); ?></th>
@@ -326,6 +329,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                         $ppDoc             = isset($r->financiero_payment_proof_number) ? trim((string) $r->financiero_payment_proof_number) : '';
                         $ordenIdFin        = isset($r->financiero_orden_id) ? (int) $r->financiero_orden_id : 0;
                         $ordenLabelFin     = $fmtOrdenLabel($r->financiero_orden_trabajo ?? '', $ordenIdFin);
+                        $ordenDateFin      = $fmtOrdenDate($r->financiero_orden_date ?? null);
                         $clientNameFin     = isset($r->financiero_client_name) ? trim((string) $r->financiero_client_name) : '';
                         ?>
                     <tr>
@@ -341,6 +345,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                                 —
                             <?php endif; ?>
                         </td>
+                        <td><?php echo htmlspecialchars($ordenDateFin); ?></td>
                         <td><?php echo $clientNameFin !== '' ? htmlspecialchars($clientNameFin) : '—'; ?></td>
                         <td><?php echo htmlspecialchars($facturarSiNo($r)); ?></td>
                         <td><?php
@@ -378,7 +383,7 @@ $pagoConfirmadoBadge = static function ($r): string {
                     ?>
                 <tfoot class="table-secondary fw-bold">
                     <tr>
-                        <td colspan="10"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
+                        <td colspan="11"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_TOTAL_ROW_FILTERED'); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_lines_subtotal ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt($agg->sum_margen_amount ?? 0)); ?></td>
                         <td class="text-end"><?php echo htmlspecialchars($fmt(($agg->sum_margen_amount ?? 0) + ($agg->sum_margen_adicional ?? 0))); ?></td>
