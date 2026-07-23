@@ -359,9 +359,16 @@ class AdministracionController extends BaseController
             $items = [];
         }
 
-        $cols = ['Serie | Número', 'Fecha de Emisión', 'NIT', 'Tipo', 'Cliente', 'Total Factura (Q)'];
+        $cols = ['ID', 'Serie | Número', 'Fecha de Emisión', 'NIT', 'Tipo', 'Cliente', 'Total Factura (Q)'];
         $rows = [];
         foreach ($items as $invoice) {
+            $invId = (int) ($invoice->id ?? 0);
+            $facId = trim((string) ($invoice->invoice_number ?? ''));
+            if ($facId === '' || !preg_match('/^FAC-/i', $facId)) {
+                $facId = 'FAC-' . str_pad((string) max(0, $invId), 6, '0', STR_PAD_LEFT);
+            } else {
+                $facId = strtoupper($facId);
+            }
             [$serie, $numero] = InvoiceListHelper::resolveAutorizacionSerieNumero($invoice);
             $serieNumero = trim($serie . ' | ' . $numero) ?: '—';
             $fecha = !empty($invoice->fel_fecha_emision) ? $invoice->fel_fecha_emision : ($invoice->invoice_date ?? null);
@@ -373,7 +380,7 @@ class AdministracionController extends BaseController
                 $cliente = '—';
             }
             $total = round((float) ($invoice->invoice_amount ?? 0), 2);
-            $rows[] = [$serieNumero, $fechaStr, $nit, $tipoLabel, $cliente, $total];
+            $rows[] = [$facId, $serieNumero, $fechaStr, $nit, $tipoLabel, $cliente, $total];
         }
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
@@ -579,7 +586,7 @@ class AdministracionController extends BaseController
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Facturas');
         $sheet->fromArray($cols, null, 'A1');
-        $headerStyle = $sheet->getStyle('A1:F1');
+        $headerStyle = $sheet->getStyle('A1:G1');
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
@@ -589,11 +596,11 @@ class AdministracionController extends BaseController
             $rowIndex++;
         }
         if ($rowIndex > 2) {
-            $sheet->getStyle('F2:F' . ($rowIndex - 1))
+            $sheet->getStyle('G2:G' . ($rowIndex - 1))
                 ->getNumberFormat()
                 ->setFormatCode('#,##0.00');
         }
-        foreach (range('A', 'F') as $col) {
+        foreach (range('A', 'G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
         $filename = 'facturas-' . date('Y-m-d-His') . '.xlsx';
