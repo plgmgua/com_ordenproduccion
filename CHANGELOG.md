@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.254-STABLE] - 2026-07-23
+
+### Fixed
+- **Facturas → Exportar a Excel:** Export includes all invoices matching the current filters, not only the current pagination page.
+
 ## [3.119.253-STABLE] - 2026-07-23
 
 ### Added

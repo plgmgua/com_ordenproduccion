@@ -948,6 +948,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
         <?php
         $state = $this->state ?? new \Joomla\Registry\Registry();
         $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.exportInvoicesExcel&format=raw');
+        $exportUrl .= '&export_all=1';
         $exportUrl .= '&filter_nit=' . rawurlencode($state->get('filter.nit', ''));
         $exportUrl .= '&filter_cliente=' . rawurlencode($state->get('filter.cliente', ''));
         $exportUrl .= '&filter_fecha_from=' . rawurlencode($state->get('filter.fecha_from', ''));

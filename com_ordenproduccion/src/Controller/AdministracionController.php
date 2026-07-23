@@ -332,12 +332,14 @@ class AdministracionController extends BaseController
         }
 
         $input = $app->input;
-        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => false]);
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Invoices', 'Site', ['ignore_request' => true]);
         if (!$model) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_LOAD_ERROR'), 'error');
             $app->redirect($redirectUrl);
             return;
         }
+
+        // Apply the same filters as the Lista UI (from export URL query string).
         $model->setState('filter.nit', $input->getString('filter_nit', ''));
         $model->setState('filter.cliente', $input->getString('filter_cliente', ''));
         $model->setState('filter.fecha_from', $input->getString('filter_fecha_from', ''));
@@ -346,7 +348,10 @@ class AdministracionController extends BaseController
         $model->setState('filter.total_max', $input->getString('filter_total_max', ''));
         $tipoRaw = strtolower(trim($input->getString('filter_tipo', '')));
         $model->setState('filter.tipo', \in_array($tipoRaw, ['valid', 'mockup'], true) ? $tipoRaw : '');
-        $model->setState('list.limit', 999999);
+
+        // Populate state, then force full result set (populateState would otherwise restore page size).
+        $model->getState('list.limit');
+        $model->setState('list.limit', 1000000);
         $model->setState('list.start', 0);
 
         $items = $model->getItems();

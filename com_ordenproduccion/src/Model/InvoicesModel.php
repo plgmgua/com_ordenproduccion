@@ -139,6 +139,15 @@ class InvoicesModel extends ListModel
 
         parent::populateState($ordering, $direction);
 
+        // Excel export must ignore list pagination (page size / limitstart from the UI).
+        $task = strtolower(str_replace('.', '', (string) $app->input->get('task', '')));
+        if ($task === 'administracionexportinvoicesexcel' || $app->input->getInt('export_all', 0) === 1) {
+            $this->setState('list.limit', 1000000);
+            $this->setState('list.start', 0);
+
+            return;
+        }
+
         // Force pagination: default 20 per page (parent may set list.limit to 0 on site).
         // Read from request key 'limit' so pagination links (e.g. ?limit=20&limitstart=20) work.
         $limit = (int) $app->getUserStateFromRequest($this->context . '.list.limit', 'limit', 20, 'uint');
