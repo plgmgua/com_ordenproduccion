@@ -34,6 +34,12 @@ $importReport = Factory::getApplication()->getSession()->get('com_ordenproduccio
 if ($importReport !== null) {
     Factory::getApplication()->getSession()->set('com_ordenproduccion.retenciones_import_report', null);
 }
+$satReport = Factory::getApplication()->getSession()->get('com_ordenproduccion.retenciones_sat_report', null);
+if ($satReport !== null) {
+    Factory::getApplication()->getSession()->set('com_ordenproduccion.retenciones_sat_report', null);
+}
+$satFileReports = is_array($satReport['files'] ?? null) ? $satReport['files'] : [];
+$satMissing = is_array($satReport['missing'] ?? null) ? $satReport['missing'] : [];
 
 $listLimit = (int) $state->get('list.limit', 20) ?: 20;
 $filterSearch = (string) $state->get('filter.search', '');
@@ -107,6 +113,16 @@ $esc = static function ($value, $default = '—') {
                 <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_IMPORT_PDF'); ?>
             </button>
         </form>
+        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.validateRetencionesSatExcel'); ?>"
+              method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="file" name="sat_excel[]" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                   multiple="multiple" class="form-control form-control-sm" style="max-width: 320px;"
+                   title="<?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_HINT'); ?>" />
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-check-double"></i> <?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_VALIDATE'); ?>
+            </button>
+        </form>
         <?php
         $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.exportRetencionesExcel&format=raw');
         $exportUrl .= '&export_all=1';
@@ -118,6 +134,69 @@ $esc = static function ($value, $default = '—') {
             <i class="fas fa-file-excel"></i> <?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_EXPORT_EXCEL'); ?>
         </a>
     </div>
+
+    <?php if (!empty($satFileReports) || !empty($satMissing)): ?>
+    <div class="import-report-box mb-3">
+        <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_REPORT'); ?></h3>
+        <?php if (!empty($satFileReports)): ?>
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered" style="font-size: 0.875rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FILE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_RESULT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_DETAIL'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($satFileReports as $r):
+                        $st = $r['status'] ?? '';
+                        $rowClass = $st === 'ok' ? 'table-success' : 'table-danger';
+                    ?>
+                    <tr class="<?php echo $rowClass; ?>">
+                        <td><?php echo htmlspecialchars((string) ($r['file'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?php echo $st === 'ok' ? Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_STATUS_OK') : Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_ERROR'); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($r['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+        <?php if (!empty($satMissing)): ?>
+        <div class="alert alert-warning">
+            <strong><?php echo Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_SAT_MISSING_HEADING', count($satMissing)); ?></strong>
+            <p class="mb-2 small"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_MISSING_HELP'); ?></p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered bg-white" style="font-size: 0.8rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_COL_CONSTANCIA'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_TIPO_DOCUMENTO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_COL_ESTADO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FECHA'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_TOTAL'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_COL_RETENEDOR'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($satMissing as $m): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars((string) ($m['constancia'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($m['tipo'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($m['estado'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($m['fecha'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="text-end"><?php echo number_format((float) ($m['total'] ?? 0), 2); ?></td>
+                            <td><?php echo htmlspecialchars(trim(($m['nit_retenedor'] ?? '') . ' ' . ($m['nombre_retenedor'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <?php if (!empty($importReport) && is_array($importReport)): ?>
     <div class="import-report-box mb-3">
@@ -178,6 +257,7 @@ $esc = static function ($value, $default = '—') {
                         <th style="text-align:right;"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_MONTO_RETENCION'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FECHA'); ?></th>
                         <th style="text-align:right;"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_TOTAL'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_SAT_VALIDACION'); ?></th>
                         <?php if ($canManageRetenciones): ?>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                         <?php endif; ?>
@@ -192,6 +272,19 @@ $esc = static function ($value, $default = '—') {
                         $totalNum = RetencionPdfHelper::resolveMontoTotal($row);
                         $total = number_format($totalNum, 2, '.', ',');
                         $rowId = (int) ($row->id ?? 0);
+                        $satOk = (int) ($row->sat_validated ?? 0) === 1;
+                        $satStatus = (string) ($row->sat_validation_status ?? '');
+                        $satEstado = trim((string) ($row->sat_estado_constancia ?? ''));
+                        if ($satOk && $satStatus === 'amount_mismatch') {
+                            $satBadge = '<span class="badge bg-warning text-dark">' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_BADGE_MISMATCH'), ENT_QUOTES, 'UTF-8') . '</span>';
+                        } elseif ($satOk) {
+                            $satBadge = '<span class="badge bg-success">' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_BADGE_OK'), ENT_QUOTES, 'UTF-8') . '</span>';
+                        } else {
+                            $satBadge = '<span class="badge bg-secondary">' . htmlspecialchars(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_BADGE_PENDING'), ENT_QUOTES, 'UTF-8') . '</span>';
+                        }
+                        if ($satEstado !== '') {
+                            $satBadge .= ' <small class="text-muted">' . htmlspecialchars($satEstado, ENT_QUOTES, 'UTF-8') . '</small>';
+                        }
                     ?>
                     <tr>
                         <td><?php echo $esc($row->tipo_documento ?? ''); ?></td>
@@ -205,6 +298,7 @@ $esc = static function ($value, $default = '—') {
                         <td class="num"><?php echo htmlspecialchars($ret, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($fechaStr, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="num"><strong><?php echo htmlspecialchars($total, ENT_QUOTES, 'UTF-8'); ?></strong></td>
+                        <td><?php echo $satBadge; ?></td>
                         <?php if ($canManageRetenciones && $rowId > 0): ?>
                         <td>
                             <form action="<?php echo htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8'); ?>" method="post" class="d-inline"

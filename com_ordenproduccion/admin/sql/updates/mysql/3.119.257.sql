@@ -17,6 +17,12 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_retenciones` (
   `nombre_receptor` varchar(255) DEFAULT NULL,
   `fecha_emision` datetime DEFAULT NULL,
   `source_filename` varchar(255) DEFAULT NULL,
+  `sat_validated` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = matched against SAT Excel report',
+  `sat_validated_at` datetime DEFAULT NULL,
+  `sat_validated_by` int(11) DEFAULT NULL,
+  `sat_estado_constancia` varchar(32) DEFAULT NULL COMMENT 'ESTADO CONSTANCIA from SAT Excel',
+  `sat_excel_total` decimal(14,2) DEFAULT NULL COMMENT 'TOTAL RETENCIÓN from SAT Excel',
+  `sat_validation_status` varchar(32) DEFAULT NULL COMMENT 'ok|amount_mismatch',
   `state` tinyint(3) NOT NULL DEFAULT 1,
   `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `created_by` int(11) NOT NULL DEFAULT 0,
@@ -27,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `#__ordenproduccion_retenciones` (
   KEY `idx_tipo_documento` (`tipo_documento`),
   KEY `idx_serie_numero` (`serie`, `numero`),
   KEY `idx_fact_autorizacion` (`fact_autorizacion`),
+  KEY `idx_sat_validated` (`sat_validated`),
   KEY `idx_state` (`state`),
   KEY `idx_fecha_emision` (`fecha_emision`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

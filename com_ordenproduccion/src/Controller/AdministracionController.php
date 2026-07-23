@@ -28,6 +28,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940MailboxImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\RetencionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\SatRetencionExcelHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
@@ -2856,6 +2857,7 @@ class AdministracionController extends BaseController
             $items = [];
         }
 
+        // Same columns as the Retenciones frontend table (plus ID for reference).
         $cols = [
             'ID',
             'Tipo documento',
@@ -2865,17 +2867,26 @@ class AdministracionController extends BaseController
             'Fact. Autorizacion',
             'Fact. Serie',
             'Fact. Numero',
-            'Fact IVA exento',
-            'Retención',
+            'Fact. IVA exento',
+            'Retencion',
             'Fecha emision',
             'Total',
-            'NIT Receptor',
-            'Nombre Receptor',
+            'Validacion SAT',
+            'Estado constancia SAT',
         ];
         $rows = [];
         foreach ($items as $row) {
             $fecha = !empty($row->fecha_emision) ? $row->fecha_emision : ($row->created ?? null);
             $fechaStr = $fecha ? Factory::getDate($fecha)->format('d-m-Y H:i:s') : '';
+            $validated = (int) ($row->sat_validated ?? 0) === 1;
+            $valStatus = (string) ($row->sat_validation_status ?? '');
+            if ($validated && $valStatus === 'amount_mismatch') {
+                $valLabel = 'Validado (monto distinto)';
+            } elseif ($validated) {
+                $valLabel = 'Validado';
+            } else {
+                $valLabel = 'Pendiente';
+            }
             $rows[] = [
                 (int) ($row->id ?? 0),
                 (string) ($row->tipo_documento ?? ''),
@@ -2889,8 +2900,8 @@ class AdministracionController extends BaseController
                 round((float) ($row->monto_retencion ?? 0), 2),
                 $fechaStr,
                 RetencionPdfHelper::resolveMontoTotal($row),
-                (string) ($row->nit_receptor ?? ''),
-                (string) ($row->nombre_receptor ?? ''),
+                $valLabel,
+                (string) ($row->sat_estado_constancia ?? ''),
             ];
         }
 
@@ -3030,6 +3041,246 @@ class AdministracionController extends BaseController
         $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
         $writer->save('php://output');
         $app->close();
+    }
+
+    /**
+     * Validate PDF-imported retenciones against SAT.GOV.GT Excel (RetIVA.xlsx / RetISR.xlsx).
+     * Marks matching rows as validated; reports Excel constancias missing from PDF imports.
+     *
+     * @return  void
+     *
+     * @since   3.119.264
+     */
+    public function validateRetencionesSatExcel()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones', false);
+
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if ($user->guest || !AccessHelper::canManageRetenciones()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $files = self::normalizeUploadedFiles($app->input->files->get('sat_excel', [], 'array'));
+        if (empty($files)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_NO_FILE'), 'warning');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $db = Factory::getContainer()->get(DatabaseInterface::class);
+        $cols = $db->getTableColumns('#__ordenproduccion_retenciones', false);
+        $cols = $cols ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['sat_validated'])) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_SCHEMA_MISSING'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $validated = 0;
+        $mismatched = 0;
+        $missing = [];
+        $fileReports = [];
+        $now = Factory::getDate()->toSql();
+
+        foreach ($files as $file) {
+            $tmpPath = $file['tmp_name'] ?? '';
+            $fileName = $file['name'] ?? 'file.xlsx';
+            if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+                $fileReports[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_READ_ERROR')];
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['xlsx', 'xls'], true)) {
+                $fileReports[] = ['file' => $fileName, 'status' => 'error', 'message' => Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_NOT_EXCEL')];
+                continue;
+            }
+
+            $parsed = SatRetencionExcelHelper::parseFile($tmpPath);
+            if (empty($parsed['success'])) {
+                $fileReports[] = [
+                    'file'    => $fileName,
+                    'status'  => 'error',
+                    'message' => $parsed['error'] ?? Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_PARSE_ERROR'),
+                ];
+                continue;
+            }
+
+            $excelRows = $parsed['rows'] ?? [];
+            $tipoExcel = (string) ($parsed['tipo'] ?? '');
+            $matchedInFile = 0;
+            $missingInFile = 0;
+
+            foreach ($excelRows as $er) {
+                $constancia = trim((string) ($er['constancia'] ?? ''));
+                if ($constancia === '') {
+                    continue;
+                }
+
+                $q = $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('id'),
+                        $db->quoteName('tipo_documento'),
+                        $db->quoteName('monto_retencion'),
+                        $db->quoteName('fact_iva_exento'),
+                        $db->quoteName('numero'),
+                        $db->quoteName('autorizacion'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_retenciones'))
+                    ->where($db->quoteName('state') . ' = 1')
+                    ->where(
+                        '('
+                        . $db->quoteName('numero') . ' = ' . $db->quote($constancia)
+                        . ' OR ' . $db->quoteName('autorizacion') . ' = ' . $db->quote($constancia)
+                        . ')'
+                    )
+                    ->order($db->quoteName('id') . ' DESC');
+                $db->setQuery($q, 0, 1);
+                $existing = $db->loadObject();
+
+                if (!$existing) {
+                    $missingInFile++;
+                    $missing[] = [
+                        'constancia'       => $constancia,
+                        'tipo'             => $tipoExcel,
+                        'estado'           => (string) ($er['estado'] ?? ''),
+                        'fecha'            => (string) ($er['fecha_emision'] ?? ''),
+                        'total'            => round((float) ($er['total_retencion'] ?? 0), 2),
+                        'nit_retenedor'    => (string) ($er['nit_retenedor'] ?? ''),
+                        'nombre_retenedor' => (string) ($er['nombre_retenedor'] ?? ''),
+                        'source_file'      => $fileName,
+                    ];
+                    continue;
+                }
+
+                // Prefer matching expected bucket (IVA/ISR) when multiple types could collide (rare).
+                $bucket = RetencionPdfHelper::classifyRetencionBucket((string) ($existing->tipo_documento ?? ''));
+                if ($tipoExcel === 'ISR' && $bucket !== null && $bucket !== 'isr') {
+                    // Look for another row with ISR tipo
+                    $q2 = $db->getQuery(true)
+                        ->select([
+                            $db->quoteName('id'),
+                            $db->quoteName('tipo_documento'),
+                            $db->quoteName('monto_retencion'),
+                            $db->quoteName('fact_iva_exento'),
+                        ])
+                        ->from($db->quoteName('#__ordenproduccion_retenciones'))
+                        ->where($db->quoteName('state') . ' = 1')
+                        ->where(
+                            '('
+                            . $db->quoteName('numero') . ' = ' . $db->quote($constancia)
+                            . ' OR ' . $db->quoteName('autorizacion') . ' = ' . $db->quote($constancia)
+                            . ')'
+                        )
+                        ->where($db->quoteName('tipo_documento') . ' LIKE ' . $db->quote('%ISR%'))
+                        ->order($db->quoteName('id') . ' DESC');
+                    $db->setQuery($q2, 0, 1);
+                    $isrRow = $db->loadObject();
+                    if ($isrRow) {
+                        $existing = $isrRow;
+                        $bucket = 'isr';
+                    }
+                }
+                if ($tipoExcel === 'IVA' && $bucket === 'isr') {
+                    $q2 = $db->getQuery(true)
+                        ->select([
+                            $db->quoteName('id'),
+                            $db->quoteName('tipo_documento'),
+                            $db->quoteName('monto_retencion'),
+                            $db->quoteName('fact_iva_exento'),
+                        ])
+                        ->from($db->quoteName('#__ordenproduccion_retenciones'))
+                        ->where($db->quoteName('state') . ' = 1')
+                        ->where(
+                            '('
+                            . $db->quoteName('numero') . ' = ' . $db->quote($constancia)
+                            . ' OR ' . $db->quoteName('autorizacion') . ' = ' . $db->quote($constancia)
+                            . ')'
+                        )
+                        ->where($db->quoteName('tipo_documento') . ' LIKE ' . $db->quote('%IVA%'))
+                        ->where($db->quoteName('tipo_documento') . ' NOT LIKE ' . $db->quote('%ISR%'))
+                        ->order($db->quoteName('id') . ' DESC');
+                    $db->setQuery($q2, 0, 1);
+                    $ivaRow = $db->loadObject();
+                    if ($ivaRow) {
+                        $existing = $ivaRow;
+                    }
+                }
+
+                $pdfTotal = RetencionPdfHelper::resolveMontoTotal($existing);
+                $excelTotal = round((float) ($er['total_retencion'] ?? 0), 2);
+                $status = abs($pdfTotal - $excelTotal) <= 0.02 ? 'ok' : 'amount_mismatch';
+
+                $upd = (object) [
+                    'id'                    => (int) $existing->id,
+                    'sat_validated'         => 1,
+                    'sat_validated_at'      => $now,
+                    'sat_validated_by'      => (int) $user->id,
+                    'sat_estado_constancia' => substr((string) ($er['estado'] ?? ''), 0, 32),
+                    'sat_excel_total'       => $excelTotal,
+                    'sat_validation_status' => $status,
+                    'modified'              => $now,
+                    'modified_by'           => (int) $user->id,
+                ];
+                $rowUpd = [];
+                foreach ((array) $upd as $k => $v) {
+                    if (array_key_exists(strtolower($k), $cols)) {
+                        $rowUpd[$k] = $v;
+                    }
+                }
+                $db->updateObject('#__ordenproduccion_retenciones', (object) $rowUpd, 'id');
+                $matchedInFile++;
+                $validated++;
+                if ($status === 'amount_mismatch') {
+                    $mismatched++;
+                }
+            }
+
+            $fileReports[] = [
+                'file'    => $fileName,
+                'status'  => 'ok',
+                'message' => Text::sprintf(
+                    'COM_ORDENPRODUCCION_RETENCIONES_SAT_FILE_SUMMARY',
+                    $tipoExcel,
+                    count($excelRows),
+                    $matchedInFile,
+                    $missingInFile
+                ),
+            ];
+        }
+
+        $app->getSession()->set('com_ordenproduccion.retenciones_sat_report', [
+            'files'   => $fileReports,
+            'missing' => $missing,
+        ]);
+
+        if ($validated > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_SAT_VALIDATED_COUNT', $validated), 'success');
+        }
+        if ($mismatched > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_SAT_AMOUNT_MISMATCH_COUNT', $mismatched), 'warning');
+        }
+        if (count($missing) > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_RETENCIONES_SAT_MISSING_COUNT', count($missing)), 'warning');
+        }
+        if ($validated === 0 && count($missing) === 0) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_SAT_NO_MATCHES'), 'notice');
+        }
+
+        $app->redirect($redirectUrl);
     }
 
     /**

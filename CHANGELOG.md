@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.264-STABLE] - 2026-07-23
+
+### Added
+- **Retenciones:** Validate imports against SAT Excel (`RetIVA.xlsx` / `RetISR.xlsx`): marks matching PDF rows, lists Excel constancias without PDF, shows Validación SAT column.
+- **Retenciones export:** Columns aligned with the frontend table (including Validación SAT).
+
 ## [3.119.263-STABLE] - 2026-07-23
 
 ### Added

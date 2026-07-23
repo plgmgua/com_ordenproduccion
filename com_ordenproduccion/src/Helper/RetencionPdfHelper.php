@@ -477,6 +477,20 @@ class RetencionPdfHelper
     }
 
     /**
+     * Public wrapper for accent folding (used by SAT Excel helper).
+     *
+     * @param   string  $text  Input
+     *
+     * @return  string
+     *
+     * @since   3.119.264
+     */
+    public static function foldAccentsPublic(string $text): string
+    {
+        return self::foldAccents($text);
+    }
+
+    /**
      * Fold accents / replacement chars so SAT PDF text matches reliably.
      *
      * @param   string  $text  Input
