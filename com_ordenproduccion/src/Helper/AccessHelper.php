@@ -518,6 +518,18 @@ class AccessHelper
     }
 
     /**
+     * Retenciones tab (view / import / export / delete): Administración group only (not Admon-only).
+     *
+     * @return  bool
+     *
+     * @since   3.119.261
+     */
+    public static function canManageRetenciones(): bool
+    {
+        return self::isInStrictAdministracionGroup();
+    }
+
+    /**
      * Pre-cotización list/detail: see all published rows (not only created_by = current user).
      * Super user, Administración/Admon, or Aprobaciones Ventas (discount approval on others’ pre-cots).
      *

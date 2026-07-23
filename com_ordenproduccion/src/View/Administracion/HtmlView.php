@@ -1432,8 +1432,15 @@ class HtmlView extends BaseHtmlView
             return;
         }
 
-        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: invoices, retenciones, herramientas, ajustes
-        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'retenciones', 'herramientas', 'ajustes'], true)) {
+        // Ventas: only Ventas tabs (resumen, statistics, reportes, clientes). Admin-only tabs: invoices, herramientas, ajustes
+        if (!AccessHelper::isInAdministracionOrAdmonGroup() && in_array($activeTab, ['invoices', 'herramientas', 'ajustes'], true)) {
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+            return;
+        }
+
+        // Retenciones: Administración group only (not Admon-only)
+        if ($activeTab === 'retenciones' && !AccessHelper::canManageRetenciones()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
             return;
         }

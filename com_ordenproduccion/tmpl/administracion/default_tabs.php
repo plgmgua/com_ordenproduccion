@@ -23,6 +23,7 @@ $isVentas = AccessHelper::isInVentasGroup();
 $isAdministracionOrAdmon = AccessHelper::isInAdministracionOrAdmonGroup();
 $canSeeVentasTabs = $isVentas || $isAdministracionOrAdmon;
 $canSeeAdminTabs = $isAdministracionOrAdmon;
+$canSeeRetencionesTab = AccessHelper::canManageRetenciones();
 $canSeeAprobacionesTab = AccessHelper::canViewApprovalWorkflowTab();
 $aprobacionesPendingCount = AccessHelper::getPendingApprovalCountForUser();
 $canSeeProveedoresTab  = AccessHelper::canViewProveedores();
@@ -33,6 +34,9 @@ if ($activeTab === 'workorders') {
     $activeTab = 'resumen';
 }
 if (!$canSeeAdminTabs && in_array($activeTab, ['invoices', 'herramientas'], true)) {
+    $activeTab = 'resumen';
+}
+if (!$canSeeRetencionesTab && $activeTab === 'retenciones') {
     $activeTab = 'resumen';
 }
 if (!AccessHelper::isSuperUser() && in_array($activeTab, ['email_log', 'user_audit'], true)) {
@@ -144,6 +148,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-file-invoice-dollar"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_TAB_INVOICES'); ?>
     </a>
+    <?php endif; ?>
+    <?php if ($canSeeRetencionesTab) : ?>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones'); ?>"
        class="admin-tab <?php echo $activeTab === 'retenciones' ? 'active' : ''; ?>">
         <i class="fas fa-receipt"></i>

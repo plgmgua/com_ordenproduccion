@@ -2616,9 +2616,9 @@ class AdministracionController extends BaseController
             return;
         }
 
-        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
-            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
-            $app->redirect($redirectUrl);
+        if ($user->guest || !AccessHelper::canManageRetenciones()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
 
             return;
         }
@@ -2777,9 +2777,9 @@ class AdministracionController extends BaseController
         $user = Factory::getUser();
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones', false);
 
-        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
-            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
-            $app->redirect($redirectUrl);
+        if ($user->guest || !AccessHelper::canManageRetenciones()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
 
             return;
         }
@@ -2870,6 +2870,66 @@ class AdministracionController extends BaseController
         }
         fclose($out);
         $app->close();
+    }
+
+    /**
+     * Soft-delete a retención record (Administración group only).
+     *
+     * @return  void
+     *
+     * @since   3.119.261
+     */
+    public function deleteRetencion()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=retenciones', false);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if ($user->guest || !AccessHelper::canManageRetenciones()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        $id = (int) $app->input->post->getInt('id', 0);
+        if ($id < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_DELETE_INVALID'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $now = Factory::getDate()->toSql();
+            $query = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_retenciones'))
+                ->set($db->quoteName('state') . ' = 0')
+                ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                ->set($db->quoteName('modified_by') . ' = ' . (int) $user->id)
+                ->where($db->quoteName('id') . ' = ' . $id)
+                ->where($db->quoteName('state') . ' = 1');
+            $db->setQuery($query);
+            $db->execute();
+
+            if ((int) $db->getAffectedRows() < 1) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_DELETE_NOT_FOUND'), 'warning');
+            } else {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_DELETE_SUCCESS'), 'success');
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_RETENCIONES_DELETE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($redirectUrl);
     }
 
     /**

@@ -13,7 +13,11 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\RetencionPdfHelper;
+
+$canManageRetenciones = AccessHelper::canManageRetenciones();
+$deleteUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.deleteRetencion', false);
 
 $retenciones = $this->get('retenciones');
 if (!is_array($retenciones)) {
@@ -167,6 +171,9 @@ $esc = static function ($value, $default = '—') {
                         <th style="text-align:right;"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_MONTO_RETENCION'); ?></th>
                         <th><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_FECHA'); ?></th>
                         <th style="text-align:right;"><?php echo Text::_('COM_ORDENPRODUCCION_RETENCIONES_COL_TOTAL'); ?></th>
+                        <?php if ($canManageRetenciones): ?>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -177,6 +184,7 @@ $esc = static function ($value, $default = '—') {
                         $ret = isset($row->monto_retencion) ? number_format((float) $row->monto_retencion, 2, '.', ',') : '—';
                         $totalNum = RetencionPdfHelper::resolveMontoTotal($row);
                         $total = number_format($totalNum, 2, '.', ',');
+                        $rowId = (int) ($row->id ?? 0);
                     ?>
                     <tr>
                         <td><?php echo $esc($row->tipo_documento ?? ''); ?></td>
@@ -190,6 +198,20 @@ $esc = static function ($value, $default = '—') {
                         <td class="num"><?php echo htmlspecialchars($ret, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td><?php echo htmlspecialchars($fechaStr, ENT_QUOTES, 'UTF-8'); ?></td>
                         <td class="num"><strong><?php echo htmlspecialchars($total, ENT_QUOTES, 'UTF-8'); ?></strong></td>
+                        <?php if ($canManageRetenciones && $rowId > 0): ?>
+                        <td>
+                            <form action="<?php echo htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8'); ?>" method="post" class="d-inline"
+                                  onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_RETENCIONES_DELETE_CONFIRM'), ENT_QUOTES, 'UTF-8'); ?>');">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <input type="hidden" name="id" value="<?php echo $rowId; ?>" />
+                                <button type="submit" class="btn btn-outline-danger btn-sm" title="<?php echo Text::_('JACTION_DELETE'); ?>">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </form>
+                        </td>
+                        <?php elseif ($canManageRetenciones): ?>
+                        <td>—</td>
+                        <?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

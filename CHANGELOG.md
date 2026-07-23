@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.261-STABLE] - 2026-07-23
+
+### Added
+- **Retenciones:** Delete action (soft-delete) per row.
+
+### Security
+- **Retenciones:** Tab, import, export, and delete restricted to the **Administración** group only (not Admon-only).
+
 ## [3.119.260-STABLE] - 2026-07-23
 
 ### Changed
