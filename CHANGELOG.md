@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.265-STABLE] - 2026-07-23
+
+### Fixed
+- **Retenciones SAT validate:** `updateObject()` pass-by-reference error that caused a 404/error page after Excel upload.
+
 ## [3.119.264-STABLE] - 2026-07-23
 
 ### Added

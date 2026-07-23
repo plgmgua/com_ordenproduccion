@@ -3241,7 +3241,9 @@ class AdministracionController extends BaseController
                         $rowUpd[$k] = $v;
                     }
                 }
-                $db->updateObject('#__ordenproduccion_retenciones', (object) $rowUpd, 'id');
+                // updateObject requires a real variable (pass-by-reference); cannot cast inline.
+                $objUpd = (object) $rowUpd;
+                $db->updateObject('#__ordenproduccion_retenciones', $objUpd, 'id');
                 $matchedInFile++;
                 $validated++;
                 if ($status === 'amount_mismatch') {
