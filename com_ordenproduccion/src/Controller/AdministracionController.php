@@ -947,8 +947,11 @@ class AdministracionController extends BaseController
             }
         }
 
-        $monthSlug = \sprintf('%04d-%02d', (int) $filters['year'], (int) $filters['month']);
-        $fileBase  = 'mt940-' . $monthSlug . '-movimientos';
+        $filterMonth = (int) ($filters['month'] ?? 0);
+        $monthSlug   = $filterMonth === 0
+            ? \sprintf('%04d', (int) $filters['year'])
+            : \sprintf('%04d-%02d', (int) $filters['year'], $filterMonth);
+        $fileBase    = 'mt940-' . $monthSlug . '-movimientos';
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
         if (\is_file($autoload)) {

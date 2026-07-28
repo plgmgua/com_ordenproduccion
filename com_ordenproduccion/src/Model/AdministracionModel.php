@@ -5198,29 +5198,125 @@ class AdministracionModel extends BaseDatabaseModel
      */
     public static function mt940PeriodFiltersFromInput($input): array
     {
-        $now       = Factory::getDate();
-        $curMonth  = (int) $now->format('n');
-        $curYear   = (int) $now->format('Y');
-        $hasPeriod = $input->get('mt940_filter_month', null) !== null
-            || $input->get('mt940_filter_year', null) !== null;
-        $filterMonth = $hasPeriod
-            ? max(1, min(12, (int) $input->getInt('mt940_filter_month', $curMonth)))
-            : $curMonth;
-        $filterYear = $hasPeriod
-            ? max(2000, min(2100, (int) $input->getInt('mt940_filter_year', $curYear)))
-            : $curYear;
-        $periodFrom = \sprintf('%04d-%02d-01', $filterYear, $filterMonth);
-        $periodEnd  = Factory::getDate($periodFrom . ' 00:00:00', 'America/Guatemala');
-        $periodEnd->setDate((int) $filterYear, (int) $filterMonth, 1);
-        $periodEnd->modify('last day of this month');
+        $now      = Factory::getDate();
+        $curMonth = (int) $now->format('n');
+        $curYear  = (int) $now->format('Y');
+        $filterMonth = self::mt940FilterMonthFromInput($input, $curMonth);
+        $filterYear  = self::mt940FilterYearFromInput($input, $curYear);
+        [$periodFrom, $periodTo] = self::mt940PeriodDateRange($filterYear, $filterMonth);
 
         return [
             'bank_account_id' => max(0, (int) $input->getInt('mt940_bank_account_id', 0)),
             'month'           => $filterMonth,
             'year'            => $filterYear,
             'date_from'       => $periodFrom,
-            'date_to'         => $periodEnd->format('Y-m-d'),
+            'date_to'         => $periodTo,
         ];
+    }
+
+    /**
+     * Month filter: 0 = all months in the selected year; 1–12 = specific month.
+     *
+     * @since   3.119.271
+     */
+    public static function mt940FilterMonthFromInput($input, int $default): int
+    {
+        if ($input->get('mt940_filter_month', null) === null
+            && $input->get('mt940_filter_year', null) === null) {
+            return $default;
+        }
+
+        return max(0, min(12, (int) $input->getInt('mt940_filter_month', $default)));
+    }
+
+    /**
+     * @since   3.119.271
+     */
+    public static function mt940FilterYearFromInput($input, int $default): int
+    {
+        if ($input->get('mt940_filter_month', null) === null
+            && $input->get('mt940_filter_year', null) === null) {
+            return $default;
+        }
+
+        return max(2000, min(2100, (int) $input->getInt('mt940_filter_year', $default)));
+    }
+
+    /**
+     * @return  array{0: string, 1: string}
+     *
+     * @since   3.119.271
+     */
+    public static function mt940PeriodDateRange(int $year, int $month): array
+    {
+        if ($month === 0) {
+            return [
+                \sprintf('%04d-01-01', $year),
+                \sprintf('%04d-12-31', $year),
+            ];
+        }
+
+        $periodFrom = \sprintf('%04d-%02d-01', $year, $month);
+        $periodEnd  = Factory::getDate($periodFrom . ' 00:00:00', 'America/Guatemala');
+        $periodEnd->setDate($year, $month, 1);
+        $periodEnd->modify('last day of this month');
+
+        return [$periodFrom, $periodEnd->format('Y-m-d')];
+    }
+
+    /**
+     * Min/max calendar years present in imported MT-940 transactions (configured accounts).
+     *
+     * @return  array{min: int, max: int}
+     *
+     * @since   3.119.271
+     */
+    public function getMt940TransactionYearRange(): array
+    {
+        $curYear  = (int) Factory::getDate()->format('Y');
+        $fallback = ['min' => $curYear - 5, 'max' => $curYear + 1];
+
+        if (!$this->isMt940TransactionsTableAvailable()) {
+            return $fallback;
+        }
+
+        $configuredIds = $this->getMt940BankAccountIds();
+        if ($configuredIds === []) {
+            return $fallback;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $q  = $db->getQuery(true)
+                ->select([
+                    'MIN(YEAR(' . $db->quoteName('transaction_date') . ')) AS ' . $db->quoteName('min_year'),
+                    'MAX(YEAR(' . $db->quoteName('transaction_date') . ')) AS ' . $db->quoteName('max_year'),
+                ])
+                ->from($db->quoteName('#__ordenproduccion_mt940_transactions'))
+                ->where($db->quoteName('bank_account_id') . ' IN (' . \implode(',', $configuredIds) . ')')
+                ->where($db->quoteName('transaction_date') . ' IS NOT NULL');
+
+            $db->setQuery($q);
+            $row = $db->loadObject();
+
+            if (!$row) {
+                return $fallback;
+            }
+
+            $minYear = (int) ($row->min_year ?? 0);
+            $maxYear = (int) ($row->max_year ?? 0);
+
+            if ($minYear < 2000 || $maxYear < 2000) {
+                return $fallback;
+            }
+
+            return [
+                'min' => max(2000, $minYear),
+                'max' => min(2100, max($maxYear, $curYear + 1)),
+            ];
+        } catch (\Throwable $e) {
+            return $fallback;
+        }
     }
 
     /**

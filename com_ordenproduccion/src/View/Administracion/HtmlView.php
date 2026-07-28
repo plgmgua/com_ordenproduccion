@@ -933,6 +933,18 @@ class HtmlView extends BaseHtmlView
     protected $financieroMt940FilterYear = 0;
 
     /**
+     * @var    int
+     * @since  3.119.271
+     */
+    protected $financieroMt940FilterYearMin = 0;
+
+    /**
+     * @var    int
+     * @since  3.119.271
+     */
+    protected $financieroMt940FilterYearMax = 0;
+
+    /**
      * @var    array<int, string>
      * @since  3.119.149
      */
@@ -1612,6 +1624,8 @@ class HtmlView extends BaseHtmlView
         $this->financieroMt940FilterDateTo          = '';
         $this->financieroMt940FilterMonth           = 0;
         $this->financieroMt940FilterYear            = 0;
+        $this->financieroMt940FilterYearMin         = 0;
+        $this->financieroMt940FilterYearMax         = 0;
         $this->financieroMt940BankAccountOptions    = [];
         $this->financieroMt940ListLimit             = 25;
         $this->financieroMt940ImportRows            = [];
@@ -2263,28 +2277,21 @@ class HtmlView extends BaseHtmlView
                     if ($fst === 'cuentas_bancarias') {
                         $this->financieroMt940SchemaOk           = $admFin->isMt940TransactionsTableAvailable();
                         $this->financieroMt940BankAccountOptions = $admFin->getMt940ConfiguredBankAccountOptions();
-                        $this->financieroMt940FilterBankAccountId = max(0, (int) $input->getInt('mt940_bank_account_id', 0));
 
-                        $now       = Factory::getDate();
-                        $curMonth  = (int) $now->format('n');
-                        $curYear   = (int) $now->format('Y');
-                        $hasPeriod = $input->get('mt940_filter_month', null) !== null
-                            || $input->get('mt940_filter_year', null) !== null;
-                        $filterMonth = $hasPeriod
-                            ? max(1, min(12, (int) $input->getInt('mt940_filter_month', $curMonth)))
-                            : $curMonth;
-                        $filterYear  = $hasPeriod
-                            ? max(2000, min(2100, (int) $input->getInt('mt940_filter_year', $curYear)))
-                            : $curYear;
+                        $mt940Filters = AdministracionModel::mt940PeriodFiltersFromInput($input);
+                        $this->financieroMt940FilterBankAccountId = (int) ($mt940Filters['bank_account_id'] ?? 0);
+                        $this->financieroMt940FilterMonth         = (int) ($mt940Filters['month'] ?? 0);
+                        $this->financieroMt940FilterYear          = (int) ($mt940Filters['year'] ?? 0);
+                        $this->financieroMt940FilterDateFrom      = (string) ($mt940Filters['date_from'] ?? '');
+                        $this->financieroMt940FilterDateTo        = (string) ($mt940Filters['date_to'] ?? '');
 
-                        $this->financieroMt940FilterMonth = $filterMonth;
-                        $this->financieroMt940FilterYear  = $filterYear;
-                        $periodFrom                       = \sprintf('%04d-%02d-01', $filterYear, $filterMonth);
-                        $this->financieroMt940FilterDateFrom = $periodFrom;
-                        $periodEnd = Factory::getDate($periodFrom . ' 00:00:00', 'America/Guatemala');
-                        $periodEnd->setDate((int) $filterYear, (int) $filterMonth, 1);
-                        $periodEnd->modify('last day of this month');
-                        $this->financieroMt940FilterDateTo = $periodEnd->format('Y-m-d');
+                        $yearRange = $admFin->getMt940TransactionYearRange();
+                        $this->financieroMt940FilterYearMin = (int) ($yearRange['min'] ?? (int) Factory::getDate()->format('Y') - 5);
+                        $this->financieroMt940FilterYearMax = (int) ($yearRange['max'] ?? (int) Factory::getDate()->format('Y') + 1);
+                        if ($this->financieroMt940FilterYear > 0) {
+                            $this->financieroMt940FilterYearMin = min($this->financieroMt940FilterYearMin, $this->financieroMt940FilterYear);
+                            $this->financieroMt940FilterYearMax = max($this->financieroMt940FilterYearMax, $this->financieroMt940FilterYear);
+                        }
 
                         if ($fst === 'cuentas_bancarias' && $this->financieroMt940SchemaOk) {
                             $limit      = max(10, min(200, (int) $input->getInt('mt940_limit', 25)));

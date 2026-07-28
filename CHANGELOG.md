@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.271-STABLE] - 2026-07-28
+
+### Added
+- **Financiero → Cuentas bancarias (MT-940):** Year filter lists all years with imported data; **Todos los meses** exports/filters the full calendar year.
+
 ## [3.119.270-STABLE] - 2026-07-28
 
 ### Changed

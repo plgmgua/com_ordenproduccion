@@ -458,14 +458,18 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940Accounts     = isset($this->financieroMt940BankAccountOptions) && \is_array($this->financieroMt940BankAccountOptions)
         ? $this->financieroMt940BankAccountOptions : [];
     $mt940BankFilter   = (int) ($this->financieroMt940FilterBankAccountId ?? 0);
-    $mt940FilterMonth  = max(1, min(12, (int) ($this->financieroMt940FilterMonth ?? (int) \date('n'))));
+    $mt940FilterMonth  = max(0, min(12, (int) ($this->financieroMt940FilterMonth ?? (int) \date('n'))));
     $mt940FilterYear   = max(2000, min(2100, (int) ($this->financieroMt940FilterYear ?? (int) \date('Y'))));
     $mt940Rows         = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
     $mt940BalanceRows  = isset($this->financieroMt940BalanceRows) && \is_array($this->financieroMt940BalanceRows) ? $this->financieroMt940BalanceRows : [];
     $mt940FormBaseQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
     $mt940FormAction   = Route::_($mt940FormBaseQs, false);
-    $mt940YearMin      = (int) \date('Y') - 5;
-    $mt940YearMax      = (int) \date('Y') + 1;
+    $mt940YearMin      = max(2000, (int) ($this->financieroMt940FilterYearMin ?? ((int) \date('Y') - 5)));
+    $mt940YearMax      = min(2100, (int) ($this->financieroMt940FilterYearMax ?? ((int) \date('Y') + 1)));
+    if ($mt940FilterYear > 0) {
+        $mt940YearMin = min($mt940YearMin, $mt940FilterYear);
+        $mt940YearMax = max($mt940YearMax, $mt940FilterYear);
+    }
     $mt940MonthLangKeys = [
         1  => 'JANUARY',
         2  => 'FEBRUARY',
@@ -536,22 +540,25 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <input type="hidden" name="Itemid" value="<?php echo (int) $finItemId; ?>" />
             <?php endif; ?>
             <div>
+                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_YEAR'); ?></label>
+                <select class="form-select form-select-sm" name="mt940_filter_year" style="min-width: 6rem;">
+                    <?php for ($y = $mt940YearMax; $y >= $mt940YearMin; $y--) : ?>
+                        <option value="<?php echo $y; ?>"<?php echo $mt940FilterYear === $y ? ' selected' : ''; ?>><?php echo $y; ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+            <div>
                 <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_MONTH'); ?></label>
                 <select class="form-select form-select-sm" name="mt940_filter_month" style="min-width: 9rem;">
+                    <option value="0"<?php echo $mt940FilterMonth === 0 ? ' selected' : ''; ?>>
+                        <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_ALL_MONTHS'); ?>
+                    </option>
                     <?php for ($m = 1; $m <= 12; $m++) :
                         $monthKey   = $mt940MonthLangKeys[$m] ?? '';
                         $monthLabel = $monthKey !== '' ? Text::_($monthKey) : (string) $m; ?>
                         <option value="<?php echo $m; ?>"<?php echo $mt940FilterMonth === $m ? ' selected' : ''; ?>>
                             <?php echo htmlspecialchars($monthLabel, ENT_QUOTES, 'UTF-8'); ?>
                         </option>
-                    <?php endfor; ?>
-                </select>
-            </div>
-            <div>
-                <label class="form-label small mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_FILTER_YEAR'); ?></label>
-                <select class="form-select form-select-sm" name="mt940_filter_year" style="min-width: 6rem;">
-                    <?php for ($y = $mt940YearMax; $y >= $mt940YearMin; $y--) : ?>
-                        <option value="<?php echo $y; ?>"<?php echo $mt940FilterYear === $y ? ' selected' : ''; ?>><?php echo $y; ?></option>
                     <?php endfor; ?>
                 </select>
             </div>
