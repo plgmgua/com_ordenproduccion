@@ -570,6 +570,36 @@ $pagoConfirmadoBadge = static function ($r): string {
                 <label class="form-label small mb-0">&nbsp;</label>
                 <button type="submit" class="btn btn-outline-primary btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_FILTER_APPLY'); ?></button>
             </div>
+            <?php
+            $mt940ExportBase = 'index.php?option=com_ordenproduccion&task=administracion.exportMt940TransactionsExcel&format=raw'
+                . '&mt940_filter_month=' . (int) $mt940FilterMonth
+                . '&mt940_filter_year=' . (int) $mt940FilterYear
+                . '&mt940_bank_account_id=' . (int) $mt940BankFilter;
+            if ($finItemId > 0) {
+                $mt940ExportBase .= '&Itemid=' . (int) $finItemId;
+            }
+            $mt940ExportUrl = Route::_($mt940ExportBase);
+            ?>
+            <div>
+                <label class="form-label small mb-0">&nbsp;</label>
+                <?php if ($mt940BankFilter > 0) : ?>
+                <a href="<?php echo htmlspecialchars((string) $mt940ExportUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                   class="btn btn-success btn-sm"
+                   target="_blank"
+                   rel="noopener">
+                    <i class="fas fa-file-excel" aria-hidden="true"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_EXCEL'); ?>
+                </a>
+                <?php else : ?>
+                <button type="button"
+                        class="btn btn-success btn-sm"
+                        disabled
+                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ACCOUNT_REQUIRED'), ENT_QUOTES, 'UTF-8'); ?>">
+                    <i class="fas fa-file-excel" aria-hidden="true"></i>
+                    <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_EXCEL'); ?>
+                </button>
+                <?php endif; ?>
+            </div>
         </form>
 
         <?php if ($mt940BalanceRows !== []) : ?>

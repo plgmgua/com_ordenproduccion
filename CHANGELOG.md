@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.267-STABLE] - 2026-07-28
+
+### Added
+- **Financiero → Cuentas bancarias (MT-940):** «Exportar Excel» button exports all movements for the selected month/year and one bank account (.xlsx or CSV fallback).
+
 ## [3.119.266-STABLE] - 2026-07-23
 
 ### Fixed

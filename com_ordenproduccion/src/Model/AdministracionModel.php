@@ -5190,6 +5190,40 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * MT-940 Financiero filters: month/year period + optional bank account id.
+     *
+     * @return  array{bank_account_id: int, month: int, year: int, date_from: string, date_to: string}
+     *
+     * @since   3.119.267
+     */
+    public static function mt940PeriodFiltersFromInput($input): array
+    {
+        $now       = Factory::getDate();
+        $curMonth  = (int) $now->format('n');
+        $curYear   = (int) $now->format('Y');
+        $hasPeriod = $input->get('mt940_filter_month', null) !== null
+            || $input->get('mt940_filter_year', null) !== null;
+        $filterMonth = $hasPeriod
+            ? max(1, min(12, (int) $input->getInt('mt940_filter_month', $curMonth)))
+            : $curMonth;
+        $filterYear = $hasPeriod
+            ? max(2000, min(2100, (int) $input->getInt('mt940_filter_year', $curYear)))
+            : $curYear;
+        $periodFrom = \sprintf('%04d-%02d-01', $filterYear, $filterMonth);
+        $periodEnd  = Factory::getDate($periodFrom . ' 00:00:00', 'America/Guatemala');
+        $periodEnd->setDate((int) $filterYear, (int) $filterMonth, 1);
+        $periodEnd->modify('last day of this month');
+
+        return [
+            'bank_account_id' => max(0, (int) $input->getInt('mt940_bank_account_id', 0)),
+            'month'           => $filterMonth,
+            'year'            => $filterYear,
+            'date_from'       => $periodFrom,
+            'date_to'         => $periodEnd->format('Y-m-d'),
+        ];
+    }
+
+    /**
      * Schema + expressions for Financiero PRE queries (counts, aggregates, exports).
      *
      * @return  array<string, mixed>|null
@@ -6645,6 +6679,7 @@ class AdministracionModel extends BaseDatabaseModel
         $listQ->select([
             $db->quoteName('t') . '.*',
             $db->quoteName('ba') . '.' . $db->quoteName('name', 'bank_account_name'),
+            $db->quoteName('ba') . '.' . $db->quoteName('account_number'),
             $db->quoteName('l') . '.' . $db->quoteName('currency', 'statement_currency'),
         ])
             ->join(
@@ -6652,9 +6687,20 @@ class AdministracionModel extends BaseDatabaseModel
                 $db->quoteName('#__ordenproduccion_mt940_import_log', 'l'),
                 $db->quoteName('l') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('t') . '.' . $db->quoteName('import_log_id')
             )
-            ->order($db->quoteName('t') . '.' . $db->quoteName('transaction_date') . ' DESC')
-            ->order($db->quoteName('t') . '.' . $db->quoteName('id') . ' DESC');
-        $db->setQuery($listQ, max(0, $start), max(1, min(200, $limit)));
+            ->order(
+                $db->quoteName('t') . '.' . $db->quoteName('transaction_date') . ' '
+                . (strtolower((string) ($filters['order_dir'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC')
+            )
+            ->order(
+                $db->quoteName('t') . '.' . $db->quoteName('id') . ' '
+                . (strtolower((string) ($filters['order_dir'] ?? 'desc')) === 'asc' ? 'ASC' : 'DESC')
+            );
+        $exportAll = !empty($filters['export_all']);
+        if ($exportAll) {
+            $db->setQuery($listQ);
+        } else {
+            $db->setQuery($listQ, max(0, $start), max(1, min(200, $limit)));
+        }
         $rows = $db->loadObjectList() ?: [];
 
         return ['rows' => $rows, 'total' => $total];
