@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.269-STABLE] - 2026-07-28
+
+### Fixed
+- **Financiero → Cuentas bancarias (MT-940):** Excel export no longer fails when building sheet tab names (`preg_replace`/`mb_substr` null return).
+
 ## [3.119.268-STABLE] - 2026-07-28
 
 ### Changed

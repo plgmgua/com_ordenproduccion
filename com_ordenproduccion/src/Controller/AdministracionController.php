@@ -1064,7 +1064,7 @@ class AdministracionController extends BaseController
     protected function mt940UniqueExcelSheetTitle(string $label, int $bankId, array &$usedTabs): string
     {
         $base = preg_replace('/[\*\?\:\\\/\[\]]/', '-', $label);
-        $base = trim((string) $base);
+        $base = trim((string) ($base ?? ''));
         if ($base === '') {
             $base = 'Cuenta-' . $bankId;
         }
@@ -1072,23 +1072,32 @@ class AdministracionController extends BaseController
         if (preg_match('/\(([^)]+)\)\s*$/', $label, $m)) {
             $num = trim((string) ($m[1] ?? ''));
             if ($num !== '') {
-                $base = preg_replace('/[\*\?\:\\\/\[\]]/', '-', $num);
+                $fromNum = preg_replace('/[\*\?\:\\\/\[\]]/', '-', $num);
+                $fromNum = trim((string) ($fromNum ?? ''));
+                if ($fromNum !== '') {
+                    $base = $fromNum;
+                }
             }
         }
 
         if (mb_strlen($base) > 31) {
-            $base = mb_substr($base, 0, 31);
+            $truncated = mb_substr($base, 0, 31);
+            $base      = trim((string) ($truncated ?? '')) ?: ('Cuenta-' . $bankId);
         }
 
-        $title = $base;
+        $title = $base !== '' ? $base : ('Cuenta-' . $bankId);
         $n     = 2;
         while (isset($usedTabs[$title])) {
             $suffix = '-' . $bankId;
             if ($n > 2) {
                 $suffix = '-' . $bankId . '-' . $n;
             }
-            $maxBase = 31 - mb_strlen($suffix);
-            $title   = mb_substr($base, 0, max(1, $maxBase)) . $suffix;
+            $maxBase   = 31 - mb_strlen($suffix);
+            $truncated = mb_substr($base, 0, max(1, $maxBase));
+            $title     = ((string) ($truncated ?? '')) . $suffix;
+            if ($title === $suffix || $title === '') {
+                $title = 'Cuenta-' . $bankId . $suffix;
+            }
             $n++;
         }
 
