@@ -6721,6 +6721,175 @@ class AdministracionModel extends BaseDatabaseModel
     }
 
     /**
+     * Normalized :25: account numbers for configured bank accounts (leading-zero variants).
+     *
+     * @param   array<int>  $bankIds
+     *
+     * @return  array<int, string>
+     *
+     * @since   3.119.272
+     */
+    public function getMt940ConfiguredAccountNumberCandidates(array $bankIds): array
+    {
+        $bankIds = \array_values(\array_unique(\array_filter(\array_map('intval', $bankIds), static function ($v) {
+            return $v > 0;
+        })));
+        if ($bankIds === []) {
+            return [];
+        }
+
+        try {
+            $component  = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $model      = $mvcFactory->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+            if (!$model || !method_exists($model, 'getBankAccountsByIds')) {
+                return [];
+            }
+            $rows = $model->getBankAccountsByIds($bankIds);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $candidates = [];
+        foreach ($rows as $row) {
+            $acctNo = \trim((string) ($row->account_number ?? ''));
+            if ($acctNo === '') {
+                continue;
+            }
+            foreach (Mt940ImportHelper::accountNumberMatchCandidates($acctNo) as $candidate) {
+                if ($candidate !== '') {
+                    $candidates[] = $candidate;
+                }
+            }
+        }
+
+        return \array_values(\array_unique($candidates));
+    }
+
+    /**
+     * @param   array<int>  $configuredIds
+     *
+     * @return  array{0: array<int>, 1: array<int, string>}
+     *
+     * @since   3.119.272
+     */
+    protected function mt940ResolveBankScope(int $bankAccountId, array $configuredIds): array
+    {
+        $configuredIds = \array_values(\array_unique(\array_filter(\array_map('intval', $configuredIds), static function ($v) {
+            return $v > 0;
+        })));
+
+        if ($bankAccountId > 0 && \in_array($bankAccountId, $configuredIds, true)) {
+            $scopeIds = [$bankAccountId];
+        } else {
+            $scopeIds = $configuredIds;
+        }
+
+        return [$scopeIds, $this->getMt940ConfiguredAccountNumberCandidates($scopeIds)];
+    }
+
+    /**
+     * Match configured MT-940 accounts by bank_account_id or imported :25: account_number.
+     *
+     * @since   3.119.272
+     */
+    protected function applyMt940BankAccountWhere($query, $db, string $alias, int $bankAccountId, array $configuredIds): void
+    {
+        [$scopeIds, $numbers] = $this->mt940ResolveBankScope($bankAccountId, $configuredIds);
+        $parts                = [];
+
+        if ($scopeIds !== []) {
+            $parts[] = $db->quoteName($alias) . '.' . $db->quoteName('bank_account_id') . ' IN ('
+                . \implode(',', $scopeIds) . ')';
+        }
+
+        if ($numbers !== []) {
+            $quoted  = \implode(',', \array_map([$db, 'quote'], $numbers));
+            $parts[] = '(' . $db->quoteName($alias) . '.' . $db->quoteName('account_number') . ' IN (' . $quoted . ')'
+                . ' AND ' . $db->quoteName($alias) . '.' . $db->quoteName('account_number') . ' IS NOT NULL'
+                . ' AND ' . $db->quoteName($alias) . '.' . $db->quoteName('account_number') . ' != ' . $db->quote('') . ')';
+        }
+
+        if ($parts === []) {
+            $query->where('1 = 0');
+
+            return;
+        }
+
+        $query->where('(' . \implode(' OR ', $parts) . ')');
+    }
+
+    /**
+     * Map normalized account numbers to configured bank account ids.
+     *
+     * @param   array<int>  $bankIds
+     *
+     * @return  array<string, int>
+     *
+     * @since   3.119.272
+     */
+    public function getMt940BankAccountNumberIndex(array $bankIds): array
+    {
+        $bankIds = \array_values(\array_unique(\array_filter(\array_map('intval', $bankIds), static function ($v) {
+            return $v > 0;
+        })));
+        if ($bankIds === []) {
+            return [];
+        }
+
+        try {
+            $component  = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $mvcFactory = $component->getMVCFactory();
+            $model      = $mvcFactory->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+            if (!$model || !method_exists($model, 'getBankAccountsByIds')) {
+                return [];
+            }
+            $rows = $model->getBankAccountsByIds($bankIds);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $index = [];
+        foreach ($rows as $id => $row) {
+            $acctNo = \trim((string) ($row->account_number ?? ''));
+            if ($acctNo === '') {
+                continue;
+            }
+            foreach (Mt940ImportHelper::accountNumberMatchCandidates($acctNo) as $candidate) {
+                if ($candidate !== '') {
+                    $index[$candidate] = (int) $id;
+                }
+            }
+        }
+
+        return $index;
+    }
+
+    /**
+     * @param   array<int>  $allowedIds
+     *
+     * @since   3.119.272
+     */
+    protected function resolveMt940BankAccountIdFromNumber(string $accountNumber, array $allowedIds): int
+    {
+        $allowedIds = \array_values(\array_unique(\array_filter(\array_map('intval', $allowedIds), static function ($v) {
+            return $v > 0;
+        })));
+        if ($allowedIds === []) {
+            return 0;
+        }
+
+        $index = $this->getMt940BankAccountNumberIndex($allowedIds);
+        foreach (Mt940ImportHelper::accountNumberMatchCandidates($accountNumber) as $candidate) {
+            if (isset($index[$candidate])) {
+                return (int) $index[$candidate];
+            }
+        }
+
+        return 0;
+    }
+
+    /**
      * @param   int     $limit
      * @param   int     $start
      * @param   array   $filters  bank_account_id (0=all configured), date_from, date_to
@@ -6753,11 +6922,7 @@ class AdministracionModel extends BaseDatabaseModel
                 $db->quoteName('ba') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('t') . '.' . $db->quoteName('bank_account_id')
             );
 
-        if ($bankAccountId > 0 && \in_array($bankAccountId, $configuredIds, true)) {
-            $base->where($db->quoteName('t') . '.' . $db->quoteName('bank_account_id') . ' = ' . $bankAccountId);
-        } else {
-            $base->where($db->quoteName('t') . '.' . $db->quoteName('bank_account_id') . ' IN (' . \implode(',', $configuredIds) . ')');
-        }
+        $this->applyMt940BankAccountWhere($base, $db, 't', $bankAccountId, $configuredIds);
 
         if ($dateFrom !== '' && \preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
             $base->where($db->quoteName('t') . '.' . $db->quoteName('transaction_date') . ' >= ' . $db->quote($dateFrom));
@@ -6838,11 +7003,7 @@ class AdministracionModel extends BaseDatabaseModel
             )
             ->where($db->quoteName('l') . '.' . $db->quoteName('status') . ' = ' . $db->quote('imported'));
 
-        if ($bankAccountId > 0 && \in_array($bankAccountId, $configuredIds, true)) {
-            $base->where($db->quoteName('l') . '.' . $db->quoteName('bank_account_id') . ' = ' . $bankAccountId);
-        } else {
-            $base->where($db->quoteName('l') . '.' . $db->quoteName('bank_account_id') . ' IN (' . \implode(',', $configuredIds) . ')');
-        }
+        $this->applyMt940BankAccountWhere($base, $db, 'l', $bankAccountId, $configuredIds);
 
         if ($dateFrom !== '' && \preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
             $base->where('(' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ' >= ' . $db->quote($dateFrom)
@@ -6910,9 +7071,9 @@ class AdministracionModel extends BaseDatabaseModel
                 $db->quoteName('#__ordenproduccion_bank_accounts', 'ba'),
                 $db->quoteName('ba') . '.' . $db->quoteName('id') . ' = ' . $db->quoteName('l') . '.' . $db->quoteName('bank_account_id')
             )
-            ->where($db->quoteName('l') . '.' . $db->quoteName('status') . ' = ' . $db->quote('imported'))
-            ->where($db->quoteName('l') . '.' . $db->quoteName('bank_account_id') . ' IN (' . \implode(',', $accountIds) . ')')
-            ->order('IFNULL(' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ', ' . $db->quote('1970-01-01') . ') DESC')
+            ->where($db->quoteName('l') . '.' . $db->quoteName('status') . ' = ' . $db->quote('imported'));
+        $this->applyMt940BankAccountWhere($q, $db, 'l', $bankAccountId, $configuredIds);
+        $q->order('IFNULL(' . $db->quoteName('l') . '.' . $db->quoteName('statement_date') . ', ' . $db->quote('1970-01-01') . ') DESC')
             ->order($db->quoteName('l') . '.' . $db->quoteName('imported_at') . ' DESC')
             ->order($db->quoteName('l') . '.' . $db->quoteName('id') . ' DESC');
         $db->setQuery($q, 0, 500);
@@ -6921,7 +7082,10 @@ class AdministracionModel extends BaseDatabaseModel
         $latestByAccount = [];
         foreach ($rows as $row) {
             $aid = (int) ($row->bank_account_id ?? 0);
-            if ($aid > 0 && !isset($latestByAccount[$aid])) {
+            if ($aid < 1 || !\in_array($aid, $accountIds, true)) {
+                $aid = $this->resolveMt940BankAccountIdFromNumber((string) ($row->account_number ?? ''), $accountIds);
+            }
+            if ($aid > 0 && \in_array($aid, $accountIds, true) && !isset($latestByAccount[$aid])) {
                 $latestByAccount[$aid] = $row;
             }
         }

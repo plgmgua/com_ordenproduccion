@@ -391,8 +391,10 @@ class Mt940ImportHelper
      * @param   string  $accountNumber
      *
      * @return  array<int, string>
+     *
+     * @since   3.119.272
      */
-    private static function accountNumberMatchCandidates(string $accountNumber): array
+    public static function accountNumberMatchCandidates(string $accountNumber): array
     {
         $norm  = Mt940ParserHelper::normalizeAccountNumber($accountNumber);
         $strip = \ltrim($norm, '0');

@@ -657,10 +657,12 @@ $pagoConfirmadoBadge = static function ($r): string {
                     <tbody>
                         <?php foreach ($mt940Rows as $row) :
                             $dc       = (string) ($row->debit_credit ?? '');
-                            $currency = (string) ($row->currency ?? 'GTQ');
+                            $currency = \strtoupper(\trim((string) ($row->currency ?? '')));
+                            $stmtCur  = \strtoupper(\trim((string) ($row->statement_currency ?? '')));
                             if (!\in_array($currency, ['GTQ', 'USD'], true)) {
-                                $stmtCur = (string) ($row->statement_currency ?? '');
                                 $currency = \in_array($stmtCur, ['GTQ', 'USD'], true) ? $stmtCur : 'GTQ';
+                            } elseif ($currency === 'GTQ' && $stmtCur === 'USD') {
+                                $currency = 'USD';
                             }
                             $typeLbl = $dc === 'D'
                                 ? Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_TYPE_DEBIT')

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.272-STABLE] - 2026-07-28
+
+### Fixed
+- **Financiero → Cuentas bancarias (MT-940):** Include transactions for all configured accounts (including USD) by matching imported `:25:` account numbers, not only `bank_account_id`; correct USD currency when the statement file is USD.
+
 ## [3.119.271-STABLE] - 2026-07-28
 
 ### Added

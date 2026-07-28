@@ -880,16 +880,11 @@ class AdministracionController extends BaseController
                 throw new \RuntimeException('MT-940 schema unavailable');
             }
 
-            $configuredIds  = $model->getMt940BankAccountIds();
-            $accountOptions = $model->getMt940ConfiguredBankAccountOptions();
+            $configuredIds = $model->getMt940BankAccountIds();
 
             if ($configuredIds === []) {
                 throw new \RuntimeException('No configured accounts');
             }
-
-            $exportAccountIds = $bankId > 0 && \in_array($bankId, $configuredIds, true)
-                ? [$bankId]
-                : $configuredIds;
         } catch (\Throwable $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ERROR'), 'error');
             $app->redirect($redirectUrl);
@@ -917,34 +912,24 @@ class AdministracionController extends BaseController
 
         $allRows = [];
 
-        foreach ($exportAccountIds as $accId) {
-            $accId = (int) $accId;
-            if ($accId < 1) {
-                continue;
-            }
-
-            $accountLabel = isset($accountOptions[$accId]) ? trim((string) $accountOptions[$accId]) : ('#' . $accId);
-
-            try {
-                $pack = $model->getMt940TransactionsList(0, 0, [
-                    'bank_account_id' => $accId,
-                    'date_from'       => $filters['date_from'],
-                    'date_to'         => $filters['date_to'],
-                    'order_dir'       => 'asc',
-                    'export_all'      => true,
-                ]);
-            } catch (\Throwable $e) {
-                continue;
-            }
-
+        try {
+            $pack = $model->getMt940TransactionsList(0, 0, [
+                'bank_account_id' => $bankId,
+                'date_from'       => $filters['date_from'],
+                'date_to'         => $filters['date_to'],
+                'order_dir'       => 'asc',
+                'export_all'      => true,
+            ]);
             $rows = $pack['rows'] ?? [];
             if (!\is_array($rows)) {
                 $rows = [];
             }
+            $allRows = $this->buildMt940ExportRows($rows, '', $lang);
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ERROR'), 'error');
+            $app->redirect($redirectUrl);
 
-            foreach ($this->buildMt940ExportRows($rows, $accountLabel, $lang) as $outRow) {
-                $allRows[] = $outRow;
-            }
+            return;
         }
 
         $filterMonth = (int) ($filters['month'] ?? 0);
@@ -994,13 +979,17 @@ class AdministracionController extends BaseController
         };
 
         $resolveCurrency = static function (object $row): string {
-            $currency = (string) ($row->currency ?? 'GTQ');
-            if (!\in_array($currency, ['GTQ', 'USD'], true)) {
-                $stmtCur = (string) ($row->statement_currency ?? '');
-                $currency = \in_array($stmtCur, ['GTQ', 'USD'], true) ? $stmtCur : 'GTQ';
+            $stmtCur  = \strtoupper(\trim((string) ($row->statement_currency ?? '')));
+            $currency = \strtoupper(\trim((string) ($row->currency ?? '')));
+            if (\in_array($currency, ['GTQ', 'USD'], true)) {
+                if ($currency === 'GTQ' && $stmtCur === 'USD') {
+                    return 'USD';
+                }
+
+                return $currency;
             }
 
-            return $currency;
+            return \in_array($stmtCur, ['GTQ', 'USD'], true) ? $stmtCur : 'GTQ';
         };
 
         $typeLabel = static function (string $dc) use ($lang): string {

@@ -187,7 +187,7 @@ class Mt940ParserHelper
             return null;
         }
 
-        if (!\preg_match('/^[CD](\d{6})([A-Z]{3})([\d,]+)$/i', $raw, $m)) {
+        if (!\preg_match('/^[CD](\d{6})([A-Z]{3})([\d,\.]+)$/i', $raw, $m)) {
             return null;
         }
 
