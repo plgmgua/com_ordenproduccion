@@ -582,23 +582,14 @@ $pagoConfirmadoBadge = static function ($r): string {
             ?>
             <div>
                 <label class="form-label small mb-0">&nbsp;</label>
-                <?php if ($mt940BankFilter > 0) : ?>
                 <a href="<?php echo htmlspecialchars((string) $mt940ExportUrl, ENT_QUOTES, 'UTF-8'); ?>"
                    class="btn btn-success btn-sm"
                    target="_blank"
-                   rel="noopener">
+                   rel="noopener"
+                   title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_HINT'), ENT_QUOTES, 'UTF-8'); ?>">
                     <i class="fas fa-file-excel" aria-hidden="true"></i>
                     <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_EXCEL'); ?>
                 </a>
-                <?php else : ?>
-                <button type="button"
-                        class="btn btn-success btn-sm"
-                        disabled
-                        title="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ACCOUNT_REQUIRED'), ENT_QUOTES, 'UTF-8'); ?>">
-                    <i class="fas fa-file-excel" aria-hidden="true"></i>
-                    <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_EXCEL'); ?>
-                </button>
-                <?php endif; ?>
             </div>
         </form>
 

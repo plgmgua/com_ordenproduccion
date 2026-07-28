@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.268-STABLE] - 2026-07-28
+
+### Changed
+- **Financiero → Cuentas bancarias (MT-940):** Excel export now creates one worksheet tab per bank account for the selected month; «Todas las cuentas» exports all configured accounts (CSV fallback remains a single combined file).
+
 ## [3.119.267-STABLE] - 2026-07-28
 
 ### Added

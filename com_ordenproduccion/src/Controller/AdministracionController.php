@@ -850,7 +850,7 @@ class AdministracionController extends BaseController
     }
 
     /**
-     * Export Financiero → Cuentas bancarias (MT-940) transactions for one account and month.
+     * Export Financiero → Cuentas bancarias (MT-940): one Excel tab per account for the selected month.
      *
      * @return  void
      *
@@ -873,13 +873,6 @@ class AdministracionController extends BaseController
         $filters = AdministracionModel::mt940PeriodFiltersFromInput($input);
         $bankId  = (int) ($filters['bank_account_id'] ?? 0);
 
-        if ($bankId < 1) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ACCOUNT_REQUIRED'), 'warning');
-            $app->redirect($redirectUrl);
-
-            return;
-        }
-
         try {
             /** @var AdministracionModel $model */
             $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Administracion', 'Site', ['ignore_request' => true]);
@@ -887,31 +880,21 @@ class AdministracionController extends BaseController
                 throw new \RuntimeException('MT-940 schema unavailable');
             }
 
-            $configuredIds = $model->getMt940BankAccountIds();
-            if (!\in_array($bankId, $configuredIds, true)) {
-                throw new \RuntimeException('Invalid bank account');
+            $configuredIds  = $model->getMt940BankAccountIds();
+            $accountOptions = $model->getMt940ConfiguredBankAccountOptions();
+
+            if ($configuredIds === []) {
+                throw new \RuntimeException('No configured accounts');
             }
 
-            $accountOptions = $model->getMt940ConfiguredBankAccountOptions();
-            $accountLabel   = isset($accountOptions[$bankId]) ? trim((string) $accountOptions[$bankId]) : ('#' . $bankId);
-
-            $pack = $model->getMt940TransactionsList(0, 0, [
-                'bank_account_id' => $bankId,
-                'date_from'       => $filters['date_from'],
-                'date_to'         => $filters['date_to'],
-                'order_dir'       => 'asc',
-                'export_all'      => true,
-            ]);
+            $exportAccountIds = $bankId > 0 && \in_array($bankId, $configuredIds, true)
+                ? [$bankId]
+                : $configuredIds;
         } catch (\Throwable $e) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ERROR'), 'error');
             $app->redirect($redirectUrl);
 
             return;
-        }
-
-        $rows = $pack['rows'] ?? [];
-        if (!\is_array($rows)) {
-            $rows = [];
         }
 
         $lang = Factory::getContainer()->get(LanguageFactoryInterface::class)->createLanguage('es-ES');
@@ -930,6 +913,85 @@ class AdministracionController extends BaseController
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_AMOUNT'),
         ];
 
+        $sheets   = [];
+        $allRows  = [];
+        $usedTabs = [];
+
+        foreach ($exportAccountIds as $accId) {
+            $accId = (int) $accId;
+            if ($accId < 1) {
+                continue;
+            }
+
+            $accountLabel = isset($accountOptions[$accId]) ? trim((string) $accountOptions[$accId]) : ('#' . $accId);
+
+            try {
+                $pack = $model->getMt940TransactionsList(0, 0, [
+                    'bank_account_id' => $accId,
+                    'date_from'       => $filters['date_from'],
+                    'date_to'         => $filters['date_to'],
+                    'order_dir'       => 'asc',
+                    'export_all'      => true,
+                ]);
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            $rows = $pack['rows'] ?? [];
+            if (!\is_array($rows)) {
+                $rows = [];
+            }
+
+            $outRows  = $this->buildMt940ExportRows($rows, $accountLabel, $lang);
+            $tabTitle = $this->mt940UniqueExcelSheetTitle($accountLabel, $accId, $usedTabs);
+
+            $sheets[] = [
+                'title' => $tabTitle,
+                'rows'  => $outRows,
+            ];
+
+            foreach ($outRows as $outRow) {
+                $allRows[] = $outRow;
+            }
+        }
+
+        if ($sheets === []) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ERROR'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $monthSlug = \sprintf('%04d-%02d', (int) $filters['year'], (int) $filters['month']);
+        $fileBase  = 'mt940-' . $monthSlug . (\count($exportAccountIds) === 1 ? '-cuenta' : '-cuentas');
+
+        $autoload = JPATH_ROOT . '/vendor/autoload.php';
+        if (\is_file($autoload)) {
+            require_once $autoload;
+
+            if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
+                try {
+                    $this->exportMt940TransactionsMultiSheetXlsx($cols, $sheets, $fileBase, $app);
+
+                    return;
+                } catch (\Throwable $e) {
+                    // Fall through to CSV
+                }
+            }
+        }
+
+        $this->exportMt940TransactionsCsv($cols, $allRows, $fileBase, $app);
+    }
+
+    /**
+     * @param   array<int, object>  $rows
+     *
+     * @return  array<int, array<int, string>>
+     *
+     * @since   3.119.268
+     */
+    protected function buildMt940ExportRows(array $rows, string $accountLabel, $lang): array
+    {
         $resolveAccount = static function (object $row): string {
             $acctNo = trim((string) ($row->account_number ?? ''));
             if ($acctNo !== '') {
@@ -989,26 +1051,97 @@ class AdministracionController extends BaseController
             ];
         }
 
-        $monthSlug = \sprintf('%04d-%02d', (int) $filters['year'], (int) $filters['month']);
-        $acctSlug  = preg_replace('/[^a-zA-Z0-9_-]+/', '-', $accountLabel) ?: ('cuenta-' . $bankId);
-        $fileBase  = 'mt940-' . $monthSlug . '-' . trim($acctSlug, '-');
+        return $outRows;
+    }
 
-        $autoload = JPATH_ROOT . '/vendor/autoload.php';
-        if (\is_file($autoload)) {
-            require_once $autoload;
+    /**
+     * Excel sheet title: max 31 chars, unique among workbook tabs.
+     *
+     * @param   array<string, true>  $usedTabs
+     *
+     * @since   3.119.268
+     */
+    protected function mt940UniqueExcelSheetTitle(string $label, int $bankId, array &$usedTabs): string
+    {
+        $base = preg_replace('/[\*\?\:\\\/\[\]]/', '-', $label);
+        $base = trim((string) $base);
+        if ($base === '') {
+            $base = 'Cuenta-' . $bankId;
+        }
 
-            if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
-                try {
-                    $this->exportMt940TransactionsXlsx($cols, $outRows, $fileBase, $app);
-
-                    return;
-                } catch (\Throwable $e) {
-                    // Fall through to CSV
-                }
+        if (preg_match('/\(([^)]+)\)\s*$/', $label, $m)) {
+            $num = trim((string) ($m[1] ?? ''));
+            if ($num !== '') {
+                $base = preg_replace('/[\*\?\:\\\/\[\]]/', '-', $num);
             }
         }
 
-        $this->exportMt940TransactionsCsv($cols, $outRows, $fileBase, $app);
+        if (mb_strlen($base) > 31) {
+            $base = mb_substr($base, 0, 31);
+        }
+
+        $title = $base;
+        $n     = 2;
+        while (isset($usedTabs[$title])) {
+            $suffix = '-' . $bankId;
+            if ($n > 2) {
+                $suffix = '-' . $bankId . '-' . $n;
+            }
+            $maxBase = 31 - mb_strlen($suffix);
+            $title   = mb_substr($base, 0, max(1, $maxBase)) . $suffix;
+            $n++;
+        }
+
+        $usedTabs[$title] = true;
+
+        return $title;
+    }
+
+    /**
+     * @param   array<int, string>                              $cols
+     * @param   array<int, array{title: string, rows: array}>  $sheets
+     *
+     * @since   3.119.268
+     */
+    protected function exportMt940TransactionsMultiSheetXlsx(array $cols, array $sheets, string $fileBase, $app): void
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet->removeSheetByIndex(0);
+
+        $nCols         = max(1, count($cols));
+        $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nCols);
+
+        foreach ($sheets as $sheetDef) {
+            $sheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($spreadsheet, (string) ($sheetDef['title'] ?? 'Cuenta'));
+            $spreadsheet->addSheet($sheet);
+            $sheet->fromArray($cols, null, 'A1');
+
+            $headerStyle = $sheet->getStyle('A1:' . $lastColLetter . '1');
+            $headerStyle->getFont()->setBold(true);
+            $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+            $headerStyle->getFill()->getStartColor()->setARGB('FFD9D9D9');
+
+            $rowIndex = 2;
+            foreach ($sheetDef['rows'] ?? [] as $row) {
+                $sheet->fromArray($row, null, 'A' . $rowIndex);
+                $rowIndex++;
+            }
+
+            for ($ci = 1; $ci <= $nCols; $ci++) {
+                $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ci))->setAutoSize(true);
+            }
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $filename = $fileBase . '-' . date('Y-m-d-His') . '.xlsx';
+        @ob_clean();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        $app->close();
     }
 
     /**
@@ -1033,46 +1166,6 @@ class AdministracionController extends BaseController
         }
 
         fclose($out);
-        $app->close();
-    }
-
-    /**
-     * @param   array<int, string>   $cols
-     * @param   array<int, mixed[]>  $rows
-     *
-     * @since   3.119.267
-     */
-    protected function exportMt940TransactionsXlsx(array $cols, array $rows, string $fileBase, $app): void
-    {
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $sheet       = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('MT-940');
-        $sheet->fromArray($cols, null, 'A1');
-
-        $nCols         = max(1, count($cols));
-        $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nCols);
-        $headerStyle   = $sheet->getStyle('A1:' . $lastColLetter . '1');
-        $headerStyle->getFont()->setBold(true);
-        $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-        $headerStyle->getFill()->getStartColor()->setARGB('FFD9D9D9');
-
-        $rowIndex = 2;
-        foreach ($rows as $row) {
-            $sheet->fromArray($row, null, 'A' . $rowIndex);
-            $rowIndex++;
-        }
-
-        for ($ci = 1; $ci <= $nCols; $ci++) {
-            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ci))->setAutoSize(true);
-        }
-
-        $filename = $fileBase . '-' . date('Y-m-d-His') . '.xlsx';
-        @ob_clean();
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save('php://output');
         $app->close();
     }
 
