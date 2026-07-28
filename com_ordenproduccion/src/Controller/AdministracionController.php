@@ -850,7 +850,7 @@ class AdministracionController extends BaseController
     }
 
     /**
-     * Export Financiero → Cuentas bancarias (MT-940): one Excel tab per account for the selected month.
+     * Export Financiero → Cuentas bancarias (MT-940): single sheet, all accounts, with year/month columns.
      *
      * @return  void
      *
@@ -904,6 +904,8 @@ class AdministracionController extends BaseController
 
         $cols = [
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_ACCOUNT'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_COL_YEAR'),
+            $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_COL_MONTH'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DATE'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_VALUE_DATE'),
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_REFERENCE'),
@@ -913,9 +915,7 @@ class AdministracionController extends BaseController
             $lang->_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_AMOUNT'),
         ];
 
-        $sheets   = [];
-        $allRows  = [];
-        $usedTabs = [];
+        $allRows = [];
 
         foreach ($exportAccountIds as $accId) {
             $accId = (int) $accId;
@@ -942,28 +942,13 @@ class AdministracionController extends BaseController
                 $rows = [];
             }
 
-            $outRows  = $this->buildMt940ExportRows($rows, $accountLabel, $lang);
-            $tabTitle = $this->mt940UniqueExcelSheetTitle($accountLabel, $accId, $usedTabs);
-
-            $sheets[] = [
-                'title' => $tabTitle,
-                'rows'  => $outRows,
-            ];
-
-            foreach ($outRows as $outRow) {
+            foreach ($this->buildMt940ExportRows($rows, $accountLabel, $lang) as $outRow) {
                 $allRows[] = $outRow;
             }
         }
 
-        if ($sheets === []) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_EXPORT_ERROR'), 'error');
-            $app->redirect($redirectUrl);
-
-            return;
-        }
-
         $monthSlug = \sprintf('%04d-%02d', (int) $filters['year'], (int) $filters['month']);
-        $fileBase  = 'mt940-' . $monthSlug . (\count($exportAccountIds) === 1 ? '-cuenta' : '-cuentas');
+        $fileBase  = 'mt940-' . $monthSlug . '-movimientos';
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';
         if (\is_file($autoload)) {
@@ -971,7 +956,7 @@ class AdministracionController extends BaseController
 
             if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
                 try {
-                    $this->exportMt940TransactionsMultiSheetXlsx($cols, $sheets, $fileBase, $app);
+                    $this->exportMt940TransactionsXlsx($cols, $allRows, $fileBase, $app);
 
                     return;
                 } catch (\Throwable $e) {
@@ -1037,11 +1022,20 @@ class AdministracionController extends BaseController
             if ($dc === 'D') {
                 $amount = -abs($amount);
             }
-            $acct = $resolveAccount($row);
+            $acct   = $resolveAccount($row);
+            $txDate = !empty($row->transaction_date) ? (string) $row->transaction_date : '';
+            $txYear = '';
+            $txMonth = '';
+            if ($txDate !== '' && preg_match('/^(\d{4})-(\d{2})/', $txDate, $dateParts)) {
+                $txYear  = (string) ($dateParts[1] ?? '');
+                $txMonth = (string) ($dateParts[2] ?? '');
+            }
 
             $outRows[] = [
                 $acct !== '' ? $acct : $accountLabel,
-                !empty($row->transaction_date) ? (string) $row->transaction_date : '',
+                $txYear,
+                $txMonth,
+                $txDate,
                 !empty($row->value_date) ? (string) $row->value_date : '',
                 trim((string) ($row->reference ?? '')),
                 trim((string) ($row->description ?? '')),
@@ -1055,93 +1049,34 @@ class AdministracionController extends BaseController
     }
 
     /**
-     * Excel sheet title: max 31 chars, unique among workbook tabs.
+     * @param   array<int, string>   $cols
+     * @param   array<int, mixed[]>  $rows
      *
-     * @param   array<string, true>  $usedTabs
-     *
-     * @since   3.119.268
+     * @since   3.119.270
      */
-    protected function mt940UniqueExcelSheetTitle(string $label, int $bankId, array &$usedTabs): string
-    {
-        $base = preg_replace('/[\*\?\:\\\/\[\]]/', '-', $label);
-        $base = trim((string) ($base ?? ''));
-        if ($base === '') {
-            $base = 'Cuenta-' . $bankId;
-        }
-
-        if (preg_match('/\(([^)]+)\)\s*$/', $label, $m)) {
-            $num = trim((string) ($m[1] ?? ''));
-            if ($num !== '') {
-                $fromNum = preg_replace('/[\*\?\:\\\/\[\]]/', '-', $num);
-                $fromNum = trim((string) ($fromNum ?? ''));
-                if ($fromNum !== '') {
-                    $base = $fromNum;
-                }
-            }
-        }
-
-        if (mb_strlen($base) > 31) {
-            $truncated = mb_substr($base, 0, 31);
-            $base      = trim((string) ($truncated ?? '')) ?: ('Cuenta-' . $bankId);
-        }
-
-        $title = $base !== '' ? $base : ('Cuenta-' . $bankId);
-        $n     = 2;
-        while (isset($usedTabs[$title])) {
-            $suffix = '-' . $bankId;
-            if ($n > 2) {
-                $suffix = '-' . $bankId . '-' . $n;
-            }
-            $maxBase   = 31 - mb_strlen($suffix);
-            $truncated = mb_substr($base, 0, max(1, $maxBase));
-            $title     = ((string) ($truncated ?? '')) . $suffix;
-            if ($title === $suffix || $title === '') {
-                $title = 'Cuenta-' . $bankId . $suffix;
-            }
-            $n++;
-        }
-
-        $usedTabs[$title] = true;
-
-        return $title;
-    }
-
-    /**
-     * @param   array<int, string>                              $cols
-     * @param   array<int, array{title: string, rows: array}>  $sheets
-     *
-     * @since   3.119.268
-     */
-    protected function exportMt940TransactionsMultiSheetXlsx(array $cols, array $sheets, string $fileBase, $app): void
+    protected function exportMt940TransactionsXlsx(array $cols, array $rows, string $fileBase, $app): void
     {
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $spreadsheet->removeSheetByIndex(0);
+        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('MT-940');
+        $sheet->fromArray($cols, null, 'A1');
 
         $nCols         = max(1, count($cols));
         $lastColLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nCols);
+        $headerStyle   = $sheet->getStyle('A1:' . $lastColLetter . '1');
+        $headerStyle->getFont()->setBold(true);
+        $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+        $headerStyle->getFill()->getStartColor()->setARGB('FFD9D9D9');
 
-        foreach ($sheets as $sheetDef) {
-            $sheet = new \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet($spreadsheet, (string) ($sheetDef['title'] ?? 'Cuenta'));
-            $spreadsheet->addSheet($sheet);
-            $sheet->fromArray($cols, null, 'A1');
-
-            $headerStyle = $sheet->getStyle('A1:' . $lastColLetter . '1');
-            $headerStyle->getFont()->setBold(true);
-            $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
-            $headerStyle->getFill()->getStartColor()->setARGB('FFD9D9D9');
-
-            $rowIndex = 2;
-            foreach ($sheetDef['rows'] ?? [] as $row) {
-                $sheet->fromArray($row, null, 'A' . $rowIndex);
-                $rowIndex++;
-            }
-
-            for ($ci = 1; $ci <= $nCols; $ci++) {
-                $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ci))->setAutoSize(true);
-            }
+        $rowIndex = 2;
+        foreach ($rows as $row) {
+            $sheet->fromArray($row, null, 'A' . $rowIndex);
+            $rowIndex++;
         }
 
-        $spreadsheet->setActiveSheetIndex(0);
+        for ($ci = 1; $ci <= $nCols; $ci++) {
+            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ci))->setAutoSize(true);
+        }
 
         $filename = $fileBase . '-' . date('Y-m-d-His') . '.xlsx';
         @ob_clean();

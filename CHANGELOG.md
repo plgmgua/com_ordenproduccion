@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.270-STABLE] - 2026-07-28
+
+### Changed
+- **Financiero → Cuentas bancarias (MT-940):** Excel/CSV export uses a single combined table for all accounts; added **Año** and **Mes** columns derived from the transaction date.
+
 ## [3.119.269-STABLE] - 2026-07-28
 
 ### Fixed
