@@ -3927,7 +3927,11 @@ class AdministracionController extends BaseController
         $reqForGate = $svc->fetchRequestById($requestId);
         if (
             $reqForGate !== null
-            && ApprovalWorkflowService::normalizeEntityType((string) ($reqForGate->entity_type ?? '')) === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF
+            && \in_array(
+                ApprovalWorkflowService::normalizeEntityType((string) ($reqForGate->entity_type ?? '')),
+                [ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION],
+                true
+            )
             && $svc->isBlockedFromActingOnOwnPaymentProof((int) $user->id, $reqForGate)
         ) {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_SELF_VERIFY_DENIED'), 'warning');
@@ -3951,7 +3955,11 @@ class AdministracionController extends BaseController
             $failMsg = Text::_('COM_ORDENPRODUCCION_APPROVAL_ACTION_FAILED');
             if (
                 $reqForGate !== null
-                && ApprovalWorkflowService::normalizeEntityType((string) ($reqForGate->entity_type ?? '')) === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF
+                && \in_array(
+                    ApprovalWorkflowService::normalizeEntityType((string) ($reqForGate->entity_type ?? '')),
+                    [ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION],
+                    true
+                )
             ) {
                 $failMsg = Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_NOT_ASSIGNED');
             }

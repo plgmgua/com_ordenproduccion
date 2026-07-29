@@ -18,6 +18,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Pagination\Pagination;
 use Joomla\CMS\Router\Route;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 /**
  * Payments view class for com_ordenproduccion
@@ -182,6 +183,29 @@ class HtmlView extends BaseHtmlView
         $this->modalDeleteDesc = $t('COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_DESC', 'Revise los datos del pago antes de eliminar. Se generará un PDF como comprobante de eliminación.');
         $this->modalConfirmDelete = $t('COM_ORDENPRODUCCION_CONFIRM_DELETE', 'Confirmar eliminación');
         $this->modalCancel = $t('COM_ORDENPRODUCCION_CANCEL', 'Cancelar');
+
+        $wfSvc = new ApprovalWorkflowService();
+        $this->paymentDeletionRequiresApproval = $wfSvc->hasSchema()
+            && $wfSvc->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION);
+        if ($this->paymentDeletionRequiresApproval) {
+            $this->modalDeleteDesc = $t(
+                'COM_ORDENPRODUCCION_PAYMENT_DELETE_CONFIRM_DESC_APPROVAL',
+                'Revise los datos del pago. La eliminación se enviará a aprobación; el pago permanecerá activo hasta que sea aprobado.'
+            );
+            $this->modalConfirmDelete = $t(
+                'COM_ORDENPRODUCCION_PAYMENT_DELETE_REQUEST_BTN',
+                'Solicitar eliminación'
+            );
+        }
+        $this->modalPendingDeletionMsg = $t(
+            'COM_ORDENPRODUCCION_PAYMENT_DELETE_ALREADY_PENDING',
+            'Ya hay una solicitud de eliminación pendiente de aprobación para este pago.'
+        );
+        $this->modalVerificationPendingMsg = $t(
+            'COM_ORDENPRODUCCION_PAYMENT_DELETE_BLOCKED_VERIFICATION_PENDING',
+            'No se puede eliminar mientras hay una verificación de pago pendiente.'
+        );
+
         $this->paymentsTabLabelList = $t('COM_ORDENPRODUCCION_PAYMENTS_TAB_LIST', 'Listado de Pagos');
         $this->paymentsTabLabelNotes = $t('COM_ORDENPRODUCCION_PAYMENTS_TAB_MISMATCH_NOTES', 'Notas de Diferencia');
 

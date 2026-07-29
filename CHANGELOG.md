@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.273-STABLE] - 2026-07-29
+
+### Added
+- **Control de Pagos:** New approval workflow `payment_proof_deletion` — deleting a payment proof requires approval when the workflow is published in Ajustes → Flujos de aprobaciones. Approve runs the existing soft-delete; reject leaves the payment unchanged.
+
 ## [3.119.272-STABLE] - 2026-07-28
 
 ### Fixed

@@ -472,7 +472,8 @@ use Joomla\CMS\Session\Session;
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted small"><?php echo htmlspecialchars($this->modalDeleteDesc ?? 'Revise los datos del pago antes de eliminar. Se generará un PDF como comprobante.'); ?></p>
+                    <p class="text-muted small" id="deletePaymentDesc"><?php echo htmlspecialchars($this->modalDeleteDesc ?? 'Revise los datos del pago antes de eliminar. Se generará un PDF como comprobante.'); ?></p>
+                    <div id="deletePaymentAlert" class="alert alert-warning small py-2 d-none mb-2"></div>
                     <div id="deletePaymentLoading" class="text-center py-4">
                         <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
                     </div>
@@ -615,6 +616,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var paymentsUrl = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&view=payments', false)); ?>;
     var getDetailsBase = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&task=payments.getPaymentDetails&format=json', false)); ?>;
     var tokenParam = <?php echo json_encode(Session::getFormToken() . '=1'); ?>;
+    var paymentDeletionRequiresApproval = <?php echo !empty($this->paymentDeletionRequiresApproval) ? 'true' : 'false'; ?>;
+    var pendingDeletionMsg = <?php echo json_encode($this->modalPendingDeletionMsg ?? ''); ?>;
+    var verificationPendingMsg = <?php echo json_encode($this->modalVerificationPendingMsg ?? ''); ?>;
+    var modalConfirmDeleteDefault = <?php echo json_encode($this->modalConfirmDelete ?? 'Confirmar eliminación'); ?>;
 
     document.querySelectorAll('.btn-delete-payment').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -623,6 +628,12 @@ document.addEventListener('DOMContentLoaded', function() {
             modalPaymentId.value = id;
             document.getElementById('deletePaymentLoading').classList.remove('d-none');
             document.getElementById('deletePaymentContent').classList.add('d-none');
+            var alertEl = document.getElementById('deletePaymentAlert');
+            alertEl.classList.add('d-none');
+            alertEl.textContent = '';
+            var confirmBtn = document.getElementById('modalConfirmDelete');
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = modalConfirmDeleteDefault;
             var modal = new bootstrap.Modal(deleteModal);
             modal.show();
             var url = getDetailsBase + (getDetailsBase.indexOf('?') >= 0 ? '&' : '?') + 'payment_id=' + encodeURIComponent(id) + '&' + tokenParam;
@@ -668,6 +679,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         var tr = document.createElement('tr');
                         tr.innerHTML = '<td colspan="3" class="text-muted">Sin órdenes asociadas</td>';
                         obody.appendChild(tr);
+                    }
+                    if (d.verification_pending && verificationPendingMsg) {
+                        alertEl.textContent = verificationPendingMsg;
+                        alertEl.classList.remove('d-none');
+                        confirmBtn.disabled = true;
+                    } else if (d.pending_deletion && pendingDeletionMsg) {
+                        alertEl.textContent = pendingDeletionMsg;
+                        alertEl.classList.remove('d-none');
+                        confirmBtn.disabled = true;
                     }
                     document.getElementById('deletePaymentContent').classList.remove('d-none');
                 } catch (e) {

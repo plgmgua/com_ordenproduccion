@@ -226,6 +226,43 @@ class ApprovalWorkflowEntityHelper
     }
 
     /**
+     * Soft-delete payment proof after deletion approval.
+     *
+     * @param   int  $proofId          #__ordenproduccion_payment_proofs.id
+     * @param   int  $approvedByUserId  Approver user id (for modified_by via deletePayment)
+     *
+     * @return  bool
+     *
+     * @since   3.119.273
+     */
+    public static function applyPaymentProofDeletionApproved(int $proofId, int $approvedByUserId = 0): bool
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return false;
+        }
+
+        $app = Factory::getApplication();
+        $model = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
+            ->createModel('Payments', 'Site', ['ignore_request' => true]);
+        if ($model === null || !method_exists($model, 'deletePayment')) {
+            return false;
+        }
+
+        if (!$model->deletePayment($proofId)) {
+            Log::add(
+                'Payment proof deletion approval failed for proof ' . $proofId . ': ' . (string) $model->getError(),
+                Log::WARNING,
+                'com_ordenproduccion'
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Persist MT-940 line links from approval metadata when Verificar pago is approved.
      *
      * @since  3.119.228

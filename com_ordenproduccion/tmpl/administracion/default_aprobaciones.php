@@ -43,6 +43,7 @@ $entityLabel = static function (string $entityType): string {
         'orden_status'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_STATUS',
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
+        'payment_proof_deletion'  => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF_DELETION',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
         'orden_compra'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_COMPRA',
@@ -115,7 +116,7 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
                                     ? ('COT-' . str_pad((string) $eid, 6, '0', STR_PAD_LEFT))
                                     : '';
                             }
-                        } elseif ($etype === 'payment_proof') {
+                        } elseif ($etype === 'payment_proof' || $etype === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION) {
                             $refDisplay = $eid > 0 ? ('PA-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT)) : '';
                         } else {
                             $refDisplay = (string) (int) $eid;
@@ -279,6 +280,49 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
                                         <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
                                     </form>
                                 </div>
+                                <?php elseif ($etype === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION) : ?>
+                                <?php
+                                $delMeta = [];
+                                if (!empty($row->metadata)) {
+                                    $decodedDel = json_decode((string) $row->metadata, true);
+                                    $delMeta = is_array($decodedDel) ? $decodedDel : [];
+                                }
+                                $delClient = trim((string) ($delMeta['client_name'] ?? ''));
+                                $delAmount = isset($delMeta['payment_amount']) ? number_format((float) $delMeta['payment_amount'], 2) : '';
+                                $delDoc = trim((string) ($delMeta['document_number'] ?? ''));
+                                ?>
+                                <?php if ($delClient !== '' || $delAmount !== '' || $delDoc !== '') : ?>
+                                <div class="small border rounded p-2 mb-2 bg-light">
+                                    <?php if ($delClient !== '') : ?>
+                                    <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_CLIENT'); ?>:</strong> <?php echo htmlspecialchars($delClient, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                    <?php if ($delDoc !== '') : ?>
+                                    <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?>:</strong> <?php echo htmlspecialchars($delDoc, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                    <?php if ($delAmount !== '') : ?>
+                                    <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?>:</strong> Q <?php echo htmlspecialchars($delAmount, ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+                                <?php if ($docUrl !== '') : ?>
+                                <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                                    <a class="btn btn-primary btn-sm" href="<?php echo htmlspecialchars($docUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_LINK_OPEN_DOCUMENT'); ?></a>
+                                </div>
+                                <?php endif; ?>
+                                <form method="post" action="<?php echo $approveAction; ?>" class="mb-2">
+                                    <?php echo HTMLHelper::_('form.token'); ?>
+                                    <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                    <label class="form-label small mb-0" for="approval-approve-ppd-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_APPROVE_NOTE'); ?></label>
+                                    <textarea class="form-control form-control-sm mb-1" id="approval-approve-ppd-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_COMMENT_PLACEHOLDER'); ?>"></textarea>
+                                    <button type="submit" class="btn btn-success btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_APPROVE'); ?></button>
+                                </form>
+                                <form method="post" action="<?php echo $rejectAction; ?>">
+                                    <?php echo HTMLHelper::_('form.token'); ?>
+                                    <input type="hidden" name="request_id" value="<?php echo (int) $rid; ?>" />
+                                    <label class="form-label small mb-0" for="approval-reject-ppd-<?php echo (int) $rid; ?>"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_NOTE'); ?></label>
+                                    <textarea class="form-control form-control-sm mb-1" id="approval-reject-ppd-<?php echo (int) $rid; ?>" name="comment" rows="2" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_REJECT_COMMENT_PLACEHOLDER'); ?>"></textarea>
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"><?php echo Text::_('COM_ORDENPRODUCCION_APPROVAL_BTN_REJECT'); ?></button>
+                                </form>
                                 <?php elseif ($etype === 'orden_compra') : ?>
                                 <div class="d-flex flex-wrap gap-1 align-items-center">
                                     <?php if ($docUrl !== '') : ?>

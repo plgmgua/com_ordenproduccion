@@ -404,6 +404,11 @@ FROM (SELECT 1 AS `x`) AS `t`
 WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'payment_proof');
 
 INSERT INTO `#__ordenproduccion_approval_workflows` (`name`, `description`, `entity_type`, `published`, `created_by`)
+SELECT 'Eliminación de comprobante de pago', 'Aprueba la eliminación de comprobantes de pago desde Control de Pagos.', 'payment_proof_deletion', 0, 0
+FROM (SELECT 1 AS `x`) AS `t`
+WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'payment_proof_deletion');
+
+INSERT INTO `#__ordenproduccion_approval_workflows` (`name`, `description`, `entity_type`, `published`, `created_by`)
 SELECT 'Pre-cotización — solicitud de descuento', 'Notifica a ventas para revisar y ajustar subtotales de línea.', 'solicitud_descuento', 1, 0
 FROM (SELECT 1 AS `x`) AS `t`
 WHERE NOT EXISTS (SELECT 1 FROM `#__ordenproduccion_approval_workflows` WHERE `entity_type` = 'solicitud_descuento');

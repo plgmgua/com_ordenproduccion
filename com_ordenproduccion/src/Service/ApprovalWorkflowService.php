@@ -34,6 +34,9 @@ class ApprovalWorkflowService
 
     public const ENTITY_PAYMENT_PROOF = 'payment_proof';
 
+    /** Control de Pagos: solicitud para eliminar un comprobante de pago (entity_id = payment_proofs.id). */
+    public const ENTITY_PAYMENT_PROOF_DELETION = 'payment_proof_deletion';
+
     /** Pre-cotización: solicitud de descuento (entity_id = pre_cotización id). */
     public const ENTITY_SOLICITUD_DESCUENTO = 'solicitud_descuento';
 
@@ -171,6 +174,13 @@ class ApprovalWorkflowService
                 break;
 
             case self::ENTITY_PAYMENT_PROOF:
+                if ($eid > 0) {
+                    return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&id=' . $eid, false);
+                }
+
+                break;
+
+            case self::ENTITY_PAYMENT_PROOF_DELETION:
                 if ($eid > 0) {
                     return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&id=' . $eid, false);
                 }
@@ -1415,7 +1425,7 @@ class ApprovalWorkflowService
         }
 
         $entityType = self::normalizeEntityType((string) ($req->entity_type ?? ''));
-        if ($entityType !== self::ENTITY_PAYMENT_PROOF) {
+        if ($entityType !== self::ENTITY_PAYMENT_PROOF && $entityType !== self::ENTITY_PAYMENT_PROOF_DELETION) {
             return false;
         }
 
@@ -1476,7 +1486,8 @@ class ApprovalWorkflowService
         int $entityId,
         int $submitterId
     ): array {
-        if (self::normalizeEntityType($entityType) !== self::ENTITY_PAYMENT_PROOF) {
+        if (self::normalizeEntityType($entityType) !== self::ENTITY_PAYMENT_PROOF
+            && self::normalizeEntityType($entityType) !== self::ENTITY_PAYMENT_PROOF_DELETION) {
             return $approverIds;
         }
 
@@ -1825,6 +1836,10 @@ class ApprovalWorkflowService
                 }
                 break;
 
+            case self::ENTITY_PAYMENT_PROOF_DELETION:
+                ApprovalWorkflowEntityHelper::applyPaymentProofDeletionApproved($eid, $actorUserId);
+                break;
+
             default:
                 break;
         }
@@ -1861,6 +1876,9 @@ class ApprovalWorkflowService
                 if (\Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
                     ApprovalWorkflowEntityHelper::clearPaymentProofMt940MatchState($this->db, $eid);
                 }
+                break;
+
+            case self::ENTITY_PAYMENT_PROOF_DELETION:
                 break;
 
             default:

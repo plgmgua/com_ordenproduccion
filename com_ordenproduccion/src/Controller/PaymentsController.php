@@ -18,6 +18,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\SiteDateHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 /**
  * Payments controller (export to Excel).
@@ -145,6 +146,39 @@ class PaymentsController extends BaseController
             return;
         }
 
+        $wfSvc = new ApprovalWorkflowService();
+        if ($wfSvc->hasSchema() && $wfSvc->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION)) {
+            if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $paymentId) !== null) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_BLOCKED_VERIFICATION_PENDING'), 'warning');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+                return;
+            }
+
+            if ($wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION, $paymentId) !== null) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_REQUEST_ALREADY_PENDING'), 'warning');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+                return;
+            }
+
+            $meta = $this->buildPaymentDeletionApprovalMetadata($details);
+            $rid = $wfSvc->createRequest(
+                ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION,
+                $paymentId,
+                (int) $user->id,
+                $meta !== '' ? $meta : null
+            );
+
+            if ($rid < 1) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_REQUEST_FAILED'), 'error');
+                $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+                return;
+            }
+
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PAYMENT_DELETE_REQUEST_CREATED'), 'success');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
+            return;
+        }
+
         if (!$model->deletePayment($paymentId)) {
             $app->enqueueMessage($model->getError() ?: Text::_('COM_ORDENPRODUCCION_ERROR_DELETE_FAILED'), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=payments', false));
@@ -202,10 +236,21 @@ class PaymentsController extends BaseController
             return;
         }
 
+        $wfSvc = new ApprovalWorkflowService();
+        $requiresDeletionApproval = $wfSvc->hasSchema()
+            && $wfSvc->isWorkflowPublishedForEntity(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION);
+        $pendingDeletion = $requiresDeletionApproval
+            && $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION, $paymentId) !== null;
+        $verificationPending = $wfSvc->hasSchema()
+            && $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $paymentId) !== null;
+
         $app->setHeader('Content-Type', 'application/json; charset=utf-8');
         $proofBank   = $details->proof->bank ?? '';
         $proofCreated = (string) ($details->proof->created ?? '');
         $data = [
+            'requires_deletion_approval' => $requiresDeletionApproval,
+            'pending_deletion' => $pendingDeletion,
+            'verification_pending' => $verificationPending,
             'proof' => [
                 'id' => (int) $details->proof->id,
                 'created' => $proofCreated,
@@ -270,6 +315,45 @@ class PaymentsController extends BaseController
 
         echo json_encode($data);
         $app->close();
+    }
+
+    /**
+     * Build approval metadata snapshot for payment deletion requests.
+     *
+     * @param   object  $details  Payment details from getPaymentDetailsForDelete
+     *
+     * @return  string  JSON string (may be empty on encode failure)
+     *
+     * @since   3.119.273
+     */
+    protected function buildPaymentDeletionApprovalMetadata(object $details): string
+    {
+        $proof = $details->proof ?? null;
+        if ($proof === null) {
+            return '';
+        }
+
+        $orderNumbers = [];
+        foreach ($details->orders ?? [] as $ord) {
+            $num = trim((string) ($ord->order_number ?? ''));
+            if ($num !== '') {
+                $orderNumbers[] = $num;
+            }
+        }
+
+        $payload = [
+            'payment_proof_id' => (int) ($proof->id ?? 0),
+            'client_name' => (string) ($proof->client_name ?? ''),
+            'document_number' => (string) ($proof->document_number ?? ''),
+            'payment_amount' => (float) ($proof->payment_amount ?? 0),
+            'order_number' => (string) ($proof->order_number ?? $proof->orden_de_trabajo ?? ''),
+            'order_numbers' => $orderNumbers,
+            'created_by_name' => (string) ($proof->created_by_name ?? ''),
+        ];
+
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
+        return is_string($json) ? $json : '';
     }
 
     /**
