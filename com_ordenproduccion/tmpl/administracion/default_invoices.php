@@ -298,7 +298,21 @@ $matchStatusHidden = htmlspecialchars($matchStatusFilter, ENT_QUOTES, 'UTF-8');
 .match-client-group-header { background: #f1f3f5; padding: 10px 14px; font-weight: 600; border-bottom: 1px solid #dee2e6; }
 .match-invoice-block { padding: 14px 16px; border-bottom: 1px solid #eee; }
 .match-invoice-block:last-child { border-bottom: none; }
-.invoice-lines-desc { font-size: 0.8125rem; color: #444; max-width: 42rem; word-break: break-word; }
+.invoice-lines-desc {
+    font-size: 0.8125rem;
+    color: #444;
+    max-width: 42rem;
+    word-break: break-word;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    overflow: hidden;
+}
+.invoices-table td.invoice-lines-desc {
+    max-width: 16rem;
+    vertical-align: top;
+}
 
 /* Cola de facturas: single compact size (matches Fecha cotización) + icon actions */
 .invoice-fel-queue-table {
