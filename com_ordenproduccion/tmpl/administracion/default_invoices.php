@@ -1083,8 +1083,10 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                             <?php endif; ?>
                         </td>
                         <td><?php echo htmlspecialchars($displayClient, ENT_QUOTES, 'UTF-8'); ?></td>
-                        <td class="invoice-lines-desc"><?php
+                        <td class="invoice-lines-desc"<?php
                             $lineDesc = InvoiceOrdenMatchModel::getInvoiceLinesDescription($invoice);
+                            echo $lineDesc !== '' ? ' title="' . htmlspecialchars($lineDesc, ENT_QUOTES, 'UTF-8') . '"' : '';
+                        ?>><?php
                             echo $lineDesc !== '' ? htmlspecialchars($lineDesc, ENT_QUOTES, 'UTF-8') : '—';
                         ?></td>
                         <td class="invoice-amount text-end text-nowrap">
