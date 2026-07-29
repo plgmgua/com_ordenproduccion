@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.275-STABLE] - 2026-07-29
+
+### Fixed
+- **Factura manual (FEL):** Creating an invoice for a cotización with many linked órdenes de trabajo no longer fails with `Data too long for column 'orden_de_trabajo'` — column widened to 500 chars and values are truncated with `(+N más)` when still too long.
+
 ## [3.119.274-STABLE] - 2026-07-29
 
 ### Changed

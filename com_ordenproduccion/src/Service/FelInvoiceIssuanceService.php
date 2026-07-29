@@ -666,7 +666,7 @@ class FelInvoiceIssuanceService
         $row = [
             'invoice_number'     => $invoiceNumber,
             'orden_id'           => null,
-            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', $otLabels) : '',
+            'orden_de_trabajo'   => $this->formatInvoiceOrdenDeTrabajoValue($otLabels),
             'client_name'        => $quotation->client_name ?? '',
             'client_nit'         => $quotation->client_nit ?? null,
             'sales_agent'        => $quotation->sales_agent ?? null,
@@ -779,7 +779,7 @@ class FelInvoiceIssuanceService
         $row = [
             'invoice_number'     => $invoiceNumber,
             'orden_id'           => null,
-            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', array_values($otLabels)) : '',
+            'orden_de_trabajo'   => $this->formatInvoiceOrdenDeTrabajoValue(array_values($otLabels)),
             'client_name'        => $quotation->client_name ?? '',
             'client_nit'         => $quotation->client_nit ?? null,
             'sales_agent'        => $quotation->sales_agent ?? null,
@@ -1211,7 +1211,7 @@ class FelInvoiceIssuanceService
             $auth = isset($sat['authorization']) ? (string) $sat['authorization'] : '';
             $uuid = isset($response['uuid']) ? (string) $response['uuid'] : '';
 
-            $otLabelsJoined = implode(', ', $this->collectOrdenDisplayLabelsForQuotation($quotationId));
+            $otLabelsJoined = $this->formatInvoiceOrdenDeTrabajoValue($this->collectOrdenDisplayLabelsForQuotation($quotationId));
 
             $update = [
                 'fel_response_json'      => $responseJson,
@@ -3405,7 +3405,7 @@ class FelInvoiceIssuanceService
         $row = [
             'invoice_number'     => $invoiceNumber,
             'orden_id'           => null,
-            'orden_de_trabajo'   => $otLabels !== [] ? implode(', ', array_values($otLabels)) : '',
+            'orden_de_trabajo'   => $this->formatInvoiceOrdenDeTrabajoValue(array_values($otLabels)),
             'client_name'        => $source->client_name ?? '',
             'client_nit'         => $source->client_nit ?? null,
             'sales_agent'        => $source->sales_agent ?? null,
@@ -5080,8 +5080,8 @@ class FelInvoiceIssuanceService
         $modoNorm = ($certificadorModo === 'prod') ? 'prod' : 'test';
         $felExtraOut = $this->injectCertificadorAmbienteIntoFelExtraJson($felExtraMerged, $modoNorm);
         $otLabelsJoined = $quotationId > 0
-            ? implode(', ', $this->collectOrdenDisplayLabelsForQuotation($quotationId))
-            : trim((string) ($invoiceRow->orden_de_trabajo ?? ''));
+            ? $this->formatInvoiceOrdenDeTrabajoValue($this->collectOrdenDisplayLabelsForQuotation($quotationId))
+            : $this->fitInvoiceOrdenDeTrabajoColumn(trim((string) ($invoiceRow->orden_de_trabajo ?? '')));
         $clientNitForReceptor = $quotation
             ? (string) ($quotation->client_nit ?? '')
             : (string) ($invoiceRow->client_nit ?? $invoiceRow->fel_receptor_id ?? '');
@@ -5374,6 +5374,117 @@ class FelInvoiceIssuanceService
         $ids = array_map('intval', $db->loadColumn() ?: []);
 
         return array_values(array_filter($ids, static fn ($id) => $id > 0));
+    }
+
+    /**
+     * Max length of #__ordenproduccion_invoices.orden_de_trabajo (schema-aware; default 500 after 3.119.275).
+     *
+     * @since  3.119.275
+     */
+    protected function getInvoiceOrdenDeTrabajoMaxLength(): int
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $cached = 500;
+        try {
+            $cols = $this->db->getTableColumns('#__ordenproduccion_invoices', false);
+            if (\is_array($cols)) {
+                $col = $cols['orden_de_trabajo'] ?? $cols['ORDEN_DE_TRABAJO'] ?? null;
+                $type = '';
+                if (\is_object($col)) {
+                    $type = (string) ($col->Type ?? $col->type ?? '');
+                } elseif (\is_array($col)) {
+                    $type = (string) ($col['Type'] ?? $col['type'] ?? '');
+                }
+                if ($type !== '' && preg_match('/varchar\s*\(\s*(\d+)\s*\)/i', $type, $m)) {
+                    $cached = max(50, (int) $m[1]);
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $cached;
+    }
+
+    /**
+     * Join OT labels for invoice.orden_de_trabajo, truncating with "(+N más)" when needed.
+     *
+     * @param   list<string>  $labels
+     *
+     * @since   3.119.275
+     */
+    protected function formatInvoiceOrdenDeTrabajoValue(array $labels): string
+    {
+        $labels = array_values(array_filter(
+            array_map(static fn ($l) => trim((string) $l), $labels),
+            static fn ($l) => $l !== ''
+        ));
+        if ($labels === []) {
+            return '';
+        }
+
+        $max = $this->getInvoiceOrdenDeTrabajoMaxLength();
+        $parts = [];
+        foreach ($labels as $label) {
+            $candidate = $parts === [] ? $label : implode(', ', $parts) . ', ' . $label;
+            $remainingAfter = \count($labels) - \count($parts) - 1;
+            $suffix         = $remainingAfter > 0 ? (' (+' . $remainingAfter . ' más)') : '';
+            if (strlen($candidate . $suffix) > $max) {
+                break;
+            }
+            $parts[] = $label;
+        }
+
+        if ($parts === []) {
+            return $this->fitInvoiceOrdenDeTrabajoColumn($labels[0]);
+        }
+
+        $base      = implode(', ', $parts);
+        $remaining = \count($labels) - \count($parts);
+        if ($remaining > 0) {
+            $suffix = ' (+' . $remaining . ' más)';
+            if (strlen($base . $suffix) <= $max) {
+                return $base . $suffix;
+            }
+            while ($base !== '' && strlen($base . $suffix) > $max) {
+                $base = substr($base, 0, -1);
+            }
+
+            return rtrim($base, ', ') . $suffix;
+        }
+
+        return strlen($base) <= $max ? $base : $this->fitInvoiceOrdenDeTrabajoColumn($base);
+    }
+
+    /**
+     * @since  3.119.275
+     */
+    protected function fitInvoiceOrdenDeTrabajoColumn(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $max = $this->getInvoiceOrdenDeTrabajoMaxLength();
+        if (strlen($value) <= $max) {
+            return $value;
+        }
+
+        if (str_contains($value, ',')) {
+            $split = preg_split('/\s*,\s*/', $value) ?: [];
+
+            return $this->formatInvoiceOrdenDeTrabajoValue($split);
+        }
+
+        if (\function_exists('mb_substr')) {
+            return mb_substr($value, 0, $max, 'UTF-8');
+        }
+
+        return substr($value, 0, $max);
     }
 
     /**
