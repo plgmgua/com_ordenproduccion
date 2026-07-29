@@ -1768,8 +1768,8 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         </div>
                     </fieldset>
                     <?php
-                    $instruccionesBlocks = $this->confirmarInstruccionesFacturacionBlocks ?? [];
                     $facturacionUiAvailable = !empty($this->facturacionUiAvailable);
+                    $showInstruccionesFacturacion = !empty($this->confirmarShowInstruccionesFacturacion) || $facturacionUiAvailable;
                     ?>
                     <?php if ($facturacionUiAvailable) : ?>
                     <div class="mb-3 border rounded p-3 bg-light">
@@ -1806,53 +1806,9 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                     })();
                     </script>
                     <?php endif; ?>
-                    <?php if (!empty($instruccionesBlocks)) : ?>
-                    <div id="confirmar-instrucciones-facturacion-wrapper" class="confirmar-instrucciones-facturacion-wrapper"<?php echo $facturarCotizacionExacta === 1 ? ' style="display:none;"' : ''; ?>>
-                        <?php
-                        $instruccionesMulti = \count($instruccionesBlocks) > 1;
-                        $baseInstrLabel = $l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación');
-                        foreach ($instruccionesBlocks as $instrBlock) :
-                            $ibId = (int) ($instrBlock['id'] ?? 0);
-                            $ibNum = trim((string) ($instrBlock['number'] ?? ''));
-                            $ibShowSuffix = !empty($instrBlock['showSuffix']);
-                            $ibLabel = $baseInstrLabel . ($ibShowSuffix && $ibNum !== '' ? (' - ' . $ibNum) : '');
-                            $fieldId = 'instrucciones_facturacion_confirm' . ($instruccionesMulti ? '_' . $ibId : '');
-                            $fieldName = $instruccionesMulti ? ('instrucciones_facturacion[' . $ibId . ']') : 'instrucciones_facturacion';
-                            $fieldValue = (!$instruccionesMulti) ? $instruccionesFacturacionValue : '';
-                            ?>
-                    <div class="mb-3">
-                        <label for="<?php echo htmlspecialchars($fieldId); ?>" class="form-label"><?php echo htmlspecialchars($ibLabel); ?></label>
-                        <textarea name="<?php echo htmlspecialchars($fieldName); ?>" id="<?php echo htmlspecialchars($fieldId); ?>" class="form-control form-control-sm" rows="3" maxlength="65535" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo htmlspecialchars($fieldValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
-                    </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <script>
-                    (function() {
-                        var hid = document.getElementById('facturar_cotizacion_exacta_post');
-                        var cb = document.getElementById('facturar_cotizacion_exacta_cb');
-                        var iWrap = document.getElementById('confirmar-instrucciones-facturacion-wrapper');
-                        var modalForm = document.querySelector('#confirmarCotizacionModal form');
-                        function syncExacta() {
-                            if (hid && cb) {
-                                hid.value = cb.checked ? '1' : '0';
-                            }
-                            if (iWrap) {
-                                iWrap.style.display = (cb && cb.checked) ? 'none' : '';
-                            }
-                        }
-                        if (cb) {
-                            cb.addEventListener('change', syncExacta);
-                            syncExacta();
-                        }
-                        if (modalForm) {
-                            modalForm.addEventListener('submit', function() { syncExacta(); });
-                        }
-                    })();
-                    </script>
-                    <?php endif; ?>
-                    <?php if ($facturacionUiAvailable && empty($instruccionesBlocks)) : ?>
+                    <?php if ($showInstruccionesFacturacion) : ?>
                     <div id="confirmar-instrucciones-facturacion-wrapper" class="confirmar-instrucciones-facturacion-wrapper mb-3"<?php echo $facturarCotizacionExacta === 1 ? ' style="display:none;"' : ''; ?>>
-                        <label for="instrucciones_facturacion_confirm" class="form-label"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing instructions', 'Instrucciones de facturación')); ?></label>
+                        <label for="instrucciones_facturacion_confirm" class="form-label"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_CONFIRMAR_STEP2_TITLE', 'Billing Instructions', 'Instrucciones de Facturación')); ?></label>
                         <textarea name="instrucciones_facturacion" id="instrucciones_facturacion_confirm" class="form-control form-control-sm" rows="3" maxlength="65535" autocomplete="off" data-lpignore="true" data-1p-ignore="true"><?php echo htmlspecialchars($instruccionesFacturacionValue, ENT_QUOTES, 'UTF-8'); ?></textarea>
                     </div>
                     <script>

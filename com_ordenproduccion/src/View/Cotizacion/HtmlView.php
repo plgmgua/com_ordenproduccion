@@ -173,12 +173,12 @@ class HtmlView extends BaseHtmlView
     protected $manualFelSeedFromInvoice = null;
 
     /**
-     * Confirmar modal: billing instruction fields (one per pre-cot with facturar), or empty if none.
+     * Confirmar modal: show billing instructions field when any linked pre-cot has facturar.
      *
-     * @var    array<int, array{id: int, number: string, showSuffix: bool}>
+     * @var    bool
      * @since  3.101.44
      */
-    protected $confirmarInstruccionesFacturacionBlocks = [];
+    protected $confirmarShowInstruccionesFacturacion = false;
 
     /**
      * Confirmar Cotización UX: omit modal when no linked pre-cot has «Facturar» (invoice fields not required).
@@ -527,13 +527,9 @@ class HtmlView extends BaseHtmlView
                         $this->pliegoSizesModal = [];
                         $this->elementosModal = [];
                     }
-                    $this->confirmarInstruccionesFacturacionBlocks = [];
+                    $this->confirmarShowInstruccionesFacturacion = false;
                     if ($precotModel) {
-                        $this->confirmarInstruccionesFacturacionBlocks = $this->buildConfirmarInstruccionesFacturacionBlocks(
-                            (int) $quotationId,
-                            $this->quotationItems,
-                            $precotModel
-                        );
+                        $this->confirmarShowInstruccionesFacturacion = $precotModel->getFacturarPreCotizacionesForQuotation((int) $quotationId) !== [];
                     }
                     $this->refreshConfirmarCotizacionSkipModal();
                     $this->quotationHasActiveOrdenTrabajo = $precotModel->quotationHasActiveOrdenTrabajo((int) $quotationId);
@@ -551,7 +547,7 @@ class HtmlView extends BaseHtmlView
                     $this->pliegoPaperTypesModal = [];
                     $this->pliegoSizesModal = [];
                     $this->elementosModal = [];
-                    $this->confirmarInstruccionesFacturacionBlocks = [];
+                    $this->confirmarShowInstruccionesFacturacion = false;
                     $this->refreshConfirmarCotizacionSkipModal();
                     $this->quotationHasActiveOrdenTrabajo = false;
                 }
@@ -1085,50 +1081,6 @@ class HtmlView extends BaseHtmlView
     }
 
     /**
-     * "Instrucciones de Facturación" blocks in Confirmar modal: hidden when no pre-cot has facturar;
-     * showSuffix when multiple pre-cots on quote and only one has facturar, or when several have facturar.
-     *
-     * @param   int  $quotationId
-     * @param   \stdClass[]  $quotationItems
-     * @param   \Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel  $precotModel
-     *
-     * @return  array<int, array{id: int, number: string, showSuffix: bool}>
-     *
-     * @since   3.101.44
-     */
-    protected function buildConfirmarInstruccionesFacturacionBlocks(int $quotationId, array $quotationItems, $precotModel): array
-    {
-        $facturarList = $precotModel->getFacturarPreCotizacionesForQuotation($quotationId);
-        if ($facturarList === []) {
-            return [];
-        }
-        $distinctPreIds = [];
-        foreach ($quotationItems as $item) {
-            $pid = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
-            if ($pid > 0) {
-                $distinctPreIds[$pid] = true;
-            }
-        }
-        $numDistinct = \count($distinctPreIds);
-        $nFact         = \count($facturarList);
-        $blocks        = [];
-        foreach ($facturarList as $f) {
-            $id  = (int) $f['id'];
-            $num = $f['number'];
-            $showSuffix = ($nFact === 1 && $numDistinct > 1) || $nFact > 1;
-            $blocks[]   = [
-                'id'         => $id,
-                'number'     => $num,
-                'showSuffix' => $showSuffix,
-            ];
-        }
-
-        return $blocks;
-    }
-
-    /**
-     * Set {@see $confirmarCotizacionSkipModal}: direct finalize when quotation is not confirmed and no linked pre-cot has Facturar.
-     *
      * @since  3.115.61
      */
     protected function refreshConfirmarCotizacionSkipModal(): void

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.274-STABLE] - 2026-07-29
+
+### Changed
+- **Confirmar cotización:** Single **Instrucciones de Facturación** field for the whole quotation (no longer one textarea per linked pre-cotización with Facturar).
+
 ## [3.119.273-STABLE] - 2026-07-29
 
 ### Added

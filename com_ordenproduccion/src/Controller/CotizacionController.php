@@ -4947,22 +4947,7 @@ class CotizacionController extends BaseController
         if ($facturarCotizacionExacta === 1) {
             return '';
         }
-        if (\count($facturarList) === 1) {
-            return $app->input->post->getString('instrucciones_facturacion', '');
-        }
-        $arr = $app->input->post->get('instrucciones_facturacion', [], 'array');
-        $parts = [];
-        foreach ($facturarList as $f) {
-            $id = (int) $f['id'];
-            $text = '';
-            if (isset($arr[$id])) {
-                $text = trim((string) $arr[$id]);
-            } elseif (isset($arr[(string) $id])) {
-                $text = trim((string) $arr[(string) $id]);
-            }
-            $parts[] = '[' . $f['number'] . ']' . "\n\n" . $text;
-        }
 
-        return implode("\n\n---\n\n", $parts);
+        return $app->input->post->getString('instrucciones_facturacion', '');
     }
 }
