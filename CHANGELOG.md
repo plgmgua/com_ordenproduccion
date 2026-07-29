@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.277-STABLE] - 2026-07-29
+
+### Fixed
+- **Factura Anulada:** Voiding a factura in the system now automatically releases all linked órdenes de trabajo (suggestion rows, legacy `orden_id`, and `orden.invoice_number`).
+
 ## [3.119.276-STABLE] - 2026-07-29
 
 ### Changed

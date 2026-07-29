@@ -349,7 +349,30 @@ class InvoiceModel extends BaseDatabaseModel
         );
         $db->execute();
 
-        return $db->getAffectedRows() > 0;
+        $updated = $db->getAffectedRows() > 0;
+        if ($updated) {
+            $this->releaseLinkedOrdensAfterInvoiceVoid($invoiceId);
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Drop invoice ↔ orden links after in-app void (Anulada).
+     *
+     * @since  3.119.277
+     */
+    protected function releaseLinkedOrdensAfterInvoiceVoid(int $invoiceId): void
+    {
+        try {
+            $match = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()
+                ->createModel('InvoiceOrdenMatch', 'Site', ['ignore_request' => true]);
+            if ($match && method_exists($match, 'releaseAllInvoiceOrdenAssociations')) {
+                $match->releaseAllInvoiceOrdenAssociations($invoiceId);
+            }
+        } catch (\Throwable $e) {
+        }
     }
 
     /**

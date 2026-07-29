@@ -1623,4 +1623,102 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
         return $changed;
     }
+
+    /**
+     * Unlink every work order associated with an invoice (approved suggestions, legacy orden_id, orden.invoice_number).
+     * Used when a factura is voided (Anulada) so órdenes de trabajo become available again.
+     *
+     * @return  int  Distinct work orders released
+     *
+     * @since   3.119.277
+     */
+    public function releaseAllInvoiceOrdenAssociations(int $invoiceId): int
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1) {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv) {
+            return 0;
+        }
+
+        $invoiceNumber = trim((string) ($inv->invoice_number ?? ''));
+        $ordenIds      = [];
+        $seen          = [];
+
+        $legacyOid = (int) ($inv->orden_id ?? 0);
+        if ($legacyOid > 0) {
+            $ordenIds[]     = $legacyOid;
+            $seen[$legacyOid] = true;
+        }
+
+        if ($this->isTableAvailable()) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('DISTINCT ' . $db->quoteName('orden_id'))
+                    ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                    ->where($db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            foreach ($db->loadColumn() ?: [] as $oid) {
+                $oid = (int) $oid;
+                if ($oid > 0 && !isset($seen[$oid])) {
+                    $ordenIds[]   = $oid;
+                    $seen[$oid] = true;
+                }
+            }
+        }
+
+        $hasLegacyFields = $legacyOid > 0 || trim((string) ($inv->orden_de_trabajo ?? '')) !== '';
+        $now = Factory::getDate()->toSql();
+
+        if ($this->isTableAvailable()) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->delete($db->quoteName('#__ordenproduccion_invoice_orden_suggestions'))
+                    ->where($db->quoteName('invoice_id') . ' = ' . $invoiceId)
+            );
+            $db->execute();
+        }
+
+        if ($hasLegacyFields) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_invoices'))
+                    ->set($db->quoteName('orden_id') . ' = NULL')
+                    ->set($db->quoteName('orden_de_trabajo') . ' = ' . $db->quote(''))
+                    ->set($db->quoteName('modified') . ' = ' . $db->quote($now))
+                    ->where($db->quoteName('id') . ' = ' . $invoiceId)
+            );
+            $db->execute();
+        }
+
+        if ($invoiceNumber !== '' && $ordenIds !== []) {
+            $cols   = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $colsLc = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (isset($colsLc['invoice_number'])) {
+                $ids = implode(',', array_map('intval', $ordenIds));
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->update($db->quoteName('#__ordenproduccion_ordenes'))
+                        ->set($db->quoteName('invoice_number') . ' = NULL')
+                        ->where($db->quoteName('id') . ' IN (' . $ids . ')')
+                        ->where($db->quoteName('invoice_number') . ' = ' . $db->quote($invoiceNumber))
+                );
+                $db->execute();
+            }
+        }
+
+        return count($ordenIds);
+    }
 }
