@@ -26,6 +26,7 @@ $entityLabel = static function (string $entityType): string {
         'orden_compra'            => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_ORDEN_COMPRA',
         'timesheet'               => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_TIMESHEET',
         'payment_proof'           => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF',
+        'payment_proof_deletion'  => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_PAYMENT_PROOF_DELETION',
         'solicitud_descuento'     => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_DESCUENTO',
         'solicitud_cotizacion'    => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_SOLICITUD_COTIZACION',
         'cotizacion_facturacion_manual' => 'COM_ORDENPRODUCCION_APPROVAL_ENTITY_COTIZACION_FACTURACION_MANUAL',
@@ -82,6 +83,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                         $isPreCotVendor = $etype === 'solicitud_cotizacion';
                         $isCreacionOt   = $etype === 'creacion_orden_trabajo';
                         $isPaymentProof = $etype === 'payment_proof';
+                        $isPaymentProofDeletion = $etype === ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION;
                         $isOrdenCompra  = $etype === 'orden_compra';
                         $isServiciosExternos = $etype === 'servicios_elementos_externos';
                         $isManualFacturacion = $etype === ApprovalWorkflowService::ENTITY_COTIZACION_FACTURACION_MANUAL;
@@ -115,7 +117,7 @@ $modId = 'mod-ordop-pending-approvals-' . (int) $module->id;
                             $idLabel = isset($row->quotation_number) && (string) $row->quotation_number !== ''
                                 ? (string) $row->quotation_number
                                 : ($eid > 0 ? 'COT-' . str_pad((string) $eid, 6, '0', STR_PAD_LEFT) : '');
-                        } elseif ($isPaymentProof) {
+                        } elseif ($isPaymentProof || $isPaymentProofDeletion) {
                             $idLabel = $eid > 0
                                 ? ('PA-' . str_pad((string) $eid, 5, '0', STR_PAD_LEFT))
                                 : '';

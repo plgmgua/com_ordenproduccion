@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.278-STABLE] - 2026-07-30
+
+### Fixed
+- **Aprobaciones — Pago.Borr (eliminación de comprobante):** Pending-approval links now open the payment proof (`paymentproof&order_id=&proof_id=`) instead of a broken `id=` URL. Module `mod_ordop_pending_approvals` now resolves clickable rows for `payment_proof_deletion`.
+
 ## [3.119.277-STABLE] - 2026-07-29
 
 ### Fixed

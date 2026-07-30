@@ -101,6 +101,66 @@ class ApprovalWorkflowService
     }
 
     /**
+     * Relative site URL for Control de Pagos → payment proof screen (order + proof highlight).
+     *
+     * @since  3.119.278
+     */
+    public static function resolvePaymentProofViewRelativeUrl(int $proofId): string
+    {
+        if ($proofId < 1) {
+            return '';
+        }
+
+        $orderId = self::firstOrderIdForPaymentProof($proofId);
+
+        if ($orderId > 0) {
+            return 'index.php?option=com_ordenproduccion&view=paymentproof&order_id='
+                . $orderId . '&proof_id=' . $proofId;
+        }
+
+        return 'index.php?option=com_ordenproduccion&view=payments';
+    }
+
+    /**
+     * @since  3.119.278
+     */
+    private static function firstOrderIdForPaymentProof(int $proofId): int
+    {
+        if ($proofId < 1) {
+            return 0;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $tables = $db->getTableList();
+            $want   = $db->getPrefix() . 'ordenproduccion_payment_orders';
+            $has    = false;
+            foreach ($tables as $t) {
+                if (strcasecmp((string) $t, $want) === 0) {
+                    $has = true;
+                    break;
+                }
+            }
+            if (!$has) {
+                return 0;
+            }
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('order_id'))
+                    ->from($db->quoteName('#__ordenproduccion_payment_orders'))
+                    ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId)
+                    ->order($db->quoteName('order_id') . ' ASC')
+                    ->setLimit(1)
+            );
+
+            return (int) $db->loadResult();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
      * Relative site URL to open the record this pending approval refers to (for Administración → Aprobaciones links).
      *
      * @param   object  $row  Row from {@see self::getMyPendingApprovalRows()} (entity_type, entity_id, metadata)
@@ -174,15 +234,11 @@ class ApprovalWorkflowService
                 break;
 
             case self::ENTITY_PAYMENT_PROOF:
-                if ($eid > 0) {
-                    return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&id=' . $eid, false);
-                }
-
-                break;
-
             case self::ENTITY_PAYMENT_PROOF_DELETION:
                 if ($eid > 0) {
-                    return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&id=' . $eid, false);
+                    $rel = self::resolvePaymentProofViewRelativeUrl($eid);
+
+                    return $rel !== '' ? Route::_($rel, false) : '';
                 }
 
                 break;
@@ -219,7 +275,9 @@ class ApprovalWorkflowService
         $proofId = (int) ($meta['payment_proof_id'] ?? 0);
 
         if ($proofId > 0) {
-            return Route::_('index.php?option=com_ordenproduccion&view=paymentproof&id=' . $proofId, false);
+            $rel = self::resolvePaymentProofViewRelativeUrl($proofId);
+
+            return $rel !== '' ? Route::_($rel, false) : '';
         }
 
         $orderId = (int) ($meta['order_id'] ?? 0);

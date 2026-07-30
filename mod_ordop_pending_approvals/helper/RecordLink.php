@@ -21,9 +21,6 @@ use Joomla\Database\DatabaseInterface;
  */
 final class RecordLink
 {
-    /** @var bool|null */
-    private static $hasPaymentOrdersTable;
-
     /** @var array<int,int> pre_cotizacion_line.id → pre_cotizacion_id */
     private static array $servExtLinePreCotCache = [];
 
@@ -83,11 +80,10 @@ final class RecordLink
                 return 'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $eid;
 
             case ApprovalWorkflowService::ENTITY_PAYMENT_PROOF:
-                $orderId = self::firstOrderIdForPaymentProof($db, $eid);
+            case ApprovalWorkflowService::ENTITY_PAYMENT_PROOF_DELETION:
+                $rel = ApprovalWorkflowService::resolvePaymentProofViewRelativeUrl($eid);
 
-                return $orderId > 0
-                    ? 'index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId . '&proof_id=' . $eid
-                    : null;
+                return $rel !== '' ? $rel : null;
 
             case ApprovalWorkflowService::ENTITY_TIMESHEET:
                 $meta = self::decodeMetadata($row);
@@ -136,42 +132,5 @@ final class RecordLink
         $decoded = json_decode($raw, true);
 
         return is_array($decoded) ? $decoded : [];
-    }
-
-    private static function firstOrderIdForPaymentProof(DatabaseInterface $db, int $proofId): int
-    {
-        if ($proofId < 1) {
-            return 0;
-        }
-
-        try {
-            if (self::$hasPaymentOrdersTable === null) {
-                $tables = $db->getTableList();
-                $want   = $db->getPrefix() . 'ordenproduccion_payment_orders';
-                self::$hasPaymentOrdersTable = false;
-                foreach ($tables as $t) {
-                    if (strcasecmp((string) $t, $want) === 0) {
-                        self::$hasPaymentOrdersTable = true;
-                        break;
-                    }
-                }
-            }
-            if (!self::$hasPaymentOrdersTable) {
-                return 0;
-            }
-
-            $db->setQuery(
-                $db->getQuery(true)
-                    ->select($db->quoteName('order_id'))
-                    ->from($db->quoteName('#__ordenproduccion_payment_orders'))
-                    ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId)
-                    ->order($db->quoteName('order_id') . ' ASC')
-                    ->setLimit(1)
-            );
-
-            return (int) $db->loadResult();
-        } catch (\Throwable $e) {
-            return 0;
-        }
     }
 }
