@@ -964,6 +964,24 @@ class HtmlView extends BaseHtmlView
     protected $financieroMt940BalanceRows = [];
 
     /**
+     * MT-940 transaction id => linked PA info (Financiero list).
+     *
+     * @var  array<int, array<string, mixed>>
+     *
+     * @since  3.119.283
+     */
+    protected $financieroMt940LinkedByTxId = [];
+
+    /**
+     * Whether Financiero MT-940 manual PA link UI is available.
+     *
+     * @var  bool
+     *
+     * @since  3.119.283
+     */
+    protected $financieroMt940LinkEnabled = false;
+
+    /**
      * @var  array<int, object>
      *
      * @since  3.119.151
@@ -1631,6 +1649,8 @@ class HtmlView extends BaseHtmlView
         $this->financieroMt940ImportRows            = [];
         $this->financieroMt940ImportTotal           = 0;
         $this->financieroMt940BalanceRows           = [];
+        $this->financieroMt940LinkedByTxId         = [];
+        $this->financieroMt940LinkEnabled           = false;
         $this->ajustesMt940SchemaOk                 = false;
         $this->ajustesMt940BankAccountOptions       = [];
         $this->mt940CronCrontabLine                 = '';
@@ -2311,6 +2331,21 @@ class HtmlView extends BaseHtmlView
                             $this->financieroMt940BalanceRows = $admFin->getMt940LatestBalancesByAccount([
                                 'bank_account_id' => $this->financieroMt940FilterBankAccountId,
                             ]);
+
+                            $this->financieroMt940LinkEnabled = \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled();
+                            if ($this->financieroMt940LinkEnabled && $this->financieroMt940Rows !== []) {
+                                $txIds = [];
+                                foreach ($this->financieroMt940Rows as $mtRow) {
+                                    $tid = (int) ($mtRow->id ?? 0);
+                                    if ($tid > 0) {
+                                        $txIds[] = $tid;
+                                    }
+                                }
+                                if ($txIds !== []) {
+                                    $matchSvc = new \Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService();
+                                    $this->financieroMt940LinkedByTxId = $matchSvc->getLinkedProofInfoByTransactionIds($txIds);
+                                }
+                            }
 
                             if ($this->financieroMt940Total > 0) {
                                 $this->financieroMt940Pagination = new \Joomla\CMS\Pagination\Pagination(

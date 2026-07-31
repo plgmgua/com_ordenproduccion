@@ -900,6 +900,415 @@ class Mt940PaymentMatchService
     }
 
     /**
+     * Whether an MT-940 transaction is already linked to a payment proof line.
+     *
+     * @since   3.119.283
+     */
+    public function isTransactionLinked(int $txId): bool
+    {
+        $txId = (int) $txId;
+        if ($txId < 1 || !$this->hasMatchColumns()) {
+            return false;
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select('COUNT(*)')
+                ->from($this->db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                ->where($this->db->quoteName('mt940_transaction_id') . ' = ' . $txId);
+            $this->db->setQuery($q);
+
+            return (int) $this->db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Linked payment proof info keyed by MT-940 transaction id (batch for list UI).
+     *
+     * @param   int[]  $txIds
+     *
+     * @return  array<int, array{payment_proof_id: int, pa_label: string, line_id: int, order_id: int}>
+     *
+     * @since   3.119.283
+     */
+    public function getLinkedProofInfoByTransactionIds(array $txIds): array
+    {
+        $txIds = array_values(array_filter(array_map('intval', $txIds)));
+        if ($txIds === [] || !$this->hasMatchColumns()) {
+            return [];
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select([
+                    $this->db->quoteName('l.mt940_transaction_id'),
+                    $this->db->quoteName('l.id', 'line_id'),
+                    $this->db->quoteName('l.payment_proof_id'),
+                    $this->db->quoteName('po.order_id', 'order_id'),
+                ])
+                ->from($this->db->quoteName('#__ordenproduccion_payment_proof_lines', 'l'))
+                ->join(
+                    'INNER',
+                    $this->db->quoteName('#__ordenproduccion_payment_proofs', 'pp'),
+                    $this->db->quoteName('pp.id') . ' = ' . $this->db->quoteName('l.payment_proof_id')
+                )
+                ->join(
+                    'LEFT',
+                    $this->db->quoteName('#__ordenproduccion_payment_orders', 'po'),
+                    $this->db->quoteName('po.payment_proof_id') . ' = ' . $this->db->quoteName('l.payment_proof_id')
+                )
+                ->where($this->db->quoteName('l.mt940_transaction_id') . ' IN (' . implode(',', $txIds) . ')')
+                ->where($this->db->quoteName('pp.state') . ' = 1')
+                ->order($this->db->quoteName('po.id') . ' ASC');
+            $this->db->setQuery($q);
+            $rows = $this->db->loadObjectList() ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $txId = (int) ($row->mt940_transaction_id ?? 0);
+            if ($txId < 1 || isset($out[$txId])) {
+                continue;
+            }
+            $proofId = (int) ($row->payment_proof_id ?? 0);
+            $out[$txId] = [
+                'payment_proof_id' => $proofId,
+                'pa_label'         => 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT),
+                'line_id'          => (int) ($row->line_id ?? 0),
+                'order_id'         => (int) ($row->order_id ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Ingresado payment proofs with an unlinked line on the same bank account as the MT-940 credit.
+     *
+     * @return  array<int, array<string, mixed>>
+     *
+     * @since   3.119.283
+     */
+    public function searchUnlinkedPaymentProofsForTransaction(int $txId, int $limit = 30, string $search = ''): array
+    {
+        $txId = (int) $txId;
+        if ($txId < 1 || !$this->hasMatchColumns() || !Mt940ImportHelper::tablesAvailable()) {
+            return [];
+        }
+
+        if ($this->isTransactionLinked($txId)) {
+            return [];
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('t.*')
+            ->from($this->db->quoteName('#__ordenproduccion_mt940_transactions', 't'))
+            ->where('t.' . $this->db->quoteName('id') . ' = ' . $txId);
+        $this->db->setQuery($q);
+        $tx = $this->db->loadObject();
+        if ($tx === null || trim((string) ($tx->debit_credit ?? '')) !== 'C') {
+            return [];
+        }
+
+        $bankAccountId = (int) ($tx->bank_account_id ?? 0);
+        if ($bankAccountId < 1 || !$this->isBankAccountInMt940Scope($bankAccountId)) {
+            return [];
+        }
+
+        $txAmount = round((float) ($tx->amount ?? 0), 2);
+        $txDate   = trim((string) ($tx->transaction_date ?? ''));
+        if ($txDate === '' || $txDate === '0000-00-00') {
+            $txDate = trim((string) ($tx->value_date ?? ''));
+        }
+
+        $configuredIds = $this->getConfiguredMt940BankAccountIds();
+        if ($configuredIds === []) {
+            return [];
+        }
+
+        $types = array_map(fn ($t) => $this->db->quote($t), self::BANK_PAYMENT_TYPES);
+
+        $listQ = $this->db->getQuery(true)
+            ->select([
+                'pp.' . $this->db->quoteName('id', 'proof_id'),
+                'pp.' . $this->db->quoteName('created_by'),
+                'l.' . $this->db->quoteName('id', 'line_id'),
+                'l.' . $this->db->quoteName('document_number'),
+                'l.' . $this->db->quoteName('document_date'),
+                'l.' . $this->db->quoteName('amount'),
+                'l.' . $this->db->quoteName('payment_type'),
+                'MIN(' . $this->db->quoteName('po.order_id') . ')' . ' AS ' . $this->db->quoteName('order_id'),
+            ])
+            ->from($this->db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->innerJoin(
+                $this->db->quoteName('#__ordenproduccion_payment_proof_lines', 'l')
+                . ' ON ' . $this->db->quoteName('l.payment_proof_id') . ' = ' . $this->db->quoteName('pp.id')
+            )
+            ->leftJoin(
+                $this->db->quoteName('#__ordenproduccion_payment_orders', 'po')
+                . ' ON ' . $this->db->quoteName('po.payment_proof_id') . ' = ' . $this->db->quoteName('pp.id')
+            )
+            ->where('pp.' . $this->db->quoteName('state') . ' = 1')
+            ->where(
+                '(' . 'pp.' . $this->db->quoteName('verification_status') . ' IS NULL'
+                . ' OR pp.' . $this->db->quoteName('verification_status') . ' = ' . $this->db->quote('')
+                . ' OR LOWER(TRIM(pp.' . $this->db->quoteName('verification_status') . ')) = ' . $this->db->quote('ingresado') . ')'
+            )
+            ->where('l.' . $this->db->quoteName('payment_type') . ' IN (' . implode(',', $types) . ')')
+            ->where('l.' . $this->db->quoteName('bank_account_id') . ' = ' . $bankAccountId)
+            ->where(
+                '(' . 'l.' . $this->db->quoteName('mt940_transaction_id') . ' IS NULL'
+                . ' OR l.' . $this->db->quoteName('mt940_transaction_id') . ' = 0)'
+            )
+            ->group('pp.id, l.id');
+
+        $search = trim($search);
+        if ($search !== '') {
+            if (preg_match('/^pa[-\s]?(\d+)$/i', $search, $m)) {
+                $listQ->where('pp.' . $this->db->quoteName('id') . ' = ' . (int) $m[1]);
+            } elseif (preg_match('/^\d+$/', $search)) {
+                $listQ->where(
+                    '(' . 'pp.' . $this->db->quoteName('id') . ' = ' . (int) $search
+                    . ' OR l.' . $this->db->quoteName('document_number') . ' LIKE ' . $this->db->quote('%' . $search . '%') . ')'
+                );
+            } else {
+                $listQ->where('l.' . $this->db->quoteName('document_number') . ' LIKE ' . $this->db->quote('%' . $search . '%'));
+            }
+        }
+
+        $listQ->order('pp.' . $this->db->quoteName('id') . ' DESC');
+
+        $limit = max(1, min(50, $limit));
+        $this->db->setQuery($listQ, 0, $limit * 3);
+        $rows = $this->db->loadObjectList() ?: [];
+
+        $candidates = [];
+        foreach ($rows as $row) {
+            $proofId = (int) ($row->proof_id ?? 0);
+            if ($proofId < 1 || !$this->proofRequiresMt940Verification($proofId)) {
+                continue;
+            }
+
+            $lineAmount = round((float) ($row->amount ?? 0), 2);
+            $lineDate   = $this->normalizeLineDate($row);
+            $amountDiff = $txAmount > 0 ? abs($lineAmount - $txAmount) : 0.0;
+            $dateDiff   = 9999;
+            if ($txDate !== '' && $lineDate !== '') {
+                try {
+                    $dateDiff = abs((int) Factory::getDate($txDate)->format('U') - (int) Factory::getDate($lineDate)->format('U')) / 86400;
+                } catch (\Throwable $e) {
+                    $dateDiff = 9999;
+                }
+            }
+
+            $candidates[] = [
+                'proof_id'        => $proofId,
+                'pa_label'        => 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT),
+                'line_id'         => (int) ($row->line_id ?? 0),
+                'document_number' => trim((string) ($row->document_number ?? '')),
+                'document_date'   => $lineDate,
+                'amount'          => $lineAmount,
+                'payment_type'    => trim((string) ($row->payment_type ?? '')),
+                'order_id'        => (int) ($row->order_id ?? 0),
+                '_amount_diff'    => $amountDiff,
+                '_date_diff'      => $dateDiff,
+            ];
+        }
+
+        usort($candidates, static function (array $a, array $b): int {
+            $cmp = $a['_amount_diff'] <=> $b['_amount_diff'];
+            if ($cmp !== 0) {
+                return $cmp;
+            }
+
+            return $a['_date_diff'] <=> $b['_date_diff'];
+        });
+
+        $out = [];
+        foreach (array_slice($candidates, 0, $limit) as $row) {
+            unset($row['_amount_diff'], $row['_date_diff']);
+            $out[] = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Manually associate an unlinked MT-940 credit with an ingresado payment proof (Financiero UI).
+     *
+     * @return  array{success: bool, message: string, proof_id?: int, pa_label?: string, request_id?: int}
+     *
+     * @since   3.119.283
+     */
+    public function linkTransactionToPaymentProof(int $txId, int $proofId, int $actorUserId): array
+    {
+        if (!Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            return ['success' => false, 'message' => 'MT-940 payment verification disabled.'];
+        }
+
+        if (!Mt940ImportHelper::tablesAvailable() || !$this->hasMatchColumns()) {
+            return ['success' => false, 'message' => 'MT-940 schema not available.'];
+        }
+
+        $txId    = (int) $txId;
+        $proofId = (int) $proofId;
+        if ($txId < 1 || $proofId < 1) {
+            return ['success' => false, 'message' => 'Invalid transaction or payment proof.'];
+        }
+
+        if ($this->isTransactionLinked($txId)) {
+            return ['success' => false, 'message' => 'MT-940 transaction already linked to a payment.'];
+        }
+
+        $q = $this->db->getQuery(true)
+            ->select('t.*')
+            ->from($this->db->quoteName('#__ordenproduccion_mt940_transactions', 't'))
+            ->where('t.' . $this->db->quoteName('id') . ' = ' . $txId);
+        $this->db->setQuery($q);
+        $tx = $this->db->loadObject();
+        if ($tx === null || trim((string) ($tx->debit_credit ?? '')) !== 'C') {
+            return ['success' => false, 'message' => 'Only credit transactions can be linked to payments.'];
+        }
+
+        $ppCols = $this->db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $ppCols = \is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+        if (!isset($ppCols['verification_status'])) {
+            return ['success' => false, 'message' => 'Payment proof schema missing verification status.'];
+        }
+
+        $proofQ = $this->db->getQuery(true)
+            ->select(['pp.*'])
+            ->from($this->db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
+            ->where('pp.' . $this->db->quoteName('id') . ' = ' . $proofId)
+            ->where('pp.' . $this->db->quoteName('state') . ' = 1')
+            ->where(
+                '(' . 'pp.' . $this->db->quoteName('verification_status') . ' IS NULL'
+                . ' OR pp.' . $this->db->quoteName('verification_status') . ' = ' . $this->db->quote('')
+                . ' OR LOWER(TRIM(pp.' . $this->db->quoteName('verification_status') . ')) = ' . $this->db->quote('ingresado') . ')'
+            );
+        $this->db->setQuery($proofQ);
+        $proof = $this->db->loadObject();
+        if ($proof === null) {
+            return ['success' => false, 'message' => 'Payment proof not found or not in ingresado status.'];
+        }
+
+        if (!$this->proofRequiresMt940Verification($proofId)) {
+            return ['success' => false, 'message' => 'Payment proof does not require MT-940 verification.'];
+        }
+
+        $line = $this->findLinkableLineForTransaction(
+            $proofId,
+            (int) ($tx->bank_account_id ?? 0),
+            round((float) ($tx->amount ?? 0), 2)
+        );
+        if ($line === null) {
+            return ['success' => false, 'message' => 'No unlinked payment line on the same bank account.'];
+        }
+
+        $lineId = (int) ($line->id ?? 0);
+        $this->updateLineMatchState($lineId, $txId, 'manual');
+        $this->touchLineCheckedAt($lineId, Factory::getDate()->toSql());
+
+        $wfSvc = new ApprovalWorkflowService();
+        if (!$wfSvc->hasSchema()) {
+            return ['success' => false, 'message' => 'Approval workflow schema missing.'];
+        }
+
+        $linePayload = $this->buildLineMatchPayload($line, $tx);
+        $linePayload['manual_override']  = true;
+        $linePayload['financiero_link']  = true;
+        $requestId                       = 0;
+        $openReq                         = $wfSvc->getOpenPendingRequest(ApprovalWorkflowService::ENTITY_PAYMENT_PROOF, $proofId);
+
+        if ($openReq !== null) {
+            $requestId = (int) ($openReq->id ?? 0);
+            $override  = json_encode([
+                'lines' => [
+                    ['line_id' => $lineId, 'mt940_transaction_id' => $txId],
+                ],
+            ], JSON_UNESCAPED_UNICODE) ?: '';
+            if ($requestId < 1 || !$wfSvc->applyManualMt940OverrideToPaymentProofRequest($requestId, $override)) {
+                $this->updateLineMatchState($lineId, null, 'no_match');
+
+                return ['success' => false, 'message' => 'Failed to update pending approval with MT-940 link.'];
+            }
+        } else {
+            $metadata  = $this->buildApprovalMetadata($proofId, [$linePayload]);
+            $submitter = (int) ($proof->created_by ?? 0);
+            if ($submitter < 1) {
+                $submitter = $actorUserId > 0 ? $actorUserId : 1;
+            }
+            $requestId = $wfSvc->createRequest(
+                ApprovalWorkflowService::ENTITY_PAYMENT_PROOF,
+                $proofId,
+                $submitter,
+                $metadata
+            );
+            if ($requestId < 1) {
+                $this->updateLineMatchState($lineId, null, 'no_match');
+
+                return ['success' => false, 'message' => 'Linked line but failed to create approval request.'];
+            }
+        }
+
+        Mt940PaymentMatchLogHelper::log(
+            $proofId,
+            $lineId,
+            Mt940PaymentMatchLogHelper::STATUS_MATCHED,
+            'Manual Financiero link: MT-940 #' . $txId . ' → PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT)
+            . ($requestId > 0 ? ' (approval #' . $requestId . ').' : '.')
+        );
+
+        return [
+            'success'    => true,
+            'message'    => 'Payment linked successfully.',
+            'proof_id'   => $proofId,
+            'pa_label'   => 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT),
+            'request_id' => $requestId,
+        ];
+    }
+
+    /**
+     * @since   3.119.283
+     */
+    protected function findLinkableLineForTransaction(int $proofId, int $bankAccountId, float $txAmount): ?object
+    {
+        if ($proofId < 1 || $bankAccountId < 1) {
+            return null;
+        }
+
+        $lines = array_values(array_filter(
+            $this->getMt940ScopedBankLinesForProof($proofId),
+            function ($line) use ($bankAccountId) {
+                $lineBank = (int) ($line->bank_account_id ?? 0);
+                $linked   = (int) ($line->mt940_transaction_id ?? 0);
+
+                return $lineBank === $bankAccountId && $linked < 1;
+            }
+        ));
+
+        if ($lines === []) {
+            return null;
+        }
+
+        if (\count($lines) === 1) {
+            return $lines[0];
+        }
+
+        foreach ($lines as $line) {
+            if (abs(round((float) ($line->amount ?? 0), 2) - $txAmount) < 0.005) {
+                return $line;
+            }
+        }
+
+        return $lines[0];
+    }
+
+    /**
      * Load MT-940 verification metadata from an approval request row.
      *
      * @return  array<string, mixed>|null

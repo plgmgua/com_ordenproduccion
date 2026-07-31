@@ -4024,6 +4024,94 @@ class AdministracionController extends BaseController
     }
 
     /**
+     * JSON: search ingresado payment proofs without MT-940 link for a bank credit (Financiero).
+     *
+     * @return  void
+     *
+     * @since   3.119.283
+     */
+    public function searchUnlinkedPaymentsForMt940(): void
+    {
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $this->sendAdministracionJson(false, Text::_('JGLOBAL_AUTH_ALERT'));
+
+            return;
+        }
+
+        if (!\Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_DISABLED'));
+
+            return;
+        }
+
+        $txId   = Factory::getApplication()->input->getInt('tx_id', 0);
+        $search = trim(Factory::getApplication()->input->getString('search', ''));
+
+        $svc  = new \Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService();
+        $rows = $svc->searchUnlinkedPaymentProofsForTransaction($txId, 30, $search);
+
+        $this->sendAdministracionJson(true, '', ['rows' => $rows]);
+    }
+
+    /**
+     * Link an unlinked MT-940 credit to an ingresado payment proof (Financiero).
+     *
+     * @return  void
+     *
+     * @since   3.119.283
+     */
+    public function linkMt940TransactionToPaymentProof(): void
+    {
+        $app         = Factory::getApplication();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias', false);
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $user = Factory::getUser();
+        if ($user->guest || !AccessHelper::isSuperUser()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if (!\Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_DISABLED'), 'warning');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $txId    = $app->input->post->getInt('tx_id', 0);
+        $proofId = $app->input->post->getInt('proof_id', 0);
+
+        $svc    = new \Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService();
+        $result = $svc->linkTransactionToPaymentProof($txId, $proofId, (int) $user->id);
+
+        if (!empty($result['success'])) {
+            $paLabel = trim((string) ($result['pa_label'] ?? ''));
+            $app->enqueueMessage(
+                Text::sprintf('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_SUCCESS', $paLabel !== '' ? $paLabel : ('PA-' . $proofId)),
+                'success'
+            );
+        } else {
+            $msg = trim((string) ($result['message'] ?? ''));
+            $app->enqueueMessage(
+                $msg !== '' ? $msg : Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_ERROR'),
+                'error'
+            );
+        }
+
+        $app->redirect($redirectUrl);
+    }
+
+    /**
      * Save vendor quote message templates (email / cellphone / PDF). Ajustes — Administración / Admon only.
      *
      * @return  void

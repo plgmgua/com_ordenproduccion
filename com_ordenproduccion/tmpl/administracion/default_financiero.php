@@ -462,6 +462,11 @@ $pagoConfirmadoBadge = static function ($r): string {
     $mt940FilterYear   = max(2000, min(2100, (int) ($this->financieroMt940FilterYear ?? (int) \date('Y'))));
     $mt940Rows         = isset($this->financieroMt940Rows) && \is_array($this->financieroMt940Rows) ? $this->financieroMt940Rows : [];
     $mt940BalanceRows  = isset($this->financieroMt940BalanceRows) && \is_array($this->financieroMt940BalanceRows) ? $this->financieroMt940BalanceRows : [];
+    $mt940LinkedByTxId = isset($this->financieroMt940LinkedByTxId) && \is_array($this->financieroMt940LinkedByTxId)
+        ? $this->financieroMt940LinkedByTxId : [];
+    $mt940LinkEnabled  = !empty($this->financieroMt940LinkEnabled);
+    $mt940PaSearchUrl  = Route::_('index.php?option=com_ordenproduccion&task=administracion.searchUnlinkedPaymentsForMt940&format=json', false);
+    $mt940PaLinkAction = Route::_('index.php?option=com_ordenproduccion&task=administracion.linkMt940TransactionToPaymentProof', false);
     $mt940FormBaseQs   = 'index.php?option=com_ordenproduccion&view=administracion&tab=financiero&financiero_subtab=cuentas_bancarias' . $finItemSuffix;
     $mt940FormAction   = Route::_($mt940FormBaseQs, false);
     $mt940YearMin      = max(2000, (int) ($this->financieroMt940FilterYearMin ?? ((int) \date('Y') - 5)));
@@ -652,11 +657,17 @@ $pagoConfirmadoBadge = static function ($r): string {
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_DESCRIPTION'); ?></th>
                             <th><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_TYPE'); ?></th>
                             <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_AMOUNT'); ?></th>
+                            <?php if ($mt940LinkEnabled) : ?>
+                            <th class="text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_COL_PAYMENT'); ?></th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($mt940Rows as $row) :
+                            $txId     = (int) ($row->id ?? 0);
                             $dc       = (string) ($row->debit_credit ?? '');
+                            $linked   = $txId > 0 && isset($mt940LinkedByTxId[$txId]) ? $mt940LinkedByTxId[$txId] : null;
+                            $canLink  = $mt940LinkEnabled && $dc === 'C' && $linked === null;
                             $currency = \strtoupper(\trim((string) ($row->currency ?? '')));
                             $stmtCur  = \strtoupper(\trim((string) ($row->statement_currency ?? '')));
                             if (!\in_array($currency, ['GTQ', 'USD'], true)) {
@@ -679,6 +690,35 @@ $pagoConfirmadoBadge = static function ($r): string {
                             <td class="text-end <?php echo $dc === 'D' ? 'text-danger' : 'text-success'; ?>">
                                 <?php echo htmlspecialchars($fmtMt940Amount($row->amount ?? 0, $dc, $currency)); ?>
                             </td>
+                            <?php if ($mt940LinkEnabled) : ?>
+                            <td class="text-nowrap">
+                                <?php if (\is_array($linked)) :
+                                    $paLabel = trim((string) ($linked['pa_label'] ?? ''));
+                                    $orderId = (int) ($linked['order_id'] ?? 0);
+                                    $proofId = (int) ($linked['payment_proof_id'] ?? 0);
+                                    $paUrl   = $orderId > 0
+                                        ? Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId . ($proofId > 0 ? '&proof_id=' . $proofId : ''), false)
+                                        : '';
+                                    ?>
+                                    <?php if ($paUrl !== '') : ?>
+                                        <a href="<?php echo htmlspecialchars($paUrl, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($paLabel, ENT_QUOTES, 'UTF-8'); ?></a>
+                                    <?php else : ?>
+                                        <?php echo htmlspecialchars($paLabel, ENT_QUOTES, 'UTF-8'); ?>
+                                    <?php endif; ?>
+                                <?php elseif ($canLink) : ?>
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-sm fin-mt940-link-pa-btn"
+                                            data-tx-id="<?php echo $txId; ?>"
+                                            data-tx-ref="<?php echo htmlspecialchars((string) ($row->reference ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-tx-date="<?php echo htmlspecialchars((string) ($row->transaction_date ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-tx-amount="<?php echo htmlspecialchars(number_format(round((float) ($row->amount ?? 0), 2), 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                        <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_BTN'); ?>
+                                    </button>
+                                <?php else : ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -688,6 +728,141 @@ $pagoConfirmadoBadge = static function ($r): string {
             <?php if ($mt940Pag && (int) ($this->financieroMt940Total ?? 0) > 0) : ?>
                 <div class="com-content-pagination mt-3 small"><?php echo $mt940Pag->getListFooter(); ?></div>
             <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if ($mt940LinkEnabled && $mt940SchemaOk && $mt940Accounts !== []) : ?>
+        <div class="modal fade" id="finMt940LinkPaModal" tabindex="-1" aria-labelledby="finMt940LinkPaModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="finMt940LinkPaModalLabel"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_MODAL_TITLE'); ?></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo Text::_('JCLOSE'); ?>"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-2" id="fin-mt940-link-tx-summary"></p>
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" class="form-control" id="fin-mt940-link-pa-search" placeholder="<?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_SEARCH_PLACEHOLDER'); ?>" />
+                            <button type="button" class="btn btn-outline-secondary" id="fin-mt940-link-pa-search-btn"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_SEARCH_BTN'); ?></button>
+                        </div>
+                        <div id="fin-mt940-link-pa-results" class="list-group small"></div>
+                        <p class="small text-muted mt-2 mb-0 d-none" id="fin-mt940-link-pa-empty"><?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_EMPTY'); ?></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <form method="post" action="<?php echo htmlspecialchars($mt940PaLinkAction, ENT_QUOTES, 'UTF-8'); ?>" id="fin-mt940-link-pa-form" class="d-none">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="hidden" name="tx_id" id="fin-mt940-link-form-tx-id" value="" />
+            <input type="hidden" name="proof_id" id="fin-mt940-link-form-proof-id" value="" />
+        </form>
+        <script>
+        (function () {
+          var searchUrl = <?php echo json_encode($mt940PaSearchUrl); ?>;
+          var modalEl = document.getElementById('finMt940LinkPaModal');
+          var summaryEl = document.getElementById('fin-mt940-link-tx-summary');
+          var resultsEl = document.getElementById('fin-mt940-link-pa-results');
+          var emptyEl = document.getElementById('fin-mt940-link-pa-empty');
+          var searchInput = document.getElementById('fin-mt940-link-pa-search');
+          var searchBtn = document.getElementById('fin-mt940-link-pa-search-btn');
+          var formEl = document.getElementById('fin-mt940-link-pa-form');
+          var formTxId = document.getElementById('fin-mt940-link-form-tx-id');
+          var formProofId = document.getElementById('fin-mt940-link-form-proof-id');
+          var activeTxId = 0;
+          var modal = modalEl && window.bootstrap ? new window.bootstrap.Modal(modalEl) : null;
+
+          function escHtml(s) {
+            return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+          }
+
+          function renderRows(rows) {
+            if (!resultsEl) return;
+            resultsEl.innerHTML = '';
+            if (!rows || !rows.length) {
+              if (emptyEl) emptyEl.classList.remove('d-none');
+              return;
+            }
+            if (emptyEl) emptyEl.classList.add('d-none');
+            rows.forEach(function (row) {
+              var btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'list-group-item list-group-item-action text-start fin-mt940-pick-pa-btn';
+              btn.setAttribute('data-proof-id', String(row.proof_id || '0'));
+              var doc = row.document_number ? escHtml(row.document_number) : '—';
+              var dt = row.document_date ? escHtml(row.document_date) : '—';
+              var amt = typeof row.amount === 'number' ? row.amount.toFixed(2) : escHtml(row.amount);
+              btn.innerHTML = '<div><strong>' + escHtml(row.pa_label || '') + '</strong></div>'
+                + '<div class="text-muted">' + <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER')); ?> + ': ' + doc
+                + ' · ' + <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_DOCUMENT_DATE')); ?> + ': ' + dt
+                + ' · Q ' + amt + '</div>';
+              resultsEl.appendChild(btn);
+            });
+          }
+
+          function loadCandidates() {
+            if (activeTxId < 1) return;
+            if (resultsEl) resultsEl.innerHTML = '<div class="text-muted small p-2">…</div>';
+            if (emptyEl) emptyEl.classList.add('d-none');
+            var q = searchInput ? searchInput.value.trim() : '';
+            var url = searchUrl + (searchUrl.indexOf('?') >= 0 ? '&' : '?') + 'tx_id=' + encodeURIComponent(String(activeTxId));
+            if (q !== '') url += '&search=' + encodeURIComponent(q);
+            fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                if (!data || !data.success) {
+                  renderRows([]);
+                  return;
+                }
+                renderRows((data.data && data.data.rows) ? data.data.rows : []);
+              })
+              .catch(function () { renderRows([]); });
+          }
+
+          document.querySelectorAll('.fin-mt940-link-pa-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              activeTxId = parseInt(btn.getAttribute('data-tx-id') || '0', 10);
+              if (activeTxId < 1 || !modal) return;
+              var ref = btn.getAttribute('data-tx-ref') || '';
+              var dt = btn.getAttribute('data-tx-date') || '';
+              var amt = btn.getAttribute('data-tx-amount') || '';
+              if (summaryEl) {
+                var summaryTpl = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_TX_SUMMARY')); ?>;
+                summaryEl.textContent = summaryTpl
+                  .replace('%1$s', ref)
+                  .replace('%2$s', dt)
+                  .replace('%3$s', amt);
+              }
+              if (searchInput) searchInput.value = '';
+              loadCandidates();
+              modal.show();
+            });
+          });
+
+          if (searchBtn) searchBtn.addEventListener('click', loadCandidates);
+          if (searchInput) {
+            searchInput.addEventListener('keydown', function (e) {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                loadCandidates();
+              }
+            });
+          }
+
+          document.addEventListener('click', function (e) {
+            var pick = e.target.closest('.fin-mt940-pick-pa-btn');
+            if (!pick) return;
+            var proofId = parseInt(pick.getAttribute('data-proof-id') || '0', 10);
+            if (proofId < 1 || activeTxId < 1 || !formEl || !formTxId || !formProofId) return;
+            var msg = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_CONFIRM')); ?>;
+            if (!window.confirm(msg)) return;
+            formTxId.value = String(activeTxId);
+            formProofId.value = String(proofId);
+            formEl.submit();
+          });
+        })();
+        </script>
         <?php endif; ?>
     <?php endif; ?>
 <?php endif; ?>

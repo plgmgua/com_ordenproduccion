@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.283-STABLE] - 2026-07-31
+
+### Added
+- **Financiero — Cuentas bancarias:** **Asociar PA** on unlinked MT-940 credit rows to manually match a bank movement to an ingresado payment proof (PA-00000) without an MT-940 link; creates or updates the approval workflow for verification in Aprobaciones.
+
 ## [3.119.282-STABLE] - 2026-07-31
 
 ### Changed
