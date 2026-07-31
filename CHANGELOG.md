@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.292-STABLE] - 2026-07-31
+
+### Fixed
+- **Cuentas bancarias — Editar:** JavaScript syntax error (`Unexpected end of input`) broke the edit/delete handlers; replaced inline `onclick` with `data-*` attributes and `json_encode` for all PHP-to-JS strings.
+
 ## [3.119.291-STABLE] - 2026-07-31
 
 ### Fixed

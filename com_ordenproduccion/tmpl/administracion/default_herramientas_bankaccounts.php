@@ -119,7 +119,7 @@ $tokenName = Session::getFormToken();
                                 <?php if ($isDef) : ?>
                                     <span class="ba-default-badge"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_DEFAULT'); ?></span>
                                 <?php else : ?>
-                                    <button type="button" class="btn-set-default-ba" onclick="setDefaultBa(<?php echo $rid; ?>)">
+                                    <button type="button" class="btn-set-default-ba" data-ba-id="<?php echo (int) $rid; ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_SET_DEFAULT'); ?>
                                     </button>
                                 <?php endif; ?>
@@ -132,10 +132,17 @@ $tokenName = Session::getFormToken();
                                 <?php endif; ?>
                             </td>
                             <td class="ba-actions">
-                                <button type="button" class="btn-edit-ba" onclick="editBa(<?php echo $rid; ?>, <?php echo json_encode($rname); ?>, <?php echo json_encode($rnum); ?>, <?php echo json_encode($rcur); ?>, <?php echo $active ? '1' : '0'; ?>, <?php echo $isDef ? '1' : '0'; ?>)">
+                                <button type="button"
+                                        class="btn-edit-ba"
+                                        data-ba-id="<?php echo $rid; ?>"
+                                        data-ba-name="<?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-ba-number="<?php echo htmlspecialchars($rnum, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-ba-currency="<?php echo htmlspecialchars($rcur, ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-ba-state="<?php echo $active ? '1' : '0'; ?>"
+                                        data-ba-default="<?php echo $isDef ? '1' : '0'; ?>">
                                     <i class="fas fa-edit"></i> <?php echo Text::_('JEDIT'); ?>
                                 </button>
-                                <button type="button" class="btn-del-ba" onclick="deleteBa(<?php echo $rid; ?>)">
+                                <button type="button" class="btn-del-ba" data-ba-id="<?php echo (int) $rid; ?>">
                                     <i class="fas fa-trash"></i> <?php echo Text::_('JDELETE'); ?>
                                 </button>
                             </td>
@@ -194,11 +201,16 @@ $tokenName = Session::getFormToken();
 
 <script>
 (function() {
-    const baseUrl = '<?php echo Route::_('index.php?option=com_ordenproduccion&controller=bankaccount', false); ?>';
-    const tokenName = '<?php echo $tokenName; ?>';
+    const baseUrl = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&controller=bankaccount', false)); ?>;
+    const tokenName = <?php echo json_encode($tokenName); ?>;
+    const labels = {
+        add: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_ADD')); ?>,
+        edit: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_EDIT')); ?>,
+        deleteConfirm: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_DELETE_CONFIRM')); ?>
+    };
 
     window.openBaModal = function() {
-        document.getElementById('ba-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_ADD')); ?>';
+        document.getElementById('ba-modal-title').textContent = labels.add;
         document.getElementById('ba-form').reset();
         document.getElementById('ba-id').value = '0';
         document.getElementById('ba-state').value = '1';
@@ -211,7 +223,7 @@ $tokenName = Session::getFormToken();
     window.closeBaModal = function() { document.getElementById('ba-modal').style.display = 'none'; };
 
     window.editBa = function(id, name, accountNumber, currency, state1, isDef) {
-        document.getElementById('ba-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_EDIT')); ?>';
+        document.getElementById('ba-modal-title').textContent = labels.edit;
         document.getElementById('ba-id').value = id;
         document.getElementById('ba-name').value = name || '';
         document.getElementById('ba-account-number').value = accountNumber || '';
@@ -220,6 +232,33 @@ $tokenName = Session::getFormToken();
         document.getElementById('ba-is-default').checked = (isDef === true || isDef === 1 || isDef === '1');
         document.getElementById('ba-modal').style.display = 'block';
     };
+
+    document.querySelector('.ba-mgmt').addEventListener('click', function(ev) {
+        var editBtn = ev.target.closest('.btn-edit-ba');
+        if (editBtn) {
+            ev.preventDefault();
+            editBa(
+                editBtn.getAttribute('data-ba-id'),
+                editBtn.getAttribute('data-ba-name') || '',
+                editBtn.getAttribute('data-ba-number') || '',
+                editBtn.getAttribute('data-ba-currency') || 'GTQ',
+                editBtn.getAttribute('data-ba-state'),
+                editBtn.getAttribute('data-ba-default')
+            );
+            return;
+        }
+        var defBtn = ev.target.closest('.btn-set-default-ba');
+        if (defBtn) {
+            ev.preventDefault();
+            setDefaultBa(defBtn.getAttribute('data-ba-id'));
+            return;
+        }
+        var delBtn = ev.target.closest('.btn-del-ba');
+        if (delBtn) {
+            ev.preventDefault();
+            deleteBa(delBtn.getAttribute('data-ba-id'));
+        }
+    });
 
     document.getElementById('ba-form').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -258,7 +297,7 @@ $tokenName = Session::getFormToken();
     };
 
     window.deleteBa = function(id) {
-        if (!confirm('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_DELETE_CONFIRM')); ?>')) return;
+        if (!confirm(labels.deleteConfirm)) return;
         const fd = new FormData();
         fd.append('format', 'json');
         fd.append('id', id);
