@@ -1335,12 +1335,12 @@ class PaymentproofModel extends ItemModel
             return false;
         }
 
-        if (!$this->paymentTypeRequiresBank($paymentType) || $this->paymentTypeSkipsValidation($paymentType)) {
-            $bankAccountId = 0;
-        } elseif ($bankAccountId < 1) {
-            $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_BANK_ACCOUNT_REQUIRED'));
+        if ($this->paymentTypeRequiresBank($paymentType)) {
+            if ($bankAccountId < 1) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_BANK_ACCOUNT_REQUIRED'));
 
-            return false;
+                return false;
+            }
         }
 
         if ($bankAccountId > 0 && !$this->isPublishedBankAccountId($bankAccountId)) {

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.295-STABLE] - 2026-07-31
+
+### Fixed
+- **Comprobante — editar cuenta destino:** Super-user line edit was clearing `bank_account_id` for Sin banco payment types (retenciones, exención IVA); cuenta destino now saves correctly.
+
 ## [3.119.294-STABLE] - 2026-07-31
 
 ### Fixed
