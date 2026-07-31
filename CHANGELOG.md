@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.288-STABLE] - 2026-07-31
+
+### Fixed
+- **Registro de pago — tabla de pagos existentes:** Removed stray `?>` next to the Cuenta destino edit button. Long bank account names now wrap inside the column instead of overlapping Monto del Pago.
+
 ## [3.119.287-STABLE] - 2026-07-31
 
 ### Added

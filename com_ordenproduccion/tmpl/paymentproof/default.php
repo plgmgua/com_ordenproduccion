@@ -599,8 +599,8 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                             : '—';
                                         if (!empty($this->canSuperUserEditLineAmount) && $lineId > 0) :
                                             ?>
-                                        <div class="payment-proof-line-details-cell d-inline-flex align-items-center flex-wrap gap-1">
-                                            <span class="payment-proof-line-bank-display text-nowrap"><?php echo htmlspecialchars($lineBaLabel); ?></span>
+                                        <div class="payment-proof-line-details-cell d-flex align-items-start flex-wrap gap-1">
+                                            <span class="payment-proof-line-bank-display"><?php echo htmlspecialchars($lineBaLabel); ?></span>
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-secondary py-0 px-1 toggle-edit-line-details payment-proof-action-btn"
                                                     title="<?php echo htmlspecialchars($labelLineDetailsEdit, ENT_QUOTES, 'UTF-8'); ?>"
@@ -652,8 +652,8 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                         <?php else : ?>
                                         <?php echo $lineBaId > 0 ? htmlspecialchars($lineBaLabel) : '—'; ?>
                                         <?php endif; ?>
-                                    ?></td>
-                                    <td><?php
+                                    </td>
+                                    <td class="payment-proof-col-amount"><?php
                                         $lineAmount = (float) ($line->amount ?? 0);
                                         if (!empty($this->canSuperUserEditLineAmount) && $lineId > 0) :
                                             ?>
