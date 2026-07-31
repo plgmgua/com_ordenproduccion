@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.291-STABLE] - 2026-07-31
+
+### Fixed
+- **SQL migration 3.119.290:** Replace `ADD COLUMN IF NOT EXISTS` (MySQL 8.0.12+ only) with `INFORMATION_SCHEMA` checks for MySQL 5.7 / MariaDB.
+
 ## [3.119.290-STABLE] - 2026-07-31
 
 ### Added
