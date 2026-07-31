@@ -534,7 +534,35 @@ class HtmlView extends BaseHtmlView
      */
     public function formatPaymentLineAmount(object $line): string
     {
-        return PaymentProofCurrencyHelper::formatLineAmountDisplay($line);
+        return PaymentProofCurrencyHelper::formatLineAmountDisplay($line, $this->getBankAccountCurrenciesMap());
+    }
+
+    /**
+     * Currency symbol for a payment line amount field (Q or $).
+     *
+     * @param   object  $line
+     *
+     * @return  string
+     *
+     * @since   3.119.293
+     */
+    public function paymentLineCurrencySymbol(object $line): string
+    {
+        $currency = PaymentProofCurrencyHelper::resolveLineCurrency($line, $this->getBankAccountCurrenciesMap());
+
+        return $currency === PaymentProofCurrencyHelper::CURRENCY_USD ? '$' : 'Q';
+    }
+
+    /**
+     * @param   object  $line
+     *
+     * @return  string
+     *
+     * @since   3.119.293
+     */
+    public function formatPaymentLineAmountPlain(object $line): string
+    {
+        return PaymentProofCurrencyHelper::formatLineAmountPlain($line, $this->getBankAccountCurrenciesMap());
     }
 
     /**

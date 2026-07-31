@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.293-STABLE] - 2026-07-31
+
+### Fixed
+- **Comprobante de pago — USD display:** Show `$` (not `Q`) for USD bank-account lines; infer currency from cuenta destino when the line row still defaults to GTQ.
+
 ## [3.119.292-STABLE] - 2026-07-31
 
 ### Fixed

@@ -39,7 +39,35 @@ class PaymentProofCurrencyHelper
      */
     public static function currencyPrefix(string $currency): string
     {
-        return self::normalizeCurrency($currency) === self::CURRENCY_USD ? 'USD' : 'Q.';
+        return self::normalizeCurrency($currency) === self::CURRENCY_USD ? '$' : 'Q.';
+    }
+
+    /**
+     * Resolve display/save currency for a stored payment line (column or bank account fallback).
+     *
+     * @param   object       $line
+     * @param   array<int|string, string>  $bankAccountCurrencies  bank_account_id => GTQ|USD
+     *
+     * @return  string  GTQ|USD
+     */
+    public static function resolveLineCurrency(object $line, array $bankAccountCurrencies = []): string
+    {
+        if (isset($line->currency) && trim((string) $line->currency) !== '') {
+            $stored = self::normalizeCurrency((string) $line->currency);
+            if ($stored === self::CURRENCY_USD) {
+                return self::CURRENCY_USD;
+            }
+        }
+
+        $baId = (int) ($line->bank_account_id ?? 0);
+        if ($baId > 0) {
+            $mapped = $bankAccountCurrencies[$baId] ?? $bankAccountCurrencies[(string) $baId] ?? '';
+            if (self::normalizeCurrency((string) $mapped) === self::CURRENCY_USD) {
+                return self::CURRENCY_USD;
+            }
+        }
+
+        return self::CURRENCY_GTQ;
     }
 
     /**
@@ -144,15 +172,15 @@ class PaymentProofCurrencyHelper
      *
      * @return  string
      */
-    public static function formatLineAmountDisplay(object $line): string
+    public static function formatLineAmountDisplay(object $line, array $bankAccountCurrencies = []): string
     {
         $amount   = round((float) ($line->amount ?? 0), 2);
-        $currency = self::normalizeCurrency((string) ($line->currency ?? self::CURRENCY_GTQ));
+        $currency = self::resolveLineCurrency($line, $bankAccountCurrencies);
 
         if ($currency === self::CURRENCY_USD) {
             $gtq  = self::lineAmountGtq($line);
             $rate = isset($line->exchange_rate) ? (float) $line->exchange_rate : 0.0;
-            $base = 'USD ' . number_format($amount, 2, '.', ',');
+            $base = '$ ' . number_format($amount, 2, '.', ',');
             if ($rate > 0 && abs($gtq - $amount) > 0.009) {
                 return $base . ' (Q ' . number_format($gtq, 2, '.', ',') . ' @ ' . number_format($rate, 4, '.', '') . ')';
             }
@@ -161,5 +189,22 @@ class PaymentProofCurrencyHelper
         }
 
         return 'Q ' . number_format($amount, 2, '.', ',');
+    }
+
+    /**
+     * Amount with currency symbol only (no GTQ conversion suffix).
+     *
+     * @param   object  $line
+     * @param   array<int|string, string>  $bankAccountCurrencies
+     *
+     * @return  string
+     */
+    public static function formatLineAmountPlain(object $line, array $bankAccountCurrencies = []): string
+    {
+        $amount   = round((float) ($line->amount ?? 0), 2);
+        $currency = self::resolveLineCurrency($line, $bankAccountCurrencies);
+        $symbol   = $currency === self::CURRENCY_USD ? '$' : 'Q';
+
+        return $symbol . ' ' . number_format($amount, 2, '.', ',');
     }
 }

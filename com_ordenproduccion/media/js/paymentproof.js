@@ -37,7 +37,7 @@
             if (!row) return;
             var cur = this.getLineCurrency(row);
             var prefix = row.querySelector('.payment-line-currency-prefix');
-            if (prefix) prefix.textContent = cur === 'USD' ? 'USD' : 'Q.';
+            if (prefix) prefix.textContent = cur === 'USD' ? '$' : 'Q.';
         },
 
         getLineRate: function(row) {

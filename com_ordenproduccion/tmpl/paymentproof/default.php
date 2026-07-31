@@ -674,10 +674,11 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                     </td>
                                     <td class="payment-proof-col-amount"><?php
                                         $lineAmount = (float) ($line->amount ?? 0);
+                                        $lineAmountSymbol = $this->paymentLineCurrencySymbol($line);
                                         if (!empty($this->canSuperUserEditLineAmount) && $lineId > 0) :
                                             ?>
                                         <div class="payment-proof-line-amount-cell d-inline-flex align-items-center flex-wrap gap-1">
-                                            <span class="payment-proof-line-amount-display text-nowrap">Q <?php echo number_format($lineAmount, 2); ?></span>
+                                            <span class="payment-proof-line-amount-display text-nowrap"><?php echo htmlspecialchars($this->formatPaymentLineAmountPlain($line)); ?></span>
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-secondary py-0 px-1 toggle-edit-line-amount payment-proof-action-btn"
                                                     title="<?php echo htmlspecialchars($labelLineAmountEdit, ENT_QUOTES, 'UTF-8'); ?>"
@@ -690,7 +691,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                                 <?php echo HTMLHelper::_('form.token'); ?>
                                                 <input type="hidden" name="line_id" value="<?php echo $lineId; ?>" />
                                                 <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
-                                                <span class="text-nowrap">Q</span>
+                                                <span class="text-nowrap payment-proof-line-amount-symbol"><?php echo htmlspecialchars($lineAmountSymbol); ?></span>
                                                 <input type="number"
                                                        name="line_amount"
                                                        step="0.01"
