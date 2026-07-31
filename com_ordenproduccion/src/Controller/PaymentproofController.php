@@ -135,7 +135,8 @@ class PaymentproofController extends BaseController
             $proofModelForBank = $this->getModel('Paymentproof');
             foreach ($validatedLines as &$validatedLine) {
                 $type = (string) ($validatedLine['payment_type'] ?? '');
-                if (!$proofModelForBank->paymentTypeRequiresBank($type)) {
+                if (!$proofModelForBank->paymentTypeRequiresBank($type)
+                    || $proofModelForBank->paymentTypeSkipsValidation($type)) {
                     $validatedLine['bank'] = '';
                     $validatedLine['bank_account_id'] = 0;
                     continue;

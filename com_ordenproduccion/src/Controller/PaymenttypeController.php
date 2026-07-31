@@ -55,6 +55,7 @@ class PaymenttypeController extends BankController
             'state' => $input->post->getInt('state', 1),
             'requires_bank' => $input->post->get('requires_bank', 1) == '1' ? 1 : 0,
             'super_user_only' => $input->post->get('super_user_only', 0) == '1' ? 1 : 0,
+            'skip_validation' => $input->post->get('skip_validation', 0) == '1' ? 1 : 0,
             'default_bank' => $input->post->getString('default_bank', ''),
             'default_bank_account_id' => $input->post->getInt('default_bank_account_id', 0),
         ];

@@ -192,6 +192,10 @@ class PaymentproofModel extends ItemModel
             // Flag duplicate combinations (payment_type + bank + document_number) but allow save.
             foreach ($paymentLines as $line) {
                 $type = trim((string) ($line['payment_type'] ?? ''));
+                if ($paymenttypeModel && method_exists($paymenttypeModel, 'paymentTypeSkipsValidation')
+                    && $paymenttypeModel->paymentTypeSkipsValidation($type)) {
+                    continue;
+                }
                 $bank = trim((string) ($line['bank'] ?? ''));
                 $doc = trim((string) ($line['document_number'] ?? ''));
                 $baId = (int) ($line['bank_account_id'] ?? 0);
@@ -200,6 +204,7 @@ class PaymentproofModel extends ItemModel
                 }
             }
             $this->duplicateDocumentNumbersOnSave = array_values(array_unique($this->duplicateDocumentNumbersOnSave));
+            $skipPaymentVerification = $this->allPaymentLinesSkipValidation($paymentLines, $paymenttypeModel);
             $paymentAmount = 0;
             foreach ($paymentLines as $line) {
                 $paymentAmount += (float) ($line['amount'] ?? 0);
@@ -256,7 +261,11 @@ class PaymentproofModel extends ItemModel
             }
             if (isset($ppCols['verification_status'])) {
                 $columns[] = 'verification_status';
-                $values[] = $db->quote('ingresado');
+                $values[] = $db->quote($skipPaymentVerification ? 'verificado' : 'ingresado');
+            }
+            if ($skipPaymentVerification && isset($ppCols['verified_date'])) {
+                $columns[] = 'verified_date';
+                $values[] = $db->quote(Factory::getDate()->toSql());
             }
             $query->insert($db->quoteName('#__ordenproduccion_payment_proofs'))
                   ->columns($db->quoteName($columns))
@@ -390,8 +399,10 @@ class PaymentproofModel extends ItemModel
 
             // Optional: start approval workflow when a new proof is recorded (3.109.72+).
             // MT-940 mode (3.119.228+): approval is created by cron after bank match, not on save.
+            // Skip when all lines use a payment type with skip_validation (3.119.286+).
             try {
-                if (\Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isLegacyPaymentProofApprovalOnSave()) {
+                if (!$skipPaymentVerification
+                    && \Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper::isLegacyPaymentProofApprovalOnSave()) {
                     $wfSvc       = new ApprovalWorkflowService();
                     $submitterId = (int) ($data['created_by'] ?? 0);
                     if ($wfSvc->hasSchema() && $submitterId > 0) {
@@ -1151,7 +1162,7 @@ class PaymentproofModel extends ItemModel
             return false;
         }
 
-        if (!$this->paymentTypeRequiresBank($paymentType)) {
+        if (!$this->paymentTypeRequiresBank($paymentType) || $this->paymentTypeSkipsValidation($paymentType)) {
             $bankAccountId = 0;
         } elseif ($bankAccountId < 1) {
             $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_BANK_ACCOUNT_REQUIRED'));
@@ -2059,6 +2070,115 @@ class PaymentproofModel extends ItemModel
         }
 
         return strtolower(trim($code)) !== 'efectivo';
+    }
+
+    /**
+     * Whether every payment line uses a type that skips verification.
+     *
+     * @param   array       $paymentLines       Normalized payment lines
+     * @param   object|null $paymenttypeModel   PaymenttypeModel instance (optional)
+     *
+     * @return  bool
+     *
+     * @since   3.119.286
+     */
+    protected function allPaymentLinesSkipValidation(array $paymentLines, $paymenttypeModel = null): bool
+    {
+        if ($paymentLines === []) {
+            return false;
+        }
+
+        if ($paymenttypeModel === null) {
+            try {
+                $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+                $paymenttypeModel = $component->getMVCFactory()->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+            } catch (\Throwable $e) {
+                $paymenttypeModel = null;
+            }
+        }
+
+        if (!$paymenttypeModel || !method_exists($paymenttypeModel, 'paymentTypeSkipsValidation')) {
+            return false;
+        }
+
+        foreach ($paymentLines as $line) {
+            $type = trim((string) ($line['payment_type'] ?? ''));
+            if ($type === '' || !$paymenttypeModel->paymentTypeSkipsValidation($type)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether a saved payment proof skips verification (all lines use skip_validation types).
+     *
+     * @param   int  $proofId
+     *
+     * @return  bool
+     *
+     * @since   3.119.286
+     */
+    public function proofSkipsPaymentVerification(int $proofId): bool
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1) {
+            return false;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            if ($this->hasPaymentProofLinesTable()) {
+                $q = $db->getQuery(true)
+                    ->select($db->quoteName('payment_type'))
+                    ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                    ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId);
+                $db->setQuery($q);
+                $types = $db->loadColumn() ?: [];
+                if ($types !== []) {
+                    $lines = [];
+                    foreach ($types as $type) {
+                        $lines[] = ['payment_type' => $type];
+                    }
+
+                    return $this->allPaymentLinesSkipValidation($lines);
+                }
+            }
+
+            $proof = $this->getItem($proofId);
+            if (!$proof) {
+                return false;
+            }
+
+            $type = trim((string) ($proof->payment_type ?? ''));
+
+            return $this->allPaymentLinesSkipValidation([['payment_type' => $type]]);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @param   string  $code
+     *
+     * @return  bool
+     *
+     * @since   3.119.286
+     */
+    public function paymentTypeSkipsValidation(string $code): bool
+    {
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $paymenttypeModel = $component->getMVCFactory()->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+            if ($paymenttypeModel && method_exists($paymenttypeModel, 'paymentTypeSkipsValidation')) {
+                return $paymenttypeModel->paymentTypeSkipsValidation($code);
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return false;
     }
 
     /**

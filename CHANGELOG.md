@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.286-STABLE] - 2026-07-31
+
+### Added
+- **Administración — Tipos de pago:** Checkbox **Omitir validación** on the payment type edit form. When checked, proofs using that type (all lines) are saved as **Verificado** immediately — no MT-940 match, approval workflow, or manual green **Verificar** step. Pre-enabled for **nota_credito** (Nota de Crédito interna).
+
 ## [3.119.285-STABLE] - 2026-07-31
 
 ### Added

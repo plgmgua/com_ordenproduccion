@@ -30,6 +30,13 @@ class PaymenttypeModel extends BaseDatabaseModel
     protected $paymentTypesHasSuperUserOnlyColumn;
 
     /**
+     * Cached: payment_types table has skip_validation column.
+     *
+     * @var bool|null
+     */
+    protected $paymentTypesHasSkipValidationColumn;
+
+    /**
      * Cached: payment_types table has default_bank / default_bank_account_id columns.
      *
      * @var bool|null
@@ -79,6 +86,29 @@ class PaymenttypeModel extends BaseDatabaseModel
         }
 
         return $this->paymentTypesHasDefaultBankColumns;
+    }
+
+    /**
+     * @return bool
+     *
+     * @since   3.119.286
+     */
+    protected function paymentTypesTableHasSkipValidationColumn(): bool
+    {
+        if ($this->paymentTypesHasSkipValidationColumn !== null) {
+            return $this->paymentTypesHasSkipValidationColumn;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $columns = $db->getTableColumns('#__ordenproduccion_payment_types', false);
+            $this->paymentTypesHasSkipValidationColumn = is_array($columns)
+                && isset($columns['skip_validation']);
+        } catch (\Throwable $e) {
+            $this->paymentTypesHasSkipValidationColumn = false;
+        }
+
+        return $this->paymentTypesHasSkipValidationColumn;
     }
 
     /**
@@ -166,6 +196,9 @@ class PaymenttypeModel extends BaseDatabaseModel
         $obj->requires_bank = isset($data['requires_bank']) ? (int) $data['requires_bank'] : 1;
         if ($this->paymentTypesTableHasSuperUserOnlyColumn()) {
             $obj->super_user_only = isset($data['super_user_only']) ? (int) $data['super_user_only'] : 0;
+        }
+        if ($this->paymentTypesTableHasSkipValidationColumn()) {
+            $obj->skip_validation = isset($data['skip_validation']) ? (int) $data['skip_validation'] : 0;
         }
         if ($this->paymentTypesTableHasDefaultBankColumns()) {
             $defaultBank = trim((string) ($data['default_bank'] ?? ''));
@@ -374,6 +407,88 @@ class PaymenttypeModel extends BaseDatabaseModel
         }
 
         return $map;
+    }
+
+    /**
+     * Map payment type code => whether payment verification is skipped (auto-verificado).
+     *
+     * @return  array<string, bool>
+     *
+     * @since   3.119.286
+     */
+    public function getPaymentTypeSkipValidationMap(): array
+    {
+        if (!$this->paymentTypesTableHasSkipValidationColumn()) {
+            return [];
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $tables = $db->getTableList();
+            $prefix = $db->getPrefix();
+            $tableName = $prefix . 'ordenproduccion_payment_types';
+            $exists = false;
+
+            foreach ($tables as $t) {
+                if (strcasecmp($t, $tableName) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+
+            if (!$exists) {
+                return [];
+            }
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select([
+                $db->quoteName('code'),
+                $db->quoteName('skip_validation'),
+            ])
+            ->from($db->quoteName('#__ordenproduccion_payment_types'))
+            ->where($db->quoteName('state') . ' = 1');
+
+        $db->setQuery($query);
+        $rows = $db->loadObjectList() ?: [];
+        $map  = [];
+
+        foreach ($rows as $row) {
+            $code = trim((string) ($row->code ?? ''));
+            if ($code === '') {
+                continue;
+            }
+            $map[$code] = !empty($row->skip_validation);
+        }
+
+        return $map;
+    }
+
+    /**
+     * Whether the payment type skips payment verification (MT-940 / manual verify).
+     *
+     * @param   string  $code  Payment type code
+     *
+     * @return  bool
+     *
+     * @since   3.119.286
+     */
+    public function paymentTypeSkipsValidation(string $code): bool
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return false;
+        }
+
+        $map = $this->getPaymentTypeSkipValidationMap();
+        if (array_key_exists($code, $map)) {
+            return (bool) $map[$code];
+        }
+
+        return false;
     }
 
     /**

@@ -84,6 +84,7 @@ try {
 .paymenttype-name { flex: 1; color: #212529; }
 .paymenttype-badge { background: #17a2b8; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-left: 10px; }
 .paymenttype-badge-super { background: #6f42c1; }
+.paymenttype-badge-skip { background: #28a745; }
 .paymenttype-actions { display: flex; gap: 10px; }
 .btn-edit-paymenttype, .btn-delete-paymenttype { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; }
 .btn-edit-paymenttype { background: #17a2b8; color: white; }
@@ -142,6 +143,7 @@ try {
                 $displayName = ($isSpanish && !empty(trim($pt->name_es ?? ''))) ? trim($pt->name_es) : (trim($pt->name_en ?? $pt->name ?? '') ?: trim($pt->name ?? $pt->code));
                 $requiresBank = !empty($pt->requires_bank);
                 $superUserOnly = !empty($pt->super_user_only);
+                $skipValidation = !empty($pt->skip_validation);
                 $defaultBank = trim((string) ($pt->default_bank ?? ''));
                 $defaultBankAccountId = (int) ($pt->default_bank_account_id ?? 0);
                 ?>
@@ -151,11 +153,12 @@ try {
                         <div class="paymenttype-code"><?php echo htmlspecialchars($pt->code); ?></div>
                         <div class="paymenttype-name"><?php echo htmlspecialchars($displayName); ?>
                             <?php if (!$requiresBank): ?><span class="paymenttype-badge"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_NO_BANK'); ?></span><?php endif; ?>
+                            <?php if ($skipValidation): ?><span class="paymenttype-badge paymenttype-badge-skip"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SKIP_VALIDATION_BADGE'); ?></span><?php endif; ?>
                             <?php if ($superUserOnly): ?><span class="paymenttype-badge paymenttype-badge-super"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SUPER_USER_ONLY_BADGE'); ?></span><?php endif; ?>
                         </div>
                     </div>
                     <div class="paymenttype-actions">
-                        <button class="btn-edit-paymenttype" onclick="editPT(<?php echo (int) $pt->id; ?>, '<?php echo htmlspecialchars($pt->code, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES); ?>', <?php echo $requiresBank ? '1' : '0'; ?>, <?php echo $superUserOnly ? '1' : '0'; ?>, '<?php echo htmlspecialchars($defaultBank, ENT_QUOTES); ?>', <?php echo $defaultBankAccountId; ?>)">
+                        <button class="btn-edit-paymenttype" onclick="editPT(<?php echo (int) $pt->id; ?>, '<?php echo htmlspecialchars($pt->code, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES); ?>', <?php echo $requiresBank ? '1' : '0'; ?>, <?php echo $superUserOnly ? '1' : '0'; ?>, <?php echo $skipValidation ? '1' : '0'; ?>, '<?php echo htmlspecialchars($defaultBank, ENT_QUOTES); ?>', <?php echo $defaultBankAccountId; ?>)">
                             <i class="fas fa-edit"></i> <?php echo Text::_('JEDIT'); ?>
                         </button>
                         <button class="btn-delete-paymenttype" onclick="deletePT(<?php echo (int) $pt->id; ?>)">
@@ -201,6 +204,10 @@ try {
             <div class="pt-form-group pt-form-checkbox">
                 <input type="checkbox" id="pt-super-user-only" name="super_user_only" value="1">
                 <label for="pt-super-user-only"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SUPER_USER_ONLY'); ?></label>
+            </div>
+            <div class="pt-form-group pt-form-checkbox">
+                <input type="checkbox" id="pt-skip-validation" name="skip_validation" value="1">
+                <label for="pt-skip-validation"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_SKIP_VALIDATION'); ?></label>
             </div>
             <div class="pt-form-group" id="pt-default-bank-group">
                 <label for="pt-default-bank"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK'); ?></label>
@@ -263,7 +270,7 @@ try {
 
     window.closePTModal = function() { document.getElementById('pt-modal').style.display = 'none'; };
 
-    window.editPT = function(id, code, name, nameEn, nameEs, requiresBank, superUserOnly, defaultBank, defaultBankAccountId) {
+    window.editPT = function(id, code, name, nameEn, nameEs, requiresBank, superUserOnly, skipValidation, defaultBank, defaultBankAccountId) {
         document.getElementById('pt-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_EDIT')); ?>';
         document.getElementById('pt-id').value = id;
         document.getElementById('pt-code').value = code;
@@ -273,6 +280,7 @@ try {
         document.getElementById('pt-name-es').value = nameEs || '';
         document.getElementById('pt-requires-bank').checked = !!requiresBank;
         document.getElementById('pt-super-user-only').checked = !!superUserOnly;
+        document.getElementById('pt-skip-validation').checked = !!skipValidation;
         document.getElementById('pt-default-bank').value = defaultBank || '';
         document.getElementById('pt-default-bank-account').value = defaultBankAccountId ? String(defaultBankAccountId) : '0';
         document.getElementById('pt-modal').style.display = 'block';
@@ -289,6 +297,7 @@ try {
         fd.append('name_es', formData.get('name_es') || '');
         fd.append('requires_bank', document.getElementById('pt-requires-bank').checked ? '1' : '0');
         fd.append('super_user_only', document.getElementById('pt-super-user-only').checked ? '1' : '0');
+        fd.append('skip_validation', document.getElementById('pt-skip-validation').checked ? '1' : '0');
         fd.append('default_bank', document.getElementById('pt-default-bank').value || '');
         fd.append('default_bank_account_id', document.getElementById('pt-default-bank-account').value || '0');
         fd.append(tokenName, '1');

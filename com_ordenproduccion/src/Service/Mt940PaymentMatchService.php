@@ -581,6 +581,17 @@ class Mt940PaymentMatchService
             return false;
         }
 
+        try {
+            $component = Factory::getApplication()->bootComponent('com_ordenproduccion');
+            $proofModel = $component->getMVCFactory()->createModel('Paymentproof', 'Site', ['ignore_request' => true]);
+            if ($proofModel && method_exists($proofModel, 'proofSkipsPaymentVerification')
+                && $proofModel->proofSkipsPaymentVerification($proofId)) {
+                return false;
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
         if ($this->getMt940ScopedBankLinesForProof($proofId) !== []) {
             return true;
         }
