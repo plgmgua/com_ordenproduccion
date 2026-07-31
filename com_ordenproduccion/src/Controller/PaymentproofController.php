@@ -932,6 +932,12 @@ class PaymentproofController extends BaseController
 
         $override = trim($this->input->post->getString('mt940_manual_override', ''));
         if ($override !== '') {
+            if (!AccessHelper::isSuperUser()) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_PICKER_SUPERUSER_ONLY'), 'warning');
+                $this->setRedirect($redirectUrl);
+
+                return false;
+            }
             if (!$wfSvc->applyManualMt940OverrideToPaymentProofRequest($requestId, $override)) {
                 $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_OVERRIDE_FAILED'), 'warning');
                 $this->setRedirect($redirectUrl);
@@ -1318,6 +1324,63 @@ class PaymentproofController extends BaseController
                 );
             }
         }
+    }
+
+    /**
+     * JSON: search MT-940 credits for manual pick on the comprobante page (Super Users only).
+     *
+     * @return  void
+     *
+     * @since   3.119.282
+     */
+    public function searchMt940ForVerification()
+    {
+        $user = Factory::getUser();
+        if ($user->guest) {
+            echo json_encode(['success' => false, 'message' => Text::_('JGLOBAL_AUTH_ALERT')]);
+
+            return;
+        }
+
+        if (!AccessHelper::isSuperUser()) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PP_MT940_PICKER_SUPERUSER_ONLY')]);
+
+            return;
+        }
+
+        if (!Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_PP_MT940_APPROVE_DISABLED')]);
+
+            return;
+        }
+
+        $bankAccountId = $this->input->getInt('bank_account_id', 0);
+        $date          = trim($this->input->getString('date', ''));
+        $amount        = (float) $this->input->get('amount', 0, 'FLOAT');
+
+        $svc  = new Mt940PaymentMatchService();
+        $rows = $svc->searchMt940Transactions([
+            'bank_account_id' => $bankAccountId,
+            'date'            => $date,
+            'amount'          => $amount,
+        ], 30);
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[] = [
+                'id'               => (int) ($row->id ?? 0),
+                'transaction_date' => (string) ($row->transaction_date ?? ''),
+                'value_date'       => (string) ($row->value_date ?? ''),
+                'reference'        => (string) ($row->reference ?? ''),
+                'description'      => (string) ($row->description ?? ''),
+                'amount'           => round((float) ($row->amount ?? 0), 2),
+                'currency'         => (string) ($row->currency ?? 'GTQ'),
+                'account_number'   => (string) ($row->account_number ?? ''),
+                'bank_account_name'=> (string) ($row->bank_account_name ?? ''),
+            ];
+        }
+
+        echo json_encode(['success' => true, 'message' => '', 'data' => ['rows' => $out]]);
     }
 
     /**

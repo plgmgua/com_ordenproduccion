@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.282-STABLE] - 2026-07-31
+
+### Changed
+- **Registro de pago — MT-940 picker:** **Buscar otro movimiento** on the comprobante page is restricted to Super Users only; other approvers use Aprobaciones for manual movement selection.
+
 ## [3.119.281-STABLE] - 2026-07-31
 
 ### Added

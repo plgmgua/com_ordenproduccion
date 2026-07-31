@@ -75,12 +75,16 @@ foreach ($mt940Approver['lines'] as $pl) {
         <input type="hidden" class="mt940-bank-account-id" value="<?php echo $bankAccountId; ?>" />
         <input type="hidden" class="mt940-line-amount" value="<?php echo htmlspecialchars((string) $lineAmount, ENT_QUOTES, 'UTF-8'); ?>" />
         <input type="hidden" class="mt940-line-date" value="<?php echo htmlspecialchars($lineDate, ENT_QUOTES, 'UTF-8'); ?>" />
+        <?php if (!empty($this->canUseMt940Picker)) : ?>
         <button type="button"
                 class="btn btn-outline-secondary btn-sm mt-1 pp-mt940-search-btn"
                 title="<?php echo htmlspecialchars($this->labelMt940Search ?? 'Buscar otro movimiento', ENT_QUOTES, 'UTF-8'); ?>">
             <?php echo htmlspecialchars($this->labelMt940Search ?? 'Buscar otro movimiento', ENT_QUOTES, 'UTF-8'); ?>
         </button>
         <div class="pp-mt940-search-results mt-1 d-none small"></div>
+        <?php elseif ($needsManualPick && $txId < 1) : ?>
+        <span class="small text-muted d-block mt-1"><?php echo htmlspecialchars($this->labelMt940PickInApprovals ?? 'Elija movimiento en Aprobaciones', ENT_QUOTES, 'UTF-8'); ?></span>
+        <?php endif; ?>
         <?php endif; ?>
     </td>
     <td class="text-center text-muted">—</td>
@@ -93,11 +97,16 @@ if ($canShowMt940Actions) :
     ?>
 <tr class="payment-proof-mt940-row payment-proof-mt940-approve-row"<?php echo $blockAttr; ?> data-needs-manual="<?php echo $needsManualPick ? '1' : '0'; ?>">
     <td colspan="9" class="text-end small text-muted pe-2"><?php
-        if ($needsManualPick) {
+        if ($needsManualPick && empty($this->canUseMt940Picker)) {
+            echo htmlspecialchars($this->labelMt940PickInApprovals ?? 'Elija movimiento en Aprobaciones', ENT_QUOTES, 'UTF-8');
+        } elseif ($needsManualPick) {
             echo htmlspecialchars($this->labelMt940SearchThenApprove ?? 'Seleccione el movimiento MT-940 y apruebe.', ENT_QUOTES, 'UTF-8');
         }
     ?></td>
     <td class="align-middle text-end payment-proof-mt940-actions">
+        <?php if ($needsManualPick && empty($this->canUseMt940Picker)) : ?>
+        <span class="text-muted">—</span>
+        <?php else : ?>
         <form method="post"
               action="<?php echo htmlspecialchars($this->mt940ApproveAction ?? '', ENT_QUOTES, 'UTF-8'); ?>"
               class="d-inline pp-mt940-approve-form">
@@ -114,6 +123,7 @@ if ($canShowMt940Actions) :
                 <i class="fas fa-check" aria-hidden="true"></i>
             </button>
         </form>
+        <?php endif; ?>
     </td>
 </tr>
     <?php

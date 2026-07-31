@@ -176,6 +176,7 @@ class HtmlView extends BaseHtmlView
         $this->user = $user;
         $this->canEditNoteOrAssociateOrder = AccessHelper::isInAdministracionOrAdmonGroup();
         $this->canSuperUserEditLineAmount  = AccessHelper::isSuperUser();
+        $this->canUseMt940Picker           = AccessHelper::isSuperUser();
         $onPagoWorkflow = false;
         try {
             $pagoWfSvc = new ApprovalWorkflowService();
@@ -268,7 +269,9 @@ class HtmlView extends BaseHtmlView
         $this->labelMt940SearchThenApprove = $t('COM_ORDENPRODUCCION_PP_MT940_SEARCH_THEN_APPROVE', 'Seleccione el movimiento MT-940 y apruebe.');
         $this->labelMt940Approve = $t('COM_ORDENPRODUCCION_PP_MT940_APPROVE_BTN', 'Aprobar verificación');
         $this->labelMt940PickInApprovals = $t('COM_ORDENPRODUCCION_PP_MT940_PICK_IN_APPROVALS', 'Elija movimiento en Aprobaciones');
-        $this->mt940SearchUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.searchMt940ForPaymentApproval&format=json', false);
+        $this->mt940SearchUrl = $this->canUseMt940Picker
+            ? Route::_('index.php?option=com_ordenproduccion&task=paymentproof.searchMt940ForVerification&format=json', false)
+            : '';
         $this->mt940ApproveAction = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.approveMt940Verification');
 
         parent::display($tpl);

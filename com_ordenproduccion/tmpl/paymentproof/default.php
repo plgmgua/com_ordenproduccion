@@ -2087,7 +2087,7 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
 </div>
 
-<?php if (!empty($this->paymentProofMt940ApproverByProofId)) : ?>
+<?php if (!empty($this->paymentProofMt940ApproverByProofId) && !empty($this->canUseMt940Picker)) : ?>
 <script>
 (function () {
     var searchUrl = <?php echo json_encode((string) ($this->mt940SearchUrl ?? ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
