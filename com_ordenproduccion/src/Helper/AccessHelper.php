@@ -14,6 +14,7 @@
 
 namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 
+use Joomla\Access\Access;
 use Joomla\CMS\Factory;
 use Joomla\CMS\User\User;
 use Joomla\CMS\User\UserFactoryInterface;
@@ -211,6 +212,53 @@ class AccessHelper
     }
 
     /**
+     * Joomla group ids for a user, including parent groups in the nested set (recursive).
+     *
+     * @return  int[]
+     *
+     * @since   3.119.284
+     */
+    protected static function getUserGroupIdsIncludingParents(int $userId): array
+    {
+        if ($userId < 1) {
+            return [];
+        }
+
+        try {
+            $ids = Access::getGroupsByUser($userId, true);
+
+            return array_values(array_unique(array_map('intval', \is_array($ids) ? $ids : [])));
+        } catch (\Throwable $e) {
+            try {
+                if ((int) Factory::getUser()->id === $userId) {
+                    $direct = Factory::getUser()->getAuthorisedGroups();
+
+                    return array_values(array_unique(array_map('intval', \is_array($direct) ? $direct : [])));
+                }
+            } catch (\Throwable $ignored) {
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Whether a Joomla usergroup id/title is Administracion or Admon.
+     *
+     * @since   3.119.284
+     */
+    protected static function isAdministracionOrAdmonGroupRecord(int $groupId, string $title): bool
+    {
+        if ($groupId === 12) {
+            return true;
+        }
+
+        $normalized = mb_strtolower(trim($title));
+
+        return \in_array($normalized, ['administracion', 'administración', 'admon'], true);
+    }
+
+    /**
      * Check if user is in Administracion or Admon group (admin-only tabs: work orders, invoices, tools)
      *
      * @return  boolean
@@ -218,29 +266,45 @@ class AccessHelper
     public static function isInAdministracionOrAdmonGroup()
     {
         $user = Factory::getUser();
-        $userGroups = $user->getAuthorisedGroups();
-        
-        // Check for Administracion group (ID 12) or by name
-        if (in_array(12, $userGroups)) {
+        if ($user->guest) {
+            return false;
+        }
+
+        return self::userIdIsInAdministracionOrAdmonGroup((int) $user->id);
+    }
+
+    /**
+     * @param   int  $userId
+     *
+     * @return  bool
+     *
+     * @since   3.119.284
+     */
+    protected static function userIdIsInAdministracionOrAdmonGroup(int $userId): bool
+    {
+        $groupIds = self::getUserGroupIdsIncludingParents($userId);
+        if ($groupIds === []) {
+            return false;
+        }
+
+        if (\in_array(12, $groupIds, true)) {
             return true;
         }
-        
-        $db = Factory::getDbo();
+
+        $db    = Factory::getDbo();
         $query = $db->getQuery(true)
-            ->select('id, title')
+            ->select(['id', 'title'])
             ->from('#__usergroups')
-            ->where('id IN (' . implode(',', array_map('intval', $userGroups)) . ')');
+            ->where('id IN (' . implode(',', array_map('intval', $groupIds)) . ')');
         $db->setQuery($query);
         $groups = $db->loadObjectList() ?: [];
-        
+
         foreach ($groups as $group) {
-            if ($group->title === 'Administracion'
-                || $group->title === 'Administración'
-                || $group->title === 'Admon') {
+            if (self::isAdministracionOrAdmonGroupRecord((int) ($group->id ?? 0), (string) ($group->title ?? ''))) {
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -782,29 +846,7 @@ class AccessHelper
             return false;
         }
 
-        $userGroups = $user->getAuthorisedGroups();
-
-        if (in_array(12, $userGroups, true)) {
-            return true;
-        }
-
-        $db = Factory::getDbo();
-        $query = $db->getQuery(true)
-            ->select('id, title')
-            ->from('#__usergroups')
-            ->where('id IN (' . implode(',', array_map('intval', $userGroups)) . ')');
-        $db->setQuery($query);
-        $groups = $db->loadObjectList() ?: [];
-
-        foreach ($groups as $group) {
-            if ($group->title === 'Administracion'
-                || $group->title === 'Administración'
-                || $group->title === 'Admon') {
-                return true;
-            }
-        }
-
-        return false;
+        return self::userIdIsInAdministracionOrAdmonGroup($userId);
     }
 
     /**

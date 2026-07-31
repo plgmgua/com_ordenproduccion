@@ -192,13 +192,18 @@ class HtmlView extends BaseHtmlView
         $this->paymentProofMt940ApproverByProofId = $this->buildPaymentProofMt940ApproverMap();
         $this->paymentProofRequiresMt940ByProofId  = [];
         $this->canMarkVerificadoForProofId       = [];
-        $matchSvcForScope = new Mt940PaymentMatchService();
-        foreach ($this->existingPayments as $proofScope) {
+        $matchSvcForScope                          = new Mt940PaymentMatchService();
+        $mt940VerifyActive                         = Mt940PaymentMatchLogHelper::isMt940VerificationEnabled();
+        $proofIdsForScope                          = [];
+        foreach ($rawPayments as $proofScope) {
             $scopeProofId = (int) ($proofScope->id ?? 0);
-            if ($scopeProofId < 1) {
-                continue;
+            if ($scopeProofId > 0) {
+                $proofIdsForScope[$scopeProofId] = true;
             }
-            $requiresMt940 = $matchSvcForScope->proofRequiresMt940Verification($scopeProofId);
+        }
+        foreach (array_keys($proofIdsForScope) as $scopeProofId) {
+            $requiresMt940 = $mt940VerifyActive
+                && $matchSvcForScope->proofRequiresMt940Verification($scopeProofId);
             $this->paymentProofRequiresMt940ByProofId[$scopeProofId] = $requiresMt940;
             $this->canMarkVerificadoForProofId[$scopeProofId]         = $this->userCanMarkProofVerificado($requiresMt940, $onPagoWorkflow);
         }

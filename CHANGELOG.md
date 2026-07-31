@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.284-STABLE] - 2026-07-31
+
+### Fixed
+- **Registro de pago — Verificar (botón verde):** Administración/Admon membership now resolves parent Joomla usergroups (nested set) and case-insensitive group titles, so subgroup members are recognized. MT-940 destination scoping no longer hides the green button when MT-940 verification is disabled in component options.
+
 ## [3.119.283-STABLE] - 2026-07-31
 
 ### Added
