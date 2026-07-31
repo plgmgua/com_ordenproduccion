@@ -285,6 +285,19 @@
     white-space: nowrap;
 }
 
+.com-ordenproduccion-paymentproof .pp-mt940-pick-list {
+    max-height: 10rem;
+    overflow-y: auto;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.25rem;
+    padding: 0.35rem 0.5rem;
+    background: #fff;
+}
+
+.com-ordenproduccion-paymentproof .pp-mt940-search-results {
+    max-width: 18rem;
+}
+
 /* Action column: tiny icon buttons, no gap */
 .com-ordenproduccion-paymentproof .payment-proof-actions-row {
     display: inline-flex;

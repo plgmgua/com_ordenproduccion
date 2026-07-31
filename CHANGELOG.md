@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.281-STABLE] - 2026-07-31
+
+### Added
+- **Registro de pago — MT-940:** **Buscar otro movimiento** picker on the comprobante page (same as Aprobaciones): search credits by account/date/amount, pick the correct movement, then approve with the green check.
+
 ## [3.119.280-STABLE] - 2026-07-31
 
 ### Fixed

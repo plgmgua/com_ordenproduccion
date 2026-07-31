@@ -930,6 +930,18 @@ class PaymentproofController extends BaseController
             return false;
         }
 
+        $override = trim($this->input->post->getString('mt940_manual_override', ''));
+        if ($override !== '') {
+            if (!$wfSvc->applyManualMt940OverrideToPaymentProofRequest($requestId, $override)) {
+                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_OVERRIDE_FAILED'), 'warning');
+                $this->setRedirect($redirectUrl);
+
+                return false;
+            }
+            $req = $wfSvc->fetchRequestById($requestId);
+            $metaJson = isset($req->metadata) ? (string) $req->metadata : $metaJson;
+        }
+
         $ok = false;
         $stillPending = false;
 

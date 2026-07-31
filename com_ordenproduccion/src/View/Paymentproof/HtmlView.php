@@ -263,8 +263,12 @@ class HtmlView extends BaseHtmlView
         $this->labelMarkVerificado = $t('COM_ORDENPRODUCCION_PAYMENT_MARK_VERIFICADO', 'Marcar como Verificado');
         $this->labelMt940RowType = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_TYPE', 'Movimiento bancario');
         $this->labelMt940RowMatch = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_MATCH', 'Coincidencia MT-940');
+        $this->labelMt940RowPending = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_PENDING', 'Seleccione movimiento');
+        $this->labelMt940Search = $t('COM_ORDENPRODUCCION_PP_MT940_SEARCH_BTN', 'Buscar otro movimiento');
+        $this->labelMt940SearchThenApprove = $t('COM_ORDENPRODUCCION_PP_MT940_SEARCH_THEN_APPROVE', 'Seleccione el movimiento MT-940 y apruebe.');
         $this->labelMt940Approve = $t('COM_ORDENPRODUCCION_PP_MT940_APPROVE_BTN', 'Aprobar verificación');
         $this->labelMt940PickInApprovals = $t('COM_ORDENPRODUCCION_PP_MT940_PICK_IN_APPROVALS', 'Elija movimiento en Aprobaciones');
+        $this->mt940SearchUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.searchMt940ForPaymentApproval&format=json', false);
         $this->mt940ApproveAction = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.approveMt940Verification');
 
         parent::display($tpl);
@@ -330,16 +334,18 @@ class HtmlView extends BaseHtmlView
                 }
             }
 
-            // Workflow members (already gated above) may verify any open request they did not create.
-            $canApprove = $openReq !== null
+            $canShowMt940Actions = $openReq !== null
                 && $requestId > 0
-                && !$wfSvc->isBlockedFromActingOnOwnPaymentProof($userId, $openReq)
-                && !$needsManualMt940Pick;
+                && !$wfSvc->isBlockedFromActingOnOwnPaymentProof($userId, $openReq);
+
+            // Workflow members (already gated above) may verify any open request they did not create.
+            $canApprove = $canShowMt940Actions && !$needsManualMt940Pick;
 
             $map[$proofId] = [
-                'request_id'  => $requestId,
-                'lines'       => $lines,
-                'can_approve' => $canApprove,
+                'request_id'              => $requestId,
+                'lines'                   => $lines,
+                'can_approve'             => $canApprove,
+                'can_show_mt940_actions'  => $canShowMt940Actions,
                 'needs_manual_mt940_pick' => $needsManualMt940Pick,
             ];
         }

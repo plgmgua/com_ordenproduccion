@@ -2086,3 +2086,160 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </div>
 </div>
+
+<?php if (!empty($this->paymentProofMt940ApproverByProofId)) : ?>
+<script>
+(function () {
+    var searchUrl = <?php echo json_encode((string) ($this->mt940SearchUrl ?? ''), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    var noResultsLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PP_MT940_NO_RESULTS'), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+    if (noResultsLabel.indexOf('COM_ORDENPRODUCCION') === 0) {
+        noResultsLabel = 'Sin resultados';
+    }
+
+    function collectOverrides(blockId) {
+        var lines = [];
+        document.querySelectorAll('[data-pp-mt940-block="' + blockId + '"].pp-mt940-line-row').forEach(function (row) {
+            var lineId = parseInt(row.getAttribute('data-line-id') || '0', 10);
+            var txInput = row.querySelector('.mt940-tx-id');
+            var txId = txInput ? parseInt(txInput.value || '0', 10) : 0;
+            if (lineId > 0 && txId > 0) {
+                lines.push({ line_id: lineId, mt940_transaction_id: txId });
+            }
+        });
+        return JSON.stringify({ lines: lines });
+    }
+
+    function syncApproveButtonState(blockId) {
+        var approveRow = document.querySelector('[data-pp-mt940-block="' + blockId + '"].payment-proof-mt940-approve-row');
+        if (!approveRow || approveRow.getAttribute('data-needs-manual') !== '1') {
+            return;
+        }
+        var btn = approveRow.querySelector('.pp-mt940-approve-btn');
+        if (!btn) {
+            return;
+        }
+        var allPicked = true;
+        document.querySelectorAll('[data-pp-mt940-block="' + blockId + '"].pp-mt940-line-row').forEach(function (row) {
+            var txInput = row.querySelector('.mt940-tx-id');
+            if (!txInput || parseInt(txInput.value || '0', 10) < 1) {
+                allPicked = false;
+            }
+        });
+        btn.disabled = !allPicked;
+    }
+
+    document.querySelectorAll('.payment-proof-mt940-approve-row').forEach(function (approveRow) {
+        var blockId = approveRow.getAttribute('data-pp-mt940-block');
+        if (!blockId) {
+            return;
+        }
+        var approveForm = approveRow.querySelector('.pp-mt940-approve-form');
+        if (approveForm) {
+            approveForm.addEventListener('submit', function () {
+                var hidden = approveForm.querySelector('.pp-mt940-manual-override');
+                if (hidden) {
+                    hidden.value = collectOverrides(blockId);
+                }
+            });
+        }
+        syncApproveButtonState(blockId);
+    });
+
+    document.querySelectorAll('.pp-mt940-search-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var row = btn.closest('.pp-mt940-line-row');
+            var cell = btn.closest('.mt940-suggestion-cell');
+            if (!row || !cell || !searchUrl) {
+                return;
+            }
+            var blockId = row.getAttribute('data-pp-mt940-block') || '';
+            var bankId = parseInt((cell.querySelector('.mt940-bank-account-id') || {}).value || '0', 10);
+            var date = (cell.querySelector('.mt940-line-date') || {}).value || '';
+            var amount = parseFloat((cell.querySelector('.mt940-line-amount') || {}).value || '0');
+            var results = cell.querySelector('.pp-mt940-search-results');
+            if (!results) {
+                return;
+            }
+            results.classList.remove('d-none');
+            results.innerHTML = '…';
+            var qs = searchUrl + (searchUrl.indexOf('?') >= 0 ? '&' : '?')
+                + 'bank_account_id=' + encodeURIComponent(String(bankId))
+                + '&date=' + encodeURIComponent(date)
+                + '&amount=' + encodeURIComponent(String(amount));
+            fetch(qs)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data || !data.success || !data.data || !data.data.rows || !data.data.rows.length) {
+                        results.innerHTML = '<span class="text-muted">' + noResultsLabel + '</span>';
+                        return;
+                    }
+                    var html = '<ul class="list-unstyled mb-0 pp-mt940-pick-list">';
+                    data.data.rows.forEach(function (txRow) {
+                        var ref = txRow.reference || '—';
+                        var dt = txRow.transaction_date || txRow.value_date || '';
+                        var amt = txRow.amount;
+                        var desc = (txRow.description || '').replace(/"/g, '&quot;');
+                        html += '<li class="mb-1"><button type="button" class="btn btn-link btn-sm p-0 pp-mt940-pick"'
+                            + ' data-tx-id="' + txRow.id + '"'
+                            + ' data-ref="' + ref.replace(/"/g, '&quot;') + '"'
+                            + ' data-date="' + dt + '"'
+                            + ' data-amount="' + amt + '"'
+                            + ' data-desc="' + desc + '">'
+                            + ref + ' · ' + dt + ' · Q ' + parseFloat(amt).toFixed(2)
+                            + '</button></li>';
+                    });
+                    html += '</ul>';
+                    results.innerHTML = html;
+                    results.querySelectorAll('.pp-mt940-pick').forEach(function (pick) {
+                        pick.addEventListener('click', function (ev) {
+                            ev.stopPropagation();
+                            var txId = parseInt(pick.getAttribute('data-tx-id') || '0', 10);
+                            var ref = pick.getAttribute('data-ref') || '';
+                            var dt = pick.getAttribute('data-date') || '';
+                            var amt = pick.getAttribute('data-amount') || '';
+                            var desc = pick.getAttribute('data-desc') || '';
+                            var txInput = cell.querySelector('.mt940-tx-id');
+                            if (txInput) {
+                                txInput.value = String(txId);
+                            }
+                            var refEl = row.querySelector('.mt940-ref');
+                            if (refEl) {
+                                refEl.textContent = ref || '—';
+                            }
+                            var dateEl = row.querySelector('.mt940-date');
+                            if (dateEl && dt !== '') {
+                                try {
+                                    var parts = dt.substring(0, 10).split('-');
+                                    if (parts.length === 3) {
+                                        dateEl.textContent = parts[2] + '/' + parts[1] + '/' + parts[0];
+                                    } else {
+                                        dateEl.textContent = dt;
+                                    }
+                                } catch (err) {
+                                    dateEl.textContent = dt;
+                                }
+                            }
+                            var amtEl = row.querySelector('.mt940-amount');
+                            if (amtEl) {
+                                amtEl.textContent = parseFloat(amt).toFixed(2);
+                            }
+                            var descEl = row.querySelector('.mt940-desc');
+                            if (descEl) {
+                                descEl.textContent = desc || '—';
+                            }
+                            results.classList.add('d-none');
+                            if (blockId) {
+                                syncApproveButtonState(blockId);
+                            }
+                        });
+                    });
+                })
+                .catch(function () {
+                    results.innerHTML = '<span class="text-danger">Error</span>';
+                });
+        });
+    });
+})();
+</script>
+<?php endif; ?>
