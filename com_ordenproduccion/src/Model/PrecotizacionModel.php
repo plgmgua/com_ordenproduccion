@@ -1725,7 +1725,7 @@ class PrecotizacionModel extends ListModel
             if (isset($colsLc['oferta']) && !empty($row->oferta)) {
                 return 'COM_ORDENPRODUCCION_PRE_OFERTA_CANNOT_LINK_COTIZACION';
             }
-            if ((int) $row->created_by !== (int) $user->id) {
+            if ((int) $row->created_by !== (int) $user->id && !AccessHelper::isSuperUser()) {
                 return 'COM_ORDENPRODUCCION_PRE_COT_LINE_OWNER_ONLY';
             }
         }
@@ -1736,6 +1736,7 @@ class PrecotizacionModel extends ListModel
 
     /**
      * Get pre-cotizaciones for the quotation line selector: current user's non-offer rows only (offers cannot be linked to a cotización).
+     * Super Users see all published non-offer pre-cotizaciones (still excluding rows already on a cotización — applied in the view).
      *
      * @return  \stdClass[]  List of objects with id, number, total, descripcion, oferta
      * @since   3.95.0
@@ -1744,6 +1745,7 @@ class PrecotizacionModel extends ListModel
     {
         $db   = $this->getDatabase();
         $user = Factory::getUser();
+        $superUserSelector = AccessHelper::isSuperUser();
         $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
         $tableCols = is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
         if (!isset($tableCols['oferta'])) {
@@ -1763,9 +1765,11 @@ class PrecotizacionModel extends ListModel
             ->select($cols)
             ->from($db->quoteName('#__ordenproduccion_pre_cotizacion', 'a'))
             ->where($db->quoteName('a.state') . ' = 1')
-            ->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id)
-            ->where('(' . $db->quoteName('a.oferta') . ' = 0 OR ' . $db->quoteName('a.oferta') . ' IS NULL)')
-            ->order($db->quoteName('a.id') . ' DESC');
+            ->where('(' . $db->quoteName('a.oferta') . ' = 0 OR ' . $db->quoteName('a.oferta') . ' IS NULL)');
+        if (!$superUserSelector) {
+            $query->where($db->quoteName('a.created_by') . ' = ' . (int) $user->id);
+        }
+        $query->order($db->quoteName('a.id') . ' DESC');
         $db->setQuery($query);
         $rows = $db->loadObjectList();
         $preIdsForLines = [];

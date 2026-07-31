@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.289-STABLE] - 2026-07-31
+
+### Changed
+- **Nueva cotización — Super User:** May select any published pre-cotización that is not yet linked to a cotización (any owner), not only their own, when creating a new cotización.
+
 ## [3.119.288-STABLE] - 2026-07-31
 
 ### Fixed
