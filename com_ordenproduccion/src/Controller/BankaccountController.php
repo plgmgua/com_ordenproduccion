@@ -46,10 +46,13 @@ class BankaccountController extends BankController
 
         $input = Factory::getApplication()->input;
 
+        $currency = strtoupper(trim($input->post->getString('currency', 'GTQ')));
+
         $data = [
             'id' => $input->post->getInt('id', 0),
             'name' => $input->post->getString('name', ''),
             'account_number' => $input->post->getString('account_number', ''),
+            'currency' => ($currency === 'USD') ? 'USD' : 'GTQ',
             'state' => $input->post->getInt('state', 1),
             'is_default' => $input->post->get('is_default', 0) == '1' || $input->post->getInt('is_default', 0) === 1 ? 1 : 0,
         ];

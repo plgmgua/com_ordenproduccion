@@ -91,6 +91,7 @@ $tokenName = Session::getFormToken();
                         <th scope="col" style="width:90px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_ID'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_NAME'); ?></th>
                         <th scope="col"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_NUMBER'); ?></th>
+                        <th scope="col" style="width:100px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_CURRENCY'); ?></th>
                         <th scope="col" style="width:180px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_DEFAULT'); ?></th>
                         <th scope="col" style="width:140px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_STATE'); ?></th>
                         <th scope="col" style="width:260px;"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_ACTIONS'); ?></th>
@@ -102,6 +103,10 @@ $tokenName = Session::getFormToken();
                         $rid = (int) ($r->id ?? 0);
                         $rname = (string) ($r->name ?? '');
                         $rnum = (string) ($r->account_number ?? '');
+                        $rcur = strtoupper(trim((string) ($r->currency ?? 'GTQ')));
+                        if ($rcur !== 'USD') {
+                            $rcur = 'GTQ';
+                        }
                         $active = !isset($r->state) || (int) $r->state === 1;
                         $isDef = !empty($r->is_default) && (int) $r->is_default === 1;
                         ?>
@@ -109,6 +114,7 @@ $tokenName = Session::getFormToken();
                             <td><?php echo $rid; ?></td>
                             <td><?php echo htmlspecialchars($rname, ENT_QUOTES, 'UTF-8'); ?></td>
                             <td><?php echo $rnum !== '' ? '<code>' . htmlspecialchars($rnum, ENT_QUOTES, 'UTF-8') . '</code>' : '—'; ?></td>
+                            <td><?php echo htmlspecialchars($rcur); ?></td>
                             <td>
                                 <?php if ($isDef) : ?>
                                     <span class="ba-default-badge"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_DEFAULT'); ?></span>
@@ -126,7 +132,7 @@ $tokenName = Session::getFormToken();
                                 <?php endif; ?>
                             </td>
                             <td class="ba-actions">
-                                <button type="button" class="btn-edit-ba" onclick="editBa(<?php echo $rid; ?>, <?php echo json_encode($rname); ?>, <?php echo json_encode($rnum); ?>, <?php echo $active ? '1' : '0'; ?>, <?php echo $isDef ? '1' : '0'; ?>)">
+                                <button type="button" class="btn-edit-ba" onclick="editBa(<?php echo $rid; ?>, <?php echo json_encode($rname); ?>, <?php echo json_encode($rnum); ?>, <?php echo json_encode($rcur); ?>, <?php echo $active ? '1' : '0'; ?>, <?php echo $isDef ? '1' : '0'; ?>)">
                                     <i class="fas fa-edit"></i> <?php echo Text::_('JEDIT'); ?>
                                 </button>
                                 <button type="button" class="btn-del-ba" onclick="deleteBa(<?php echo $rid; ?>)">
@@ -160,6 +166,14 @@ $tokenName = Session::getFormToken();
                 <div class="form-text small"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_NUMBER_DESC'); ?></div>
             </div>
             <div class="ba-form-group">
+                <label for="ba-currency"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_CURRENCY'); ?></label>
+                <select id="ba-currency" name="currency">
+                    <option value="GTQ"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_CURRENCY_GTQ'); ?></option>
+                    <option value="USD"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_CURRENCY_USD'); ?></option>
+                </select>
+                <div class="form-text small"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_CURRENCY_DESC'); ?></div>
+            </div>
+            <div class="ba-form-group">
                 <label for="ba-state"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_COL_STATE'); ?></label>
                 <select id="ba-state" name="state">
                     <option value="1"><?php echo Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_STATE_ACTIVE'); ?></option>
@@ -190,16 +204,18 @@ $tokenName = Session::getFormToken();
         document.getElementById('ba-state').value = '1';
         document.getElementById('ba-is-default').checked = false;
         document.getElementById('ba-account-number').value = '';
+        document.getElementById('ba-currency').value = 'GTQ';
         document.getElementById('ba-modal').style.display = 'block';
     };
 
     window.closeBaModal = function() { document.getElementById('ba-modal').style.display = 'none'; };
 
-    window.editBa = function(id, name, accountNumber, state1, isDef) {
+    window.editBa = function(id, name, accountNumber, currency, state1, isDef) {
         document.getElementById('ba-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_BANK_ACCOUNT_EDIT')); ?>';
         document.getElementById('ba-id').value = id;
         document.getElementById('ba-name').value = name || '';
         document.getElementById('ba-account-number').value = accountNumber || '';
+        document.getElementById('ba-currency').value = (currency === 'USD') ? 'USD' : 'GTQ';
         document.getElementById('ba-state').value = (state1 === true || state1 === 1 || state1 === '1') ? '1' : '0';
         document.getElementById('ba-is-default').checked = (isDef === true || isDef === 1 || isDef === '1');
         document.getElementById('ba-modal').style.display = 'block';
@@ -211,6 +227,7 @@ $tokenName = Session::getFormToken();
         fd.append('id', document.getElementById('ba-id').value || '0');
         fd.append('name', (document.getElementById('ba-name').value || '').trim());
         fd.append('account_number', (document.getElementById('ba-account-number').value || '').trim());
+        fd.append('currency', document.getElementById('ba-currency').value || 'GTQ');
         fd.append('state', document.getElementById('ba-state').value);
         fd.append('is_default', document.getElementById('ba-is-default').checked ? '1' : '0');
         fd.append(tokenName, '1');

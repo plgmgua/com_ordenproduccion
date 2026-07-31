@@ -16,6 +16,7 @@ use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService;
 
@@ -106,6 +107,8 @@ class HtmlView extends BaseHtmlView
             $this->document->addScriptOptions('com_ordenproduccion.paymentproof', [
                 'paymentTypeRequiresBank' => $this->getPaymentTypeRequiresBankMap(),
                 'paymentTypeDefaults' => $this->getPaymentTypeDefaultsMap(),
+                'bankAccountCurrencies' => $this->getBankAccountCurrenciesMap(),
+                'exchangeRateUrl' => Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelExchangeRate&format=json', false),
             ]);
             parent::display($tpl);
             return;
@@ -517,7 +520,50 @@ class HtmlView extends BaseHtmlView
         $this->document->addScriptOptions('com_ordenproduccion.paymentproof', [
             'paymentTypeRequiresBank' => $this->getPaymentTypeRequiresBankMap(),
             'paymentTypeDefaults' => $this->getPaymentTypeDefaultsMap(),
+            'bankAccountCurrencies' => $this->getBankAccountCurrenciesMap(),
+            'exchangeRateUrl' => Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelExchangeRate&format=json', false),
         ]);
+    }
+
+    /**
+     * @param   object  $line
+     *
+     * @return  string
+     *
+     * @since   3.119.290
+     */
+    public function formatPaymentLineAmount(object $line): string
+    {
+        return PaymentProofCurrencyHelper::formatLineAmountDisplay($line);
+    }
+
+    /**
+     * @return  array<int, string>  bank_account_id => GTQ|USD
+     *
+     * @since   3.119.290
+     */
+    protected function getBankAccountCurrenciesMap(): array
+    {
+        try {
+            $baModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                ->getMVCFactory()->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+            if ($baModel === null || !method_exists($baModel, 'getBankAccounts')) {
+                return [];
+            }
+            $out = [];
+            foreach ($baModel->getBankAccounts() as $acc) {
+                $id = (int) ($acc->id ?? 0);
+                if ($id < 1) {
+                    continue;
+                }
+                $cur = strtoupper(trim((string) ($acc->currency ?? 'GTQ')));
+                $out[$id] = ($cur === 'USD') ? 'USD' : 'GTQ';
+            }
+
+            return $out;
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /**

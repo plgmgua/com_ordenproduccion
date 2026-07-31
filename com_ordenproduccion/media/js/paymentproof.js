@@ -1,10 +1,180 @@
 /**
  * Payment Proof JavaScript for Com Orden Produccion
- * 
+ *
  * @package     Grimpsa\Component\Ordenproduccion\Site\View\PaymentProof
  * @subpackage  PaymentProof
  * @since       3.1.5
  */
+
+(function() {
+    'use strict';
+
+    function getOpts() {
+        if (typeof Joomla !== 'undefined' && typeof Joomla.getOptions === 'function') {
+            return Joomla.getOptions('com_ordenproduccion.paymentproof') || {};
+        }
+        return {};
+    }
+
+    function parseNum(v) {
+        var n = parseFloat(v);
+        return isNaN(n) ? 0 : n;
+    }
+
+    window.PaymentProofCurrency = {
+        getOpts: getOpts,
+
+        getLineCurrency: function(row) {
+            if (!row) return 'GTQ';
+            var accSel = row.querySelector('.payment-line-bank-account');
+            var accId = accSel ? parseInt(accSel.value, 10) : 0;
+            if (!accId) return 'GTQ';
+            var map = getOpts().bankAccountCurrencies || {};
+            return (map[String(accId)] || map[accId] || 'GTQ') === 'USD' ? 'USD' : 'GTQ';
+        },
+
+        updateLinePrefix: function(row) {
+            if (!row) return;
+            var cur = this.getLineCurrency(row);
+            var prefix = row.querySelector('.payment-line-currency-prefix');
+            if (prefix) prefix.textContent = cur === 'USD' ? 'USD' : 'Q.';
+        },
+
+        getLineRate: function(row) {
+            if (!row) return 0;
+            var hid = row.querySelector('.payment-line-exchange-rate');
+            return hid ? parseNum(hid.value) : 0;
+        },
+
+        fetchRateForLine: function(row) {
+            var self = this;
+            if (!row || self.getLineCurrency(row) !== 'USD') {
+                return Promise.resolve(0);
+            }
+            var dateInp = row.querySelector('.payment-line-document-date');
+            var dateVal = dateInp && dateInp.value ? dateInp.value : '';
+            if (!dateVal) {
+                dateVal = new Date().toISOString().slice(0, 10);
+            }
+            var url = (getOpts().exchangeRateUrl || '') + (getOpts().exchangeRateUrl.indexOf('?') >= 0 ? '&' : '?') + 'issue_date=' + encodeURIComponent(dateVal);
+            return fetch(url, { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(j) {
+                    var rate = j && j.success && j.exchange_rate != null ? parseNum(j.exchange_rate) : 0;
+                    var hid = row.querySelector('.payment-line-exchange-rate');
+                    if (hid && rate > 0) hid.value = rate.toFixed(6);
+                    self.updateLineHint(row);
+                    return rate;
+                })
+                .catch(function() { return 0; });
+        },
+
+        getLineAmountGtq: function(row) {
+            if (!row) return 0;
+            var amt = parseNum((row.querySelector('.payment-line-amount') || {}).value);
+            if (this.getLineCurrency(row) === 'USD') {
+                var rate = this.getLineRate(row);
+                if (rate > 0) return Math.round(amt * rate * 100) / 100;
+                return 0;
+            }
+            return amt;
+        },
+
+        getLinesTotalGtq: function() {
+            var self = this;
+            var sum = 0;
+            document.querySelectorAll('#payment-lines-body tr').forEach(function(row) {
+                sum += self.getLineAmountGtq(row);
+            });
+            return sum;
+        },
+
+        updateLineHint: function(row) {
+            if (!row) return;
+            var hint = row.querySelector('.payment-line-gtq-hint');
+            if (!hint) return;
+            if (this.getLineCurrency(row) !== 'USD') {
+                hint.classList.add('d-none');
+                hint.textContent = '';
+                return;
+            }
+            var amt = parseNum((row.querySelector('.payment-line-amount') || {}).value);
+            var rate = this.getLineRate(row);
+            if (amt > 0 && rate > 0) {
+                var gtq = Math.round(amt * rate * 100) / 100;
+                hint.textContent = '≈ Q ' + gtq.toFixed(2) + ' @ ' + rate.toFixed(4);
+                hint.classList.remove('d-none');
+            } else {
+                hint.classList.add('d-none');
+                hint.textContent = '';
+            }
+        },
+
+        updateLinesTotalDisplay: function() {
+            var self = this;
+            var hasUsd = false;
+            document.querySelectorAll('#payment-lines-body tr').forEach(function(row) {
+                self.updateLinePrefix(row);
+                if (self.getLineCurrency(row) === 'USD') hasUsd = true;
+                self.updateLineHint(row);
+            });
+            var gtqTotal = self.getLinesTotalGtq();
+            var el = document.getElementById('payment-lines-total');
+            if (el) {
+                el.textContent = 'Q. ' + gtqTotal.toFixed(2);
+            }
+            var hintEl = document.getElementById('payment-lines-total-gtq-hint');
+            if (hintEl) {
+                if (hasUsd) {
+                    hintEl.textContent = ' (equivalente GTQ para saldo)';
+                    hintEl.classList.remove('d-none');
+                } else {
+                    hintEl.textContent = '';
+                    hintEl.classList.add('d-none');
+                }
+            }
+            var amt = document.getElementById('payment_amount');
+            if (amt) amt.value = gtqTotal.toFixed(2);
+            return gtqTotal;
+        },
+
+        bindLineRow: function(row) {
+            var self = this;
+            if (!row) return;
+            var accSel = row.querySelector('.payment-line-bank-account');
+            var dateInp = row.querySelector('.payment-line-document-date');
+            var amtInp = row.querySelector('.payment-line-amount');
+            function onUsdFieldChange() {
+                self.updateLinePrefix(row);
+                if (self.getLineCurrency(row) === 'USD') {
+                    self.fetchRateForLine(row).then(function() {
+                        self.updateLinesTotalDisplay();
+                    });
+                } else {
+                    var hid = row.querySelector('.payment-line-exchange-rate');
+                    if (hid) hid.value = '';
+                    self.updateLineHint(row);
+                    self.updateLinesTotalDisplay();
+                }
+            }
+            if (accSel) accSel.addEventListener('change', onUsdFieldChange);
+            if (dateInp) dateInp.addEventListener('change', onUsdFieldChange);
+            if (amtInp) amtInp.addEventListener('input', function() {
+                self.updateLineHint(row);
+                self.updateLinesTotalDisplay();
+            });
+            self.updateLinePrefix(row);
+        },
+
+        init: function() {
+            var body = document.getElementById('payment-lines-body');
+            if (!body) return;
+            var self = this;
+            body.querySelectorAll('tr').forEach(function(row) { self.bindLineRow(row); });
+            self.updateLinesTotalDisplay();
+        }
+    };
+})();
 
 document.addEventListener('DOMContentLoaded', function() {
     'use strict';
@@ -43,6 +213,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize payment proof functionality
     initPaymentProof();
+    if (window.PaymentProofCurrency) {
+        window.PaymentProofCurrency.init();
+    }
 
     function initPaymentProof() {
         setupDynamicOrderRows();
@@ -325,6 +498,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         function getLinesTotal() {
+            if (window.PaymentProofCurrency && typeof window.PaymentProofCurrency.getLinesTotalGtq === 'function') {
+                return window.PaymentProofCurrency.getLinesTotalGtq();
+            }
             let sum = 0;
             document.querySelectorAll('.payment-line-amount').forEach(function(inp) {
                 sum += parseFloat(inp.value) || 0;

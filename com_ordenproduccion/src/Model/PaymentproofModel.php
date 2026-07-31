@@ -13,6 +13,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ItemModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 
 class PaymentproofModel extends ItemModel
@@ -232,9 +233,18 @@ class PaymentproofModel extends ItemModel
             }
             $this->duplicateDocumentNumbersOnSave = array_values(array_unique($this->duplicateDocumentNumbersOnSave));
             $skipPaymentVerification = $this->allPaymentLinesSkipValidation($paymentLines, $paymenttypeModel);
+
+            try {
+                $paymentLines = $this->enrichPaymentLinesWithCurrency($paymentLines);
+            } catch (\RuntimeException $e) {
+                $this->setError($e->getMessage());
+
+                return false;
+            }
+
             $paymentAmount = 0;
             foreach ($paymentLines as $line) {
-                $paymentAmount += (float) ($line['amount'] ?? 0);
+                $paymentAmount += (float) ($line['amount_gtq'] ?? $line['amount'] ?? 0);
             }
             if ($paymentAmount <= 0) {
                 $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_MISSING_REQUIRED_FIELDS'));
@@ -315,6 +325,7 @@ class PaymentproofModel extends ItemModel
                 $pplCols = is_array($pplCols) ? array_change_key_case($pplCols, CASE_LOWER) : [];
                 $hasDocumentDate = isset($pplCols['document_date']);
                 $hasBankAccountId = isset($pplCols['bank_account_id']);
+                $hasLineCurrency = isset($pplCols['currency']);
                 $ordering     = 0;
                 $lineFileIdx  = 0;
                 $createdBy    = (int) ($data['created_by'] ?? 0);
@@ -337,6 +348,16 @@ class PaymentproofModel extends ItemModel
                         $columns[] = 'bank_account_id';
                         $baIns = (int) ($line['bank_account_id'] ?? 0);
                         $values .= ',' . ($baIns > 0 ? (string) $baIns : 'NULL');
+                    }
+                    if ($hasLineCurrency) {
+                        $columns[] = 'currency';
+                        $values .= ',' . $db->quote(PaymentProofCurrencyHelper::normalizeCurrency((string) ($line['currency'] ?? 'GTQ')));
+                        $columns[] = 'exchange_rate';
+                        $rateIns = isset($line['exchange_rate']) && $line['exchange_rate'] !== null
+                            ? (float) $line['exchange_rate'] : null;
+                        $values .= ',' . ($rateIns !== null && $rateIns > 0 ? (string) round($rateIns, 6) : 'NULL');
+                        $columns[] = 'amount_gtq';
+                        $values .= ',' . round((float) ($line['amount_gtq'] ?? $amt), 2);
                     }
                     $insertLine = $db->getQuery(true)
                         ->insert($db->quoteName('#__ordenproduccion_payment_proof_lines'))
@@ -525,7 +546,8 @@ class PaymentproofModel extends ItemModel
                     'bank_account_id' => max(0, (int) ($line['bank_account_id'] ?? 0)),
                     'document_number' => $doc,
                     'document_date' => trim($line['document_date'] ?? ''),
-                    'amount' => $amount
+                    'amount' => $amount,
+                    'exchange_rate' => isset($line['exchange_rate']) ? (float) $line['exchange_rate'] : null,
                 ];
             }
         }
@@ -538,11 +560,104 @@ class PaymentproofModel extends ItemModel
                     'bank_account_id' => max(0, (int) ($data['bank_account_id'] ?? 0)),
                     'document_number' => trim($data['document_number']),
                     'document_date' => trim($data['document_date'] ?? ''),
-                    'amount' => $amt
+                    'amount' => $amt,
+                    'exchange_rate' => isset($data['exchange_rate']) ? (float) $data['exchange_rate'] : null,
                 ];
             }
         }
         return $lines;
+    }
+
+    /**
+     * Resolve currency / GTQ equivalent per line from bank account + BANGUAT.
+     *
+     * @param   array  $lines
+     *
+     * @return  array
+     *
+     * @throws  \RuntimeException
+     *
+     * @since   3.119.290
+     */
+    protected function enrichPaymentLinesWithCurrency(array $lines): array
+    {
+        if (!$this->paymentProofLinesHasCurrencyColumns()) {
+            return $lines;
+        }
+
+        $baIds = [];
+        foreach ($lines as $line) {
+            $id = (int) ($line['bank_account_id'] ?? 0);
+            if ($id > 0) {
+                $baIds[] = $id;
+            }
+        }
+
+        $bankAccounts = [];
+        if ($baIds !== []) {
+            try {
+                $baModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                    ->getMVCFactory()->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+                if ($baModel && method_exists($baModel, 'getBankAccountsByIds')) {
+                    $bankAccounts = $baModel->getBankAccountsByIds($baIds);
+                }
+            } catch (\Throwable $e) {
+                $bankAccounts = [];
+            }
+        }
+
+        $out = [];
+        foreach ($lines as $line) {
+            $baId = (int) ($line['bank_account_id'] ?? 0);
+            $ba   = ($baId > 0 && isset($bankAccounts[$baId])) ? $bankAccounts[$baId] : null;
+            $out[] = PaymentProofCurrencyHelper::enrichPaymentLine($line, $ba);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return  bool
+     *
+     * @since   3.119.290
+     */
+    protected function paymentProofLinesHasCurrencyColumns(): bool
+    {
+        static $has = null;
+        if ($has !== null) {
+            return $has;
+        }
+        if (!$this->hasPaymentProofLinesTable()) {
+            $has = false;
+
+            return false;
+        }
+        try {
+            $cols = $this->getDatabase()->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
+            $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            $has  = isset($cols['currency'], $cols['amount_gtq']);
+        } catch (\Throwable $e) {
+            $has = false;
+        }
+
+        return $has;
+    }
+
+    /**
+     * SQL expression for line amount in GTQ (for SUM in recalc).
+     *
+     * @return  string
+     *
+     * @since   3.119.290
+     */
+    protected function paymentProofLineGtqAmountExpr(): string
+    {
+        $db = $this->getDatabase();
+        if ($this->paymentProofLinesHasCurrencyColumns()) {
+            return 'COALESCE(' . $db->quoteName('amount_gtq') . ', ' . $db->quoteName('amount') . ')';
+        }
+
+        return $db->quoteName('amount');
     }
 
     /**
@@ -1069,12 +1184,40 @@ class PaymentproofModel extends ItemModel
                 throw new \RuntimeException('proof');
             }
 
-            $db->setQuery(
-                $db->getQuery(true)
-                    ->update($db->quoteName('#__ordenproduccion_payment_proof_lines'))
-                    ->set($db->quoteName('amount') . ' = ' . $newAmount)
-                    ->where($db->quoteName('id') . ' = ' . $lineId)
-            );
+            $update = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                ->set($db->quoteName('amount') . ' = ' . $newAmount)
+                ->where($db->quoteName('id') . ' = ' . $lineId);
+
+            if ($this->paymentProofLinesHasCurrencyColumns()) {
+                $lineArr = [
+                    'amount'          => $newAmount,
+                    'bank_account_id' => (int) ($line->bank_account_id ?? 0),
+                    'document_date'   => trim((string) ($line->document_date ?? '')),
+                    'exchange_rate'   => isset($line->exchange_rate) ? (float) $line->exchange_rate : null,
+                ];
+                $ba = null;
+                $baId = (int) ($line->bank_account_id ?? 0);
+                if ($baId > 0) {
+                    try {
+                        $baModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                            ->getMVCFactory()->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+                        if ($baModel && method_exists($baModel, 'getBankAccountsByIds')) {
+                            $map = $baModel->getBankAccountsByIds([$baId]);
+                            $ba  = $map[$baId] ?? null;
+                        }
+                    } catch (\Throwable $e) {
+                        $ba = null;
+                    }
+                }
+                $enriched = PaymentProofCurrencyHelper::enrichPaymentLine($lineArr, $ba);
+                $update->set($db->quoteName('currency') . ' = ' . $db->quote((string) ($enriched['currency'] ?? 'GTQ')));
+                $rate = $enriched['exchange_rate'] ?? null;
+                $update->set($db->quoteName('exchange_rate') . ' = ' . ($rate !== null && $rate > 0 ? (string) round((float) $rate, 6) : 'NULL'));
+                $update->set($db->quoteName('amount_gtq') . ' = ' . round((float) ($enriched['amount_gtq'] ?? $newAmount), 2));
+            }
+
+            $db->setQuery($update);
             $db->execute();
 
             if (!$this->recalculateProofAmountAndMismatch($proofId)) {
@@ -1091,7 +1234,10 @@ class PaymentproofModel extends ItemModel
             } catch (\Throwable $ignored) {
             }
             if (!$this->getError()) {
-                $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE_FAILED'));
+                $msg = ($e instanceof \RuntimeException && $e->getMessage() !== '')
+                    ? $e->getMessage()
+                    : Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE_FAILED');
+                $this->setError($msg);
             }
 
             return false;
@@ -1258,10 +1404,47 @@ class PaymentproofModel extends ItemModel
                 }
             }
 
+            if ($this->paymentProofLinesHasCurrencyColumns()) {
+                $ba = null;
+                if ($bankAccountId > 0) {
+                    try {
+                        $baModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+                            ->getMVCFactory()->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
+                        if ($baModel && method_exists($baModel, 'getBankAccountsByIds')) {
+                            $map = $baModel->getBankAccountsByIds([$bankAccountId]);
+                            $ba  = $map[$bankAccountId] ?? null;
+                        }
+                    } catch (\Throwable $e) {
+                        $ba = null;
+                    }
+                }
+                $lineArr = [
+                    'amount'          => (float) ($line->amount ?? 0),
+                    'bank_account_id' => $bankAccountId,
+                    'document_date'   => trim((string) ($line->document_date ?? '')),
+                    'exchange_rate'   => isset($line->exchange_rate) ? (float) $line->exchange_rate : null,
+                ];
+                try {
+                    $enriched = PaymentProofCurrencyHelper::enrichPaymentLine($lineArr, $ba);
+                    $update->set($db->quoteName('currency') . ' = ' . $db->quote((string) ($enriched['currency'] ?? 'GTQ')));
+                    $rate = $enriched['exchange_rate'] ?? null;
+                    $update->set($db->quoteName('exchange_rate') . ' = ' . ($rate !== null && $rate > 0 ? (string) round((float) $rate, 6) : 'NULL'));
+                    $update->set($db->quoteName('amount_gtq') . ' = ' . round((float) ($enriched['amount_gtq'] ?? $lineArr['amount']), 2));
+                } catch (\RuntimeException $e) {
+                    throw $e;
+                }
+            }
+
             $db->setQuery($update);
             $db->execute();
 
             $this->syncProofHeaderFromPrimaryLine($proofId);
+
+            if ($this->paymentProofLinesHasCurrencyColumns()) {
+                if (!$this->recalculateProofAmountAndMismatch($proofId)) {
+                    throw new \RuntimeException('recalc');
+                }
+            }
 
             $db->transactionCommit();
             $this->refreshClientBalancesAfterProofChange();
@@ -1273,7 +1456,10 @@ class PaymentproofModel extends ItemModel
             } catch (\Throwable $ignored) {
             }
             if (!$this->getError()) {
-                $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_SAVE_FAILED'));
+                $msg = ($e instanceof \RuntimeException && $e->getMessage() !== '')
+                    ? $e->getMessage()
+                    : Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_SAVE_FAILED');
+                $this->setError($msg);
             }
 
             return false;
@@ -1368,9 +1554,10 @@ class PaymentproofModel extends ItemModel
         if ($paymentAmount === null) {
             $paymentAmount = 0.0;
             if ($this->hasPaymentProofLinesTable()) {
+                $gtqExpr = $this->paymentProofLineGtqAmountExpr();
                 $db->setQuery(
                     $db->getQuery(true)
-                        ->select('COALESCE(SUM(' . $db->quoteName('amount') . '), 0)')
+                        ->select('COALESCE(SUM(' . $gtqExpr . '), 0)')
                         ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
                         ->where($db->quoteName('payment_proof_id') . ' = ' . $proofId)
                 );

@@ -127,6 +127,10 @@ class BankaccountModel extends BaseDatabaseModel
         if ($this->hasAccountNumberColumn()) {
             $obj->account_number = $acctNo !== '' ? $acctNo : null;
         }
+        if ($this->hasCurrencyColumn()) {
+            $cur = strtoupper(trim((string) ($data['currency'] ?? 'GTQ')));
+            $obj->currency = ($cur === 'USD') ? 'USD' : 'GTQ';
+        }
         $obj->state = isset($data['state']) ? (int) $data['state'] : 1;
         if ($obj->state !== 0) {
             $obj->state = 1;
@@ -246,6 +250,44 @@ class BankaccountModel extends BaseDatabaseModel
         } catch (\Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * @return  bool
+     *
+     * @since   3.119.290
+     */
+    public function hasCurrencyColumn(): bool
+    {
+        try {
+            $cols = $this->getDatabase()->getTableColumns('#__ordenproduccion_bank_accounts', false);
+
+            return isset($cols['currency']);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @param   array<int>  $ids
+     *
+     * @return  array<int, string>  id => GTQ|USD
+     *
+     * @since   3.119.290
+     */
+    public function getCurrenciesByIds(array $ids): array
+    {
+        $accounts = $this->getBankAccountsByIds($ids);
+        $out      = [];
+        foreach ($accounts as $id => $row) {
+            $cur = 'GTQ';
+            if ($this->hasCurrencyColumn() && isset($row->currency)) {
+                $cur = strtoupper(trim((string) $row->currency)) === 'USD' ? 'USD' : 'GTQ';
+            }
+            $out[(int) $id] = $cur;
+        }
+
+        return $out;
     }
 
     /**

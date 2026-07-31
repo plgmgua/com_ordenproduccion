@@ -103,7 +103,9 @@ class PaymentproofController extends BaseController
                             'bank_account_id' => max(0, (int) ($line['bank_account_id'] ?? 0)),
                             'document_number' => $doc,
                             'document_date' => trim($line['document_date'] ?? ''),
-                            'amount' => $amount
+                            'amount' => $amount,
+                            'exchange_rate' => isset($line['exchange_rate']) && $line['exchange_rate'] !== ''
+                                ? (float) $line['exchange_rate'] : null,
                         ];
                     }
                 }

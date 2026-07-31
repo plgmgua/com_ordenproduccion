@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.290-STABLE] - 2026-07-31
+
+### Added
+- **Cuentas bancarias:** `currency` field (GTQ / USD) on company bank accounts (Administración → Herramientas → Cuentas bancarias).
+- **Registro de comprobante — USD:** When **Cuenta destino** is a USD account, enter the dollar amount; BANGUAT referencia converts to GTQ for order saldo (`amount_gtq` on payment lines). Mixed proofs supported (GTQ + USD lines).
+
+### Changed
+- Payment proof line total and mismatch validation compare **GTQ equivalent** when USD lines are present.
+
 ## [3.119.289-STABLE] - 2026-07-31
 
 ### Changed

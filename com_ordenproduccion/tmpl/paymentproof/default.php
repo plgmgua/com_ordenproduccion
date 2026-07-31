@@ -15,6 +15,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Paymentproof\HtmlView $this */
 
@@ -25,6 +26,7 @@ $existingPayments = $this->existingPayments ?? [];
 $bankAccountOptionsForPayment = [];
 $defaultBankAccountIdForPayment = 0;
 $bankAccountNameByIdForLabel = [];
+$bankAccountCurrencies = [];
 try {
     $baMdl = Factory::getApplication()->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Bankaccount', 'Site', ['ignore_request' => true]);
     if ($baMdl !== null && method_exists($baMdl, 'getBankAccounts')) {
@@ -34,6 +36,8 @@ try {
                 continue;
             }
             $bankAccountNameByIdForLabel[$bid] = trim((string) ($acc->name ?? ''));
+            $cur = strtoupper(trim((string) ($acc->currency ?? 'GTQ')));
+            $bankAccountCurrencies[$bid] = ($cur === 'USD') ? 'USD' : 'GTQ';
             if ((int) ($acc->state ?? 0) !== 1) {
                 continue;
             }
@@ -154,7 +158,14 @@ if (empty($order)) :
                                             </td>
                                             <td><input type="text" name="payment_lines[0][document_number]" class="form-control form-control-sm" placeholder="<?php echo htmlspecialchars($this->labelDocumentNumberPlaceholder ?? 'ej. Número de cheque'); ?>" maxlength="255" required></td>
                                             <td><input type="date" name="payment_lines[0][document_date]" class="form-control form-control-sm payment-line-document-date"></td>
-                                            <td><input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required></td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text payment-line-currency-prefix">Q.</span>
+                                                    <input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required>
+                                                </div>
+                                                <input type="hidden" name="payment_lines[0][exchange_rate]" class="payment-line-exchange-rate" value="">
+                                                <small class="text-muted payment-line-gtq-hint d-none"></small>
+                                            </td>
                                             <td class="text-center align-middle">
                                                 <label class="btn btn-sm btn-outline-secondary mb-0 payment-line-clip-label" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ATTACH_HINT', 'One or more files for this line', 'Uno o más archivos para esta línea')); ?>">
                                                     <i class="fas fa-paperclip" aria-hidden="true"></i>
@@ -167,7 +178,7 @@ if (empty($order)) :
                                     <tfoot>
                                         <tr class="table-info">
                                             <td colspan="5" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
-                                            <td><strong id="payment-lines-total">Q. 0.00</strong></td>
+                                            <td><strong id="payment-lines-total">Q. 0.00</strong><small id="payment-lines-total-gtq-hint" class="text-muted d-none"></small></td>
                                             <td></td>
                                             <td class="text-end">
                                                 <button type="button" class="btn btn-sm btn-success add-payment-line-btn" style="min-width: 38px;" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
@@ -331,12 +342,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     function updateLinesTotal() {
+        if (window.PaymentProofCurrency) {
+            return window.PaymentProofCurrency.updateLinesTotalDisplay();
+        }
         var sum = 0;
         document.querySelectorAll('.payment-line-amount').forEach(function(inp) { sum += parseFloat(inp.value) || 0; });
         var el = document.getElementById('payment-lines-total');
         if (el) el.textContent = 'Q. ' + sum.toFixed(2);
         var amt = document.getElementById('payment_amount');
         if (amt) amt.value = sum.toFixed(2);
+        return sum;
     }
     document.querySelectorAll('.add-payment-line-btn').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
@@ -364,6 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tbody.appendChild(clone);
             lineIndex++;
             toggleBankCell(clone, false);
+            if (window.PaymentProofCurrency) window.PaymentProofCurrency.bindLineRow(clone);
             clone.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(clone, true); });
             clone.querySelector('.payment-line-amount').addEventListener('input', updateLinesTotal);
             var rm = clone.querySelector('.remove-payment-line-btn');
@@ -373,7 +389,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.querySelectorAll('.payment-line-type').forEach(function(el) { el.addEventListener('change', function() { toggleBankCell(el.closest('tr'), true); }); });
     document.querySelectorAll('.payment-line-amount').forEach(function(el) { el.addEventListener('input', updateLinesTotal); });
-    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r, false); });
+    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) {
+        toggleBankCell(r, false);
+        if (window.PaymentProofCurrency) window.PaymentProofCurrency.bindLineRow(r);
+    });
     updateLinesTotal();
 });
 window.validateFiles = function(input) {
@@ -577,7 +596,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                         $proofMonto = 0.0;
                                         $isFirstLine = true;
                                         foreach ($lines as $line):
-                                            $proofMonto += (float)($line->amount ?? 0);
+                                            $proofMonto += PaymentProofCurrencyHelper::lineAmountGtq($line);
                                             $lineId = (int) ($line->id ?? 0);
                                             $cellFiles = $groupedLineFiles[$lineId] ?? [];
                                 ?>
@@ -695,7 +714,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                             </form>
                                         </div>
                                         <?php else : ?>
-                                        Q <?php echo number_format($lineAmount, 2); ?>
+                                        <?php echo htmlspecialchars($this->formatPaymentLineAmount($line)); ?>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-nowrap"><?php
@@ -1701,7 +1720,12 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                                         <input type="date" name="payment_lines[0][document_date]" class="form-control form-control-sm payment-line-document-date" placeholder="">
                                                     </td>
                                                     <td>
-                                                        <input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required>
+                                                        <div class="input-group input-group-sm">
+                                                            <span class="input-group-text payment-line-currency-prefix">Q.</span>
+                                                            <input type="number" name="payment_lines[0][amount]" class="form-control form-control-sm payment-line-amount" min="0.01" step="0.01" max="999999.99" placeholder="0.00" required>
+                                                        </div>
+                                                        <input type="hidden" name="payment_lines[0][exchange_rate]" class="payment-line-exchange-rate" value="">
+                                                        <small class="text-muted payment-line-gtq-hint d-none"></small>
                                                     </td>
                                                     <td class="text-center align-middle">
                                                         <label class="btn btn-sm btn-outline-secondary mb-0 payment-line-clip-label" title="<?php echo htmlspecialchars(AsistenciaHelper::safeText('COM_ORDENPRODUCCION_PAYMENT_LINE_ATTACH_HINT', 'One or more files for this line', 'Uno o más archivos para esta línea')); ?>">
@@ -1715,7 +1739,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                             <tfoot>
                                                 <tr class="table-info">
                                                     <td colspan="5" class="text-end"><strong><?php echo htmlspecialchars($this->labelTotal ?? 'Total'); ?>:</strong></td>
-                                                    <td><strong id="payment-lines-total">Q. 0.00</strong></td>
+                                                    <td><strong id="payment-lines-total">Q. 0.00</strong><small id="payment-lines-total-gtq-hint" class="text-muted d-none"></small></td>
                                                     <td></td>
                                                     <td class="text-end">
                                                         <button type="button" class="btn btn-sm btn-success add-payment-line-btn" style="min-width: 38px;" title="<?php echo AsistenciaHelper::safeText('COM_ORDENPRODUCCION_ADD_LINE', 'Add line', 'Agregar línea'); ?>">
@@ -2162,6 +2186,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function updateLinesTotal() {
+        if (window.PaymentProofCurrency) {
+            return window.PaymentProofCurrency.updateLinesTotalDisplay();
+        }
         let sum = 0;
         document.querySelectorAll('.payment-line-amount').forEach(function(inp) {
             sum += parseFloat(inp.value) || 0;
@@ -2199,6 +2226,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tbody.appendChild(newRow);
         lineIndex++;
         toggleBankCell(newRow, false);
+        if (window.PaymentProofCurrency) window.PaymentProofCurrency.bindLineRow(newRow);
         newRow.querySelector('.payment-line-type').addEventListener('change', function() { toggleBankCell(newRow, true); });
         newRow.querySelector('.payment-line-amount').addEventListener('input', updateLinesTotal);
         var rmBtn = newRow.querySelector('.remove-payment-line-btn');
@@ -2221,7 +2249,10 @@ document.addEventListener('DOMContentLoaded', function () {
             updateLinesTotal();
         });
     });
-    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) { toggleBankCell(r, false); });
+    document.querySelectorAll('#payment-lines-body tr').forEach(function(r) {
+        toggleBankCell(r, false);
+        if (window.PaymentProofCurrency) window.PaymentProofCurrency.bindLineRow(r);
+    });
     updateLinesTotal();
 })();
 </script>
