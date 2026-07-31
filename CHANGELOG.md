@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.285-STABLE] - 2026-07-31
+
+### Added
+- **Registro de pago — Super User:** Edit **Tipo de pago** and **Cuenta destino** on saved payment lines (e.g. fix credit-card payments registered with the wrong deposit account). Clears provisional MT-940 match on the line when type/account changes.
+
 ## [3.119.284-STABLE] - 2026-07-31
 
 ### Fixed

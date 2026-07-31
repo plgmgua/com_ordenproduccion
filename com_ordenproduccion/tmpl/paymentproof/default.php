@@ -524,6 +524,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                 $proofModel = $this->getModel();
                                 $totalMonto = 0.0;
                                 $saveLineAmountUrl = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateLineAmount');
+                                $saveLineDetailsUrl = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.updateLinePaymentDetails');
                                 $labelLineAmountEdit = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_EDIT');
                                 if (strpos((string) $labelLineAmountEdit, 'COM_ORDENPRODUCCION') === 0) {
                                     $labelLineAmountEdit = 'Editar';
@@ -535,6 +536,27 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                 $labelLineAmountSave = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_SAVE');
                                 if (strpos((string) $labelLineAmountSave, 'COM_ORDENPRODUCCION') === 0) {
                                     $labelLineAmountSave = 'Guardar monto';
+                                }
+                                $labelLineDetailsEdit = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_EDIT');
+                                if (strpos((string) $labelLineDetailsEdit, 'COM_ORDENPRODUCCION') === 0) {
+                                    $labelLineDetailsEdit = 'Editar tipo / cuenta';
+                                }
+                                $labelLineDetailsSave = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_SAVE');
+                                if (strpos((string) $labelLineDetailsSave, 'COM_ORDENPRODUCCION') === 0) {
+                                    $labelLineDetailsSave = 'Guardar';
+                                }
+                                $labelLineDetailsCancel = Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_CANCEL');
+                                if (strpos((string) $labelLineDetailsCancel, 'COM_ORDENPRODUCCION') === 0) {
+                                    $labelLineDetailsCancel = 'Cancelar';
+                                }
+                                $labelSelectBankAccount = AsistenciaHelper::safeText(
+                                    'COM_ORDENPRODUCCION_SELECT_BANK_ACCOUNT',
+                                    'Select bank account',
+                                    'Seleccionar cuenta'
+                                );
+                                $labelNoBankAccount = Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_NO_BANK');
+                                if (strpos((string) $labelNoBankAccount, 'COM_ORDENPRODUCCION') === 0) {
+                                    $labelNoBankAccount = 'Sin banco';
                                 }
                                 foreach ($existingPayments as $proof):
                                     $proofIdForMt940 = (int) ($proof->id ?? 0);
@@ -571,9 +593,65 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                     <td><?php echo $this->translatePaymentType($line->payment_type ?? ''); ?></td>
                                     <td><?php
                                         $lineBaId = (int) ($line->bank_account_id ?? 0);
-                                        echo $lineBaId > 0
-                                            ? htmlspecialchars($bankAccountNameByIdForLabel[$lineBaId] ?? '—')
+                                        $lineTypeCode = strtolower(trim((string) ($line->payment_type ?? '')));
+                                        $lineBaLabel = $lineBaId > 0
+                                            ? ($bankAccountNameByIdForLabel[$lineBaId] ?? '—')
                                             : '—';
+                                        if (!empty($this->canSuperUserEditLineAmount) && $lineId > 0) :
+                                            ?>
+                                        <div class="payment-proof-line-details-cell d-inline-flex align-items-center flex-wrap gap-1">
+                                            <span class="payment-proof-line-bank-display text-nowrap"><?php echo htmlspecialchars($lineBaLabel); ?></span>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary py-0 px-1 toggle-edit-line-details payment-proof-action-btn"
+                                                    title="<?php echo htmlspecialchars($labelLineDetailsEdit, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    aria-label="<?php echo htmlspecialchars($labelLineDetailsEdit, ENT_QUOTES, 'UTF-8'); ?>">
+                                                <i class="fas fa-edit" aria-hidden="true"></i>
+                                            </button>
+                                            <form method="post"
+                                                  action="<?php echo htmlspecialchars($saveLineDetailsUrl, ENT_QUOTES, 'UTF-8'); ?>"
+                                                  class="d-none flex-column gap-1 payment-proof-line-details-form">
+                                                <?php echo HTMLHelper::_('form.token'); ?>
+                                                <input type="hidden" name="line_id" value="<?php echo $lineId; ?>" />
+                                                <input type="hidden" name="order_id" value="<?php echo (int) $orderId; ?>" />
+                                                <select name="payment_type"
+                                                        class="form-select form-select-sm payment-proof-line-type-input"
+                                                        style="min-width: 10rem; max-width: 14rem;"
+                                                        required>
+                                                    <?php foreach ($paymentTypeOptions as $typeVal => $typeTxt) : ?>
+                                                        <option value="<?php echo htmlspecialchars((string) $typeVal, ENT_QUOTES, 'UTF-8'); ?>"<?php echo $lineTypeCode === strtolower((string) $typeVal) ? ' selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars((string) $typeTxt); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <select name="bank_account_id"
+                                                        class="form-select form-select-sm payment-proof-line-bank-account-input"
+                                                        style="min-width: 10rem; max-width: 14rem;">
+                                                    <option value="0"><?php echo htmlspecialchars($labelNoBankAccount); ?></option>
+                                                    <?php foreach ($bankAccountOptionsForPayment as $accId => $accName) : ?>
+                                                        <option value="<?php echo (int) $accId; ?>"<?php echo $lineBaId === (int) $accId ? ' selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars((string) $accName); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <div class="d-inline-flex gap-1">
+                                                    <button type="submit"
+                                                            class="btn btn-sm btn-outline-primary py-0 px-1"
+                                                            title="<?php echo htmlspecialchars($labelLineDetailsSave, ENT_QUOTES, 'UTF-8'); ?>"
+                                                            aria-label="<?php echo htmlspecialchars($labelLineDetailsSave, ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <i class="fas fa-save" aria-hidden="true"></i>
+                                                    </button>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-secondary py-0 px-1 cancel-edit-line-details"
+                                                            title="<?php echo htmlspecialchars($labelLineDetailsCancel, ENT_QUOTES, 'UTF-8'); ?>"
+                                                            aria-label="<?php echo htmlspecialchars($labelLineDetailsCancel, ENT_QUOTES, 'UTF-8'); ?>">
+                                                        <i class="fas fa-times" aria-hidden="true"></i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        <?php else : ?>
+                                        <?php echo $lineBaId > 0 ? htmlspecialchars($lineBaLabel) : '—'; ?>
+                                        <?php endif; ?>
                                     ?></td>
                                     <td><?php
                                         $lineAmount = (float) ($line->amount ?? 0);
@@ -1900,6 +1978,92 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.cancel-edit-line-amount').forEach(function (btn) {
         btn.addEventListener('click', function () {
             showPaymentProofLineAmountDisplay(this.closest('.payment-proof-line-amount-cell'));
+        });
+    });
+    function linePaymentTypeRequiresBank(typeCode) {
+        if (Object.prototype.hasOwnProperty.call(paymentTypeRequiresBank, typeCode)) {
+            return !!paymentTypeRequiresBank[typeCode];
+        }
+        return String(typeCode || '').toLowerCase() !== 'efectivo';
+    }
+    function syncLineDetailsBankSelect(form) {
+        if (!form) {
+            return;
+        }
+        var typeSel = form.querySelector('.payment-proof-line-type-input');
+        var bankSel = form.querySelector('.payment-proof-line-bank-account-input');
+        if (!typeSel || !bankSel) {
+            return;
+        }
+        var needsBank = linePaymentTypeRequiresBank(typeSel.value);
+        bankSel.disabled = !needsBank;
+        if (!needsBank) {
+            bankSel.value = '0';
+        }
+    }
+    function showPaymentProofLineDetailsDisplay(cell) {
+        if (!cell) {
+            return;
+        }
+        var display = cell.querySelector('.payment-proof-line-bank-display');
+        var editBtn = cell.querySelector('.toggle-edit-line-details');
+        var form = cell.querySelector('.payment-proof-line-details-form');
+        if (display) {
+            display.classList.remove('d-none');
+        }
+        if (editBtn) {
+            editBtn.classList.remove('d-none');
+        }
+        if (form) {
+            form.classList.add('d-none');
+            form.classList.remove('d-flex');
+        }
+    }
+    function showPaymentProofLineDetailsEdit(cell) {
+        if (!cell) {
+            return;
+        }
+        document.querySelectorAll('.payment-proof-line-details-cell').forEach(showPaymentProofLineDetailsDisplay);
+        var display = cell.querySelector('.payment-proof-line-bank-display');
+        var editBtn = cell.querySelector('.toggle-edit-line-details');
+        var form = cell.querySelector('.payment-proof-line-details-form');
+        if (display) {
+            display.classList.add('d-none');
+        }
+        if (editBtn) {
+            editBtn.classList.add('d-none');
+        }
+        if (form) {
+            form.classList.remove('d-none');
+            form.classList.add('d-flex');
+            syncLineDetailsBankSelect(form);
+            var typeSel = form.querySelector('.payment-proof-line-type-input');
+            if (typeSel) {
+                typeSel.focus();
+            }
+        }
+    }
+    document.querySelectorAll('.toggle-edit-line-details').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            showPaymentProofLineDetailsEdit(this.closest('.payment-proof-line-details-cell'));
+        });
+    });
+    document.querySelectorAll('.cancel-edit-line-details').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            showPaymentProofLineDetailsDisplay(this.closest('.payment-proof-line-details-cell'));
+        });
+    });
+    document.querySelectorAll('.payment-proof-line-type-input').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            syncLineDetailsBankSelect(this.closest('.payment-proof-line-details-form'));
+        });
+    });
+    document.querySelectorAll('.payment-proof-line-details-form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var bankSel = form.querySelector('.payment-proof-line-bank-account-input');
+            if (bankSel) {
+                bankSel.disabled = false;
+            }
         });
     });
     document.querySelectorAll('.toggle-add-order-form').forEach(function (btn) {

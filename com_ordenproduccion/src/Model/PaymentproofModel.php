@@ -1123,6 +1123,194 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Super User: update payment type and destination bank account on an existing line.
+     *
+     * @param   int     $lineId
+     * @param   string  $paymentType
+     * @param   int     $bankAccountId  0 when the type does not require a bank account
+     *
+     * @return  bool
+     *
+     * @since   3.119.285
+     */
+    public function updatePaymentProofLineDetailsSuperUser(int $lineId, string $paymentType, int $bankAccountId): bool
+    {
+        $lineId        = (int) $lineId;
+        $paymentType   = strtolower(trim($paymentType));
+        $bankAccountId = max(0, (int) $bankAccountId);
+
+        if ($lineId < 1 || $paymentType === '') {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_INVALID'));
+
+            return false;
+        }
+
+        if (!$this->hasPaymentProofLinesTable()) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_AMOUNT_NO_LINES'));
+
+            return false;
+        }
+
+        if (!$this->paymentTypeRequiresBank($paymentType)) {
+            $bankAccountId = 0;
+        } elseif ($bankAccountId < 1) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_ERROR_BANK_ACCOUNT_REQUIRED'));
+
+            return false;
+        }
+
+        if ($bankAccountId > 0 && !$this->isPublishedBankAccountId($bankAccountId)) {
+            $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_INVALID'));
+
+            return false;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $db->transactionStart();
+
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('*')
+                    ->from($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                    ->where($db->quoteName('id') . ' = ' . $lineId)
+            );
+            $line = $db->loadObject();
+            if (!$line) {
+                throw new \RuntimeException('line');
+            }
+
+            $proofId = (int) ($line->payment_proof_id ?? 0);
+            if ($proofId < 1 || !$this->getItem($proofId)) {
+                throw new \RuntimeException('proof');
+            }
+
+            $prevType   = strtolower(trim((string) ($line->payment_type ?? '')));
+            $prevBankId = (int) ($line->bank_account_id ?? 0);
+            $typeChanged = $prevType !== $paymentType;
+            $bankChanged = $prevBankId !== $bankAccountId;
+
+            $update = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                ->set($db->quoteName('payment_type') . ' = ' . $db->quote($paymentType))
+                ->where($db->quoteName('id') . ' = ' . $lineId);
+
+            $pplCols = $db->getTableColumns('#__ordenproduccion_payment_proof_lines', false);
+            $pplCols = \is_array($pplCols) ? array_change_key_case($pplCols, CASE_LOWER) : [];
+
+            if (isset($pplCols['bank_account_id'])) {
+                if ($bankAccountId > 0) {
+                    $update->set($db->quoteName('bank_account_id') . ' = ' . $bankAccountId);
+                } else {
+                    $update->set($db->quoteName('bank_account_id') . ' = NULL');
+                }
+            }
+
+            if (isset($pplCols['bank'])) {
+                if ($bankAccountId < 1) {
+                    $update->set($db->quoteName('bank') . ' = ' . $db->quote(''));
+                }
+            }
+
+            if (($typeChanged || $bankChanged) && isset($pplCols['mt940_transaction_id'], $pplCols['mt940_match_status'])) {
+                $update->set($db->quoteName('mt940_transaction_id') . ' = NULL');
+                $update->set($db->quoteName('mt940_match_status') . ' = NULL');
+                if (isset($pplCols['mt940_match_checked_at'])) {
+                    $update->set($db->quoteName('mt940_match_checked_at') . ' = NULL');
+                }
+            }
+
+            $db->setQuery($update);
+            $db->execute();
+
+            $this->syncProofHeaderFromPrimaryLine($proofId);
+
+            $db->transactionCommit();
+            $this->refreshClientBalancesAfterProofChange();
+
+            return true;
+        } catch (\Throwable $e) {
+            try {
+                $db->transactionRollback();
+            } catch (\Throwable $ignored) {
+            }
+            if (!$this->getError()) {
+                $this->setError(Text::_('COM_ORDENPRODUCCION_PAYMENT_PROOF_LINE_DETAILS_SAVE_FAILED'));
+            }
+
+            return false;
+        }
+    }
+
+    /**
+     * @since   3.119.285
+     */
+    protected function isPublishedBankAccountId(int $bankAccountId): bool
+    {
+        if ($bankAccountId < 1) {
+            return false;
+        }
+
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($db->quoteName('#__ordenproduccion_bank_accounts'))
+                    ->where($db->quoteName('id') . ' = ' . $bankAccountId)
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+
+            return (int) $db->loadResult() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Keep legacy payment_proofs header aligned with the first line row.
+     *
+     * @since   3.119.285
+     */
+    protected function syncProofHeaderFromPrimaryLine(int $proofId): void
+    {
+        $proofId = (int) $proofId;
+        if ($proofId < 1 || !$this->hasPaymentProofLinesTable()) {
+            return;
+        }
+
+        $lines = $this->getPaymentProofLines($proofId);
+        if ($lines === []) {
+            return;
+        }
+
+        $first = $lines[0];
+        $ppCols = $this->getDatabase()->getTableColumns('#__ordenproduccion_payment_proofs', false);
+        $ppCols = \is_array($ppCols) ? array_change_key_case($ppCols, CASE_LOWER) : [];
+
+        $q = $this->getDatabase()->getQuery(true)
+            ->update($this->getDatabase()->quoteName('#__ordenproduccion_payment_proofs'))
+            ->where($this->getDatabase()->quoteName('id') . ' = ' . $proofId);
+
+        $set = false;
+        if (isset($ppCols['payment_type'])) {
+            $q->set($this->getDatabase()->quoteName('payment_type') . ' = ' . $this->getDatabase()->quote(trim((string) ($first->payment_type ?? ''))));
+            $set = true;
+        }
+        if (isset($ppCols['bank'])) {
+            $q->set($this->getDatabase()->quoteName('bank') . ' = ' . $this->getDatabase()->quote(trim((string) ($first->bank ?? ''))));
+            $set = true;
+        }
+
+        if (!$set) {
+            return;
+        }
+
+        $this->getDatabase()->setQuery($q);
+        $this->getDatabase()->execute();
+    }
+
+    /**
      * Sync payment_amount, junction amount_applied (single-order proofs), mismatch_difference.
      *
      * @param   int         $proofId
