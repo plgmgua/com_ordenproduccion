@@ -25,6 +25,17 @@ $tokenName = Session::getFormToken();
 $langTag = $lang->getTag();
 $isSpanish = (strpos($langTag, 'es') === 0);
 
+$ptHasDefaultBankColumns = false;
+try {
+    $ptCheckModel = Factory::getApplication()->bootComponent('com_ordenproduccion')
+        ->getMVCFactory()->createModel('Paymenttype', 'Site', ['ignore_request' => true]);
+    if ($ptCheckModel !== null && method_exists($ptCheckModel, 'hasDefaultBankColumns')) {
+        $ptHasDefaultBankColumns = $ptCheckModel->hasDefaultBankColumns();
+    }
+} catch (\Throwable $e) {
+    $ptHasDefaultBankColumns = false;
+}
+
 // Bank options for default Banco Origen (code => label)
 $ptBankOptions = [];
 try {
@@ -126,6 +137,18 @@ try {
 
     <div id="pt-alert-container"></div>
 
+    <?php if (!$ptHasDefaultBankColumns) : ?>
+        <div class="pt-alert pt-alert-error">
+            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK_COLUMNS_MISSING'); ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($ptHasDefaultBankColumns && $ptBankAccountOptions === []) : ?>
+        <div class="pt-alert pt-alert-error">
+            <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_NO_BANK_ACCOUNTS_FOR_DEFAULT'); ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($paymentTypes)): ?>
         <div class="sorting-hint"><i class="fas fa-info-circle"></i> <?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPES_SORT_HINT'); ?></div>
     <?php endif; ?>
@@ -158,7 +181,18 @@ try {
                         </div>
                     </div>
                     <div class="paymenttype-actions">
-                        <button class="btn-edit-paymenttype" onclick="editPT(<?php echo (int) $pt->id; ?>, '<?php echo htmlspecialchars($pt->code, ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES); ?>', <?php echo $requiresBank ? '1' : '0'; ?>, <?php echo $superUserOnly ? '1' : '0'; ?>, <?php echo $skipValidation ? '1' : '0'; ?>, '<?php echo htmlspecialchars($defaultBank, ENT_QUOTES); ?>', <?php echo $defaultBankAccountId; ?>)">
+                        <button type="button"
+                                class="btn-edit-paymenttype"
+                                data-pt-id="<?php echo (int) $pt->id; ?>"
+                                data-pt-code="<?php echo htmlspecialchars($pt->code, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-pt-name="<?php echo htmlspecialchars($pt->name ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                data-pt-name-en="<?php echo htmlspecialchars($pt->name_en ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                data-pt-name-es="<?php echo htmlspecialchars($pt->name_es ?? '', ENT_QUOTES, 'UTF-8'); ?>"
+                                data-pt-requires-bank="<?php echo $requiresBank ? '1' : '0'; ?>"
+                                data-pt-super-user-only="<?php echo $superUserOnly ? '1' : '0'; ?>"
+                                data-pt-skip-validation="<?php echo $skipValidation ? '1' : '0'; ?>"
+                                data-pt-default-bank="<?php echo htmlspecialchars($defaultBank, ENT_QUOTES, 'UTF-8'); ?>"
+                                data-pt-default-bank-account-id="<?php echo (int) $defaultBankAccountId; ?>">
                             <i class="fas fa-edit"></i> <?php echo Text::_('JEDIT'); ?>
                         </button>
                         <button class="btn-delete-paymenttype" onclick="deletePT(<?php echo (int) $pt->id; ?>)">
@@ -221,7 +255,7 @@ try {
             </div>
             <div class="pt-form-group" id="pt-default-bank-account-group">
                 <label for="pt-default-bank-account"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK_ACCOUNT'); ?></label>
-                <select id="pt-default-bank-account" name="default_bank_account_id">
+                <select id="pt-default-bank-account" name="default_bank_account_id"<?php echo $ptHasDefaultBankColumns ? '' : ' disabled'; ?>>
                     <option value="0"><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_NONE'); ?></option>
                     <?php foreach ($ptBankAccountOptions as $accId => $accName): ?>
                         <option value="<?php echo (int) $accId; ?>"><?php echo htmlspecialchars($accName); ?></option>
@@ -240,8 +274,15 @@ try {
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script>
 (function() {
-    const baseUrl = '<?php echo Route::_('index.php?option=com_ordenproduccion&controller=paymenttype', false); ?>';
-    const tokenName = '<?php echo $tokenName; ?>';
+    const baseUrl = <?php echo json_encode(Route::_('index.php?option=com_ordenproduccion&controller=paymenttype', false)); ?>;
+    const tokenName = <?php echo json_encode($tokenName); ?>;
+    const hasDefaultBankColumns = <?php echo $ptHasDefaultBankColumns ? 'true' : 'false'; ?>;
+    const labels = {
+        add: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_ADD_NEW')); ?>,
+        edit: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_EDIT')); ?>,
+        deleteConfirm: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DELETE_CONFIRM')); ?>,
+        columnsMissing: <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DEFAULT_BANK_COLUMNS_MISSING')); ?>
+    };
 
     let sortable = null;
     const list = document.getElementById('paymenttypes-list');
@@ -259,7 +300,7 @@ try {
     }
 
     window.openPTModal = function() {
-        document.getElementById('pt-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_ADD_NEW')); ?>';
+        document.getElementById('pt-modal-title').textContent = labels.add;
         document.getElementById('pt-form').reset();
         document.getElementById('pt-id').value = '0';
         document.getElementById('pt-code').readOnly = false;
@@ -271,7 +312,7 @@ try {
     window.closePTModal = function() { document.getElementById('pt-modal').style.display = 'none'; };
 
     window.editPT = function(id, code, name, nameEn, nameEs, requiresBank, superUserOnly, skipValidation, defaultBank, defaultBankAccountId) {
-        document.getElementById('pt-modal-title').textContent = '<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_EDIT')); ?>';
+        document.getElementById('pt-modal-title').textContent = labels.edit;
         document.getElementById('pt-id').value = id;
         document.getElementById('pt-code').value = code;
         document.getElementById('pt-code').readOnly = true;
@@ -286,8 +327,30 @@ try {
         document.getElementById('pt-modal').style.display = 'block';
     };
 
+    document.querySelector('.paymenttypes-management-container').addEventListener('click', function(ev) {
+        var editBtn = ev.target.closest('.btn-edit-paymenttype');
+        if (!editBtn) return;
+        ev.preventDefault();
+        editPT(
+            editBtn.getAttribute('data-pt-id'),
+            editBtn.getAttribute('data-pt-code') || '',
+            editBtn.getAttribute('data-pt-name') || '',
+            editBtn.getAttribute('data-pt-name-en') || '',
+            editBtn.getAttribute('data-pt-name-es') || '',
+            editBtn.getAttribute('data-pt-requires-bank') === '1',
+            editBtn.getAttribute('data-pt-super-user-only') === '1',
+            editBtn.getAttribute('data-pt-skip-validation') === '1',
+            editBtn.getAttribute('data-pt-default-bank') || '',
+            parseInt(editBtn.getAttribute('data-pt-default-bank-account-id') || '0', 10)
+        );
+    });
+
     document.getElementById('pt-form').addEventListener('submit', function(e) {
         e.preventDefault();
+        if (!hasDefaultBankColumns) {
+            showPTAlert('error', labels.columnsMissing);
+            return;
+        }
         const formData = new FormData(this);
         const fd = new FormData();
         fd.append('id', formData.get('id') || '0');
@@ -312,7 +375,7 @@ try {
     });
 
     window.deletePT = function(id) {
-        if (!confirm('<?php echo addslashes(Text::_('COM_ORDENPRODUCCION_PAYMENT_TYPE_DELETE_CONFIRM')); ?>')) return;
+        if (!confirm(labels.deleteConfirm)) return;
         const fd = new FormData();
         fd.append('format', 'json');
         fd.append('id', id);

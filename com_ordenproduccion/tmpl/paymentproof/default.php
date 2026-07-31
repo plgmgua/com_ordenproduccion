@@ -330,14 +330,33 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         if (accSel) {
-            accSel.disabled = !needsBank;
             accSel.required = !!needsBank;
             if (!needsBank) {
-                accSel.value = '';
-            } else if (forceApplyDefaults && defs.hasTypeAccount) {
-                accSel.value = String(defs.bankAccountId);
-            } else if (!accSel.value && defs.bankAccountId) {
-                accSel.value = String(defs.bankAccountId);
+                if (forceApplyDefaults && defs.hasTypeAccount) {
+                    accSel.value = String(defs.bankAccountId);
+                } else if (!accSel.value && defs.bankAccountId) {
+                    accSel.value = String(defs.bankAccountId);
+                } else if (!defs.bankAccountId) {
+                    accSel.value = '';
+                }
+                accSel.disabled = false;
+            } else {
+                accSel.disabled = false;
+                if (forceApplyDefaults && defs.hasTypeAccount) {
+                    accSel.value = String(defs.bankAccountId);
+                } else if (!accSel.value && defs.bankAccountId) {
+                    accSel.value = String(defs.bankAccountId);
+                }
+            }
+        }
+        if (window.PaymentProofCurrency && row) {
+            window.PaymentProofCurrency.updateLinePrefix(row);
+            if (window.PaymentProofCurrency.getLineCurrency(row) === 'USD') {
+                window.PaymentProofCurrency.fetchRateForLine(row).then(function() {
+                    updateLinesTotal();
+                });
+            } else {
+                window.PaymentProofCurrency.updateLinesTotalDisplay();
             }
         }
     }
@@ -2174,14 +2193,33 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         if (accSel) {
-            accSel.disabled = !needsBank;
             accSel.required = needsBank;
             if (!needsBank) {
-                accSel.value = '';
-            } else if (forceApplyDefaults && defs.hasTypeAccount) {
-                accSel.value = String(defs.bankAccountId);
-            } else if (!accSel.value && defs.bankAccountId) {
-                accSel.value = String(defs.bankAccountId);
+                if (forceApplyDefaults && defs.hasTypeAccount) {
+                    accSel.value = String(defs.bankAccountId);
+                } else if (!accSel.value && defs.bankAccountId) {
+                    accSel.value = String(defs.bankAccountId);
+                } else if (!defs.bankAccountId) {
+                    accSel.value = '';
+                }
+                accSel.disabled = false;
+            } else {
+                accSel.disabled = false;
+                if (forceApplyDefaults && defs.hasTypeAccount) {
+                    accSel.value = String(defs.bankAccountId);
+                } else if (!accSel.value && defs.bankAccountId) {
+                    accSel.value = String(defs.bankAccountId);
+                }
+            }
+        }
+        if (window.PaymentProofCurrency && row) {
+            window.PaymentProofCurrency.updateLinePrefix(row);
+            if (window.PaymentProofCurrency.getLineCurrency(row) === 'USD') {
+                window.PaymentProofCurrency.fetchRateForLine(row).then(function() {
+                    updateLinesTotal();
+                });
+            } else {
+                window.PaymentProofCurrency.updateLinesTotalDisplay();
             }
         }
     }

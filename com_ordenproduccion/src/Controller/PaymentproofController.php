@@ -135,14 +135,32 @@ class PaymentproofController extends BaseController
 
             /** @var \Grimpsa\Component\Ordenproduccion\Site\Model\PaymentproofModel $proofModelForBank */
             $proofModelForBank = $this->getModel('Paymentproof');
+            $paymentTypeDefaults = method_exists($proofModelForBank, 'getPaymentTypeDefaultsMap')
+                ? $proofModelForBank->getPaymentTypeDefaultsMap()
+                : [];
             foreach ($validatedLines as &$validatedLine) {
                 $type = (string) ($validatedLine['payment_type'] ?? '');
-                if (!$proofModelForBank->paymentTypeRequiresBank($type)
-                    || $proofModelForBank->paymentTypeSkipsValidation($type)) {
+                $typeDefaults = isset($paymentTypeDefaults[$type]) && is_array($paymentTypeDefaults[$type])
+                    ? $paymentTypeDefaults[$type]
+                    : [];
+                $defaultAccountId = (int) ($typeDefaults['bank_account_id'] ?? 0);
+
+                if (!$proofModelForBank->paymentTypeRequiresBank($type)) {
                     $validatedLine['bank'] = '';
-                    $validatedLine['bank_account_id'] = 0;
+                    if ((int) ($validatedLine['bank_account_id'] ?? 0) < 1 && $defaultAccountId > 0) {
+                        $validatedLine['bank_account_id'] = $defaultAccountId;
+                    }
                     continue;
                 }
+
+                if ($proofModelForBank->paymentTypeSkipsValidation($type)) {
+                    $validatedLine['bank'] = '';
+                    if ((int) ($validatedLine['bank_account_id'] ?? 0) < 1 && $defaultAccountId > 0) {
+                        $validatedLine['bank_account_id'] = $defaultAccountId;
+                    }
+                    continue;
+                }
+
                 if (trim((string) ($validatedLine['bank'] ?? '')) === '') {
                     throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_BANK_REQUIRED'));
                 }

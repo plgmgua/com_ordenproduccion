@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.294-STABLE] - 2026-07-31
+
+### Fixed
+- **Tipos de pago — Cuenta destino predeterminada:** Persist default destination account (migration 3.119.294 if columns missing); show clear error instead of silent save failure. Sin banco types (retenciones, exención IVA) keep default cuenta destino on payment lines for USD currency.
+
 ## [3.119.293-STABLE] - 2026-07-31
 
 ### Fixed

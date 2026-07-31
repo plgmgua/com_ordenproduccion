@@ -89,6 +89,16 @@ class PaymenttypeModel extends BaseDatabaseModel
     }
 
     /**
+     * @return  bool
+     *
+     * @since   3.119.294
+     */
+    public function hasDefaultBankColumns(): bool
+    {
+        return $this->paymentTypesTableHasDefaultBankColumns();
+    }
+
+    /**
      * @return bool
      *
      * @since   3.119.286
@@ -200,11 +210,18 @@ class PaymenttypeModel extends BaseDatabaseModel
         if ($this->paymentTypesTableHasSkipValidationColumn()) {
             $obj->skip_validation = isset($data['skip_validation']) ? (int) $data['skip_validation'] : 0;
         }
+        $defaultBank = trim((string) ($data['default_bank'] ?? ''));
+        $defaultAccountId = (int) ($data['default_bank_account_id'] ?? 0);
         if ($this->paymentTypesTableHasDefaultBankColumns()) {
-            $defaultBank = trim((string) ($data['default_bank'] ?? ''));
             $obj->default_bank = $defaultBank !== '' ? $defaultBank : '';
-            $defaultAccountId = (int) ($data['default_bank_account_id'] ?? 0);
             $obj->default_bank_account_id = $defaultAccountId > 0 ? $defaultAccountId : 0;
+        } elseif ($defaultBank !== '' || $defaultAccountId > 0) {
+            $this->setError(
+                'Database columns default_bank / default_bank_account_id are missing on payment_types. '
+                . 'Run migration 3.119.294 or phpMyAdmin_3.119.294_payment_type_default_account.sql.'
+            );
+
+            return false;
         }
         $obj->state = isset($data['state']) ? (int) $data['state'] : 1;
 
