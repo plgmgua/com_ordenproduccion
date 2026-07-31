@@ -264,6 +264,7 @@ class HtmlView extends BaseHtmlView
         $this->labelMt940RowType = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_TYPE', 'Movimiento bancario');
         $this->labelMt940RowMatch = $t('COM_ORDENPRODUCCION_PP_MT940_ROW_MATCH', 'Coincidencia MT-940');
         $this->labelMt940Approve = $t('COM_ORDENPRODUCCION_PP_MT940_APPROVE_BTN', 'Aprobar verificación');
+        $this->labelMt940PickInApprovals = $t('COM_ORDENPRODUCCION_PP_MT940_PICK_IN_APPROVALS', 'Elija movimiento en Aprobaciones');
         $this->mt940ApproveAction = Route::_('index.php?option=com_ordenproduccion&task=paymentproof.approveMt940Verification');
 
         parent::display($tpl);
@@ -318,15 +319,28 @@ class HtmlView extends BaseHtmlView
                 continue;
             }
 
+            $needsManualMt940Pick = false;
+            foreach ($lines as $pl) {
+                if (!\is_array($pl)) {
+                    continue;
+                }
+                if (!empty($pl['pending_manual_match']) || (int) ($pl['mt940_transaction_id'] ?? 0) < 1) {
+                    $needsManualMt940Pick = true;
+                    break;
+                }
+            }
+
             // Workflow members (already gated above) may verify any open request they did not create.
             $canApprove = $openReq !== null
                 && $requestId > 0
-                && !$wfSvc->isBlockedFromActingOnOwnPaymentProof($userId, $openReq);
+                && !$wfSvc->isBlockedFromActingOnOwnPaymentProof($userId, $openReq)
+                && !$needsManualMt940Pick;
 
             $map[$proofId] = [
                 'request_id'  => $requestId,
                 'lines'       => $lines,
                 'can_approve' => $canApprove,
+                'needs_manual_mt940_pick' => $needsManualMt940Pick,
             ];
         }
 

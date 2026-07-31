@@ -5,7 +5,7 @@
  * @var \Grimpsa\Component\Ordenproduccion\Site\View\Paymentproof\HtmlView $this
  * @var int $proofId
  * @var int $orderId
- * @var array{request_id: int, lines: array<int, array<string, mixed>>, can_approve?: bool}|null $mt940Approver
+ * @var array{request_id: int, lines: array<int, array<string, mixed>>, can_approve?: bool, needs_manual_mt940_pick?: bool}|null $mt940Approver
  */
 
 defined('_JEXEC') or die;
@@ -18,6 +18,7 @@ if (empty($mt940Approver) || empty($mt940Approver['lines']) || !\is_array($mt940
 
 $requestId  = (int) ($mt940Approver['request_id'] ?? 0);
 $canApprove = !empty($mt940Approver['can_approve']) && $requestId > 0;
+$needsManualPick = !empty($mt940Approver['needs_manual_mt940_pick']);
 
 foreach ($mt940Approver['lines'] as $pl) {
     if (!\is_array($pl)) {
@@ -60,7 +61,9 @@ foreach ($mt940Approver['lines'] as $pl) {
     ?></td>
     <td class="text-center text-muted">—</td>
     <td class="align-middle text-end payment-proof-mt940-actions">
-        <?php if ($canApprove) : ?>
+        <?php if ($needsManualPick) : ?>
+        <span class="small text-muted"><?php echo htmlspecialchars($this->labelMt940PickInApprovals ?? 'Elija movimiento en Aprobaciones', ENT_QUOTES, 'UTF-8'); ?></span>
+        <?php elseif ($canApprove) : ?>
         <form method="post" action="<?php echo htmlspecialchars($this->mt940ApproveAction ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="d-inline">
             <?php echo HTMLHelper::_('form.token'); ?>
             <input type="hidden" name="request_id" value="<?php echo $requestId; ?>" />

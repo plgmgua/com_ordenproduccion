@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.280-STABLE] - 2026-07-31
+
+### Fixed
+- **MT-940 ambiguous matches:** When two bank credits share the same day, account, and amount, the matcher now disambiguates by document/reference number (e.g. 205373 ↔ 00205373). Remaining ambiguous cases create an approval request so approvers can pick the correct movement via **Buscar otro movimiento** in Aprobaciones.
+
 ## [3.119.279-STABLE] - 2026-07-31
 
 ### Fixed

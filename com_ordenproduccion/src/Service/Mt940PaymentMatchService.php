@@ -108,6 +108,9 @@ class Mt940PaymentMatchService
                 }
             } elseif ($outcome['status'] === 'ambiguous') {
                 $result['ambiguous']++;
+                if (!empty($outcome['approval_created'])) {
+                    $result['approvals_created']++;
+                }
             } else {
                 $result['no_match']++;
             }
@@ -215,6 +218,7 @@ class Mt940PaymentMatchService
 
         $lineMatches = [];
         $now         = Factory::getDate()->toSql();
+        $hasAmbiguous = false;
 
         foreach ($lines as $line) {
             $lineId = (int) ($line->id ?? 0);
@@ -235,15 +239,21 @@ class Mt940PaymentMatchService
             }
 
             if (\count($candidates) > 1) {
-                $this->updateLineMatchState($lineId, null, 'ambiguous');
-                Mt940PaymentMatchLogHelper::log(
-                    $proofId,
-                    $lineId,
-                    Mt940PaymentMatchLogHelper::STATUS_AMBIGUOUS,
-                    $this->describeLine($line) . ' — ' . \count($candidates) . ' MT-940 candidates; skipped.'
-                );
-
-                return ['status' => 'ambiguous', 'approval_created' => false];
+                $docMatches = $this->filterCandidatesByDocumentNumber($line, $candidates);
+                if (\count($docMatches) === 1) {
+                    $candidates = $docMatches;
+                } else {
+                    $this->updateLineMatchState($lineId, null, 'ambiguous');
+                    Mt940PaymentMatchLogHelper::log(
+                        $proofId,
+                        $lineId,
+                        Mt940PaymentMatchLogHelper::STATUS_AMBIGUOUS,
+                        $this->describeLine($line) . ' — ' . \count($candidates) . ' MT-940 candidates; queued for manual selection.'
+                    );
+                    $lineMatches[] = $this->buildLinePendingMatchPayload($line);
+                    $hasAmbiguous  = true;
+                    continue;
+                }
             }
 
             $tx = $candidates[0];
@@ -252,6 +262,10 @@ class Mt940PaymentMatchService
             $linkedIds[] = $txId;
 
             $lineMatches[] = $this->buildLineMatchPayload($line, $tx);
+        }
+
+        if ($lineMatches === []) {
+            return ['status' => 'no_match', 'approval_created' => false];
         }
 
         $metadata = $this->buildApprovalMetadata($proofId, $lineMatches);
@@ -270,12 +284,80 @@ class Mt940PaymentMatchService
         if ($requestId < 1) {
             Mt940PaymentMatchLogHelper::log($proofId, 0, Mt940PaymentMatchLogHelper::STATUS_ERROR, 'Matched but failed to create approval request.');
 
-            return ['status' => 'matched', 'approval_created' => false];
+            return ['status' => $hasAmbiguous ? 'ambiguous' : 'matched', 'approval_created' => false];
         }
 
-        Mt940PaymentMatchLogHelper::log($proofId, 0, Mt940PaymentMatchLogHelper::STATUS_MATCHED, 'Approval request #' . $requestId . ' created.');
+        $statusLabel = $hasAmbiguous ? 'ambiguous' : 'matched';
+        Mt940PaymentMatchLogHelper::log(
+            $proofId,
+            0,
+            $hasAmbiguous ? Mt940PaymentMatchLogHelper::STATUS_AMBIGUOUS : Mt940PaymentMatchLogHelper::STATUS_MATCHED,
+            'Approval request #' . $requestId . ' created' . ($hasAmbiguous ? ' (manual MT-940 selection required).' : '.')
+        );
 
-        return ['status' => 'matched', 'approval_created' => true];
+        return ['status' => $statusLabel, 'approval_created' => true];
+    }
+
+    /**
+     * When multiple MT-940 credits share date/account/amount, keep those whose reference/description matches the proof document number.
+     *
+     * @param   object              $line
+     * @param   array<int, object>  $candidates
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.119.280
+     */
+    protected function filterCandidatesByDocumentNumber(object $line, array $candidates): array
+    {
+        $docNum = trim((string) ($line->document_number ?? ''));
+        if ($docNum === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $candidates,
+            function ($tx) use ($docNum) {
+                $ref  = trim((string) ($tx->reference ?? ''));
+                $desc = trim((string) ($tx->description ?? ''));
+
+                return $this->documentMatchHint($docNum, $ref, $desc) !== '';
+            }
+        ));
+    }
+
+    /**
+     * Line payload for approval workflow when auto-match is ambiguous — approver picks MT-940 manually.
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.280
+     */
+    public function buildLinePendingMatchPayload(object $line): array
+    {
+        $docNum = trim((string) ($line->document_number ?? ''));
+
+        return [
+            'line_id'              => (int) ($line->id ?? 0),
+            'payment_type'         => trim((string) ($line->payment_type ?? '')),
+            'document_number'      => $docNum,
+            'document_date'        => $this->normalizeLineDate($line),
+            'amount'               => round((float) ($line->amount ?? 0), 2),
+            'bank_account_id'      => (int) ($line->bank_account_id ?? 0),
+            'account_number'       => $this->getAccountNumber((int) ($line->bank_account_id ?? 0)),
+            'mt940_transaction_id' => 0,
+            'doc_match_hint'       => '',
+            'pending_manual_match' => true,
+            'mt940'                => [
+                'transaction_date' => '',
+                'value_date'       => '',
+                'reference'        => '',
+                'description'      => '',
+                'amount'           => 0.0,
+                'currency'         => 'GTQ',
+                'debit_credit'     => 'C',
+            ],
+        ];
     }
 
     /**
