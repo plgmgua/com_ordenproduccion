@@ -122,6 +122,11 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <i class="fas fa-ban"></i>
         <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_ANULAR_ORDEN'); ?>
     </a>
+    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=verificar_pago'); ?>"
+       class="ajustes-subtab <?php echo $activeSubTab === 'verificar_pago' ? 'subtab-active' : ''; ?>">
+        <i class="fas fa-check-circle"></i>
+        <?php echo Text::_('COM_ORDENPRODUCCION_AJUSTES_SUBTAB_VERIFICAR_PAGO'); ?>
+    </a>
     <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=blink_test'); ?>"
        class="ajustes-subtab <?php echo $activeSubTab === 'blink_test' ? 'subtab-active' : ''; ?>">
         <i class="fas fa-credit-card"></i>
@@ -161,6 +166,8 @@ $lang->load('com_ordenproduccion', JPATH_ADMINISTRATOR . '/components/com_ordenp
         <?php include __DIR__ . '/default_ajustes_grupos_aprobaciones.php'; ?>
     <?php elseif ($activeSubTab === 'anular_orden'): ?>
         <?php include __DIR__ . '/default_ajustes_anular_orden.php'; ?>
+    <?php elseif ($activeSubTab === 'verificar_pago'): ?>
+        <?php include __DIR__ . '/default_ajustes_verificar_pago.php'; ?>
     <?php elseif ($activeSubTab === 'blink_test'): ?>
         <?php include __DIR__ . '/default_ajustes_blink_test.php'; ?>
     <?php elseif (\in_array($activeSubTab, ['mt940', 'mt940_importar', 'mt940_registro'], true)): ?>

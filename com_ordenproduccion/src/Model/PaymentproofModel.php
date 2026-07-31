@@ -99,6 +99,33 @@ class PaymentproofModel extends ItemModel
     }
 
     /**
+     * Parse user input (PA-00424, pa-424, 424) into a payment proof id.
+     *
+     * @param   string  $input
+     *
+     * @return  int  Proof id or 0 when invalid
+     *
+     * @since   3.119.287
+     */
+    public static function parsePaymentProofIdFromInput(string $input): int
+    {
+        $input = trim($input);
+        if ($input === '') {
+            return 0;
+        }
+
+        if (preg_match('/\bPA-(\d{1,10})\b/i', $input, $matches)) {
+            return max(0, (int) $matches[1]);
+        }
+
+        if (preg_match('/^\d{1,10}$/', $input)) {
+            return max(0, (int) $input);
+        }
+
+        return 0;
+    }
+
+    /**
      * Method to get a single record.
      *
      * @param   integer  $pk  The id of the primary key.

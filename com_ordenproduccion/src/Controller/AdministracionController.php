@@ -19,6 +19,7 @@ use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactAuthHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
@@ -32,6 +33,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\SatRetencionExcelHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
+use Grimpsa\Component\Ordenproduccion\Site\Model\PaymentproofModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\BlinkGatewayService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
@@ -2333,6 +2335,101 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=anular_orden', false));
+    }
+
+    /**
+     * Force a payment proof to Verificado by PA-00000 number (Ajustes > Verificar Pago).
+     * Bypasses MT-940 and self-verify restrictions for Administración / Super User.
+     *
+     * @return  void
+     *
+     * @since   3.119.287
+     */
+    public function forceVerifyPaymentProof()
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+        $returnUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=ajustes&subtab=verificar_pago', false);
+
+        if (!$user->authorise('core.admin', 'com_ordenproduccion') && !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JERROR_ALERTNOAUTHOR'), 'error');
+            $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=resumen', false));
+
+            return;
+        }
+
+        if (!Session::checkToken('post')) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($returnUrl);
+
+            return;
+        }
+
+        $jform = $app->input->post->get('jform', [], 'array');
+        $proofInput = isset($jform['payment_proof_number']) ? trim((string) $jform['payment_proof_number']) : '';
+        if ($proofInput === '') {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_VERIFICAR_PAGO_EMPTY'), 'warning');
+            $app->redirect($returnUrl);
+
+            return;
+        }
+
+        $proofId = PaymentproofModel::parsePaymentProofIdFromInput($proofInput);
+        if ($proofId < 1) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_VERIFICAR_PAGO_INVALID'), 'error');
+            $app->redirect($returnUrl);
+
+            return;
+        }
+
+        $paLabel = 'PA-' . str_pad((string) $proofId, 5, '0', STR_PAD_LEFT);
+
+        try {
+            /** @var PaymentproofModel|null $proofModel */
+            $proofModel = $this->getModel('Paymentproof', 'Site');
+            if ($proofModel === null) {
+                $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_VERIFICAR_PAGO_ERROR'), 'error');
+                $app->redirect($returnUrl);
+
+                return;
+            }
+
+            $proof = $proofModel->getItem($proofId);
+            if (!$proof) {
+                $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_VERIFICAR_PAGO_NOT_FOUND', $paLabel), 'error');
+                $app->redirect($returnUrl);
+
+                return;
+            }
+
+            $status = isset($proof->verification_status) ? strtolower(trim((string) $proof->verification_status)) : '';
+            if ($status === 'verificado') {
+                $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_VERIFICAR_PAGO_ALREADY', $paLabel), 'notice');
+                $app->redirect($returnUrl);
+
+                return;
+            }
+
+            $wfSvc = new ApprovalWorkflowService();
+            if ($wfSvc->hasSchema()) {
+                if (!$wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id)) {
+                    $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_VERIFY_WORKFLOW_ERROR'), 'error');
+                    $app->redirect($returnUrl);
+
+                    return;
+                }
+            }
+
+            if (ApprovalWorkflowEntityHelper::applyPaymentProofVerified($proofId, (int) $user->id)) {
+                $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_VERIFICAR_PAGO_SUCCESS', $paLabel), 'success');
+            } else {
+                $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_AJUSTES_VERIFICAR_PAGO_FAILED', $paLabel), 'error');
+            }
+        } catch (\Throwable $e) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_AJUSTES_SAVE_ERROR') . ': ' . $e->getMessage(), 'error');
+        }
+
+        $app->redirect($returnUrl);
     }
 
     /**

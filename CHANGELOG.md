@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.287-STABLE] - 2026-07-31
+
+### Added
+- **Ajustes — Verificar Pago:** New subtab with a PA-00000 input to force a payment proof to **Verificado** (Administración / Super User). Closes pending approval requests and bypasses MT-940 and self-verify restrictions.
+
 ## [3.119.286-STABLE] - 2026-07-31
 
 ### Added
