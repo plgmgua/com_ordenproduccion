@@ -42,6 +42,20 @@ class HtmlView extends BaseHtmlView
     protected $paymentProofMt940ApproverByProofId = [];
 
     /**
+     * Whether each proof requires MT-940 matching (destination bank accounts only).
+     *
+     * @var array<int, bool>
+     */
+    protected $paymentProofRequiresMt940ByProofId = [];
+
+    /**
+     * Whether the current user may manually mark each proof verificado (green button).
+     *
+     * @var array<int, bool>
+     */
+    protected $canMarkVerificadoForProofId = [];
+
+    /**
      * When &proof_id= points to a proof with a non-empty mismatch note, open mismatch ticket modal from header.
      *
      * @var int
@@ -170,11 +184,23 @@ class HtmlView extends BaseHtmlView
         } catch (\Throwable $e) {
             $onPagoWorkflow = false;
         }
-        // Green verify: pago workflow members (and Super Users as override), not Super User only.
+        // Green verify: MT-940 destination accounts use workflow approval; others use legacy manual verify.
         $this->canMarkVerificado = Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()
-            ? (AccessHelper::isSuperUser() || $onPagoWorkflow)
+            ? (AccessHelper::isSuperUser() || $onPagoWorkflow || AccessHelper::isInAdministracionOrAdmonGroup())
             : AccessHelper::isInAdministracionOrAdmonGroup();
         $this->paymentProofMt940ApproverByProofId = $this->buildPaymentProofMt940ApproverMap();
+        $this->paymentProofRequiresMt940ByProofId  = [];
+        $this->canMarkVerificadoForProofId       = [];
+        $matchSvcForScope = new Mt940PaymentMatchService();
+        foreach ($this->existingPayments as $proofScope) {
+            $scopeProofId = (int) ($proofScope->id ?? 0);
+            if ($scopeProofId < 1) {
+                continue;
+            }
+            $requiresMt940 = $matchSvcForScope->proofRequiresMt940Verification($scopeProofId);
+            $this->paymentProofRequiresMt940ByProofId[$scopeProofId] = $requiresMt940;
+            $this->canMarkVerificadoForProofId[$scopeProofId]         = $this->userCanMarkProofVerificado($requiresMt940, $onPagoWorkflow);
+        }
 
         // Initialize empty item for new payment proof
         $this->item = new \stdClass();
@@ -305,6 +331,26 @@ class HtmlView extends BaseHtmlView
         }
 
         return $map;
+    }
+
+    /**
+     * Whether the current user may use the manual green Verificar button for this proof.
+     *
+     * @since  3.119.279
+     */
+    protected function userCanMarkProofVerificado(bool $requiresMt940, bool $onPagoWorkflow): bool
+    {
+        if (!Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            return AccessHelper::isInAdministracionOrAdmonGroup();
+        }
+
+        if ($requiresMt940) {
+            return AccessHelper::isSuperUser() || $onPagoWorkflow;
+        }
+
+        return AccessHelper::isInAdministracionOrAdmonGroup()
+            || AccessHelper::isSuperUser()
+            || $onPagoWorkflow;
     }
 
     /**

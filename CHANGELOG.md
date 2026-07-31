@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.279-STABLE] - 2026-07-31
+
+### Fixed
+- **Registro de pago — Verificar (botón verde):** Payments on bank accounts **not** listed in MT-940 «Cuentas bancarias destino» (e.g. BAC, Ebi Link, SAT) again use manual green-button verification for Administración/Admon; MT-940 destination accounts still require an MT-940 match and approval sub-row.
+
 ## [3.119.278-STABLE] - 2026-07-30
 
 ### Fixed

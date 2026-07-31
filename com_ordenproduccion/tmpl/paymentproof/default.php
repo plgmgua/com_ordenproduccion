@@ -540,6 +540,8 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                     $proofIdForMt940 = (int) ($proof->id ?? 0);
                                     $mt940Approver = $this->paymentProofMt940ApproverByProofId[$proofIdForMt940] ?? null;
                                     $proofHasMt940Approver = ($mt940Approver !== null && !empty($mt940Approver['lines']));
+                                    $proofRequiresMt940 = !empty($this->paymentProofRequiresMt940ByProofId[$proofIdForMt940]);
+                                    $canManualVerifyProof = !empty($this->canMarkVerificadoForProofId[$proofIdForMt940]);
                                     $isMerged = !empty($proof->_merged);
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
                                     if (!empty($lines)):
@@ -677,7 +679,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                             $isOwnProof = ((int) ($proof->created_by ?? 0) === (int) Factory::getUser()->id);
                                             $mt940CanApprove = $proofHasMt940Approver && !empty($mt940Approver['can_approve']);
                                             echo '<div class="payment-proof-actions-row mt-1">';
-                                            if ($isIngresado && !empty($this->canMarkVerificado) && !$isOwnProof && !$mt940CanApprove && !$proofHasMt940Approver) {
+                                            if ($isIngresado && $canManualVerifyProof && !$isOwnProof && !$proofRequiresMt940) {
                                                 echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                                 echo HTMLHelper::_('form.token');
                                                 echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';
@@ -818,7 +820,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                         $isOwnProofLeg = ((int) ($proof->created_by ?? 0) === (int) Factory::getUser()->id);
                                         $mt940CanApproveLeg = $proofHasMt940Approver && !empty($mt940Approver['can_approve']);
                                         echo '<div class="payment-proof-actions-row mt-1">';
-                                        if ($isIngresado && !empty($this->canMarkVerificado) && !$isOwnProofLeg && !$mt940CanApproveLeg && !$proofHasMt940Approver) {
+                                        if ($isIngresado && $canManualVerifyProof && !$isOwnProofLeg && !$proofRequiresMt940) {
                                             echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                             echo HTMLHelper::_('form.token');
                                             echo '<input type="hidden" name="proof_id" value="' . (int)($proof->id ?? 0) . '"><input type="hidden" name="order_id" value="' . (int)$orderId . '">';

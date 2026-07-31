@@ -200,12 +200,17 @@ class Mt940PaymentMatchService
     protected function processProof(object $proof, array $linkedIds, ApprovalWorkflowService $wfSvc): array
     {
         $proofId = (int) ($proof->id ?? 0);
-        $lines   = $this->getBankLinesForProof($proofId);
+        $lines   = $this->getMt940ScopedBankLinesForProof($proofId);
 
         if ($lines === []) {
-            Mt940PaymentMatchLogHelper::log($proofId, 0, Mt940PaymentMatchLogHelper::STATUS_SKIPPED, 'No transferencia/deposito lines with bank account.');
+            Mt940PaymentMatchLogHelper::log(
+                $proofId,
+                0,
+                Mt940PaymentMatchLogHelper::STATUS_SKIPPED,
+                'No transferencia/deposito lines on MT-940 destination accounts.'
+            );
 
-            return ['status' => 'no_match', 'approval_created' => false];
+            return ['status' => 'skipped', 'approval_created' => false];
         }
 
         $lineMatches = [];
@@ -396,6 +401,189 @@ class Mt940PaymentMatchService
         $this->db->setQuery($q);
 
         return $this->db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Bank account IDs selected in Ajustes → MT-940 → Cuentas bancarias destino.
+     *
+     * @return  array<int>
+     *
+     * @since   3.119.279
+     */
+    public function getConfiguredMt940BankAccountIds(): array
+    {
+        static $cache = null;
+
+        if (\is_array($cache)) {
+            return $cache;
+        }
+
+        $cache = [];
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select([
+                    $this->db->quoteName('setting_key'),
+                    $this->db->quoteName('setting_value'),
+                ])
+                ->from($this->db->quoteName('#__ordenproduccion_config'))
+                ->where(
+                    $this->db->quoteName('setting_key') . ' IN ('
+                    . $this->db->quote('mt940_bank_account_ids') . ','
+                    . $this->db->quote('mt940_bank_account_id') . ')'
+                );
+            $this->db->setQuery($q);
+            $rows = $this->db->loadObjectList() ?: [];
+
+            $jsonRaw      = '';
+            $legacySingle = '0';
+            foreach ($rows as $row) {
+                $key = (string) ($row->setting_key ?? '');
+                if ($key === 'mt940_bank_account_ids') {
+                    $jsonRaw = trim((string) ($row->setting_value ?? ''));
+                } elseif ($key === 'mt940_bank_account_id') {
+                    $legacySingle = trim((string) ($row->setting_value ?? '0'));
+                }
+            }
+
+            if ($jsonRaw !== '') {
+                $decoded = json_decode($jsonRaw, true);
+                if (\is_array($decoded)) {
+                    foreach ($decoded as $value) {
+                        $id = (int) $value;
+                        if ($id > 0) {
+                            $cache[] = $id;
+                        }
+                    }
+                }
+            }
+
+            if ($cache === []) {
+                $legacy = (int) $legacySingle;
+                if ($legacy > 0) {
+                    $cache[] = $legacy;
+                }
+            }
+
+            $cache = array_values(array_unique($cache));
+            sort($cache);
+        } catch (\Throwable $e) {
+            $cache = [];
+        }
+
+        return $cache;
+    }
+
+    /**
+     * Whether a bank account is included in MT-940 destination accounts.
+     *
+     * @since   3.119.279
+     */
+    public function isBankAccountInMt940Scope(int $bankAccountId): bool
+    {
+        if ($bankAccountId < 1) {
+            return false;
+        }
+
+        return \in_array($bankAccountId, $this->getConfiguredMt940BankAccountIds(), true);
+    }
+
+    /**
+     * Payment proofs with transferencia/depósito lines on MT-940 destination accounts require MT-940 match.
+     *
+     * @since   3.119.279
+     */
+    public function proofRequiresMt940Verification(int $proofId): bool
+    {
+        if ($proofId < 1) {
+            return false;
+        }
+
+        if ($this->getMt940ScopedBankLinesForProof($proofId) !== []) {
+            return true;
+        }
+
+        return $this->legacyProofHeaderRequiresMt940Verification($proofId);
+    }
+
+    /**
+     * Transferencia/depósito lines limited to MT-940 destination bank accounts.
+     *
+     * @return  array<int, object>
+     *
+     * @since   3.119.279
+     */
+    public function getMt940ScopedBankLinesForProof(int $proofId): array
+    {
+        $configuredIds = $this->getConfiguredMt940BankAccountIds();
+        if ($configuredIds === []) {
+            return [];
+        }
+
+        $lines = $this->getBankLinesForProof($proofId);
+        if ($lines === []) {
+            return [];
+        }
+
+        $configuredLookup = array_fill_keys($configuredIds, true);
+
+        return array_values(array_filter(
+            $lines,
+            static fn ($line) => isset($configuredLookup[(int) ($line->bank_account_id ?? 0)])
+        ));
+    }
+
+    /**
+     * Legacy proofs without payment_proof_lines rows.
+     *
+     * @since   3.119.279
+     */
+    protected function legacyProofHeaderRequiresMt940Verification(int $proofId): bool
+    {
+        if ($this->hasPaymentProofLinesTable()) {
+            try {
+                $q = $this->db->getQuery(true)
+                    ->select('COUNT(*)')
+                    ->from($this->db->quoteName('#__ordenproduccion_payment_proof_lines'))
+                    ->where($this->db->quoteName('payment_proof_id') . ' = ' . $proofId);
+                $this->db->setQuery($q);
+                if ((int) $this->db->loadResult() > 0) {
+                    return false;
+                }
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+
+        try {
+            $cols = $this->db->getTableColumns('#__ordenproduccion_payment_proofs', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (!isset($cols['payment_type'], $cols['bank_account_id'])) {
+                return false;
+            }
+
+            $q = $this->db->getQuery(true)
+                ->select([
+                    $this->db->quoteName('payment_type'),
+                    $this->db->quoteName('bank_account_id'),
+                ])
+                ->from($this->db->quoteName('#__ordenproduccion_payment_proofs'))
+                ->where($this->db->quoteName('id') . ' = ' . $proofId);
+            $this->db->setQuery($q);
+            $row = $this->db->loadObject();
+            if ($row === null) {
+                return false;
+            }
+
+            $type = strtolower(trim((string) ($row->payment_type ?? '')));
+            $baId = (int) ($row->bank_account_id ?? 0);
+
+            return $baId > 0
+                && \in_array($type, self::BANK_PAYMENT_TYPES, true)
+                && $this->isBankAccountInMt940Scope($baId);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

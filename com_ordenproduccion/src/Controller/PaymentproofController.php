@@ -1007,29 +1007,42 @@ class PaymentproofController extends BaseController
         $orderId = $this->input->getInt('order_id', 0);
         $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=paymentproof&order_id=' . $orderId);
 
-        if (Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+        $matchSvc      = new Mt940PaymentMatchService();
+        $requiresMt940 = $matchSvc->proofRequiresMt940Verification($proofId);
+
+        if ($proofId <= 0) {
+            $this->app->enqueueMessage('ID de comprobante inválido.', 'error');
+            $this->setRedirect($redirectUrl);
+            return false;
+        }
+
+        if ($requiresMt940 && Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PP_MT940_MANUAL_VERIFY_DENIED'), 'error');
+            $this->setRedirect($redirectUrl);
+
+            return false;
+        }
+
+        $onPagoWorkflow = false;
+        try {
+            $wfGate = new ApprovalWorkflowService();
+            $onPagoWorkflow = $wfGate->hasSchema()
+                && $wfGate->isUserOnPaymentProofApprovalWorkflow((int) $user->id);
+        } catch (\Throwable $e) {
             $onPagoWorkflow = false;
-            try {
-                $wfGate = new ApprovalWorkflowService();
-                $onPagoWorkflow = $wfGate->hasSchema()
-                    && $wfGate->isUserOnPaymentProofApprovalWorkflow((int) $user->id);
-            } catch (\Throwable $e) {
-                $onPagoWorkflow = false;
-            }
-            if (!AccessHelper::isSuperUser() && !$onPagoWorkflow) {
-                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_NOT_ASSIGNED'), 'error');
+        }
+
+        if (Mt940PaymentMatchLogHelper::isMt940VerificationEnabled()) {
+            if (!AccessHelper::isSuperUser()
+                && !$onPagoWorkflow
+                && !AccessHelper::isInAdministracionOrAdmonGroup()) {
+                $this->app->enqueueMessage('No tiene permiso para marcar comprobantes como verificados.', 'error');
                 $this->setRedirect($redirectUrl);
                 return false;
             }
         } elseif (!AccessHelper::isInAdministracionOrAdmonGroup()) {
             $this->app->enqueueMessage('No tiene permiso para marcar comprobantes como verificados.', 'error');
             $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
-            return false;
-        }
-
-        if ($proofId <= 0) {
-            $this->app->enqueueMessage('ID de comprobante inválido.', 'error');
-            $this->setRedirect($redirectUrl);
             return false;
         }
 
@@ -1056,20 +1069,9 @@ class PaymentproofController extends BaseController
             return false;
         }
 
-        // Close open MT-940 approval when superadmin verifies manually.
+        // Close open approval request when verifying (legacy on-save workflow).
         $wfSvc = new ApprovalWorkflowService();
-        if (Mt940PaymentMatchLogHelper::isMt940VerificationEnabled() && $wfSvc->hasSchema()) {
-            if (!$wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id)) {
-                $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_VERIFY_WORKFLOW_ERROR'), 'error');
-                $this->setRedirect($redirectUrl);
-
-                return false;
-            }
-        }
-
-        // Legacy: close open approval request when verifying (workflow started on proof save).
-        $useApprovalWorkflow = Mt940PaymentMatchLogHelper::isLegacyPaymentProofApprovalOnSave();
-        if ($useApprovalWorkflow && $wfSvc->hasSchema()) {
+        if (Mt940PaymentMatchLogHelper::isLegacyPaymentProofApprovalOnSave() && $wfSvc->hasSchema()) {
             if (!$wfSvc->completePendingPaymentProofForVerification($proofId, (int) $user->id)) {
                 $this->app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_APPROVAL_PAYMENT_PROOF_VERIFY_WORKFLOW_ERROR'), 'error');
                 $this->setRedirect($redirectUrl);
