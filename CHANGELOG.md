@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.299-STABLE] - 2026-08-03
+
+### Fixed
+- **Proveedor Externo — Añadir envío:** Button moved to the top row beside **Facturar** and **Tarjeta de crédito** (matching pliego layout); removed duplicate from the vendor-lines footer.
+
 ## [3.119.298-STABLE] - 2026-08-03
 
 ### Added

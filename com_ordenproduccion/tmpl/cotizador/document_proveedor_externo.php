@@ -646,6 +646,11 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             </div>
         </form>
         <?php endif; ?>
+        <?php if ($canEditDocument && !$precotizacionLocked && !empty($envios)) : ?>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#envioLineModal">
+            <?php echo htmlspecialchars($labelAnadirEnvio); ?>
+        </button>
+        <?php endif; ?>
         <?php if ($tarjetaCreditoTableOk && !empty($tarjetaCreditoRates)) : ?>
             <?php if ($canEditDocument && !$precotizacionLocked) : ?>
             <form method="post" action="<?php echo htmlspecialchars($saveTarjetaUrl); ?>" class="d-inline-flex align-items-center gap-2 mb-0">
@@ -691,6 +696,88 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <?php endif; ?>
         <?php endif; ?>
     </div>
+
+    <?php if ($canEditDocument && !$precotizacionLocked && !empty($envios)) : ?>
+    <div class="modal fade" id="envioLineModal" tabindex="-1" aria-labelledby="envioLineModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="envioLineModalLabel"><?php echo htmlspecialchars($labelAnadirEnvio); ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addLineEnvio'); ?>" method="post" id="envio-line-form">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="id" value="<?php echo $preCotizacionId; ?>">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="envio_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
+                            <input type="text" name="tipo_elemento" id="envio_modal_tipo_elemento" class="form-control" maxlength="255" required autocomplete="off" value="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label for="envio_modal_envio_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_METHOD'); ?></label>
+                            <select name="envio_id" id="envio_modal_envio_id" class="form-select" required data-envios="<?php echo htmlspecialchars(json_encode(array_map(static function ($e) {
+                                return ['id' => (int) $e->id, 'tipo' => isset($e->tipo) ? (string) $e->tipo : 'fixed', 'valor' => (float) ($e->valor ?? 0)];
+                            }, $envios))); ?>">
+                                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT_ENVIO'); ?></option>
+                                <?php foreach ($envios as $e) : ?>
+                                    <option value="<?php echo (int) $e->id; ?>" data-tipo="<?php echo htmlspecialchars(isset($e->tipo) ? $e->tipo : 'fixed'); ?>"><?php echo htmlspecialchars($e->name ?? ''); ?> (<?php echo (isset($e->tipo) && $e->tipo === 'custom') ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_CUSTOM') : 'Q ' . number_format((float) ($e->valor ?? 0), 2); ?>)</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="envio_modal_custom_wrap" style="display:none;">
+                            <label for="envio_modal_valor" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_VALOR'); ?></label>
+                            <input type="number" name="envio_valor" id="envio_modal_valor" class="form-control" min="0" step="0.01" value="">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                        <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ADD_ENVIO_LINE'); ?></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var sel = document.getElementById('envio_modal_envio_id');
+        var wrap = document.getElementById('envio_modal_custom_wrap');
+        function toggleCustom() {
+            var opt = sel && sel.options[sel.selectedIndex];
+            var isCustom = opt && opt.getAttribute('data-tipo') === 'custom';
+            if (wrap) {
+                wrap.style.display = isCustom ? 'block' : 'none';
+            }
+            var valInput = document.getElementById('envio_modal_valor');
+            if (!isCustom && valInput) {
+                valInput.removeAttribute('required');
+            } else if (isCustom && valInput) {
+                valInput.setAttribute('required', 'required');
+            }
+        }
+        if (sel) {
+            sel.addEventListener('change', toggleCustom);
+        }
+        var envioTipoDefault = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT')); ?>;
+        var modalEl = document.getElementById('envioLineModal');
+        if (modalEl) {
+            modalEl.addEventListener('show.bs.modal', function() {
+                var te = document.getElementById('envio_modal_tipo_elemento');
+                if (te) {
+                    te.value = envioTipoDefault;
+                }
+                if (sel) {
+                    sel.selectedIndex = 0;
+                }
+                var valInput = document.getElementById('envio_modal_valor');
+                if (valInput) {
+                    valInput.value = '';
+                }
+                toggleCustom();
+            });
+        }
+    })();
+    </script>
+    <?php endif; ?>
 
     <h2 class="h5 mt-4" id="precot-vendor-lines-anchor"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_LINES_TITLE'); ?></h2>
     <?php if ($vendorQuoteAttachHref !== '') : ?>
@@ -1126,9 +1213,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <div class="d-flex flex-column gap-2 align-items-stretch precot-vendor-save-stack" style="min-width: 220px; max-width: 100%;">
                 <div class="text-end d-flex flex-wrap gap-2 justify-content-end">
                     <button type="button" class="btn btn-outline-primary btn-sm" id="proveedor-externo-add-line"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?></button>
-                    <?php if (!empty($envios)) : ?>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#envioLineModal"><?php echo htmlspecialchars($labelAnadirEnvio); ?></button>
-                    <?php endif; ?>
                     <button type="button" class="btn btn-outline-secondary btn-sm<?php echo $hasGastosEnvioRow ? ' d-none' : ''; ?>" id="proveedor-externo-add-gastos-envio"><?php echo htmlspecialchars($colGastosEnvio); ?></button>
                 </div>
                 <button type="submit" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" class="btn btn-success w-100"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
@@ -1322,88 +1406,6 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             nextIdx++;
             bindRow(row);
         });
-    })();
-    </script>
-    <?php endif; ?>
-
-    <?php if ($canEditDocument && !$linesTableLocked && !empty($envios)) : ?>
-    <div class="modal fade" id="envioLineModal" tabindex="-1" aria-labelledby="envioLineModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="envioLineModalLabel"><?php echo htmlspecialchars($labelAnadirEnvio); ?></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addLineEnvio'); ?>" method="post" id="envio-line-form">
-                    <?php echo HTMLHelper::_('form.token'); ?>
-                    <input type="hidden" name="id" value="<?php echo $preCotizacionId; ?>">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="envio_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
-                            <input type="text" name="tipo_elemento" id="envio_modal_tipo_elemento" class="form-control" maxlength="255" required autocomplete="off" value="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
-                        </div>
-                        <div class="mb-3">
-                            <label for="envio_modal_envio_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_METHOD'); ?></label>
-                            <select name="envio_id" id="envio_modal_envio_id" class="form-select" required data-envios="<?php echo htmlspecialchars(json_encode(array_map(static function ($e) {
-                                return ['id' => (int) $e->id, 'tipo' => isset($e->tipo) ? (string) $e->tipo : 'fixed', 'valor' => (float) ($e->valor ?? 0)];
-                            }, $envios))); ?>">
-                                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT_ENVIO'); ?></option>
-                                <?php foreach ($envios as $e) : ?>
-                                    <option value="<?php echo (int) $e->id; ?>" data-tipo="<?php echo htmlspecialchars(isset($e->tipo) ? $e->tipo : 'fixed'); ?>"><?php echo htmlspecialchars($e->name ?? ''); ?> (<?php echo (isset($e->tipo) && $e->tipo === 'custom') ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_CUSTOM') : 'Q ' . number_format((float) ($e->valor ?? 0), 2); ?>)</option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3" id="envio_modal_custom_wrap" style="display:none;">
-                            <label for="envio_modal_valor" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_VALOR'); ?></label>
-                            <input type="number" name="envio_valor" id="envio_modal_valor" class="form-control" min="0" step="0.01" value="">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
-                        <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ADD_ENVIO_LINE'); ?></button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    <script>
-    (function() {
-        var sel = document.getElementById('envio_modal_envio_id');
-        var wrap = document.getElementById('envio_modal_custom_wrap');
-        function toggleCustom() {
-            var opt = sel && sel.options[sel.selectedIndex];
-            var isCustom = opt && opt.getAttribute('data-tipo') === 'custom';
-            if (wrap) {
-                wrap.style.display = isCustom ? 'block' : 'none';
-            }
-            var valInput = document.getElementById('envio_modal_valor');
-            if (!isCustom && valInput) {
-                valInput.removeAttribute('required');
-            } else if (isCustom && valInput) {
-                valInput.setAttribute('required', 'required');
-            }
-        }
-        if (sel) {
-            sel.addEventListener('change', toggleCustom);
-        }
-        var envioTipoDefault = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT')); ?>;
-        var modalEl = document.getElementById('envioLineModal');
-        if (modalEl) {
-            modalEl.addEventListener('show.bs.modal', function() {
-                var te = document.getElementById('envio_modal_tipo_elemento');
-                if (te) {
-                    te.value = envioTipoDefault;
-                }
-                if (sel) {
-                    sel.selectedIndex = 0;
-                }
-                var valInput = document.getElementById('envio_modal_valor');
-                if (valInput) {
-                    valInput.value = '';
-                }
-                toggleCustom();
-            });
-        }
     })();
     </script>
     <?php endif; ?>
