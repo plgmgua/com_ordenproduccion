@@ -858,13 +858,6 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        if ($this->documentModeForPrecot($preCotizacionId) === 'proveedor_externo') {
-            $this->setMessage(Text::_('COM_ORDENPRODUCCION_PRE_COT_PROVEEDOR_EXTERNO_NO_PLIEGO'), 'error');
-            $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=cotizador&layout=document&id=' . $preCotizacionId, false));
-
-            return false;
-        }
-
         $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Productos', 'Site', ['ignore_request' => true]);
         if (!$productosModel->enviosTableExists()) {

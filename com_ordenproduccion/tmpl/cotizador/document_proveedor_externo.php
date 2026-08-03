@@ -37,16 +37,42 @@ $ofertaViewOnly = !empty($item->oferta) && !$canEditDocument && !$precotizacionL
 
 $vendorLines = [];
 $gastosEnvioLine = null;
+$catalogEnvioLines = [];
 $gastosEnvioAmount = 0.0;
 foreach ($lines as $ln) {
     $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
     if ($lt === 'proveedor_externo') {
         $vendorLines[] = $ln;
-    } elseif ($lt === 'envio' && (empty($ln->envio_id) || (int) $ln->envio_id === 0)) {
-        $gastosEnvioLine = $ln;
-        $gastosEnvioAmount = round((float) ($ln->total ?? 0), 2);
+    } elseif ($lt === 'envio') {
+        if (empty($ln->envio_id) || (int) $ln->envio_id === 0) {
+            $gastosEnvioLine = $ln;
+            $gastosEnvioAmount = round((float) ($ln->total ?? 0), 2);
+        } else {
+            $catalogEnvioLines[] = $ln;
+        }
     }
 }
+$envios = $this->envios ?? [];
+$labelAnadirEnvio = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO');
+if ($labelAnadirEnvio === 'COM_ORDENPRODUCCION_PRE_COTIZACION_ANADIR_ENVIO') {
+    $labelAnadirEnvio = 'Añadir envío';
+}
+$formatCatalogEnvioDesc = static function ($line) {
+    $label = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_LABEL');
+    if (strpos($label, 'COM_ORDENPRODUCCION_') === 0) {
+        $label = 'Envío';
+    }
+    $envioName = isset($line->envio_name) ? (string) $line->envio_name : '';
+    if ($envioName !== '') {
+        $label .= ': ' . $envioName;
+    }
+    $tipo = isset($line->tipo_elemento) ? trim((string) $line->tipo_elemento) : '';
+    if ($tipo !== '') {
+        return $tipo . ' — ' . $label;
+    }
+
+    return $label;
+};
 $colGastosEnvio = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_GASTOS_ENVIO');
 $hasGastosEnvioRow = ($gastosEnvioLine !== null);
 $anyVendorLineUnitPricePositive = false;
@@ -675,7 +701,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
     <?php endif; ?>
 
     <?php if ($linesTableLocked && !$canAdminEditPupWhenLocked) : ?>
-        <?php if (empty($vendorLines) && $gastosEnvioAmount <= 0) : ?>
+        <?php if (empty($vendorLines) && empty($catalogEnvioLines) && $gastosEnvioAmount <= 0) : ?>
             <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <?php else : ?>
         <div class="pre-cot-vendor-lines-wrap">
@@ -711,6 +737,23 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         <?php endif; ?>
                         <?php if ($showVendorPriceTotalColumnsReadonly) : ?>
                         <td class="col-total text-end">Q <?php echo number_format((float) ($line->total ?? 0), 2); ?></td>
+                        <?php endif; ?>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php foreach ($catalogEnvioLines as $envLine) :
+                        $envTotal = round((float) ($envLine->total ?? 0), 2);
+                        ?>
+                    <tr>
+                        <td class="col-qty">1</td>
+                        <td class="col-desc"><?php echo htmlspecialchars($formatCatalogEnvioDesc($envLine)); ?></td>
+                        <?php if ($showVendorPriceTotalColumnsReadonly) : ?>
+                        <td class="col-price text-end">Q <?php echo number_format($envTotal, 2); ?></td>
+                        <?php endif; ?>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <td class="col-pup text-end">—</td>
+                        <?php endif; ?>
+                        <?php if ($showVendorPriceTotalColumnsReadonly) : ?>
+                        <td class="col-total text-end">Q <?php echo number_format($envTotal, 2); ?></td>
                         <?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
@@ -761,7 +804,7 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
         </div>
         <?php endif; ?>
     <?php elseif ($linesTableLocked && $canAdminEditPupWhenLocked) : ?>
-        <?php if (empty($vendorLines) && $gastosEnvioAmount <= 0) : ?>
+        <?php if (empty($vendorLines) && empty($catalogEnvioLines) && $gastosEnvioAmount <= 0) : ?>
             <p class="text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <?php else : ?>
         <?php
@@ -815,6 +858,19 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                         <?php endif; ?>
                         <td class="col-total text-end align-middle"><span class="js-admin-locked-line-total">Q <?php echo number_format($tot, 2); ?></span></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php foreach ($catalogEnvioLines as $envLine) :
+                        $envTotal = round((float) ($envLine->total ?? 0), 2);
+                        ?>
+                    <tr>
+                        <td class="col-qty">1</td>
+                        <td class="col-desc"><?php echo htmlspecialchars($formatCatalogEnvioDesc($envLine)); ?></td>
+                        <td class="col-price text-end">Q <?php echo number_format($envTotal, 2); ?></td>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <td class="col-pup text-end">—</td>
+                        <?php endif; ?>
+                        <td class="col-total text-end">Q <?php echo number_format($envTotal, 2); ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if ($gastosEnvioAmount > 0) : ?>
@@ -995,6 +1051,29 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                         </td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php foreach ($catalogEnvioLines as $envLine) :
+                        $envLid = (int) $envLine->id;
+                        $envTotal = round((float) ($envLine->total ?? 0), 2);
+                        $deleteEnvioUrl = 'index.php?option=com_ordenproduccion&task=precotizacion.deleteLine&line_id=' . $envLid . '&id=' . $preCotizacionId;
+                        ?>
+                    <tr class="proveedor-externo-catalog-envio-row">
+                        <td class="col-qty align-middle">1</td>
+                        <td class="col-desc align-middle"><?php echo htmlspecialchars($formatCatalogEnvioDesc($envLine)); ?></td>
+                        <td class="col-price text-end align-middle">Q <?php echo number_format($envTotal, 2); ?></td>
+                        <?php if ($showVendorPupColumn) : ?>
+                        <td class="col-pup text-end align-middle text-muted">—</td>
+                        <?php endif; ?>
+                        <td class="col-total text-end align-middle">Q <?php echo number_format($envTotal, 2); ?></td>
+                        <td class="col-actions text-center align-middle">
+                            <?php if ($envLid > 0) : ?>
+                            <form action="<?php echo Route::_($deleteEnvioUrl); ?>" method="post" class="d-inline" onsubmit="return confirm('<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_CONFIRM_DELETE_LINE')); ?>');">
+                                <?php echo HTMLHelper::_('form.token'); ?>
+                                <button type="submit" class="btn btn-sm btn-outline-danger btn-vendor-row-action" title="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>" aria-label="<?php echo htmlspecialchars(Text::_('JACTION_DELETE')); ?>">×</button>
+                            </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
                     <?php if ($hasGastosEnvioRow) :
                         $gastosEnvioLineId = (int) $gastosEnvioLine->id;
                         ?>
@@ -1047,6 +1126,9 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             <div class="d-flex flex-column gap-2 align-items-stretch precot-vendor-save-stack" style="min-width: 220px; max-width: 100%;">
                 <div class="text-end d-flex flex-wrap gap-2 justify-content-end">
                     <button type="button" class="btn btn-outline-primary btn-sm" id="proveedor-externo-add-line"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_ADD_LINE')); ?></button>
+                    <?php if (!empty($envios)) : ?>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#envioLineModal"><?php echo htmlspecialchars($labelAnadirEnvio); ?></button>
+                    <?php endif; ?>
                     <button type="button" class="btn btn-outline-secondary btn-sm<?php echo $hasGastosEnvioRow ? ' d-none' : ''; ?>" id="proveedor-externo-add-gastos-envio"><?php echo htmlspecialchars($colGastosEnvio); ?></button>
                 </div>
                 <button type="submit" form="<?php echo htmlspecialchars($saveLinesFormId); ?>" class="btn btn-success w-100"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_SAVE_LINES'); ?></button>
@@ -1240,6 +1322,88 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
             nextIdx++;
             bindRow(row);
         });
+    })();
+    </script>
+    <?php endif; ?>
+
+    <?php if ($canEditDocument && !$linesTableLocked && !empty($envios)) : ?>
+    <div class="modal fade" id="envioLineModal" tabindex="-1" aria-labelledby="envioLineModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="envioLineModalLabel"><?php echo htmlspecialchars($labelAnadirEnvio); ?></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=precotizacion.addLineEnvio'); ?>" method="post" id="envio-line-form">
+                    <?php echo HTMLHelper::_('form.token'); ?>
+                    <input type="hidden" name="id" value="<?php echo $preCotizacionId; ?>">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="envio_modal_tipo_elemento" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO'); ?></label>
+                            <input type="text" name="tipo_elemento" id="envio_modal_tipo_elemento" class="form-control" maxlength="255" required autocomplete="off" value="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT'), ENT_QUOTES, 'UTF-8'); ?>" placeholder="<?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TIPO_ELEMENTO_PLACEHOLDER'), ENT_QUOTES, 'UTF-8'); ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label for="envio_modal_envio_id" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_METHOD'); ?></label>
+                            <select name="envio_id" id="envio_modal_envio_id" class="form-select" required data-envios="<?php echo htmlspecialchars(json_encode(array_map(static function ($e) {
+                                return ['id' => (int) $e->id, 'tipo' => isset($e->tipo) ? (string) $e->tipo : 'fixed', 'valor' => (float) ($e->valor ?? 0)];
+                            }, $envios))); ?>">
+                                <option value=""><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SELECT_ENVIO'); ?></option>
+                                <?php foreach ($envios as $e) : ?>
+                                    <option value="<?php echo (int) $e->id; ?>" data-tipo="<?php echo htmlspecialchars(isset($e->tipo) ? $e->tipo : 'fixed'); ?>"><?php echo htmlspecialchars($e->name ?? ''); ?> (<?php echo (isset($e->tipo) && $e->tipo === 'custom') ? Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_CUSTOM') : 'Q ' . number_format((float) ($e->valor ?? 0), 2); ?>)</option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="envio_modal_custom_wrap" style="display:none;">
+                            <label for="envio_modal_valor" class="form-label"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_VALOR'); ?></label>
+                            <input type="number" name="envio_valor" id="envio_modal_valor" class="form-control" min="0" step="0.01" value="">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo Text::_('JCANCEL'); ?></button>
+                        <button type="submit" class="btn btn-primary"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ADD_ENVIO_LINE'); ?></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var sel = document.getElementById('envio_modal_envio_id');
+        var wrap = document.getElementById('envio_modal_custom_wrap');
+        function toggleCustom() {
+            var opt = sel && sel.options[sel.selectedIndex];
+            var isCustom = opt && opt.getAttribute('data-tipo') === 'custom';
+            if (wrap) {
+                wrap.style.display = isCustom ? 'block' : 'none';
+            }
+            var valInput = document.getElementById('envio_modal_valor');
+            if (!isCustom && valInput) {
+                valInput.removeAttribute('required');
+            } else if (isCustom && valInput) {
+                valInput.setAttribute('required', 'required');
+            }
+        }
+        if (sel) {
+            sel.addEventListener('change', toggleCustom);
+        }
+        var envioTipoDefault = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_TIPO_ELEMENTO_DEFAULT')); ?>;
+        var modalEl = document.getElementById('envioLineModal');
+        if (modalEl) {
+            modalEl.addEventListener('show.bs.modal', function() {
+                var te = document.getElementById('envio_modal_tipo_elemento');
+                if (te) {
+                    te.value = envioTipoDefault;
+                }
+                if (sel) {
+                    sel.selectedIndex = 0;
+                }
+                var valInput = document.getElementById('envio_modal_valor');
+                if (valInput) {
+                    valInput.value = '';
+                }
+                toggleCustom();
+            });
+        }
     })();
     </script>
     <?php endif; ?>

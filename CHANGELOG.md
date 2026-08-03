@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.298-STABLE] - 2026-08-03
+
+### Added
+- **Pre-cotización Proveedor Externo:** **Añadir envío** from the Envíos catalog (same modal as pliego pre-cotizaciones). Catalog envío lines appear in the lines table and totals; manual **Gastos de envío** remains available separately.
+
 ## [3.119.297-STABLE] - 2026-08-03
 
 ### Added

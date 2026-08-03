@@ -95,17 +95,38 @@ $precotFooterShowIsr = $canSeePrecotInternalTax && $facturar
 $docMode = isset($item->document_mode) ? (string) $item->document_mode : 'pliego';
 $isProveedorExternoDoc = ($docMode === 'proveedor_externo');
 $vendorLines           = [];
+$catalogEnvioLines     = [];
 $gastosEnvioAmount     = 0.0;
 if ($isProveedorExternoDoc) {
     foreach ($lines as $ln) {
         $lt = isset($ln->line_type) ? (string) $ln->line_type : 'pliego';
         if ($lt === 'proveedor_externo') {
             $vendorLines[] = $ln;
-        } elseif ($lt === 'envio' && (empty($ln->envio_id) || (int) $ln->envio_id === 0)) {
-            $gastosEnvioAmount = round((float) ($ln->total ?? 0), 2);
+        } elseif ($lt === 'envio') {
+            if (empty($ln->envio_id) || (int) $ln->envio_id === 0) {
+                $gastosEnvioAmount = round((float) ($ln->total ?? 0), 2);
+            } else {
+                $catalogEnvioLines[] = $ln;
+            }
         }
     }
 }
+$formatCatalogEnvioDescPe = static function ($line) {
+    $label = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ENVIO_LABEL');
+    if (strpos($label, 'COM_ORDENPRODUCCION_') === 0) {
+        $label = 'Envío';
+    }
+    $envioName = isset($line->envio_name) ? (string) $line->envio_name : '';
+    if ($envioName !== '') {
+        $label .= ': ' . $envioName;
+    }
+    $tipo = isset($line->tipo_elemento) ? trim((string) $line->tipo_elemento) : '';
+    if ($tipo !== '') {
+        return $tipo . ' — ' . $label;
+    }
+
+    return $label;
+};
 $colGastosEnvioPe = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_GASTOS_ENVIO');
 
 $colQtyPe   = Text::_('COM_ORDENPRODUCCION_PRE_COT_VENDOR_COL_QTY');
@@ -122,7 +143,7 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
 <div class="com-ordenproduccion-precotizacion-details p-3">
     <?php if (!$item) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ERROR_NOT_FOUND'); ?></p>
-    <?php elseif ($isProveedorExternoDoc && $vendorLines === [] && $gastosEnvioAmount <= 0) : ?>
+    <?php elseif ($isProveedorExternoDoc && $vendorLines === [] && empty($catalogEnvioLines) && $gastosEnvioAmount <= 0) : ?>
         <p class="text-muted mb-0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_NO_LINES'); ?></p>
         <p class="mb-0 text-end"><strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SUBTOTAL'); ?>:</strong> Q 0.00 &rarr; <strong><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?>:</strong> Q 0.00</p>
     <?php elseif ($isProveedorExternoDoc) :
@@ -154,6 +175,17 @@ if (strpos($colPupPe, 'COM_ORDENPRODUCCION_') === 0) {
                         <td class="text-end text-nowrap">Q <?php echo number_format($unit, 2); ?></td>
                         <td class="text-end text-nowrap">Q <?php echo number_format($pup, 2); ?></td>
                         <td class="text-end text-nowrap">Q <?php echo number_format($tot, 2); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php foreach ($catalogEnvioLines as $envLine) :
+                        $envTotal = round((float) ($envLine->total ?? 0), 2);
+                        ?>
+                    <tr>
+                        <td class="text-nowrap">1</td>
+                        <td><?php echo htmlspecialchars($formatCatalogEnvioDescPe($envLine), ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td class="text-end text-nowrap">Q <?php echo number_format($envTotal, 2); ?></td>
+                        <td class="text-end text-nowrap">—</td>
+                        <td class="text-end text-nowrap">Q <?php echo number_format($envTotal, 2); ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if ($gastosEnvioAmount > 0) : ?>
