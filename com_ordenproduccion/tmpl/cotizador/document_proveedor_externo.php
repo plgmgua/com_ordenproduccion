@@ -98,6 +98,20 @@ $comisionMargenAdicionalAmount = ($item && isset($item->comision_margen_adiciona
 $impuestoImprentaAmount = ($item && isset($item->impuesto_imprenta) && $item->impuesto_imprenta !== null && $item->impuesto_imprenta !== '')
     ? (float) $item->impuesto_imprenta : 0;
 $displayTotal = $linesTotalFinal + $margenAdicional + $impuestoImprentaAmount;
+$tarjetaCreditoTableOk = !empty($this->tarjetaCreditoTableExists);
+$tarjetaCreditoRates = is_array($this->tarjetaCreditoRates ?? null) ? $this->tarjetaCreditoRates : [];
+$tcCuotasSel = isset($item->tarjeta_credito_cuotas) && $item->tarjeta_credito_cuotas !== null && $item->tarjeta_credito_cuotas !== ''
+    ? (int) $item->tarjeta_credito_cuotas
+    : 0;
+$tcMonto = isset($item->tarjeta_credito_monto) && $item->tarjeta_credito_monto !== null && $item->tarjeta_credito_monto !== ''
+    ? (float) $item->tarjeta_credito_monto
+    : 0.0;
+$tcTasa = isset($item->tarjeta_credito_tasa) && $item->tarjeta_credito_tasa !== null && $item->tarjeta_credito_tasa !== ''
+    ? (float) $item->tarjeta_credito_tasa
+    : 0.0;
+$totalConTarjeta = isset($item->total_con_tarjeta) && $item->total_con_tarjeta !== null && $item->total_con_tarjeta !== ''
+    ? (float) $item->total_con_tarjeta
+    : null;
 $pctMaUi = (float) $paramComisionMargenAdicional;
 $precotComisionMaPctText = (\abs($pctMaUi - \round($pctMaUi)) < 0.000001)
     ? (string) (int) \round($pctMaUi)
@@ -124,6 +138,7 @@ if (strpos($labelFacturar, 'COM_ORDENPRODUCCION_') === 0) {
 }
 $facturarChecked = !empty($item->facturar);
 $saveFacturarUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveFacturar');
+$saveTarjetaUrl = Route::_('index.php?option=com_ordenproduccion&task=precotizacion.saveTarjetaCredito');
 $labelDescripcion = Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_DESCRIPCION');
 if (strpos($labelDescripcion, 'COM_ORDENPRODUCCION_') === 0) {
     $labelDescripcion = 'Descripción';
@@ -604,6 +619,50 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                 <label class="form-check-label" for="precotizacion-facturar"><?php echo htmlspecialchars($labelFacturar); ?></label>
             </div>
         </form>
+        <?php endif; ?>
+        <?php if ($tarjetaCreditoTableOk && !empty($tarjetaCreditoRates)) : ?>
+            <?php if ($canEditDocument && !$precotizacionLocked) : ?>
+            <form method="post" action="<?php echo htmlspecialchars($saveTarjetaUrl); ?>" class="d-inline-flex align-items-center gap-2 mb-0">
+                <?php echo HTMLHelper::_('form.token'); ?>
+                <input type="hidden" name="id" value="<?php echo (int) $preCotizacionId; ?>" />
+                <label for="precotizacion-tarjeta-cuotas" class="small text-muted mb-0 text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_LABEL'); ?></label>
+                <select name="tarjeta_cuotas" id="precotizacion-tarjeta-cuotas" class="form-select form-select-sm" style="min-width: 220px; max-width: 280px;" onchange="this.form.submit()">
+                    <option value="0"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_NONE'); ?></option>
+                    <?php foreach ($tarjetaCreditoRates as $tcRow) :
+                        $cq = (int) ($tcRow->cuotas ?? 0);
+                        $tp = isset($tcRow->tasa_percent) ? (float) $tcRow->tasa_percent : 0.0;
+                        if ($cq < 1) {
+                            continue;
+                        }
+                        ?>
+                    <option value="<?php echo $cq; ?>"<?php echo $tcCuotasSel === $cq ? ' selected' : ''; ?>>
+                        <?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_OPTION', $cq, number_format($tp, 2)); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+            <?php else : ?>
+            <div class="d-inline-flex align-items-center gap-2 mb-0">
+                <span class="small text-muted text-nowrap"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_LABEL'); ?></span>
+                <select class="form-select form-select-sm" style="min-width: 220px; max-width: 280px;" disabled aria-readonly="true">
+                    <?php if ($tcCuotasSel > 0) :
+                        foreach ($tarjetaCreditoRates as $tcRow) :
+                            $cq = (int) ($tcRow->cuotas ?? 0);
+                            if ($cq !== $tcCuotasSel) {
+                                continue;
+                            }
+                            $tp = isset($tcRow->tasa_percent) ? (float) $tcRow->tasa_percent : $tcTasa;
+                            ?>
+                    <option selected><?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_OPTION', $cq, number_format($tp, 2)); ?></option>
+                            <?php
+                            break;
+                        endforeach;
+                    else : ?>
+                    <option selected><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_NONE'); ?></option>
+                    <?php endif; ?>
+                </select>
+            </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
@@ -1240,6 +1299,18 @@ $vendorQuoteSendEmailUrl = Route::_('index.php?option=com_ordenproduccion&task=p
                     <td class="text-end pe-3 fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL'); ?></td>
                     <td class="text-end fw-bold">Q <?php echo number_format($displayTotal, 2); ?></td>
                 </tr>
+                <?php if ($tcCuotasSel > 0 && $totalConTarjeta !== null && $totalConTarjeta > 0) : ?>
+                <tr>
+                    <td class="text-end pe-3">
+                        <?php echo Text::sprintf('COM_ORDENPRODUCCION_PRE_COTIZACION_TARJETA_CARGO_ROW', $tcCuotasSel, number_format($tcTasa, 2)); ?>
+                    </td>
+                    <td class="text-end">Q <?php echo number_format($tcMonto, 2); ?></td>
+                </tr>
+                <tr class="table-primary">
+                    <td class="text-end pe-3 fw-bold"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_TOTAL_CON_TARJETA'); ?></td>
+                    <td class="text-end fw-bold">Q <?php echo number_format($totalConTarjeta, 2); ?></td>
+                </tr>
+                <?php endif; ?>
                 <?php if ($comisionMargenAdicionalAmount > 0) : ?>
                 <?php $totalComision = $comisionAmount + $comisionMargenAdicionalAmount; ?>
                 <tr>
