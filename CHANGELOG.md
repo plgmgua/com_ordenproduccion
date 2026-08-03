@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.296-STABLE] - 2026-08-03
+
+### Added
+- **Parámetros — Impuesto de imprenta:** New tag field **Palabras y frases afectas al impuesto de imprenta** to configure keywords/phrases (Enter to add). Cotización matching now uses this list instead of hardcoded volante/afiche; defaults remain until the param is saved.
+
 ## [3.119.295-STABLE] - 2026-07-31
 
 ### Fixed

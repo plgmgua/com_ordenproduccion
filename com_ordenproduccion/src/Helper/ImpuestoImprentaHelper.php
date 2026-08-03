@@ -71,8 +71,98 @@ final class ImpuestoImprentaHelper
         }
     }
 
+    /** @var string[] */
+    private const DEFAULT_KEYWORDS = ['volante', 'volantes', 'afiche', 'afiches'];
+
     /**
-     * True when description contains volante/volantes or afiche/afiches.
+     * Default keywords when the param has never been saved.
+     *
+     * @return  string[]
+     */
+    public static function getDefaultKeywords(): array
+    {
+        return self::DEFAULT_KEYWORDS;
+    }
+
+    /**
+     * Normalize keywords from JSON POST input or stored param value.
+     *
+     * @param   mixed  $raw  JSON array string, array, or comma-separated text
+     *
+     * @return  string[]
+     */
+    public static function normalizeKeywordsFromInput($raw): array
+    {
+        $items = [];
+
+        if (\is_array($raw)) {
+            $items = $raw;
+        } elseif (\is_string($raw)) {
+            $trimmed = trim($raw);
+            if ($trimmed === '') {
+                return [];
+            }
+
+            if ($trimmed[0] === '[') {
+                $decoded = json_decode($trimmed, true);
+                if (\is_array($decoded)) {
+                    $items = $decoded;
+                }
+            } else {
+                $items = preg_split('/\r\n|\r|\n|,/', $trimmed) ?: [];
+            }
+        }
+
+        $normalized = [];
+        $seen       = [];
+
+        foreach ($items as $item) {
+            $keyword = trim(preg_replace('/\s+/u', ' ', (string) $item) ?? '');
+            if ($keyword === '') {
+                continue;
+            }
+
+            $key = mb_strtolower($keyword, 'UTF-8');
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key]       = true;
+            $normalized[]     = $keyword;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Parse stored component param into keyword list.
+     *
+     * @return  string[]
+     */
+    public static function parseKeywordsParam($raw): array
+    {
+        return self::normalizeKeywordsFromInput($raw);
+    }
+
+    /**
+     * Keywords/phrases from Parámetros; defaults when param was never saved.
+     *
+     * @return  string[]
+     */
+    public static function getConfiguredKeywords(): array
+    {
+        $params = ComponentHelper::getParams('com_ordenproduccion');
+        $raw    = $params->get('impuesto_imprenta_palabras', null);
+
+        if ($raw === null || $raw === '') {
+            return self::getDefaultKeywords();
+        }
+
+        return self::parseKeywordsParam($raw);
+    }
+
+    /**
+     * True when description matches any configured keyword or phrase.
      */
     public static function descriptionMatches(string $description): bool
     {
@@ -81,8 +171,32 @@ final class ImpuestoImprentaHelper
             return false;
         }
 
-        // Unicode-aware boundaries (PHP \b is ASCII-only even with /u).
-        return (bool) preg_match('/(?<![\p{L}\p{N}_])(volantes?|afiches?)(?![\p{L}\p{N}_])/iu', $description);
+        foreach (self::getConfiguredKeywords() as $keyword) {
+            if (self::descriptionContainsKeyword($description, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Phrases: case-insensitive substring. Single words: Unicode word boundaries.
+     */
+    private static function descriptionContainsKeyword(string $description, string $keyword): bool
+    {
+        $keyword = trim($keyword);
+        if ($keyword === '') {
+            return false;
+        }
+
+        if (preg_match('/\s/u', $keyword)) {
+            return mb_stripos($description, $keyword) !== false;
+        }
+
+        $escaped = preg_quote($keyword, '/');
+
+        return (bool) preg_match('/(?<![\p{L}\p{N}_])' . $escaped . '(?![\p{L}\p{N}_])/iu', $description);
     }
 
     /**

@@ -35,6 +35,10 @@ $isr = isset($this->isr) ? (float) $this->isr : 0;
 $comisionVenta = isset($this->comisionVenta) ? (float) $this->comisionVenta : 0;
 $comisionMargenAdicional = isset($this->comisionMargenAdicional) ? (float) $this->comisionMargenAdicional : 0;
 $impuestoImprenta = isset($this->impuestoImprenta) ? (float) $this->impuestoImprenta : 0;
+$impuestoImprentaPalabras = isset($this->impuestoImprentaPalabras) && \is_array($this->impuestoImprentaPalabras)
+    ? $this->impuestoImprentaPalabras
+    : \Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper::getDefaultKeywords();
+$impuestoImprentaPalabrasJson = json_encode(array_values($impuestoImprentaPalabras), JSON_UNESCAPED_UNICODE);
 $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this->imprentaParametrosConfigured);
 ?>
 <div class="com-ordenproduccion-productos">
@@ -143,7 +147,42 @@ $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this-
                             <div class="form-text">
                                 <?php echo $l(
                                     'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_DESC',
-                                    'Applied on cotización save when a line description contains volante/volantes or afiche/afiches. Added to the pre-cotización and to the cotización total.'
+                                    'Applied on cotización save when a line description matches a configured keyword or phrase below. Added to the pre-cotización and to the cotización total.'
+                                ); ?>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="param_impuesto_imprenta_palabras_input" class="form-label">
+                                <?php echo $l(
+                                    'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_PALABRAS',
+                                    'Palabras y frases afectas al impuesto de imprenta'
+                                ); ?>
+                            </label>
+                            <div id="param_impuesto_imprenta_palabras_tags"
+                                 class="form-control d-flex flex-wrap align-items-center gap-1 py-2"
+                                 style="min-height: 2.75rem; height: auto;">
+                                <input type="text"
+                                       id="param_impuesto_imprenta_palabras_input"
+                                       class="border-0 flex-grow-1"
+                                       style="min-width: 12rem; outline: none;"
+                                       autocomplete="off"
+                                       placeholder="<?php echo htmlspecialchars(
+                                           $l(
+                                               'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_PALABRAS_PLACEHOLDER',
+                                               'Escriba una palabra o frase y presione Enter'
+                                           ),
+                                           ENT_QUOTES,
+                                           'UTF-8'
+                                       ); ?>" />
+                            </div>
+                            <input type="hidden"
+                                   name="impuesto_imprenta_palabras"
+                                   id="param_impuesto_imprenta_palabras"
+                                   value="<?php echo htmlspecialchars((string) $impuestoImprentaPalabrasJson, ENT_QUOTES, 'UTF-8'); ?>" />
+                            <div class="form-text">
+                                <?php echo $l(
+                                    'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_PALABRAS_DESC',
+                                    'Presione Enter para agregar cada palabra o frase. Se buscarán en la descripción de las líneas de cotización al guardar.'
                                 ); ?>
                             </div>
                         </div>
@@ -156,3 +195,136 @@ $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this-
         </div>
     </div>
 </div>
+<style>
+.com-ordenproduccion-productos .impuesto-imprenta-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: #e9ecef;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+.com-ordenproduccion-productos .impuesto-imprenta-tag-remove {
+    border: 0;
+    background: transparent;
+    color: #6c757d;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+}
+.com-ordenproduccion-productos .impuesto-imprenta-tag-remove:hover {
+    color: #212529;
+}
+</style>
+<script>
+(function () {
+    var container = document.getElementById('param_impuesto_imprenta_palabras_tags');
+    var input = document.getElementById('param_impuesto_imprenta_palabras_input');
+    var hidden = document.getElementById('param_impuesto_imprenta_palabras');
+    if (!container || !input || !hidden) {
+        return;
+    }
+
+    var tags = [];
+
+    function normalizeTag(value) {
+        return String(value || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function syncHidden() {
+        hidden.value = JSON.stringify(tags);
+    }
+
+    function renderTags() {
+        container.querySelectorAll('.impuesto-imprenta-tag').forEach(function (el) {
+            el.remove();
+        });
+
+        tags.forEach(function (tag, index) {
+            var badge = document.createElement('span');
+            badge.className = 'impuesto-imprenta-tag';
+            badge.dataset.index = String(index);
+
+            var label = document.createElement('span');
+            label.textContent = tag;
+
+            var removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'impuesto-imprenta-tag-remove';
+            removeBtn.setAttribute('aria-label', 'Remove');
+            removeBtn.textContent = '\u00d7';
+            removeBtn.addEventListener('click', function () {
+                tags.splice(index, 1);
+                renderTags();
+            });
+
+            badge.appendChild(label);
+            badge.appendChild(removeBtn);
+            container.insertBefore(badge, input);
+        });
+
+        syncHidden();
+    }
+
+    function addTag(rawValue) {
+        var value = normalizeTag(rawValue);
+        if (!value) {
+            return;
+        }
+
+        var exists = tags.some(function (tag) {
+            return tag.toLowerCase() === value.toLowerCase();
+        });
+        if (exists) {
+            input.value = '';
+            return;
+        }
+
+        tags.push(value);
+        input.value = '';
+        renderTags();
+    }
+
+    try {
+        var initial = JSON.parse(hidden.value || '[]');
+        if (Array.isArray(initial)) {
+            var seen = {};
+            tags = initial.map(normalizeTag).filter(function (value) {
+                if (value === '') {
+                    return false;
+                }
+                var key = value.toLowerCase();
+                if (seen[key]) {
+                    return false;
+                }
+                seen[key] = true;
+                return true;
+            });
+        }
+    } catch (e) {
+        tags = [];
+    }
+    renderTags();
+
+    input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addTag(input.value);
+            return;
+        }
+
+        if (event.key === 'Backspace' && input.value === '' && tags.length) {
+            tags.pop();
+            renderTags();
+        }
+    });
+
+    input.addEventListener('blur', function () {
+        if (normalizeTag(input.value) !== '') {
+            addTag(input.value);
+        }
+    });
+})();
+</script>

@@ -348,6 +348,7 @@ class HtmlView extends BaseHtmlView
             $this->comisionVenta = (float) $params->get('comision_venta', 0);
             $this->comisionMargenAdicional = (float) $params->get('comision_margen_adicional', 0);
             $this->impuestoImprenta = (float) $params->get('impuesto_imprenta', 0);
+            $this->impuestoImprentaPalabras = \Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper::getConfiguredKeywords();
             $this->imprentaParametrosConfigured = \Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper::areConfiguredForPreCotizacion($params);
             $this->imprentaParametrosMissingLabels = \Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper::getMissingParamLabels($params);
             $this->_prepareDocument();
