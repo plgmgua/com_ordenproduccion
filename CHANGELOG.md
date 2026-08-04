@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.305-STABLE] - 2026-08-04
+
+### Fixed
+- **Impuesto de imprenta calculation:** Percent applies to the linked **pre-cotización total** (e.g. Q 405 × 0.5% = Q 2.03), not the cotización line extended value (e.g. Q 2,430). Re-save cotizaciones to recalculate impuesto lines.
+
 ## [3.119.304-STABLE] - 2026-08-04
 
 ### Added
