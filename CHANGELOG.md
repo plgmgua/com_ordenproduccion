@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.308-STABLE] - 2026-08-04
+
+### Fixed
+- **Cotización PDF:** 3.119.307 imported `ImpuestoImprentaHelper` but never called enrichment; PDF loops now resolve impuesto lines via `getQuotationItemDisplayDescription()` / `getQuotationItemDisplayCodigo()` so the configured etiqueta and PRE number appear (e.g. «Timbre de Prensa (Decreto 56-90) — PRE-01121»).
+
 ## [3.119.307-STABLE] - 2026-08-04
 
 ### Fixed

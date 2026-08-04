@@ -443,6 +443,74 @@ final class ImpuestoImprentaHelper
     }
 
     /**
+     * Description for cotización line tables / PDF (resolves impuesto marker rows).
+     *
+     * @param   object|array<string, mixed>  $item
+     */
+    public static function getQuotationItemDisplayDescription($item, ?DatabaseInterface $db = null): string
+    {
+        $desc = \is_array($item)
+            ? (string) ($item['descripcion'] ?? '')
+            : (string) ($item->descripcion ?? '');
+
+        if (!self::isImpuestoLineItem($item)) {
+            return $desc;
+        }
+
+        $forPreId = self::parseImpuestoLineForPreId($desc);
+        if ($forPreId < 1) {
+            return $desc;
+        }
+
+        $preNum = \is_array($item)
+            ? trim((string) ($item['pre_cotizacion_number'] ?? ''))
+            : trim((string) ($item->pre_cotizacion_number ?? ''));
+
+        return self::getImpuestoLineDisplayLabel($forPreId, $preNum);
+    }
+
+    /**
+     * Codigo / PRE column for cotización line tables / PDF.
+     *
+     * @param   object|array<string, mixed>  $item
+     */
+    public static function getQuotationItemDisplayCodigo($item, ?DatabaseInterface $db = null): string
+    {
+        if (self::isImpuestoLineItem($item)) {
+            $desc = \is_array($item)
+                ? (string) ($item['descripcion'] ?? '')
+                : (string) ($item->descripcion ?? '');
+            $forPreId = self::parseImpuestoLineForPreId($desc);
+            if ($forPreId < 1) {
+                return '-';
+            }
+
+            $preNum = \is_array($item)
+                ? trim((string) ($item['pre_cotizacion_number'] ?? ''))
+                : trim((string) ($item->pre_cotizacion_number ?? ''));
+            if ($preNum === '') {
+                $preNum = self::getPreCotizacionNumberById($forPreId, $db);
+            }
+
+            return $preNum !== '' ? $preNum : '-';
+        }
+
+        $preNum = \is_array($item)
+            ? trim((string) ($item['pre_cotizacion_number'] ?? ''))
+            : trim((string) ($item->pre_cotizacion_number ?? ''));
+
+        if ($preNum !== '') {
+            return $preNum;
+        }
+
+        $preId = \is_array($item)
+            ? (int) ($item['pre_cotizacion_id'] ?? 0)
+            : (int) ($item->pre_cotizacion_id ?? 0);
+
+        return $preId > 0 ? ('PRE-' . $preId) : '-';
+    }
+
+    /**
      * Replace impuesto marker rows with configured label and linked PRE number for UI/PDF/FEL.
      *
      * @param   array<int, object>  $items

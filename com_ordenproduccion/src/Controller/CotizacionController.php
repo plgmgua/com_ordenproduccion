@@ -392,6 +392,7 @@ class CotizacionController extends BaseController
         }
         $db->setQuery($query);
         $items = $db->loadObjectList() ?: [];
+        $items = ImpuestoImprentaHelper::enrichQuotationItemsForDisplay($items, $db);
 
         $admModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
             ->createModel('Administracion', 'Site', ['ignore_request' => true]);
@@ -4584,10 +4585,8 @@ class CotizacionController extends BaseController
                 $lineTotal = CotizacionCurrencyHelper::gtqToUsd($lineTotal, $gtqToUsdRate);
             }
             $unit      = $qty > 0 ? ($lineTotal / $qty) : 0;
-            $desc      = $fixSpanishChars($item->descripcion ?? '');
-            $codigo    = $fixSpanishChars(isset($item->pre_cotizacion_number) && trim((string) $item->pre_cotizacion_number) !== ''
-                ? trim((string) $item->pre_cotizacion_number)
-                : (isset($item->pre_cotizacion_id) && (int) $item->pre_cotizacion_id > 0 ? 'PRE-' . (int) $item->pre_cotizacion_id : '-'));
+            $desc      = $fixSpanishChars(ImpuestoImprentaHelper::getQuotationItemDisplayDescription($item));
+            $codigo    = $fixSpanishChars(ImpuestoImprentaHelper::getQuotationItemDisplayCodigo($item));
 
             $rowX = $pdf->GetX();
             $rowY = $pdf->GetY();
@@ -4814,10 +4813,8 @@ class CotizacionController extends BaseController
                 $lineTotal = CotizacionCurrencyHelper::gtqToUsd($lineTotal, $gtqToUsdRate);
             }
             $unit      = $qty > 0 ? ($lineTotal / $qty) : 0;
-            $desc      = $fixSpanishChars($item->descripcion ?? '');
-            $codigo    = $fixSpanishChars(isset($item->pre_cotizacion_number) && trim((string) $item->pre_cotizacion_number) !== ''
-                ? trim((string) $item->pre_cotizacion_number)
-                : (isset($item->pre_cotizacion_id) && (int) $item->pre_cotizacion_id > 0 ? 'PRE-' . (int) $item->pre_cotizacion_id : '-'));
+            $desc      = $fixSpanishChars(ImpuestoImprentaHelper::getQuotationItemDisplayDescription($item));
+            $codigo    = $fixSpanishChars(ImpuestoImprentaHelper::getQuotationItemDisplayCodigo($item));
 
             $rowX = $pdf->GetX();
             $rowY = $pdf->GetY();
