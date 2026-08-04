@@ -239,15 +239,13 @@ if ($isEdit && !empty($this->quotationItems)) {
                             if ($qtyLineFb > 0) {
                                 $cotQtyAttr .= ' data-cantidad-linea-fallback="' . $qtyLineFb . '"';
                             }
-                            $impAmtOpt = isset($pre->impuesto_imprenta) ? (float) $pre->impuesto_imprenta : 0.0;
                             $lineTextOpt = isset($pre->pre_cot_line_text) ? (string) $pre->pre_cot_line_text : '';
                             $minBaseOpt = isset($pre->min_valor_base)
                                 ? (float) $pre->min_valor_base
                                 : (isset($pre->total_con_tarjeta) && $pre->total_con_tarjeta !== null && $pre->total_con_tarjeta !== ''
                                     ? (float) $pre->total_con_tarjeta
                                     : (float) $pre->total);
-                            $metaAttr = ' data-impuesto-imprenta="' . htmlspecialchars(number_format($impAmtOpt, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"'
-                                . ' data-pre-line-text="' . htmlspecialchars($lineTextOpt, ENT_QUOTES, 'UTF-8') . '"'
+                            $metaAttr = ' data-pre-line-text="' . htmlspecialchars($lineTextOpt, ENT_QUOTES, 'UTF-8') . '"'
                                 . ' data-min-valor-base="' . htmlspecialchars(number_format($minBaseOpt, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                         ?>
                             <?php /* option value = pre_cotizacion.id (PK). Label uses $pre->number (PRE-xxxxx), never mix them. */ ?>
@@ -306,6 +304,9 @@ if ($isEdit && !empty($this->quotationItems)) {
                     <?php
                     $lineIndex = 0;
                     foreach (isset($this->quotationItems) ? $this->quotationItems : [] as $item) :
+                        if (ImpuestoImprentaHelper::isImpuestoLineItem($item)) {
+                            continue;
+                        }
                         $lineIndex++;
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
                         $preNum = '-';
@@ -332,15 +333,8 @@ if ($isEdit && !empty($this->quotationItems)) {
                         $lineTotal = $valorFinal;
                         $preCotDescForRow = ($preId > 0 && isset($precotDescByIdForRows[$preId])) ? $precotDescByIdForRows[$preId] : '';
                         $preCotLineTextForRow = $preId > 0 ? ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($preId) : '';
-                        $storedImpuesto = $preId > 0 ? ImpuestoImprentaHelper::getStoredAmount($preId) : 0.0;
-                        $minValorBase = $preId > 0 ? ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minValor) : $minValor;
-                        $valorBaseForInput = ImpuestoImprentaHelper::extractValorBaseForForm(
-                            $lineTotal,
-                            $storedImpuesto,
-                            $desc,
-                            $preCotDescForRow,
-                            $preCotLineTextForRow
-                        );
+                        $minValorBase = $minValor;
+                        $valorBaseForInput = round(max(0.0, $lineTotal), 2);
                         $unitPriceDisplay = $qty > 0 ? ($lineTotal / $qty) : 0;
                         $lineImagesJsonForRow = '[]';
                         if (!empty($item->line_images_json)) {
@@ -381,14 +375,6 @@ if ($isEdit && !empty($this->quotationItems)) {
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <tr id="quotationImpuestoImprentaRow" class="d-none">
-                        <td colspan="5" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta'); ?>:</td>
-                        <td class="text-end">
-                            <span class="cotizacion-amt" id="quotationImpuestoImprentaDisplay" data-gtq="0.00" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount(0, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span>
-                        </td>
-                        <td></td>
-                        <td></td>
-                    </tr>
                     <tr>
                         <td colspan="5" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end">
@@ -462,6 +448,7 @@ if ($isEdit && !empty($this->quotationItems)) {
     var precotizacionDescriptions = <?php echo json_encode($precotizacionDescriptions ?? []); ?>;
     var impuestoImprentaPct = <?php echo json_encode($impuestoImprentaPct); ?>;
     var impuestoImprentaKeywords = <?php echo json_encode($impuestoImprentaKeywords); ?>;
+    var impuestoLineLabel = <?php echo json_encode($l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta')); ?>;
 
     function descriptionContainsImprentaKeyword(description, keyword) {
         keyword = String(keyword || '').trim();
@@ -524,7 +511,38 @@ if ($isEdit && !empty($this->quotationItems)) {
     }
 
     function rowValorFinal(row) {
-        return Math.round((rowValorBase(row) + rowImpuestoAmount(row)) * 100) / 100;
+        return Math.round(rowValorBase(row) * 100) / 100;
+    }
+
+    function syncImpuestoPreviewRows() {
+        tbody.querySelectorAll('tr.quotation-impuesto-preview').forEach(function(r) { r.remove(); });
+        tbody.querySelectorAll('tr.quotation-item-row').forEach(function(row) {
+            var amt = rowImpuestoAmount(row);
+            if (amt <= 0.004) {
+                return;
+            }
+            var preId = row.getAttribute('data-pre-id') || '0';
+            var preNum = '—';
+            var link = row.querySelector('.precotizacion-detail-link');
+            if (link && link.textContent) {
+                preNum = String(link.textContent).trim();
+            } else if (parseInt(preId, 10) > 0) {
+                preNum = 'PRE-' + preId;
+            }
+            var label = impuestoLineLabel + (preNum !== '—' ? (' — ' + preNum) : '');
+            var tr = document.createElement('tr');
+            tr.className = 'quotation-impuesto-preview table-light';
+            tr.setAttribute('data-for-pre-id', preId);
+            tr.innerHTML = '<td class="text-muted">—</td>' +
+                '<td class="text-center text-muted">1</td>' +
+                '<td><em>' + escapeAttr(label) + '</em></td>' +
+                '<td class="text-end"><span class="cotizacion-amt impuesto-preview-amt" data-gtq="' + amt.toFixed(2) + '" data-decimals="2"></span></td>' +
+                '<td class="text-end"><span class="cotizacion-amt impuesto-preview-amt" data-gtq="' + amt.toFixed(2) + '" data-decimals="2"></span></td>' +
+                '<td class="text-end text-muted">—</td>' +
+                '<td></td>' +
+                '<td></td>';
+            row.insertAdjacentElement('afterend', tr);
+        });
     }
 
     function deriveDescFromPrecotOption(opt) {
@@ -634,25 +652,22 @@ if ($isEdit && !empty($this->quotationItems)) {
     }
 
     function updateTotal() {
+        syncImpuestoPreviewRows();
         var total = 0;
-        var totalImpuesto = 0;
         tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
-            total += rowValorFinal(tr);
-            totalImpuesto += rowImpuestoAmount(tr);
+            total += rowValorBase(tr);
         });
-        totalImpuesto = Math.round(totalImpuesto * 100) / 100;
-        total = Math.round(total * 100) / 100;
-        var impRow = document.getElementById('quotationImpuestoImprentaRow');
-        var impDisplay = document.getElementById('quotationImpuestoImprentaDisplay');
-        if (impRow && impDisplay) {
-            if (totalImpuesto > 0.004) {
-                impRow.classList.remove('d-none');
-                impDisplay.setAttribute('data-gtq', totalImpuesto.toFixed(2));
-            } else {
-                impRow.classList.add('d-none');
-                impDisplay.setAttribute('data-gtq', '0.00');
+        tbody.querySelectorAll('tr.quotation-impuesto-preview').forEach(function(tr) {
+            var el = tr.querySelector('.impuesto-preview-amt');
+            if (!el) {
+                return;
             }
-        }
+            var n = parseFloat(el.getAttribute('data-gtq') || '0', 10);
+            if (!isNaN(n)) {
+                total += n;
+            }
+        });
+        total = Math.round(total * 100) / 100;
         var totalInp = document.getElementById('totalAmount');
         var totalDisplay = document.getElementById('totalAmountDisplay');
         if (totalInp) totalInp.value = total.toFixed(2);
@@ -660,7 +675,7 @@ if ($isEdit && !empty($this->quotationItems)) {
             totalDisplay.setAttribute('data-gtq', total.toFixed(2));
             if (window.CotizacionCurrency) window.CotizacionCurrency.refresh();
         }
-        if (impDisplay && window.CotizacionCurrency) {
+        if (window.CotizacionCurrency) {
             window.CotizacionCurrency.refresh();
         }
     }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Impuesto de imprenta: % param applied to cotización lines mentioning volante/afiche.
+ * Impuesto de imprenta (timbre de prensa): cotización-only surcharge line.
  *
  * @package     com_ordenproduccion
  * @since       3.119.249
@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
 
 /**
@@ -19,6 +20,9 @@ use Joomla\Database\DatabaseInterface;
  */
 final class ImpuestoImprentaHelper
 {
+    /** Stored in quotation_items.descripcion to mark synthetic impuesto lines. */
+    public const LINE_DESC_PREFIX = 'IMPUESTO_IMPRENTA:';
+
     /** @var bool|null */
     private static $columnReady;
 
@@ -27,7 +31,7 @@ final class ImpuestoImprentaHelper
     }
 
     /**
-     * Ensure `#__ordenproduccion_pre_cotizacion.impuesto_imprenta` exists (migration may not have run yet).
+     * Ensure legacy `#__ordenproduccion_pre_cotizacion.impuesto_imprenta` column exists (cleared on cotización save).
      */
     public static function ensureColumn(?DatabaseInterface $db = null): bool
     {
@@ -49,13 +53,12 @@ final class ImpuestoImprentaHelper
                 'ALTER TABLE ' . $db->quoteName($table)
                 . ' ADD COLUMN ' . $db->quoteName('impuesto_imprenta')
                 . ' DECIMAL(12,2) NULL DEFAULT NULL'
-                . " COMMENT 'Impuesto de imprenta (volante/afiche) amount from param %'"
+                . " COMMENT 'Legacy; cleared — impuesto lives on cotización only'"
             );
             $db->execute();
 
             return self::$columnReady = true;
         } catch (\Throwable $e) {
-            // Re-check: concurrent create or column already present under another error.
             try {
                 $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
                 $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
@@ -74,23 +77,11 @@ final class ImpuestoImprentaHelper
     /** @var string[] */
     private const DEFAULT_KEYWORDS = ['volante', 'volantes', 'afiche', 'afiches'];
 
-    /**
-     * Default keywords when the param has never been saved.
-     *
-     * @return  string[]
-     */
     public static function getDefaultKeywords(): array
     {
         return self::DEFAULT_KEYWORDS;
     }
 
-    /**
-     * Normalize keywords from JSON POST input or stored param value.
-     *
-     * @param   mixed  $raw  JSON array string, array, or comma-separated text
-     *
-     * @return  string[]
-     */
     public static function normalizeKeywordsFromInput($raw): array
     {
         $items = [];
@@ -127,28 +118,18 @@ final class ImpuestoImprentaHelper
                 continue;
             }
 
-            $seen[$key]       = true;
-            $normalized[]     = $keyword;
+            $seen[$key]   = true;
+            $normalized[] = $keyword;
         }
 
         return $normalized;
     }
 
-    /**
-     * Parse stored component param into keyword list.
-     *
-     * @return  string[]
-     */
     public static function parseKeywordsParam($raw): array
     {
         return self::normalizeKeywordsFromInput($raw);
     }
 
-    /**
-     * Keywords/phrases from Parámetros; defaults when param was never saved.
-     *
-     * @return  string[]
-     */
     public static function getConfiguredKeywords(): array
     {
         $params = ComponentHelper::getParams('com_ordenproduccion');
@@ -161,9 +142,6 @@ final class ImpuestoImprentaHelper
         return self::parseKeywordsParam($raw);
     }
 
-    /**
-     * True when description matches any configured keyword or phrase.
-     */
     public static function descriptionMatches(string $description): bool
     {
         $description = trim($description);
@@ -180,9 +158,6 @@ final class ImpuestoImprentaHelper
         return false;
     }
 
-    /**
-     * Match cotización line description, pre-cotización header, and/or line text (vendor lines, etc.).
-     */
     public static function descriptionMatchesForQuotationLine(
         string $lineDescription,
         string $preCotDescription = '',
@@ -202,9 +177,6 @@ final class ImpuestoImprentaHelper
         return $preCotLineText !== '' && self::descriptionMatches($preCotLineText);
     }
 
-    /**
-     * Concatenated line-level text from a pre-cotización (vendor_descripcion, etc.) for keyword matching.
-     */
     public static function getPreCotizacionLineMatchingText(int $preCotizacionId, ?DatabaseInterface $db = null): string
     {
         if ($preCotizacionId < 1) {
@@ -234,8 +206,8 @@ final class ImpuestoImprentaHelper
                 ->where($db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
                 ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
             $db->setQuery($query);
-            $rows = $db->loadObjectList() ?: [];
-            $parts  = [];
+            $rows  = $db->loadObjectList() ?: [];
+            $parts = [];
 
             foreach ($rows as $row) {
                 if (isset($row->vendor_descripcion)) {
@@ -267,28 +239,11 @@ final class ImpuestoImprentaHelper
         }
     }
 
-    /**
-     * Minimum valor base for a cotización line (excludes impuesto already baked into total_con_tarjeta).
-     */
     public static function getMinimumValorBaseForPreCot(int $preCotizacionId, float $minimumValorFinal): float
     {
-        $minimumValorFinal = round(max(0.0, $minimumValorFinal), 2);
-        $storedImpuesto    = self::getStoredAmount($preCotizacionId);
-
-        if ($storedImpuesto > 0) {
-            return round(max(0.0, $minimumValorFinal - $storedImpuesto), 2);
-        }
-
-        return $minimumValorFinal;
+        return round(max(0.0, $minimumValorFinal), 2);
     }
 
-    /**
-     * Pre-cotización header descriptions keyed by id (for cotización save / form display).
-     *
-     * @param   int[]  $preIds
-     *
-     * @return  array<int, string>
-     */
     public static function getPreCotizacionDescriptionsByIds(array $preIds, ?DatabaseInterface $db = null): array
     {
         $ids = [];
@@ -324,9 +279,6 @@ final class ImpuestoImprentaHelper
         }
     }
 
-    /**
-     * Valor base to show in the cotización edit form (input is pre-tax; impuesto is added on save).
-     */
     public static function extractValorBaseForForm(
         float $lineTotalFinal,
         float $storedImpuesto,
@@ -334,24 +286,9 @@ final class ImpuestoImprentaHelper
         string $preCotDescription = '',
         string $preCotLineText = ''
     ): float {
-        $lineTotalFinal = round(max(0.0, $lineTotalFinal), 2);
-        $storedImpuesto = round(max(0.0, $storedImpuesto), 2);
-
-        if ($storedImpuesto > 0) {
-            return round(max(0.0, $lineTotalFinal - $storedImpuesto), 2);
-        }
-
-        $pct = self::getParamPercent();
-        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription, $preCotLineText)) {
-            return round($lineTotalFinal / (1.0 + $pct / 100.0), 2);
-        }
-
-        return $lineTotalFinal;
+        return round(max(0.0, $lineTotalFinal), 2);
     }
 
-    /**
-     * Phrases: case-insensitive substring. Single words: Unicode word boundaries.
-     */
     private static function descriptionContainsKeyword(string $description, string $keyword): bool
     {
         $keyword = trim($keyword);
@@ -368,9 +305,6 @@ final class ImpuestoImprentaHelper
         return (bool) preg_match('/(?<![\p{L}\p{N}_])' . $escaped . '(?![\p{L}\p{N}_])/iu', $description);
     }
 
-    /**
-     * Configured percentage (0–100). 0 disables the tax.
-     */
     public static function getParamPercent(): float
     {
         $pct = (float) ComponentHelper::getParams('com_ordenproduccion')->get('impuesto_imprenta', 0);
@@ -378,43 +312,74 @@ final class ImpuestoImprentaHelper
         return max(0.0, min(100.0, $pct));
     }
 
-    /**
-     * Stored amount on pre-cotización (0 if none / column missing).
-     */
+    /** @deprecated Pre-cotización no longer stores impuesto; always 0 for new logic. */
     public static function getStoredAmount(int $preCotizacionId, ?DatabaseInterface $db = null): float
     {
-        if ($preCotizacionId < 1) {
-            return 0.0;
+        return 0.0;
+    }
+
+    public static function buildImpuestoLineDescription(int $forPreCotizacionId): string
+    {
+        return self::LINE_DESC_PREFIX . (int) $forPreCotizacionId;
+    }
+
+    public static function parseImpuestoLineForPreId(string $descripcion): int
+    {
+        $descripcion = trim($descripcion);
+        if ($descripcion === '' || !str_starts_with($descripcion, self::LINE_DESC_PREFIX)) {
+            return 0;
         }
 
-        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
-
-        if (!self::ensureColumn($db)) {
-            return 0.0;
-        }
-
-        try {
-            $query = $db->getQuery(true)
-                ->select($db->quoteName('impuesto_imprenta'))
-                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-                ->where($db->quoteName('id') . ' = ' . (int) $preCotizacionId);
-            $db->setQuery($query);
-            $raw = $db->loadResult();
-            if ($raw === null || $raw === '') {
-                return 0.0;
-            }
-
-            return round((float) $raw, 2);
-        } catch (\Throwable $e) {
-            return 0.0;
-        }
+        return max(0, (int) substr($descripcion, \strlen(self::LINE_DESC_PREFIX)));
     }
 
     /**
-     * Resolve pre-tax base, impuesto amount, and final line value.
-     *
-     * The cotización form posts `value` as valor base (pre-impuesto). Impuesto is computed here
-     * and added to valor_final on save.
+     * @param   object|array<string, mixed>  $item
+     */
+    public static function isImpuestoLineItem($item): bool
+    {
+        $desc = \is_array($item)
+            ? (string) ($item['descripcion'] ?? '')
+            : (string) ($item->descripcion ?? '');
+
+        return self::parseImpuestoLineForPreId($desc) > 0;
+    }
+
+    /**
+     * Human-readable label for display (cotización view / edit preview).
+     */
+    public static function getImpuestoLineDisplayLabel(int $forPreCotizacionId, string $preNumber = ''): string
+    {
+        $label = Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA');
+        if ($label === 'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA') {
+            $label = 'Impuesto de imprenta';
+        }
+        $preNumber = trim($preNumber);
+        if ($preNumber === '' && $forPreCotizacionId > 0) {
+            $preNumber = 'PRE-' . $forPreCotizacionId;
+        }
+
+        return $preNumber !== '' ? ($label . ' — ' . $preNumber) : $label;
+    }
+
+    public static function computeImpuestoAmount(
+        float $lineValue,
+        string $lineDescription,
+        string $preCotDescription = '',
+        string $preCotLineText = ''
+    ): float {
+        $lineValue = round(max(0.0, $lineValue), 2);
+        $pct       = self::getParamPercent();
+
+        if ($pct <= 0 || !self::descriptionMatchesForQuotationLine($lineDescription, $preCotDescription, $preCotLineText)) {
+            return 0.0;
+        }
+
+        return round($lineValue * ($pct / 100.0), 2);
+    }
+
+    /**
+     * Cotización line value is stored as-is; impuesto is a separate quotation_items row.
      *
      * @return  array{valor_base: float, impuesto: float|null, valor_final: float}
      */
@@ -425,39 +390,80 @@ final class ImpuestoImprentaHelper
         string $preCotLineText = ''
     ): array {
         $formValor = round(max(0.0, $formValor), 2);
-        $pct       = self::getParamPercent();
-
-        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription, $preCotLineText)) {
-            $valorBase  = $formValor;
-            $impuesto   = round($valorBase * ($pct / 100.0), 2);
-            $valorFinal = round($valorBase + $impuesto, 2);
-
-            return [
-                'valor_base'  => $valorBase,
-                'impuesto'    => $impuesto,
-                'valor_final' => $valorFinal,
-            ];
-        }
+        $impuesto  = self::computeImpuestoAmount($formValor, $description, $preCotDescription, $preCotLineText);
 
         return [
             'valor_base'  => $formValor,
-            'impuesto'    => null,
+            'impuesto'    => $impuesto > 0 ? $impuesto : null,
             'valor_final' => $formValor,
         ];
     }
 
     /**
-     * Persist margen_adicional / comisión / impuesto_imprenta for a quotation line's pre-cotización.
+     * Append synthetic impuesto lines after each matching pre-cot cotización line.
      *
-     * Margen adicional is based on valor_base (before impuesto). Impuesto is stored separately.
+     * @param   array<int, array<string, mixed>>  $lineItems
+     * @param   array<int, string>                $preDescMap
+     * @param   array<int, string>                $preLineTextMap
      *
-     * @param   float|null  $impuestoAmount  null clears the column
+     * @return  array<int, array<string, mixed>>
+     */
+    public static function appendImpuestoLineItems(array $lineItems, array $preDescMap, array $preLineTextMap): array
+    {
+        $result = [];
+        $order  = 0;
+
+        foreach ($lineItems as $item) {
+            if (!empty($item['is_impuesto_line'])) {
+                continue;
+            }
+
+            $item['line_order'] = $order++;
+            $result[]           = $item;
+
+            $preId = isset($item['pre_cotizacion_id']) ? (int) $item['pre_cotizacion_id'] : 0;
+            if ($preId < 1) {
+                continue;
+            }
+
+            $lineValue = (float) ($item['valor_base'] ?? $item['subtotal'] ?? 0);
+            $lineDesc  = (string) ($item['descripcion'] ?? '');
+            $impuesto  = self::computeImpuestoAmount(
+                $lineValue,
+                $lineDesc,
+                $preDescMap[$preId] ?? '',
+                $preLineTextMap[$preId] ?? ''
+            );
+
+            if ($impuesto <= 0) {
+                continue;
+            }
+
+            $result[] = [
+                'line_order'         => $order++,
+                'cantidad'           => 1.0,
+                'descripcion'        => self::buildImpuestoLineDescription($preId),
+                'valor_unitario'     => $impuesto,
+                'subtotal'           => $impuesto,
+                'valor_final'        => $impuesto,
+                'pre_cotizacion_id'  => null,
+                'line_images_json'   => '[]',
+                'is_impuesto_line'   => true,
+                'impuesto_for_pre_id' => $preId,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Persist margen_adicional on pre-cotización only (impuesto is cotización-only).
      */
     public static function syncPreCotizacionFromQuotationLine(
         int $preCotizacionId,
         float $valorBase,
         float $preTotal,
-        ?float $impuestoAmount,
+        ?float $impuestoAmount = null,
         ?DatabaseInterface $db = null
     ): void {
         if ($preCotizacionId < 1) {
@@ -465,7 +471,7 @@ final class ImpuestoImprentaHelper
         }
 
         $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
-        self::ensureColumn($db);
+        self::clearPreCotizacionImpuesto($preCotizacionId, $db);
 
         try {
             $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
@@ -474,11 +480,10 @@ final class ImpuestoImprentaHelper
             return;
         }
 
-        $hasMargen    = isset($pcCols['margen_adicional']);
-        $hasComision  = isset($pcCols['comision_margen_adicional']);
-        $hasImpuesto  = isset($pcCols['impuesto_imprenta']);
+        $hasMargen   = isset($pcCols['margen_adicional']);
+        $hasComision = isset($pcCols['comision_margen_adicional']);
 
-        if (!$hasMargen && !$hasImpuesto) {
+        if (!$hasMargen) {
             return;
         }
 
@@ -487,34 +492,41 @@ final class ImpuestoImprentaHelper
                 ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
                 ->where($db->quoteName('id') . ' = ' . (int) $preCotizacionId);
 
-            if ($hasMargen) {
-                if ($valorBase > $preTotal) {
-                    $margenAdicional = round($valorBase - $preTotal, 2);
-                    $paramPct       = (float) ComponentHelper::getParams('com_ordenproduccion')->get('comision_margen_adicional', 0);
-                    $comisionMa     = round($margenAdicional * $paramPct / 100, 2);
-                    $q->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional);
-                    if ($hasComision) {
-                        $q->set($db->quoteName('comision_margen_adicional') . ' = ' . (float) $comisionMa);
-                    }
-                } else {
-                    $q->set($db->quoteName('margen_adicional') . ' = NULL');
-                    if ($hasComision) {
-                        $q->set($db->quoteName('comision_margen_adicional') . ' = NULL');
-                    }
+            if ($valorBase > $preTotal) {
+                $margenAdicional = round($valorBase - $preTotal, 2);
+                $paramPct       = (float) ComponentHelper::getParams('com_ordenproduccion')->get('comision_margen_adicional', 0);
+                $comisionMa     = round($margenAdicional * $paramPct / 100, 2);
+                $q->set($db->quoteName('margen_adicional') . ' = ' . (float) $margenAdicional);
+                if ($hasComision) {
+                    $q->set($db->quoteName('comision_margen_adicional') . ' = ' . (float) $comisionMa);
                 }
-            }
-
-            if ($hasImpuesto) {
-                if ($impuestoAmount !== null && $impuestoAmount > 0) {
-                    $q->set($db->quoteName('impuesto_imprenta') . ' = ' . (float) round($impuestoAmount, 2));
-                } else {
-                    $q->set($db->quoteName('impuesto_imprenta') . ' = NULL');
+            } else {
+                $q->set($db->quoteName('margen_adicional') . ' = NULL');
+                if ($hasComision) {
+                    $q->set($db->quoteName('comision_margen_adicional') . ' = NULL');
                 }
             }
 
             $db->setQuery($q)->execute();
         } catch (\Throwable $e) {
-            // Columns may not exist until migration runs.
+        }
+    }
+
+    public static function clearPreCotizacionImpuesto(int $preCotizacionId, ?DatabaseInterface $db = null): void
+    {
+        if ($preCotizacionId < 1 || !self::ensureColumn($db)) {
+            return;
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $q = $db->getQuery(true)
+                ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->set($db->quoteName('impuesto_imprenta') . ' = NULL')
+                ->where($db->quoteName('id') . ' = ' . (int) $preCotizacionId);
+            $db->setQuery($q)->execute();
+        } catch (\Throwable $e) {
         }
     }
 }

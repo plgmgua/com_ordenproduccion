@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.302-STABLE] - 2026-08-04
+
+### Changed
+- **Impuesto de imprenta (timbre de prensa):** Removed from pre-cotización totals, footer, and storage. Applied only on cotización save as a separate quotation line (% from parameter). Pre-cotización reports and totals no longer include this tax; cotización total = line values + impuesto line(s). Re-save existing cotizaciones to regenerate impuesto lines and clear legacy pre-cot values.
+
 ## [3.119.301-STABLE] - 2026-08-04
 
 ### Fixed

@@ -1253,7 +1253,6 @@ class HtmlView extends BaseHtmlView
         }
 
         $minFinal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($id);
-        $row->impuesto_imprenta = ImpuestoImprentaHelper::getStoredAmount($id);
         $row->pre_cot_line_text = ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($id);
         $row->min_valor_base    = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($id, $minFinal);
 

@@ -2144,10 +2144,7 @@ class PrecotizacionModel extends ListModel
             $margenAdic = isset($tableCols['margen_adicional']) && isset($item->margen_adicional) && $item->margen_adicional !== null && $item->margen_adicional !== ''
                 ? (float) $item->margen_adicional
                 : 0.0;
-            $impuestoImp = isset($tableCols['impuesto_imprenta']) && isset($item->impuesto_imprenta) && $item->impuesto_imprenta !== null && $item->impuesto_imprenta !== ''
-                ? (float) $item->impuesto_imprenta
-                : 0.0;
-            $baseSinTarjeta = round((float) $total + $margenAdic + $impuestoImp, 2);
+            $baseSinTarjeta = round((float) $total + $margenAdic, 2);
             $qTc = $db->getQuery(true)
                 ->update($db->quoteName('#__ordenproduccion_pre_cotizacion'))
                 ->where($db->quoteName('id') . ' = ' . $preCotizacionId);

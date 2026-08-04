@@ -49,14 +49,6 @@ $withdrawApprovalPostUrl = Route::_('index.php?option=com_ordenproduccion&task=c
 $uploadOrdenCompraPostUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.uploadOrdenCompraFacturacion', false);
 
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
-$quotationImpuestoImprentaTotal = 0.0;
-foreach ($items as $impItem) {
-    $impPreId = isset($impItem->pre_cotizacion_id) ? (int) $impItem->pre_cotizacion_id : 0;
-    if ($impPreId > 0) {
-        $quotationImpuestoImprentaTotal += ImpuestoImprentaHelper::getStoredAmount($impPreId);
-    }
-}
-$quotationImpuestoImprentaTotal = round($quotationImpuestoImprentaTotal, 2);
 $currency = $quotation->currency ?? 'Q';
 $cotizacionExchangeRate = CotizacionCurrencyHelper::getExchangeRate($quotation);
 $cotizacionExchangeRateDate = CotizacionCurrencyHelper::getExchangeRateDate($quotation);
@@ -593,6 +585,29 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                 </thead>
                 <tbody>
                     <?php foreach ($items as $item) :
+                        if (ImpuestoImprentaHelper::isImpuestoLineItem($item)) {
+                            $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($item->descripcion ?? ''));
+                            $preNumImp = $forPreId > 0 ? ('PRE-' . $forPreId) : '—';
+                            $lineTotalImp = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '')
+                                ? (float) $item->valor_final
+                                : (isset($item->subtotal) ? (float) $item->subtotal : 0);
+                            $impLabel = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel($forPreId, $preNumImp);
+                            ?>
+                        <tr class="table-light">
+                            <td class="col-cotizacion-pre text-muted">—</td>
+                            <td class="col-cotizacion-qty text-center">1</td>
+                            <td class="col-cotizacion-desc"><em><?php echo htmlspecialchars($impLabel); ?></em></td>
+                            <td class="col-cotizacion-unit text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($lineTotalImp, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="4"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($lineTotalImp, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 4)); ?></span></td>
+                            <td class="col-cotizacion-sub text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($lineTotalImp, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($lineTotalImp, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
+                            <td class="col-cotizacion-images"><span class="text-muted">—</span></td>
+                            <?php if ($quotationConfirmed) : ?>
+                            <td class="col-cotizacion-action text-center"><span class="text-muted">—</span></td>
+                            <?php endif; ?>
+                            <td class="col-cotizacion-ot"><span class="text-muted">—</span></td>
+                        </tr>
+                            <?php
+                            continue;
+                        }
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
                         $preNum = $preId > 0 ? (trim((string) ($item->pre_cotizacion_number ?? '')) ?: 'PRE-' . $preId) : '—';
                         $qty = isset($item->cantidad) ? (int) $item->cantidad : 1;
@@ -703,22 +718,6 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <?php if ($quotationImpuestoImprentaTotal > 0.005) : ?>
-                    <tr>
-                        <?php if ($quotationConfirmed) : ?>
-                        <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta'); ?>:</td>
-                        <td class="text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($quotationImpuestoImprentaTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($quotationImpuestoImprentaTotal, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <?php else : ?>
-                        <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta'); ?>:</td>
-                        <td class="text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($quotationImpuestoImprentaTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($quotationImpuestoImprentaTotal, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
-                        <td></td>
-                        <td></td>
-                        <?php endif; ?>
-                    </tr>
-                    <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <?php if ($quotationConfirmed) : ?>
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>

@@ -20,6 +20,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactAmbienteHe
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorDigifactLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceGrimpsaTemplatePdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelHelper;
@@ -1653,6 +1654,15 @@ class FelInvoiceIssuanceService
             ->order($this->db->quoteName('id') . ' ASC');
         $this->db->setQuery($q);
         $rows = $this->db->loadObjectList();
+
+        if (\is_array($rows)) {
+            foreach ($rows as $row) {
+                if (ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
+                    $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($row->descripcion ?? ''));
+                    $row->descripcion = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel($forPreId);
+                }
+            }
+        }
 
         return \is_array($rows) ? $rows : [];
     }

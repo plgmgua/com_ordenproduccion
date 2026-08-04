@@ -443,12 +443,10 @@ class AjaxController extends BaseController
                             'subtotal' => $value,
                             'valor_final' => $value,
                             'valor_base' => $valorBase,
-                            'impuesto_imprenta' => $resolved['impuesto'],
                             'pre_cotizacion_id' => $preId,
                             'pre_cotizacion_total' => $baseTotal,
                             'line_images_json' => QuotationLineImagesHelper::normalizeJsonFromInput(isset($line['line_images_json']) ? (string) $line['line_images_json'] : ''),
                         ];
-                        $totalAmount += $value;
                     }
                 }
             } else {
@@ -476,6 +474,13 @@ class AjaxController extends BaseController
                 echo json_encode(['success' => false, 'message' => 'Add at least one quotation line']);
                 exit;
             }
+
+            $lineItems = ImpuestoImprentaHelper::appendImpuestoLineItems($lineItems, $preDescMap, $preLineTextMap);
+            $totalAmount = 0.0;
+            foreach ($lineItems as $liTotal) {
+                $totalAmount += (float) ($liTotal['subtotal'] ?? 0);
+            }
+            $totalAmount = round($totalAmount, 2);
 
             $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
             $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
@@ -547,12 +552,11 @@ class AjaxController extends BaseController
                         $valorBase = isset($item['valor_base'])
                             ? (float) $item['valor_base']
                             : (isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal']);
-                        $impuestoAmt = \array_key_exists('impuesto_imprenta', $item) ? $item['impuesto_imprenta'] : null;
                         ImpuestoImprentaHelper::syncPreCotizacionFromQuotationLine(
                             $preIdSync,
                             $valorBase,
                             $preTotal,
-                            $impuestoAmt !== null ? (float) $impuestoAmt : null,
+                            null,
                             $db
                         );
                         if ($precotModel) {
@@ -750,18 +754,24 @@ class AjaxController extends BaseController
                     'subtotal' => $value,
                     'valor_final' => $value,
                     'valor_base' => $valorBase,
-                    'impuesto_imprenta' => $resolved['impuesto'],
                     'pre_cotizacion_id' => $preId > 0 ? $preId : null,
                     'pre_cotizacion_total' => $baseTotal,
                     'line_images_json' => QuotationLineImagesHelper::normalizeJsonFromInput(isset($line['line_images_json']) ? (string) $line['line_images_json'] : ''),
                 ];
-                $totalAmount += $value;
             }
         }
         if (empty($lineItems)) {
             echo json_encode(['success' => false, 'message' => 'Add at least one quotation line']);
             exit;
         }
+
+        $lineItems = ImpuestoImprentaHelper::appendImpuestoLineItems($lineItems, $preDescMap, $preLineTextMap);
+        $totalAmount = 0.0;
+        foreach ($lineItems as $liTotalUpd) {
+            $totalAmount += (float) ($liTotalUpd['subtotal'] ?? 0);
+        }
+        $totalAmount = round($totalAmount, 2);
+
         $cols = $db->getTableColumns('#__ordenproduccion_quotations', false);
         $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
         $updateData = (object) [
@@ -812,12 +822,11 @@ class AjaxController extends BaseController
                     $valorBase = isset($item['valor_base'])
                         ? (float) $item['valor_base']
                         : (isset($item['valor_final']) ? (float) $item['valor_final'] : (float) $item['subtotal']);
-                    $impuestoAmt = \array_key_exists('impuesto_imprenta', $item) ? $item['impuesto_imprenta'] : null;
                     ImpuestoImprentaHelper::syncPreCotizacionFromQuotationLine(
                         $preIdSync,
                         $valorBase,
                         $preTotal,
-                        $impuestoAmt !== null ? (float) $impuestoAmt : null,
+                        null,
                         $db
                     );
                     if ($precotModel) {
