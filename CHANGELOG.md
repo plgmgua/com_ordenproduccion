@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.309-STABLE] - 2026-08-04
+
+### Changed
+- **Cotización display:** Pre-cotización links removed from the first column; PRE reference (e.g. «— PRE-01121») is shown only in Descripción.
+
 ## [3.119.308-STABLE] - 2026-08-04
 
 ### Fixed

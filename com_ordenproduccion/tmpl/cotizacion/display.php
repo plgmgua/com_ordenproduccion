@@ -600,7 +600,7 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                             $impLabel = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel($forPreId, $preNumImp !== '—' ? $preNumImp : '');
                             ?>
                         <tr class="table-light">
-                            <td class="col-cotizacion-pre"><?php if ($forPreId > 0 && $preNumImp !== '—') : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo (int) $forPreId; ?>" data-pre-number="<?php echo htmlspecialchars($preNumImp); ?>"><?php echo htmlspecialchars($preNumImp); ?></a><?php else : ?><span class="text-muted">—</span><?php endif; ?></td>
+                            <td class="col-cotizacion-pre"><span class="text-muted">—</span></td>
                             <td class="col-cotizacion-qty text-center">1</td>
                             <td class="col-cotizacion-desc"><em><?php echo htmlspecialchars($impLabel); ?></em></td>
                             <td class="col-cotizacion-unit text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($lineTotalImp, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="4"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($lineTotalImp, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 4)); ?></span></td>
@@ -638,11 +638,15 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                         $storedOtNum       = isset($item->orden_de_trabajo) ? trim((string) $item->orden_de_trabajo) : '';
                         $otsLine           = ($preId > 0 && !empty($ordenesPorPre[$preId])) ? $ordenesPorPre[$preId] : [];
                         $lineHasExistingOt = $otsLine !== [] || ($storedOtNum !== '');
+                        $descDisplay = trim((string) ($item->descripcion ?? ''));
+                        if ($preId > 0 && $preNum !== '—') {
+                            $descDisplay = $descDisplay !== '' ? ($descDisplay . ' — ' . $preNum) : $preNum;
+                        }
                     ?>
                         <tr>
-                            <td class="col-cotizacion-pre"><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
+                            <td class="col-cotizacion-pre"><span class="text-muted">—</span></td>
                             <td class="col-cotizacion-qty text-center"><?php echo (int) $qty; ?></td>
-                            <td class="col-cotizacion-desc"><?php echo htmlspecialchars($item->descripcion ?? ''); ?></td>
+                            <td class="col-cotizacion-desc"><?php echo htmlspecialchars($descDisplay); ?></td>
                             <td class="col-cotizacion-unit text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($unit, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="4"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($unit, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 4)); ?></span></td>
                             <td class="col-cotizacion-sub text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($lineTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($lineTotal, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
                             <td class="col-cotizacion-images align-middle cotizacion-line-images-cell">
