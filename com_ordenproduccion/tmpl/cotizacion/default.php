@@ -524,8 +524,8 @@ if ($isEdit && !empty($this->quotationItems)) {
             var preId = row.getAttribute('data-pre-id') || '0';
             var preNum = '—';
             var link = row.querySelector('.precotizacion-detail-link');
-            if (link && link.textContent) {
-                preNum = String(link.textContent).trim();
+            if (link) {
+                preNum = String(link.getAttribute('data-pre-number') || link.textContent || '').trim();
             } else if (parseInt(preId, 10) > 0) {
                 preNum = 'PRE-' + preId;
             }
@@ -533,7 +533,10 @@ if ($isEdit && !empty($this->quotationItems)) {
             var tr = document.createElement('tr');
             tr.className = 'quotation-impuesto-preview table-light';
             tr.setAttribute('data-for-pre-id', preId);
-            tr.innerHTML = '<td class="text-muted">—</td>' +
+            var preCell = (parseInt(preId, 10) > 0 && preNum !== '—')
+                ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(preId) + '" data-pre-number="' + escapeAttr(preNum) + '">' + escapeAttr(preNum) + '</a>'
+                : '<span class="text-muted">—</span>';
+            tr.innerHTML = '<td>' + preCell + '</td>' +
                 '<td class="text-center text-muted">1</td>' +
                 '<td><em>' + escapeAttr(label) + '</em></td>' +
                 '<td class="text-end"><span class="cotizacion-amt impuesto-preview-amt" data-gtq="' + amt.toFixed(2) + '" data-decimals="2"></span></td>' +

@@ -1659,7 +1659,10 @@ class FelInvoiceIssuanceService
             foreach ($rows as $row) {
                 if (ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
                     $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($row->descripcion ?? ''));
-                    $row->descripcion = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel($forPreId);
+                    $row->descripcion = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel(
+                        $forPreId,
+                        ImpuestoImprentaHelper::getPreCotizacionNumberById($forPreId, $this->db)
+                    );
                 }
             }
         }

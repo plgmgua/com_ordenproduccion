@@ -587,14 +587,20 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                     <?php foreach ($items as $item) :
                         if (ImpuestoImprentaHelper::isImpuestoLineItem($item)) {
                             $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($item->descripcion ?? ''));
-                            $preNumImp = $forPreId > 0 ? ('PRE-' . $forPreId) : '—';
+                            $preNumImp = trim((string) ($item->pre_cotizacion_number ?? ''));
+                            if ($preNumImp === '' && $forPreId > 0) {
+                                $preNumImp = ImpuestoImprentaHelper::getPreCotizacionNumberById($forPreId);
+                            }
+                            if ($preNumImp === '') {
+                                $preNumImp = '—';
+                            }
                             $lineTotalImp = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '')
                                 ? (float) $item->valor_final
                                 : (isset($item->subtotal) ? (float) $item->subtotal : 0);
-                            $impLabel = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel($forPreId, $preNumImp);
+                            $impLabel = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel($forPreId, $preNumImp !== '—' ? $preNumImp : '');
                             ?>
                         <tr class="table-light">
-                            <td class="col-cotizacion-pre text-muted">—</td>
+                            <td class="col-cotizacion-pre"><?php if ($forPreId > 0 && $preNumImp !== '—') : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo (int) $forPreId; ?>" data-pre-number="<?php echo htmlspecialchars($preNumImp); ?>"><?php echo htmlspecialchars($preNumImp); ?></a><?php else : ?><span class="text-muted">—</span><?php endif; ?></td>
                             <td class="col-cotizacion-qty text-center">1</td>
                             <td class="col-cotizacion-desc"><em><?php echo htmlspecialchars($impLabel); ?></em></td>
                             <td class="col-cotizacion-unit text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($lineTotalImp, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="4"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($lineTotalImp, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 4)); ?></span></td>

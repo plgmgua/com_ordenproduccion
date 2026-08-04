@@ -408,9 +408,28 @@ class HtmlView extends BaseHtmlView
                     }
                     $db->setQuery($query);
                     $this->quotationItems = $db->loadObjectList() ?: [];
+                    $impuestoPreIds = [];
+                    foreach ($this->quotationItems as $impScan) {
+                        if (ImpuestoImprentaHelper::isImpuestoLineItem($impScan)) {
+                            $fp = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($impScan->descripcion ?? ''));
+                            if ($fp > 0) {
+                                $impuestoPreIds[$fp] = true;
+                            }
+                        }
+                    }
+                    $preNumberById = $impuestoPreIds !== []
+                        ? ImpuestoImprentaHelper::getPreCotizacionNumbersByIds(array_keys($impuestoPreIds), $db)
+                        : [];
                     $precotModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()
                         ->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
                     foreach ($this->quotationItems as $item) {
+                        if (ImpuestoImprentaHelper::isImpuestoLineItem($item)) {
+                            $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($item->descripcion ?? ''));
+                            if ($forPreId > 0) {
+                                $item->impuesto_for_pre_id = $forPreId;
+                                $item->pre_cotizacion_number = $preNumberById[$forPreId] ?? ImpuestoImprentaHelper::getPreCotizacionNumberById($forPreId, $db);
+                            }
+                        }
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
                         $num = isset($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : '';
                         if ($num === '' && $preId > 0) {

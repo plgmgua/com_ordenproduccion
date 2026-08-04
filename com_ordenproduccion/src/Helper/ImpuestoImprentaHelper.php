@@ -279,6 +279,59 @@ final class ImpuestoImprentaHelper
         }
     }
 
+    /**
+     * @param   array<int|string>  $preIds
+     *
+     * @return  array<int, string>  id => number (e.g. PRE-01121)
+     */
+    public static function getPreCotizacionNumbersByIds(array $preIds, ?DatabaseInterface $db = null): array
+    {
+        $ids = [];
+        foreach ($preIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $query = $db->getQuery(true)
+                ->select([$db->quoteName('id'), $db->quoteName('number')])
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' IN (' . implode(',', array_keys($ids)) . ')');
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+            $map  = [];
+
+            foreach ($rows as $row) {
+                $id  = (int) $row->id;
+                $num = trim((string) ($row->number ?? ''));
+                $map[$id] = $num !== '' ? $num : ('PRE-' . $id);
+            }
+
+            return $map;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    public static function getPreCotizacionNumberById(int $preCotizacionId, ?DatabaseInterface $db = null): string
+    {
+        if ($preCotizacionId < 1) {
+            return '';
+        }
+
+        $map = self::getPreCotizacionNumbersByIds([$preCotizacionId], $db);
+
+        return $map[$preCotizacionId] ?? ('PRE-' . $preCotizacionId);
+    }
+
     public static function extractValorBaseForForm(
         float $lineTotalFinal,
         float $storedImpuesto,
@@ -356,7 +409,7 @@ final class ImpuestoImprentaHelper
         }
         $preNumber = trim($preNumber);
         if ($preNumber === '' && $forPreCotizacionId > 0) {
-            $preNumber = 'PRE-' . $forPreCotizacionId;
+            $preNumber = self::getPreCotizacionNumberById($forPreCotizacionId);
         }
 
         return $preNumber !== '' ? ($label . ' — ' . $preNumber) : $label;

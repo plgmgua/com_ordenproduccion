@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.303-STABLE] - 2026-08-04
+
+### Fixed
+- **Impuesto de imprenta line label:** Shows the linked pre-cotización number (e.g. PRE-01121) instead of the internal database id (e.g. PRE-1168). Impuesto rows also show the correct PRE link in the first column.
+
 ## [3.119.302-STABLE] - 2026-08-04
 
 ### Changed
