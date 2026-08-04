@@ -26,6 +26,7 @@ use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\User\User;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BanguatTipoCambioHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;

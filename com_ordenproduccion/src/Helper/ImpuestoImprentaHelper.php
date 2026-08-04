@@ -442,6 +442,50 @@ final class ImpuestoImprentaHelper
         return $preNumber !== '' ? ($label . ' — ' . $preNumber) : $label;
     }
 
+    /**
+     * Replace impuesto marker rows with configured label and linked PRE number for UI/PDF/FEL.
+     *
+     * @param   array<int, object>  $items
+     *
+     * @return  array<int, object>
+     */
+    public static function enrichQuotationItemsForDisplay(array $items, ?DatabaseInterface $db = null): array
+    {
+        if ($items === []) {
+            return $items;
+        }
+
+        $impuestoPreIds = [];
+        foreach ($items as $item) {
+            if (!self::isImpuestoLineItem($item)) {
+                continue;
+            }
+            $forPreId = self::parseImpuestoLineForPreId((string) ($item->descripcion ?? ''));
+            if ($forPreId > 0) {
+                $impuestoPreIds[$forPreId] = true;
+            }
+        }
+
+        $preNumberById = $impuestoPreIds !== []
+            ? self::getPreCotizacionNumbersByIds(array_keys($impuestoPreIds), $db)
+            : [];
+
+        foreach ($items as $item) {
+            if (!self::isImpuestoLineItem($item)) {
+                continue;
+            }
+            $forPreId = self::parseImpuestoLineForPreId((string) ($item->descripcion ?? ''));
+            if ($forPreId < 1) {
+                continue;
+            }
+            $preNum = $preNumberById[$forPreId] ?? self::getPreCotizacionNumberById($forPreId, $db);
+            $item->pre_cotizacion_number = $preNum;
+            $item->descripcion           = self::getImpuestoLineDisplayLabel($forPreId, $preNum);
+        }
+
+        return $items;
+    }
+
     public static function computeImpuestoAmount(
         float $lineValue,
         string $lineDescription,

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.307-STABLE] - 2026-08-04
+
+### Fixed
+- **Cotización PDF:** Impuesto de imprenta lines show the configured etiqueta and PRE number (e.g. «Timbre de Prensa (Decreto 56-90) — PRE-01121») instead of the internal `IMPUESTO_IMPRENTA:…` marker.
+
 ## [3.119.306-STABLE] - 2026-08-04
 
 ### Fixed
