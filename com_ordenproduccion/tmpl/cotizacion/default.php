@@ -448,7 +448,7 @@ if ($isEdit && !empty($this->quotationItems)) {
     var precotizacionDescriptions = <?php echo json_encode($precotizacionDescriptions ?? []); ?>;
     var impuestoImprentaPct = <?php echo json_encode($impuestoImprentaPct); ?>;
     var impuestoImprentaKeywords = <?php echo json_encode($impuestoImprentaKeywords); ?>;
-    var impuestoLineLabel = <?php echo json_encode($l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta')); ?>;
+    var impuestoLineLabel = <?php echo json_encode(ImpuestoImprentaHelper::getParamLabel()); ?>;
 
     function descriptionContainsImprentaKeyword(description, keyword) {
         keyword = String(keyword || '').trim();

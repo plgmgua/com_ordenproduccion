@@ -365,6 +365,36 @@ final class ImpuestoImprentaHelper
         return max(0.0, min(100.0, $pct));
     }
 
+    /**
+     * Configured label for the cotización impuesto line (Parámetros → Etiqueta de Impuesto de imprenta).
+     */
+    public static function getParamLabel(): string
+    {
+        $raw = trim((string) ComponentHelper::getParams('com_ordenproduccion')->get('impuesto_imprenta_etiqueta', ''));
+        if ($raw !== '') {
+            return $raw;
+        }
+
+        $label = Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA');
+
+        return ($label === 'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA') ? 'Impuesto de imprenta' : $label;
+    }
+
+    public static function normalizeParamLabelFromInput($raw): string
+    {
+        $label = trim(strip_tags((string) $raw));
+
+        if ($label === '') {
+            return '';
+        }
+
+        if (mb_strlen($label, 'UTF-8') > 255) {
+            $label = mb_substr($label, 0, 255, 'UTF-8');
+        }
+
+        return $label;
+    }
+
     /** @deprecated Pre-cotización no longer stores impuesto; always 0 for new logic. */
     public static function getStoredAmount(int $preCotizacionId, ?DatabaseInterface $db = null): float
     {
@@ -403,10 +433,7 @@ final class ImpuestoImprentaHelper
      */
     public static function getImpuestoLineDisplayLabel(int $forPreCotizacionId, string $preNumber = ''): string
     {
-        $label = Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA');
-        if ($label === 'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA') {
-            $label = 'Impuesto de imprenta';
-        }
+        $label = self::getParamLabel();
         $preNumber = trim($preNumber);
         if ($preNumber === '' && $forPreCotizacionId > 0) {
             $preNumber = self::getPreCotizacionNumberById($forPreCotizacionId);

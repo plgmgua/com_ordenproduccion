@@ -7,7 +7,7 @@
     <license>GNU General Public License version 2 or later</license>
     <authorEmail>admin@grimpsa.com</authorEmail>
     <authorUrl>https://grimpsa.com</authorUrl>
-    <version>3.119.303-STABLE</version>
+    <version>3.119.304-STABLE</version>
     <description>COM_ORDENPRODUCCION_XML_DESCRIPTION</description>
     <scriptfile>script.php</scriptfile>
 
@@ -188,6 +188,16 @@
                     min="0"
                     max="100"
                     step="0.01"
+                />
+                <field
+                    name="impuesto_imprenta_etiqueta"
+                    type="text"
+                    label="COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_ETIQUETA"
+                    description="COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_ETIQUETA_DESC"
+                    default=""
+                    size="60"
+                    maxlength="255"
+                    filter="string"
                 />
                 <field
                     name="impuesto_imprenta_palabras"

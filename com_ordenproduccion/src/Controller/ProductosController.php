@@ -535,6 +535,7 @@ class ProductosController extends BaseController
         $comisionVenta = (float) $input->post->get('comision_venta', 0, 'raw');
         $comisionMargenAdicional = (float) $input->post->get('comision_margen_adicional', 0, 'raw');
         $impuestoImprenta = (float) $input->post->get('impuesto_imprenta', 0, 'raw');
+        $impuestoImprentaEtiquetaRaw = $input->post->getString('impuesto_imprenta_etiqueta', '');
         $impuestoImprentaPalabrasRaw = $input->post->get('impuesto_imprenta_palabras', '[]', 'raw');
         $margen = max(0, min(100, $margen));
         $iva = max(0, min(100, $iva));
@@ -550,6 +551,10 @@ class ProductosController extends BaseController
         $params->set('comision_venta', $comisionVenta);
         $params->set('comision_margen_adicional', $comisionMargenAdicional);
         $params->set('impuesto_imprenta', $impuestoImprenta);
+        $params->set(
+            'impuesto_imprenta_etiqueta',
+            \Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper::normalizeParamLabelFromInput($impuestoImprentaEtiquetaRaw)
+        );
         $impuestoImprentaPalabras = \Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper::normalizeKeywordsFromInput($impuestoImprentaPalabrasRaw);
         $params->set(
             'impuesto_imprenta_palabras',

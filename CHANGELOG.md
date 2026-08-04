@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.304-STABLE] - 2026-08-04
+
+### Added
+- **Parámetros:** New **Etiqueta de Impuesto de imprenta** text field. The configured text is used as the cotización impuesto line label (view, edit preview, and FEL). Empty value falls back to «Impuesto de imprenta».
+
 ## [3.119.303-STABLE] - 2026-08-04
 
 ### Fixed

@@ -35,6 +35,7 @@ $isr = isset($this->isr) ? (float) $this->isr : 0;
 $comisionVenta = isset($this->comisionVenta) ? (float) $this->comisionVenta : 0;
 $comisionMargenAdicional = isset($this->comisionMargenAdicional) ? (float) $this->comisionMargenAdicional : 0;
 $impuestoImprenta = isset($this->impuestoImprenta) ? (float) $this->impuestoImprenta : 0;
+$impuestoImprentaEtiqueta = isset($this->impuestoImprentaEtiqueta) ? (string) $this->impuestoImprentaEtiqueta : '';
 $impuestoImprentaPalabras = isset($this->impuestoImprentaPalabras) && \is_array($this->impuestoImprentaPalabras)
     ? $this->impuestoImprentaPalabras
     : \Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper::getDefaultKeywords();
@@ -148,6 +149,28 @@ $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this-
                                 <?php echo $l(
                                     'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_DESC',
                                     'Applied on cotización save when a line description matches a configured keyword or phrase below. Added to the pre-cotización and to the cotización total.'
+                                ); ?>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="param_impuesto_imprenta_etiqueta" class="form-label">
+                                <?php echo $l(
+                                    'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_ETIQUETA',
+                                    'Etiqueta de Impuesto de imprenta'
+                                ); ?>
+                            </label>
+                            <input type="text" name="impuesto_imprenta_etiqueta" id="param_impuesto_imprenta_etiqueta"
+                                   class="form-control" maxlength="255"
+                                   value="<?php echo htmlspecialchars($impuestoImprentaEtiqueta, ENT_QUOTES, 'UTF-8'); ?>"
+                                   placeholder="<?php echo htmlspecialchars(
+                                       $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta'),
+                                       ENT_QUOTES,
+                                       'UTF-8'
+                                   ); ?>" />
+                            <div class="form-text">
+                                <?php echo $l(
+                                    'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_ETIQUETA_DESC',
+                                    'Texto mostrado en la línea de impuesto de imprenta de la cotización. Si se deja vacío, se usa «Impuesto de imprenta».'
                                 ); ?>
                             </div>
                         </div>
