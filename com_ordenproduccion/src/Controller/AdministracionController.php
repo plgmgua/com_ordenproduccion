@@ -31,7 +31,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper
 use Grimpsa\Component\Ordenproduccion\Site\Helper\RetencionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\SatRetencionExcelHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
-use Grimpsa\Component\Ordenproduccion\Site\Model\AdministracionModel;
+use Grimpsa\Component\Ordenproduccion\Site\Service\CotizacionPreciosAjusteService;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 use Grimpsa\Component\Ordenproduccion\Site\Model\PaymentproofModel;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -5156,5 +5156,167 @@ class AdministracionController extends BaseController
         }
 
         $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=user_audit', false));
+    }
+
+    /**
+     * JSON: load cotización lines for Ajustes Precios de Cotización.
+     *
+     * @return  void
+     *
+     * @since   3.119.313
+     */
+    public function loadAjustesPreciosCotizacion(): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+
+        $cotNumber = trim((string) $app->input->getString('cot_number', ''));
+        if ($cotNumber === '') {
+            $this->sendAdministracionJson(false, Text::_('COM_ORDENPRODUCCION_AJUSTES_PRECIOS_COT_NUMBER_REQUIRED'), []);
+
+            return;
+        }
+
+        try {
+            $svc  = new CotizacionPreciosAjusteService();
+            $ctx  = $svc->loadContext($cotNumber);
+            if (empty($ctx['success'])) {
+                $this->sendAdministracionJson(false, (string) ($ctx['message'] ?? Text::_('COM_ORDENPRODUCCION_AJUSTES_PRECIOS_COT_NOT_FOUND')), []);
+
+                return;
+            }
+
+            /** @var object $quotation */
+            $quotation = $ctx['quotation'];
+            $this->sendAdministracionJson(true, 'OK', [
+                'quotation_id'         => (int) ($quotation->id ?? 0),
+                'quotation_number'     => (string) ($quotation->quotation_number ?? ''),
+                'client_name'          => (string) ($quotation->client_name ?? ''),
+                'quote_date'           => (string) ($quotation->quote_date ?? ''),
+                'total_amount_gtq'     => (float) ($ctx['total_amount'] ?? 0),
+                'exchange_rate'        => $ctx['exchange_rate'],
+                'exchange_rate_date'   => (string) ($ctx['exchange_rate_date'] ?? ''),
+                'exchange_rate_source' => (string) ($ctx['exchange_rate_source'] ?? ''),
+                'lines'                => $ctx['lines'] ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+        }
+    }
+
+    /**
+     * JSON: save one cotización line price (Ajustes Precios de Cotización).
+     *
+     * @return  void
+     *
+     * @since   3.119.313
+     */
+    public function saveAjustesPreciosCotizacionLine(): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $quotationId     = (int) $app->input->post->getInt('quotation_id', 0);
+        $itemId          = (int) $app->input->post->getInt('item_id', 0);
+        $inputAmount     = (float) $app->input->post->get('new_amount', 0, 'float');
+        $displayCurrency = strtoupper(trim((string) $app->input->post->getString('display_currency', 'GTQ')));
+        $exchangeRateRaw = $app->input->post->getString('exchange_rate', '');
+        $exchangeRate    = ($exchangeRateRaw !== '' && is_numeric($exchangeRateRaw)) ? (float) $exchangeRateRaw : null;
+
+        try {
+            $svc    = new CotizacionPreciosAjusteService();
+            $result = $svc->updateProductLinePrice(
+                $quotationId,
+                $itemId,
+                $inputAmount,
+                $displayCurrency,
+                $exchangeRate,
+                (int) $user->id
+            );
+
+            if (empty($result['success'])) {
+                $this->sendAdministracionJson(false, (string) ($result['message'] ?? Text::_('COM_ORDENPRODUCCION_AJUSTES_PRECIOS_SAVE_ERROR')), []);
+
+                return;
+            }
+
+            $this->sendAdministracionJson(true, Text::_('COM_ORDENPRODUCCION_AJUSTES_PRECIOS_LINE_SAVED'), [
+                'total_amount_gtq' => (float) ($result['total_amount'] ?? 0),
+                'line_total_gtq'   => (float) ($result['line_total_gtq'] ?? 0),
+                'lines'            => $result['lines'] ?? [],
+                'orden_trabajo'    => $result['orden_trabajo'] ?? null,
+            ]);
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+        }
+    }
+
+    /**
+     * JSON: apply updated invoice value to linked orden de trabajo after admin confirms.
+     *
+     * @return  void
+     *
+     * @since   3.119.313
+     */
+    public function applyAjustesPreciosOrdenTrabajo(): void
+    {
+        $app  = Factory::getApplication();
+        $user = Factory::getUser();
+        $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $this->sendAdministracionJson(false, Text::_('JERROR_ALERTNOAUTHOR'), []);
+
+            return;
+        }
+        if (!Session::checkToken('post')) {
+            $this->sendAdministracionJson(false, Text::_('JINVALID_TOKEN'), []);
+
+            return;
+        }
+
+        $preId     = (int) $app->input->post->getInt('pre_cotizacion_id', 0);
+        $newValue  = (float) $app->input->post->get('invoice_value_gtq', 0, 'float');
+
+        try {
+            $svc    = new CotizacionPreciosAjusteService();
+            $result = $svc->applyOrdenTrabajoInvoiceValue($preId, $newValue);
+
+            if (empty($result['success'])) {
+                $this->sendAdministracionJson(false, (string) ($result['message'] ?? Text::_('COM_ORDENPRODUCCION_AJUSTES_PRECIOS_OT_UPDATE_ERROR')), []);
+
+                return;
+            }
+
+            $this->sendAdministracionJson(true, Text::sprintf(
+                'COM_ORDENPRODUCCION_AJUSTES_PRECIOS_OT_UPDATED',
+                (string) ($result['order_number'] ?? '')
+            ), [
+                'order_number'  => (string) ($result['order_number'] ?? ''),
+                'invoice_value' => (float) ($result['invoice_value'] ?? 0),
+                'orden_id'      => (int) ($result['orden_id'] ?? 0),
+            ]);
+        } catch (\Throwable $e) {
+            $this->sendAdministracionJson(false, $e->getMessage(), []);
+        }
     }
 }

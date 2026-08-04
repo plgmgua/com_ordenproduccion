@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.313-STABLE] - 2026-08-04
+
+### Added
+- **Ajustes → Ajustes Precios de Cotización:** Look up cotización by `COT-000001`, view lines with currency/exchange rate (stored or BANGUAT), update product line prices per row, auto-recalculate Timbre de Prensa, and optionally sync linked orden de trabajo valor a facturar.
+
 ## [3.119.312-STABLE] - 2026-08-04
 
 ### Changed
