@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.301-STABLE] - 2026-08-04
+
+### Fixed
+- **Cotización from pre-cotización:** When a pre-cot is already linked, **Crear cotización** now opens that cotización for edit instead of an empty form. Auto-add uses pre-tax minimum base (excludes impuesto already in total con tarjeta). Impuesto matching also checks pre-cot line text (vendor lines, breakdown).
+
 ## [3.119.300-STABLE] - 2026-08-04
 
 ### Fixed

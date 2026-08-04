@@ -387,6 +387,13 @@ class AjaxController extends BaseController
             }
 
             $preDescMap = ImpuestoImprentaHelper::getPreCotizacionDescriptionsByIds($preIdsForQuote, $db);
+            $preLineTextMap = [];
+            foreach ($preIdsForQuote as $pidMap) {
+                $pidMap = (int) $pidMap;
+                if ($pidMap > 0) {
+                    $preLineTextMap[$pidMap] = ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($pidMap, $db);
+                }
+            }
 
             // Generate autonumeric quotation number
             $query = $db->getQuery(true)
@@ -416,13 +423,15 @@ class AjaxController extends BaseController
                         $lineDesc = $desc !== '' ? $desc : 'PRE-' . $preId;
                         $baseTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
                         $minTotal = $precotModel ? (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId) : $baseTotal;
+                        $minBase = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minTotal);
                         $preCotDesc = $preDescMap[$preId] ?? '';
-                        $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $preCotDesc);
+                        $preLineText = $preLineTextMap[$preId] ?? '';
+                        $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $preCotDesc, $preLineText);
                         $valorBase = (float) $resolved['valor_base'];
                         $value = (float) $resolved['valor_final'];
-                        if ($valorBase < $minTotal) {
+                        if ($valorBase < $minBase) {
                             $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
-                            echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
+                            echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minBase, 2))]);
                             exit;
                         }
                         $valorUnitario = $cantidad > 0 ? round($value / $cantidad, 4) : (float) $value;
@@ -689,6 +698,13 @@ class AjaxController extends BaseController
 
         $qtyResolvedByPre = $precotModel->getQuotationLineCantidadesByPreIds(array_keys($uniqPreQtyUpd));
         $preDescMap = ImpuestoImprentaHelper::getPreCotizacionDescriptionsByIds($preIdsForQuote, $db);
+        $preLineTextMap = [];
+        foreach ($preIdsForQuote as $pidMapUpd) {
+            $pidMapUpd = (int) $pidMapUpd;
+            if ($pidMapUpd > 0) {
+                $preLineTextMap[$pidMapUpd] = ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($pidMapUpd, $db);
+            }
+        }
         $lineItems = [];
         $totalAmount = 0;
 
@@ -713,13 +729,15 @@ class AjaxController extends BaseController
                     $minTotal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId);
                 }
                 $preCotDesc = $preId > 0 ? ($preDescMap[$preId] ?? '') : '';
-                $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $preCotDesc);
+                $preLineText = $preId > 0 ? ($preLineTextMap[$preId] ?? '') : '';
+                $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $preCotDesc, $preLineText);
                 $valorBase = (float) $resolved['valor_base'];
                 $value = (float) $resolved['valor_final'];
                 if ($preId > 0 && $precotModel) {
-                    if ($valorBase < $minTotal) {
+                    $minBase = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minTotal);
+                    if ($valorBase < $minBase) {
                         $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
-                        echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minTotal, 2))]);
+                        echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minBase, 2))]);
                         exit;
                     }
                 }

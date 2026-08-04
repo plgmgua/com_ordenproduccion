@@ -504,6 +504,63 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * Active quotations that include this pre-cotización (for redirect when opening “Crear cotización”).
+     *
+     * Unconfirmed cotizaciones are listed first, then by quotation number descending.
+     *
+     * @return  \stdClass[]
+     *
+     * @since   3.119.301
+     */
+    public function getLinkedQuotationsForPreCotizacion(int $preCotizacionId): array
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($preCotizacionId < 1) {
+            return [];
+        }
+
+        $db = $this->getDatabase();
+        $cols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+        $cols = is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+        if (!isset($cols['pre_cotizacion_id'])) {
+            return [];
+        }
+
+        $qCols = $db->getTableColumns('#__ordenproduccion_quotations', false);
+        $qCols = is_array($qCols) ? array_change_key_case($qCols, CASE_LOWER) : [];
+        $select = [
+            'DISTINCT ' . $db->quoteName('q.id'),
+            $db->quoteName('q.quotation_number'),
+        ];
+        if (isset($qCols['cotizacion_confirmada'])) {
+            $select[] = $db->quoteName('q.cotizacion_confirmada');
+        }
+
+        $query = $db->getQuery(true)
+            ->select($select)
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+            ->innerJoin(
+                $db->quoteName('#__ordenproduccion_quotations', 'q'),
+                $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+            )
+            ->where($db->quoteName('qi.pre_cotizacion_id') . ' = ' . $preCotizacionId);
+
+        if (isset($qCols['state'])) {
+            $query->where($db->quoteName('q.state') . ' = 1');
+        }
+
+        if (isset($qCols['cotizacion_confirmada'])) {
+            $query->order($db->quoteName('q.cotizacion_confirmada') . ' ASC, ' . $db->quoteName('q.quotation_number') . ' DESC');
+        } else {
+            $query->order($db->quoteName('q.quotation_number') . ' DESC');
+        }
+
+        $db->setQuery($query);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
      * True when this pre-cotización appears on at least one active quotation line whose parent
      * cotización is **confirmada** (`cotizacion_confirmada` = 1).
      *

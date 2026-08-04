@@ -21,6 +21,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel;
@@ -675,13 +676,36 @@ class HtmlView extends BaseHtmlView
             $component = $app->bootComponent('com_ordenproduccion');
             $precotModel = $component->getMVCFactory()->createModel('Precotizacion', 'Site', ['ignore_request' => true]);
             if ($precotModel) {
+                if (!$this->quotation) {
+                    $wantPreIdRedirect = $this->readPrecotizacionIdFromRequest($input);
+                    if ($wantPreIdRedirect > 0 && $precotModel->isAssociatedWithQuotation($wantPreIdRedirect)) {
+                        $linkedQuotes = $precotModel->getLinkedQuotationsForPreCotizacion($wantPreIdRedirect);
+                        if ($linkedQuotes !== []) {
+                            $targetId = (int) ($linkedQuotes[0]->id ?? 0);
+                            if ($targetId > 0) {
+                                $redirectMsg = Text::_('COM_ORDENPRODUCCION_COTIZACION_REDIRECT_TO_LINKED_QUOTATION');
+                                if ($redirectMsg === 'COM_ORDENPRODUCCION_COTIZACION_REDIRECT_TO_LINKED_QUOTATION') {
+                                    $redirectMsg = 'This pre-cotización is already on a cotización. Opening it for edit.';
+                                }
+                                $app->enqueueMessage($redirectMsg, 'notice');
+                                $app->redirect(Route::_(
+                                    'index.php?option=com_ordenproduccion&view=cotizacion&id=' . $targetId . '&layout=edit',
+                                    false
+                                ));
+
+                                return;
+                            }
+                        }
+                    }
+                }
+
                 $items = $precotModel->getItemsForQuotationLineSelector();
                 $list = [];
                 foreach ($items ?: [] as $item) {
                     if ($precotModel->isAssociatedWithQuotation((int) $item->id)) {
                         continue;
                     }
-                    $list[] = (object) [
+                    $list[] = $this->enrichPrecotOptionForQuotationSelector((object) [
                         'id'                  => (int) $item->id,
                         'number'              => $item->number ?? ('PRE-' . $item->id),
                         'total'               => $item->total,
@@ -689,7 +713,7 @@ class HtmlView extends BaseHtmlView
                         'descripcion'         => isset($item->descripcion) ? trim((string) $item->descripcion) : '',
                         'cantidad_total'      => isset($item->cantidad_total) ? (string) $item->cantidad_total : '',
                         'line_qty_fallback'    => isset($item->line_qty_fallback) ? (int) $item->line_qty_fallback : 0,
-                    ];
+                    ], $precotModel);
                 }
                 $this->preCotizacionesList = $list;
 
@@ -1198,7 +1222,7 @@ class HtmlView extends BaseHtmlView
 
         $linesWarm = $precotModel->getLines($id);
 
-        return (object) [
+        return $this->enrichPrecotOptionForQuotationSelector((object) [
             'id'                    => $id,
             'number'                => isset($item->number) ? (string) $item->number : ('PRE-' . $id),
             'total'                 => $total,
@@ -1208,7 +1232,32 @@ class HtmlView extends BaseHtmlView
             'line_qty_fallback'     => $this->getFirstNonEnvioLineQuantityFromPreLines(
                 \is_array($linesWarm) ? $linesWarm : []
             ),
-        ];
+        ], $precotModel);
+    }
+
+    /**
+     * Attach impuesto / line-matching metadata for cotización selector + auto-add row.
+     *
+     * @param   object  $row
+     * @param   object  $precotModel
+     *
+     * @return  object
+     *
+     * @since   3.119.301
+     */
+    protected function enrichPrecotOptionForQuotationSelector(object $row, $precotModel): object
+    {
+        $id = (int) ($row->id ?? 0);
+        if ($id < 1 || $precotModel === null) {
+            return $row;
+        }
+
+        $minFinal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($id);
+        $row->impuesto_imprenta = ImpuestoImprentaHelper::getStoredAmount($id);
+        $row->pre_cot_line_text = ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($id);
+        $row->min_valor_base    = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($id, $minFinal);
+
+        return $row;
     }
 
     /**

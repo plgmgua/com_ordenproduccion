@@ -239,9 +239,19 @@ if ($isEdit && !empty($this->quotationItems)) {
                             if ($qtyLineFb > 0) {
                                 $cotQtyAttr .= ' data-cantidad-linea-fallback="' . $qtyLineFb . '"';
                             }
+                            $impAmtOpt = isset($pre->impuesto_imprenta) ? (float) $pre->impuesto_imprenta : 0.0;
+                            $lineTextOpt = isset($pre->pre_cot_line_text) ? (string) $pre->pre_cot_line_text : '';
+                            $minBaseOpt = isset($pre->min_valor_base)
+                                ? (float) $pre->min_valor_base
+                                : (isset($pre->total_con_tarjeta) && $pre->total_con_tarjeta !== null && $pre->total_con_tarjeta !== ''
+                                    ? (float) $pre->total_con_tarjeta
+                                    : (float) $pre->total);
+                            $metaAttr = ' data-impuesto-imprenta="' . htmlspecialchars(number_format($impAmtOpt, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"'
+                                . ' data-pre-line-text="' . htmlspecialchars($lineTextOpt, ENT_QUOTES, 'UTF-8') . '"'
+                                . ' data-min-valor-base="' . htmlspecialchars(number_format($minBaseOpt, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                         ?>
                             <?php /* option value = pre_cotizacion.id (PK). Label uses $pre->number (PRE-xxxxx), never mix them. */ ?>
-                            <option value="<?php echo (int) $pre->id; ?>" <?php echo $warmSelected ? ' selected' : ''; ?> data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr . $cotQtyAttr; ?>>
+                            <option value="<?php echo (int) $pre->id; ?>" <?php echo $warmSelected ? ' selected' : ''; ?> data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr . $cotQtyAttr . $metaAttr; ?>>
                                 <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
@@ -312,6 +322,7 @@ if ($isEdit && !empty($this->quotationItems)) {
                             : null;
                         $subtotalRef = ($preId > 0 && $preTotal !== null) ? $preTotal : (isset($item->subtotal) ? (float) $item->subtotal : 0);
                         $minValor = ($preId > 0 && $preTc !== null) ? $preTc : $subtotalRef;
+                        $desc = isset($item->descripcion) ? $item->descripcion : '';
                         $storedVf = (isset($item->valor_final) && $item->valor_final !== null && $item->valor_final !== '') ? (float) $item->valor_final : null;
                         if ($storedVf === null) {
                             $valorFinal = $minValor;
@@ -320,21 +331,23 @@ if ($isEdit && !empty($this->quotationItems)) {
                         }
                         $lineTotal = $valorFinal;
                         $preCotDescForRow = ($preId > 0 && isset($precotDescByIdForRows[$preId])) ? $precotDescByIdForRows[$preId] : '';
+                        $preCotLineTextForRow = $preId > 0 ? ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($preId) : '';
                         $storedImpuesto = $preId > 0 ? ImpuestoImprentaHelper::getStoredAmount($preId) : 0.0;
+                        $minValorBase = $preId > 0 ? ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minValor) : $minValor;
                         $valorBaseForInput = ImpuestoImprentaHelper::extractValorBaseForForm(
                             $lineTotal,
                             $storedImpuesto,
                             $desc,
-                            $preCotDescForRow
+                            $preCotDescForRow,
+                            $preCotLineTextForRow
                         );
                         $unitPriceDisplay = $qty > 0 ? ($lineTotal / $qty) : 0;
-                        $desc = isset($item->descripcion) ? $item->descripcion : '';
                         $lineImagesJsonForRow = '[]';
                         if (!empty($item->line_images_json)) {
                             $lineImagesJsonForRow = (string) $item->line_images_json;
                         }
                     ?>
-                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-pre-desc="<?php echo htmlspecialchars($preCotDescForRow, ENT_QUOTES, 'UTF-8'); ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
+                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-pre-desc="<?php echo htmlspecialchars($preCotDescForRow, ENT_QUOTES, 'UTF-8'); ?>" data-pre-line-text="<?php echo htmlspecialchars($preCotLineTextForRow, ENT_QUOTES, 'UTF-8'); ?>" data-min-valor-base="<?php echo number_format($minValorBase, 2, '.', ''); ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end<?php echo $preId > 0 ? ' readonly-prepop bg-light' : ''; ?>" min="0" step="1" value="<?php echo $qty; ?>"<?php echo $preId > 0 ? ' readonly tabindex="-1"' : ''; ?>></td>
                         <td class="cotizacion-line-desc-cell"><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
@@ -345,7 +358,7 @@ if ($isEdit && !empty($this->quotationItems)) {
                                 <span class="small text-muted me-1">Q</span>
                                 <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>">
                                 <div class="d-inline-block ms-1">
-                                    <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($valorBaseForInput, 2, '.', ''); ?>" data-min="<?php echo number_format($minValor, 2, '.', ''); ?>" placeholder="<?php echo number_format($minValor, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
+                                    <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($valorBaseForInput, 2, '.', ''); ?>" data-min="<?php echo number_format($minValorBase, 2, '.', ''); ?>" placeholder="<?php echo number_format($minValorBase, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
                                     <div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div>
                                 </div>
                             </div>
@@ -467,12 +480,15 @@ if ($isEdit && !empty($this->quotationItems)) {
         }
     }
 
-    function descriptionMatchesImprenta(desc, preDesc) {
+    function descriptionMatchesImprenta(desc, preDesc, preLineDesc) {
         desc = String(desc || '').trim();
         preDesc = String(preDesc || '').trim();
+        preLineDesc = String(preLineDesc || '').trim();
         for (var ki = 0; ki < impuestoImprentaKeywords.length; ki++) {
             var kw = impuestoImprentaKeywords[ki];
-            if (descriptionContainsImprentaKeyword(desc, kw) || (preDesc && descriptionContainsImprentaKeyword(preDesc, kw))) {
+            if (descriptionContainsImprentaKeyword(desc, kw)
+                || (preDesc && descriptionContainsImprentaKeyword(preDesc, kw))
+                || (preLineDesc && descriptionContainsImprentaKeyword(preLineDesc, kw))) {
                 return true;
             }
         }
@@ -483,7 +499,8 @@ if ($isEdit && !empty($this->quotationItems)) {
         var descElRow = row.querySelector('textarea.cotizacion-line-descripcion-input');
         var desc = descElRow ? String(descElRow.value || '').trim() : '';
         var preDesc = row.getAttribute('data-pre-desc') || '';
-        return { desc: desc, preDesc: preDesc };
+        var preLineDesc = row.getAttribute('data-pre-line-text') || '';
+        return { desc: desc, preDesc: preDesc, preLineDesc: preLineDesc };
     }
 
     function rowValorBase(row) {
@@ -500,7 +517,7 @@ if ($isEdit && !empty($this->quotationItems)) {
             return 0;
         }
         var texts = rowDescriptions(row);
-        if (!descriptionMatchesImprenta(texts.desc, texts.preDesc)) {
+        if (!descriptionMatchesImprenta(texts.desc, texts.preDesc, texts.preLineDesc)) {
             return 0;
         }
         return Math.round(rowValorBase(row) * impuestoImprentaPct / 100 * 100) / 100;
@@ -599,6 +616,13 @@ if ($isEdit && !empty($this->quotationItems)) {
     }
 
     function rowMinValor(row) {
+        var mb = row.getAttribute('data-min-valor-base');
+        if (mb !== null && mb !== '') {
+            var mbv = parseFloat(String(mb).trim().replace(',', '.'), 10);
+            if (!isNaN(mbv)) {
+                return mbv;
+            }
+        }
         var m = row.getAttribute('data-min-valor');
         if (m !== null && m !== '') {
             var mv = parseFloat(String(m).trim().replace(',', '.'), 10);
@@ -783,8 +807,11 @@ if ($isEdit && !empty($this->quotationItems)) {
             var baseTotal = parseFloat(opt.getAttribute('data-total') || '0');
             var tcRaw = opt.getAttribute('data-total-con-tarjeta');
             var minValorLine = (tcRaw !== null && tcRaw !== '' && !isNaN(parseFloat(tcRaw))) ? parseFloat(tcRaw) : baseTotal;
+            var minBaseRaw = opt.getAttribute('data-min-valor-base');
+            var minValorBase = (minBaseRaw !== null && minBaseRaw !== '' && !isNaN(parseFloat(minBaseRaw))) ? parseFloat(minBaseRaw) : minValorLine;
+            var preLineTextForRow = opt.getAttribute('data-pre-line-text') || '';
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
-            var value = minValorLine.toFixed(2);
+            var value = minValorBase.toFixed(2);
             var preDescForRow = deriveDescFromPrecotOption(opt);
             var qtyForNewRow = qtyFromAttrs;
             lineIndex++;
@@ -792,6 +819,8 @@ if ($isEdit && !empty($this->quotationItems)) {
             tr.className = 'quotation-item-row';
             tr.setAttribute('data-pre-id', preId);
             tr.setAttribute('data-pre-desc', preDescForRow);
+            tr.setAttribute('data-pre-line-text', preLineTextForRow);
+            tr.setAttribute('data-min-valor-base', minValorBase.toFixed(2));
             tr.setAttribute('data-unit', String(baseTotal));
             tr.setAttribute('data-subtotal-ref', String(baseTotal));
             tr.setAttribute('data-min-valor', String(minValorLine));
@@ -802,7 +831,7 @@ if ($isEdit && !empty($this->quotationItems)) {
                 '<td class="cotizacion-line-desc-cell"><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell"><span class="cotizacion-amt" data-gtq="' + unitPrice + '" data-decimals="4"></span></td>' +
                 '<td class="text-end"><span class="cotizacion-amt line-subtotal-ref-amt" data-gtq="' + baseTotal.toFixed(2) + '" data-decimals="2"></span></td>' +
-                '<td class="text-end align-middle"><span class="small text-muted me-1">Q</span><input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorLine + '" placeholder="' + minValorLine + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
+                '<td class="text-end align-middle"><span class="small text-muted me-1">Q</span><input type="hidden" name="lines[' + lineIndex + '][pre_cotizacion_id]" value="' + escapeAttr(preId) + '"><div class="d-inline-block"><input type="text" inputmode="decimal" name="lines[' + lineIndex + '][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="' + value + '" data-min="' + minValorBase.toFixed(2) + '" placeholder="' + minValorBase.toFixed(2) + '"><div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div></div></td>' +
                 '<td class="align-middle cotizacion-line-images-cell">' +
                 '<input type="hidden" class="line-images-json-input" name="lines[' + lineIndex + '][line_images_json]" value="[]">' +
                 '<input type="file" class="line-image-file-input" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,image/tiff,.tif,.tiff" multiple aria-hidden="true" tabindex="-1" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">' +

@@ -181,17 +181,105 @@ final class ImpuestoImprentaHelper
     }
 
     /**
-     * Match cotización line description and/or linked pre-cotización header description.
+     * Match cotización line description, pre-cotización header, and/or line text (vendor lines, etc.).
      */
-    public static function descriptionMatchesForQuotationLine(string $lineDescription, string $preCotDescription = ''): bool
-    {
+    public static function descriptionMatchesForQuotationLine(
+        string $lineDescription,
+        string $preCotDescription = '',
+        string $preCotLineText = ''
+    ): bool {
         if (self::descriptionMatches($lineDescription)) {
             return true;
         }
 
         $preCotDescription = trim($preCotDescription);
+        if ($preCotDescription !== '' && self::descriptionMatches($preCotDescription)) {
+            return true;
+        }
 
-        return $preCotDescription !== '' && self::descriptionMatches($preCotDescription);
+        $preCotLineText = trim($preCotLineText);
+
+        return $preCotLineText !== '' && self::descriptionMatches($preCotLineText);
+    }
+
+    /**
+     * Concatenated line-level text from a pre-cotización (vendor_descripcion, etc.) for keyword matching.
+     */
+    public static function getPreCotizacionLineMatchingText(int $preCotizacionId, ?DatabaseInterface $db = null): string
+    {
+        if ($preCotizacionId < 1) {
+            return '';
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $cols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_line', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if ($cols === []) {
+                return '';
+            }
+
+            $select = [$db->quoteName('id')];
+            if (isset($cols['vendor_descripcion'])) {
+                $select[] = $db->quoteName('vendor_descripcion');
+            }
+            if (isset($cols['calculation_breakdown'])) {
+                $select[] = $db->quoteName('calculation_breakdown');
+            }
+
+            $query = $db->getQuery(true)
+                ->select($select)
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . (int) $preCotizacionId)
+                ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+            $parts  = [];
+
+            foreach ($rows as $row) {
+                if (isset($row->vendor_descripcion)) {
+                    $vd = trim((string) $row->vendor_descripcion);
+                    if ($vd !== '') {
+                        $parts[] = $vd;
+                    }
+                }
+                if (!empty($row->calculation_breakdown)) {
+                    $breakdown = json_decode((string) $row->calculation_breakdown, true);
+                    if (\is_array($breakdown)) {
+                        foreach ($breakdown as $entry) {
+                            if (!\is_array($entry)) {
+                                continue;
+                            }
+                            foreach (['label', 'detail'] as $key) {
+                                if (!empty($entry[$key])) {
+                                    $parts[] = trim((string) $entry[$key]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return trim(implode(' ', $parts));
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
+     * Minimum valor base for a cotización line (excludes impuesto already baked into total_con_tarjeta).
+     */
+    public static function getMinimumValorBaseForPreCot(int $preCotizacionId, float $minimumValorFinal): float
+    {
+        $minimumValorFinal = round(max(0.0, $minimumValorFinal), 2);
+        $storedImpuesto    = self::getStoredAmount($preCotizacionId);
+
+        if ($storedImpuesto > 0) {
+            return round(max(0.0, $minimumValorFinal - $storedImpuesto), 2);
+        }
+
+        return $minimumValorFinal;
     }
 
     /**
@@ -243,7 +331,8 @@ final class ImpuestoImprentaHelper
         float $lineTotalFinal,
         float $storedImpuesto,
         string $description,
-        string $preCotDescription = ''
+        string $preCotDescription = '',
+        string $preCotLineText = ''
     ): float {
         $lineTotalFinal = round(max(0.0, $lineTotalFinal), 2);
         $storedImpuesto = round(max(0.0, $storedImpuesto), 2);
@@ -253,7 +342,7 @@ final class ImpuestoImprentaHelper
         }
 
         $pct = self::getParamPercent();
-        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription)) {
+        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription, $preCotLineText)) {
             return round($lineTotalFinal / (1.0 + $pct / 100.0), 2);
         }
 
@@ -332,12 +421,13 @@ final class ImpuestoImprentaHelper
     public static function resolveLineValue(
         float $formValor,
         string $description,
-        string $preCotDescription = ''
+        string $preCotDescription = '',
+        string $preCotLineText = ''
     ): array {
         $formValor = round(max(0.0, $formValor), 2);
         $pct       = self::getParamPercent();
 
-        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription)) {
+        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription, $preCotLineText)) {
             $valorBase  = $formValor;
             $impuesto   = round($valorBase * ($pct / 100.0), 2);
             $valorFinal = round($valorBase + $impuesto, 2);
