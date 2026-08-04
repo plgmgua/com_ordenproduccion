@@ -459,27 +459,6 @@ final class ImpuestoImprentaHelper
     }
 
     /**
-     * Base amount for timbre: linked pre-cotización total (not cotización qty-scaled line value).
-     *
-     * @param   array<string, mixed>  $item
-     */
-    public static function getImpuestoBaseForQuotationLine(array $item): float
-    {
-        $preTotal = isset($item['pre_cotizacion_total']) ? (float) $item['pre_cotizacion_total'] : 0.0;
-        if ($preTotal > 0) {
-            return round($preTotal, 2);
-        }
-
-        $lineValue = (float) ($item['valor_base'] ?? $item['subtotal'] ?? $item['valor_final'] ?? 0);
-        $cantidad  = (float) ($item['cantidad'] ?? 0);
-        if ($cantidad > 0.001 && $lineValue > 0) {
-            return round($lineValue / $cantidad, 2);
-        }
-
-        return round(max(0.0, $lineValue), 2);
-    }
-
-    /**
      * Cotización line value is stored as-is; impuesto is a separate quotation_items row.
      *
      * @return  array{valor_base: float, impuesto: float|null, valor_final: float}
@@ -527,10 +506,10 @@ final class ImpuestoImprentaHelper
                 continue;
             }
 
-            $impuestoBase = self::getImpuestoBaseForQuotationLine($item);
-            $lineDesc     = (string) ($item['descripcion'] ?? '');
-            $impuesto     = self::computeImpuestoAmount(
-                $impuestoBase,
+            $lineValue = (float) ($item['valor_base'] ?? $item['subtotal'] ?? 0);
+            $lineDesc  = (string) ($item['descripcion'] ?? '');
+            $impuesto  = self::computeImpuestoAmount(
+                $lineValue,
                 $lineDesc,
                 $preDescMap[$preId] ?? '',
                 $preLineTextMap[$preId] ?? ''

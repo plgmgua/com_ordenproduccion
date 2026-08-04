@@ -499,17 +499,6 @@ if ($isEdit && !empty($this->quotationItems)) {
         return isNaN(n) ? 0 : n;
     }
 
-    function rowImpuestoBase(row) {
-        var preId = parseInt(row.getAttribute('data-pre-id') || '0', 10);
-        if (preId > 0) {
-            var ref = parseFloat(String(row.getAttribute('data-subtotal-ref') || '').trim().replace(',', '.'), 10);
-            if (!isNaN(ref) && ref > 0) {
-                return ref;
-            }
-        }
-        return rowValorBase(row);
-    }
-
     function rowImpuestoAmount(row) {
         if (!(impuestoImprentaPct > 0)) {
             return 0;
@@ -518,7 +507,7 @@ if ($isEdit && !empty($this->quotationItems)) {
         if (!descriptionMatchesImprenta(texts.desc, texts.preDesc, texts.preLineDesc)) {
             return 0;
         }
-        return Math.round(rowImpuestoBase(row) * impuestoImprentaPct / 100 * 100) / 100;
+        return Math.round(rowValorBase(row) * impuestoImprentaPct / 100 * 100) / 100;
     }
 
     function rowValorFinal(row) {

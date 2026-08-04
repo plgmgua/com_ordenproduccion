@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.306-STABLE] - 2026-08-04
+
+### Fixed
+- **Impuesto de imprenta calculation:** Reverted 3.119.305 — timbre % applies to the **cotización line value** (e.g. Q 2,430 × 0.5% = Q 12.15), not the pre-cotización subtotal alone.
+
 ## [3.119.305-STABLE] - 2026-08-04
 
 ### Fixed

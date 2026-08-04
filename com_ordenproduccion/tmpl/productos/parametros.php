@@ -148,7 +148,7 @@ $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this-
                             <div class="form-text">
                                 <?php echo $l(
                                     'COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA_DESC',
-                                    'Applied on cotización save when a line description matches a configured keyword or phrase below. The % is calculated on the linked pre-cotización total and added as a separate cotización line.'
+                                    'Applied on cotización save when a line description matches a configured keyword or phrase below. The % is calculated on the cotización line value and added as a separate line.'
                                 ); ?>
                             </div>
                         </div>
