@@ -421,9 +421,17 @@ final class ImpuestoImprentaHelper
      */
     public static function isImpuestoLineItem($item): bool
     {
-        $desc = \is_array($item)
-            ? (string) ($item['descripcion'] ?? '')
-            : (string) ($item->descripcion ?? '');
+        if (\is_array($item)) {
+            if (!empty($item['is_impuesto_line'])) {
+                return true;
+            }
+            $desc = (string) ($item['descripcion'] ?? '');
+        } else {
+            if (!empty($item->is_impuesto_line)) {
+                return true;
+            }
+            $desc = (string) ($item->descripcion ?? '');
+        }
 
         return self::parseImpuestoLineForPreId($desc) > 0;
     }
@@ -477,22 +485,7 @@ final class ImpuestoImprentaHelper
     public static function getQuotationItemDisplayCodigo($item, ?DatabaseInterface $db = null): string
     {
         if (self::isImpuestoLineItem($item)) {
-            $desc = \is_array($item)
-                ? (string) ($item['descripcion'] ?? '')
-                : (string) ($item->descripcion ?? '');
-            $forPreId = self::parseImpuestoLineForPreId($desc);
-            if ($forPreId < 1) {
-                return '-';
-            }
-
-            $preNum = \is_array($item)
-                ? trim((string) ($item['pre_cotizacion_number'] ?? ''))
-                : trim((string) ($item->pre_cotizacion_number ?? ''));
-            if ($preNum === '') {
-                $preNum = self::getPreCotizacionNumberById($forPreId, $db);
-            }
-
-            return $preNum !== '' ? $preNum : '-';
+            return '-';
         }
 
         $preNum = \is_array($item)
@@ -547,8 +540,10 @@ final class ImpuestoImprentaHelper
                 continue;
             }
             $preNum = $preNumberById[$forPreId] ?? self::getPreCotizacionNumberById($forPreId, $db);
-            $item->pre_cotizacion_number = $preNum;
-            $item->descripcion           = self::getImpuestoLineDisplayLabel($forPreId, $preNum);
+            $item->is_impuesto_line       = true;
+            $item->impuesto_for_pre_id    = $forPreId;
+            $item->pre_cotizacion_number  = $preNum;
+            $item->descripcion            = self::getImpuestoLineDisplayLabel($forPreId, $preNum);
         }
 
         return $items;
