@@ -181,6 +181,86 @@ final class ImpuestoImprentaHelper
     }
 
     /**
+     * Match cotización line description and/or linked pre-cotización header description.
+     */
+    public static function descriptionMatchesForQuotationLine(string $lineDescription, string $preCotDescription = ''): bool
+    {
+        if (self::descriptionMatches($lineDescription)) {
+            return true;
+        }
+
+        $preCotDescription = trim($preCotDescription);
+
+        return $preCotDescription !== '' && self::descriptionMatches($preCotDescription);
+    }
+
+    /**
+     * Pre-cotización header descriptions keyed by id (for cotización save / form display).
+     *
+     * @param   int[]  $preIds
+     *
+     * @return  array<int, string>
+     */
+    public static function getPreCotizacionDescriptionsByIds(array $preIds, ?DatabaseInterface $db = null): array
+    {
+        $ids = [];
+        foreach ($preIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $query = $db->getQuery(true)
+                ->select([$db->quoteName('id'), $db->quoteName('descripcion')])
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' IN (' . implode(',', array_keys($ids)) . ')');
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+            $map  = [];
+
+            foreach ($rows as $row) {
+                $map[(int) $row->id] = trim((string) ($row->descripcion ?? ''));
+            }
+
+            return $map;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Valor base to show in the cotización edit form (input is pre-tax; impuesto is added on save).
+     */
+    public static function extractValorBaseForForm(
+        float $lineTotalFinal,
+        float $storedImpuesto,
+        string $description,
+        string $preCotDescription = ''
+    ): float {
+        $lineTotalFinal = round(max(0.0, $lineTotalFinal), 2);
+        $storedImpuesto = round(max(0.0, $storedImpuesto), 2);
+
+        if ($storedImpuesto > 0) {
+            return round(max(0.0, $lineTotalFinal - $storedImpuesto), 2);
+        }
+
+        $pct = self::getParamPercent();
+        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription)) {
+            return round($lineTotalFinal / (1.0 + $pct / 100.0), 2);
+        }
+
+        return $lineTotalFinal;
+    }
+
+    /**
      * Phrases: case-insensitive substring. Single words: Unicode word boundaries.
      */
     private static function descriptionContainsKeyword(string $description, string $keyword): bool
@@ -242,38 +322,23 @@ final class ImpuestoImprentaHelper
     }
 
     /**
-     * Resolve pre-tax base, impuesto amount, and final line value (idempotent on re-save).
+     * Resolve pre-tax base, impuesto amount, and final line value.
      *
-     * @param   float  $minimumValor  Minimum allowed pre-tax valor final (pre-cot total / TC min).
+     * The cotización form posts `value` as valor base (pre-impuesto). Impuesto is computed here
+     * and added to valor_final on save.
      *
      * @return  array{valor_base: float, impuesto: float|null, valor_final: float}
      */
     public static function resolveLineValue(
         float $formValor,
         string $description,
-        float $previousImpuesto = 0.0,
-        float $minimumValor = 0.0
+        string $preCotDescription = ''
     ): array {
-        $formValor        = round(max(0.0, $formValor), 2);
-        $previousImpuesto = round(max(0.0, $previousImpuesto), 2);
-        $minimumValor     = round(max(0.0, $minimumValor), 2);
-        $valorBase        = $formValor;
-        $pct              = self::getParamPercent();
+        $formValor = round(max(0.0, $formValor), 2);
+        $pct       = self::getParamPercent();
 
-        if ($previousImpuesto > 0 && $formValor >= $previousImpuesto) {
-            $valorBase = round($formValor - $previousImpuesto, 2);
-        } elseif (
-            $previousImpuesto <= 0
-            && $pct > 0
-            && $minimumValor > 0
-            && self::descriptionMatches($description)
-            && self::formValorLooksTaxInclusive($formValor, $pct, $minimumValor)
-        ) {
-            // Recovery when tax was applied to the cotización but not stored on pre-cot (missing column).
-            $valorBase = round($formValor / (1.0 + $pct / 100.0), 2);
-        }
-
-        if ($pct > 0 && self::descriptionMatches($description)) {
+        if ($pct > 0 && self::descriptionMatchesForQuotationLine($description, $preCotDescription)) {
+            $valorBase  = $formValor;
             $impuesto   = round($valorBase * ($pct / 100.0), 2);
             $valorFinal = round($valorBase + $impuesto, 2);
 
@@ -285,31 +350,10 @@ final class ImpuestoImprentaHelper
         }
 
         return [
-            'valor_base'  => $valorBase,
+            'valor_base'  => $formValor,
             'impuesto'    => null,
-            'valor_final' => $valorBase,
+            'valor_final' => $formValor,
         ];
-    }
-
-    /**
-     * True when form value is higher than min×(1+%) and equals base+tax for that %.
-     */
-    private static function formValorLooksTaxInclusive(float $formValor, float $pct, float $minimumValor): bool
-    {
-        if ($pct <= 0 || $formValor <= 0 || $minimumValor <= 0) {
-            return false;
-        }
-
-        $minWithTax = round($minimumValor * (1.0 + $pct / 100.0), 2);
-        if ($formValor <= $minWithTax + 0.005) {
-            return false;
-        }
-
-        $base    = round($formValor / (1.0 + $pct / 100.0), 2);
-        $tax     = round($base * ($pct / 100.0), 2);
-        $rebuilt = round($base + $tax, 2);
-
-        return $base + 0.001 >= $minimumValor && abs($rebuilt - $formValor) <= 0.02;
     }
 
     /**

@@ -12,6 +12,7 @@ defined('_JEXEC') or die;
 use Joomla\CMS\Language\Text;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionCurrencyHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\Uri\Uri;
 use Joomla\CMS\Factory;
@@ -36,6 +37,19 @@ $cotizacionExchangeRate = $isEdit ? CotizacionCurrencyHelper::getExchangeRate($t
 $cotizacionExchangeRateDate = $isEdit ? CotizacionCurrencyHelper::getExchangeRateDate($this->quotation) : '';
 $cotizacionCurrencyCanUsd = $isEdit && CotizacionCurrencyHelper::canDisplayUsd($this->quotation);
 $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float) $this->quotation->total_amount : 0.0;
+$impuestoImprentaPct = ImpuestoImprentaHelper::getParamPercent();
+$impuestoImprentaKeywords = ImpuestoImprentaHelper::getConfiguredKeywords();
+$precotDescByIdForRows = [];
+if ($isEdit && !empty($this->quotationItems)) {
+    $preIdsForDesc = [];
+    foreach ($this->quotationItems as $qiDesc) {
+        $pidDesc = isset($qiDesc->pre_cotizacion_id) ? (int) $qiDesc->pre_cotizacion_id : 0;
+        if ($pidDesc > 0) {
+            $preIdsForDesc[] = $pidDesc;
+        }
+    }
+    $precotDescByIdForRows = ImpuestoImprentaHelper::getPreCotizacionDescriptionsByIds($preIdsForDesc);
+}
 ?>
 <div class="cotizacion-container">
     <div class="cotizacion-header">
@@ -305,6 +319,14 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
                             $valorFinal = ($storedVf < $minValor - 0.005) ? $minValor : $storedVf;
                         }
                         $lineTotal = $valorFinal;
+                        $preCotDescForRow = ($preId > 0 && isset($precotDescByIdForRows[$preId])) ? $precotDescByIdForRows[$preId] : '';
+                        $storedImpuesto = $preId > 0 ? ImpuestoImprentaHelper::getStoredAmount($preId) : 0.0;
+                        $valorBaseForInput = ImpuestoImprentaHelper::extractValorBaseForForm(
+                            $lineTotal,
+                            $storedImpuesto,
+                            $desc,
+                            $preCotDescForRow
+                        );
                         $unitPriceDisplay = $qty > 0 ? ($lineTotal / $qty) : 0;
                         $desc = isset($item->descripcion) ? $item->descripcion : '';
                         $lineImagesJsonForRow = '[]';
@@ -312,7 +334,7 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
                             $lineImagesJsonForRow = (string) $item->line_images_json;
                         }
                     ?>
-                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
+                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-pre-desc="<?php echo htmlspecialchars($preCotDescForRow, ENT_QUOTES, 'UTF-8'); ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
                         <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end<?php echo $preId > 0 ? ' readonly-prepop bg-light' : ''; ?>" min="0" step="1" value="<?php echo $qty; ?>"<?php echo $preId > 0 ? ' readonly tabindex="-1"' : ''; ?>></td>
                         <td class="cotizacion-line-desc-cell"><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
@@ -323,7 +345,7 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
                                 <span class="small text-muted me-1">Q</span>
                                 <input type="hidden" name="lines[<?php echo $lineIndex; ?>][pre_cotizacion_id]" value="<?php echo $preId; ?>">
                                 <div class="d-inline-block ms-1">
-                                    <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($lineTotal, 2, '.', ''); ?>" data-min="<?php echo number_format($minValor, 2, '.', ''); ?>" placeholder="<?php echo number_format($minValor, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
+                                    <input type="text" inputmode="decimal" name="lines[<?php echo $lineIndex; ?>][value]" class="line-value-input form-control form-control-sm text-end" style="width:90px;" value="<?php echo number_format($valorBaseForInput, 2, '.', ''); ?>" data-min="<?php echo number_format($minValor, 2, '.', ''); ?>" placeholder="<?php echo number_format($minValor, 2, '.', ''); ?>" title="<?php echo $l('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_HINT', 'Must be at least the subtotal', 'Debe ser al menos el subtotal'); ?>">
                                     <div class="line-valor-final-error small text-danger mt-1" role="alert" style="display:none;"></div>
                                 </div>
                             </div>
@@ -346,6 +368,14 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
+                    <tr id="quotationImpuestoImprentaRow" class="d-none">
+                        <td colspan="5" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta'); ?>:</td>
+                        <td class="text-end">
+                            <span class="cotizacion-amt" id="quotationImpuestoImprentaDisplay" data-gtq="0.00" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount(0, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span>
+                        </td>
+                        <td></td>
+                        <td></td>
+                    </tr>
                     <tr>
                         <td colspan="5" class="text-end fw-bold"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>
                         <td class="text-end">
@@ -417,6 +447,68 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
 
     // Pre-cotización descriptions from server (reliable for long/special chars), fallback to data-descripcion
     var precotizacionDescriptions = <?php echo json_encode($precotizacionDescriptions ?? []); ?>;
+    var impuestoImprentaPct = <?php echo json_encode($impuestoImprentaPct); ?>;
+    var impuestoImprentaKeywords = <?php echo json_encode($impuestoImprentaKeywords); ?>;
+
+    function descriptionContainsImprentaKeyword(description, keyword) {
+        keyword = String(keyword || '').trim();
+        if (!keyword) {
+            return false;
+        }
+        description = String(description || '');
+        if (/\s/.test(keyword)) {
+            return description.toLowerCase().indexOf(keyword.toLowerCase()) !== -1;
+        }
+        var escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        try {
+            return new RegExp('(?<![\\p{L}\\p{N}_])' + escaped + '(?![\\p{L}\\p{N}_])', 'iu').test(description);
+        } catch (e) {
+            return description.toLowerCase().indexOf(keyword.toLowerCase()) !== -1;
+        }
+    }
+
+    function descriptionMatchesImprenta(desc, preDesc) {
+        desc = String(desc || '').trim();
+        preDesc = String(preDesc || '').trim();
+        for (var ki = 0; ki < impuestoImprentaKeywords.length; ki++) {
+            var kw = impuestoImprentaKeywords[ki];
+            if (descriptionContainsImprentaKeyword(desc, kw) || (preDesc && descriptionContainsImprentaKeyword(preDesc, kw))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function rowDescriptions(row) {
+        var descElRow = row.querySelector('textarea.cotizacion-line-descripcion-input');
+        var desc = descElRow ? String(descElRow.value || '').trim() : '';
+        var preDesc = row.getAttribute('data-pre-desc') || '';
+        return { desc: desc, preDesc: preDesc };
+    }
+
+    function rowValorBase(row) {
+        var v = row.querySelector('input[name*="[value]"]');
+        if (!v) {
+            return 0;
+        }
+        var n = parseFloat(String(v.value).trim().replace(',', '.'), 10);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function rowImpuestoAmount(row) {
+        if (!(impuestoImprentaPct > 0)) {
+            return 0;
+        }
+        var texts = rowDescriptions(row);
+        if (!descriptionMatchesImprenta(texts.desc, texts.preDesc)) {
+            return 0;
+        }
+        return Math.round(rowValorBase(row) * impuestoImprentaPct / 100 * 100) / 100;
+    }
+
+    function rowValorFinal(row) {
+        return Math.round((rowValorBase(row) + rowImpuestoAmount(row)) * 100) / 100;
+    }
 
     function deriveDescFromPrecotOption(opt) {
         if (!opt || !opt.value) {
@@ -519,13 +611,24 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
 
     function updateTotal() {
         var total = 0;
+        var totalImpuesto = 0;
         tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
-            var v = tr.querySelector('input[name*="[value]"]');
-            if (v) {
-                var n = parseFloat(String(v.value).trim().replace(',', '.'), 10);
-                total += isNaN(n) ? 0 : n;
-            }
+            total += rowValorFinal(tr);
+            totalImpuesto += rowImpuestoAmount(tr);
         });
+        totalImpuesto = Math.round(totalImpuesto * 100) / 100;
+        total = Math.round(total * 100) / 100;
+        var impRow = document.getElementById('quotationImpuestoImprentaRow');
+        var impDisplay = document.getElementById('quotationImpuestoImprentaDisplay');
+        if (impRow && impDisplay) {
+            if (totalImpuesto > 0.004) {
+                impRow.classList.remove('d-none');
+                impDisplay.setAttribute('data-gtq', totalImpuesto.toFixed(2));
+            } else {
+                impRow.classList.add('d-none');
+                impDisplay.setAttribute('data-gtq', '0.00');
+            }
+        }
         var totalInp = document.getElementById('totalAmount');
         var totalDisplay = document.getElementById('totalAmountDisplay');
         if (totalInp) totalInp.value = total.toFixed(2);
@@ -533,18 +636,18 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
             totalDisplay.setAttribute('data-gtq', total.toFixed(2));
             if (window.CotizacionCurrency) window.CotizacionCurrency.refresh();
         }
+        if (impDisplay && window.CotizacionCurrency) {
+            window.CotizacionCurrency.refresh();
+        }
     }
 
     function updateUnitPriceDisplay(row) {
         var qtyInp = row.querySelector('input[name*="[cantidad]"]');
-        var valueInp = row.querySelector('input[name*="[value]"]');
         var amtEl = row.querySelector('.line-precio-unidad-cell .cotizacion-amt');
-        if (!amtEl || !qtyInp || !valueInp) return;
+        if (!amtEl || !qtyInp) return;
         var q = parseFloat(String(qtyInp.value).trim().replace(',', '.'), 10);
         if (isNaN(q) || q < 0) q = 0;
-        var raw = String(valueInp.value).trim().replace(',', '.');
-        var sub = parseFloat(raw, 10);
-        if (isNaN(sub)) sub = 0;
+        var sub = rowValorFinal(row);
         var unit = q > 0 ? (sub / q) : 0;
         amtEl.setAttribute('data-gtq', unit.toFixed(4));
         if (window.CotizacionCurrency) window.CotizacionCurrency.refresh();
@@ -682,11 +785,13 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
             var minValorLine = (tcRaw !== null && tcRaw !== '' && !isNaN(parseFloat(tcRaw))) ? parseFloat(tcRaw) : baseTotal;
             var number = opt.getAttribute('data-number') || ('PRE-' + preId);
             var value = minValorLine.toFixed(2);
+            var preDescForRow = deriveDescFromPrecotOption(opt);
             var qtyForNewRow = qtyFromAttrs;
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
             tr.setAttribute('data-pre-id', preId);
+            tr.setAttribute('data-pre-desc', preDescForRow);
             tr.setAttribute('data-unit', String(baseTotal));
             tr.setAttribute('data-subtotal-ref', String(baseTotal));
             tr.setAttribute('data-min-valor', String(minValorLine));
@@ -720,6 +825,13 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
             if (valueInput) {
                 valueInput.addEventListener('input', function() { onValorFinalChange(tr); });
                 valueInput.addEventListener('blur', function() { onValorFinalBlur(tr); });
+            }
+            var descInput = tr.querySelector('textarea.cotizacion-line-descripcion-input');
+            if (descInput) {
+                descInput.addEventListener('input', function() {
+                    updateUnitPriceDisplay(tr);
+                    updateTotal();
+                });
             }
             if (qtyInput && qtyForNewRow > 0) {
                 onRowCantidadChange(tr);
@@ -761,6 +873,13 @@ $editTotalAmountGtq = $isEdit && isset($this->quotation->total_amount) ? (float)
         if (valueInp) {
             valueInp.addEventListener('input', function() { onValorFinalChange(tr); });
             valueInp.addEventListener('blur', function() { onValorFinalBlur(tr); });
+        }
+        var descInp = tr.querySelector('textarea.cotizacion-line-descripcion-input');
+        if (descInp) {
+            descInp.addEventListener('input', function() {
+                updateUnitPriceDisplay(tr);
+                updateTotal();
+            });
         }
     });
     updateTotal();

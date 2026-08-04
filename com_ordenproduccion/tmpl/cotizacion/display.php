@@ -21,6 +21,7 @@ use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationLineImagesHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -48,6 +49,14 @@ $withdrawApprovalPostUrl = Route::_('index.php?option=com_ordenproduccion&task=c
 $uploadOrdenCompraPostUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.uploadOrdenCompraFacturacion', false);
 
 $totalAmount = isset($quotation->total_amount) ? (float) $quotation->total_amount : 0;
+$quotationImpuestoImprentaTotal = 0.0;
+foreach ($items as $impItem) {
+    $impPreId = isset($impItem->pre_cotizacion_id) ? (int) $impItem->pre_cotizacion_id : 0;
+    if ($impPreId > 0) {
+        $quotationImpuestoImprentaTotal += ImpuestoImprentaHelper::getStoredAmount($impPreId);
+    }
+}
+$quotationImpuestoImprentaTotal = round($quotationImpuestoImprentaTotal, 2);
 $currency = $quotation->currency ?? 'Q';
 $cotizacionExchangeRate = CotizacionCurrencyHelper::getExchangeRate($quotation);
 $cotizacionExchangeRateDate = CotizacionCurrencyHelper::getExchangeRateDate($quotation);
@@ -694,6 +703,22 @@ if (\is_array($manualFelSeedFromInvoice) && trim((string) ($manualFelSeedFromInv
                     <?php endforeach; ?>
                 </tbody>
                 <tfoot>
+                    <?php if ($quotationImpuestoImprentaTotal > 0.005) : ?>
+                    <tr>
+                        <?php if ($quotationConfirmed) : ?>
+                        <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta'); ?>:</td>
+                        <td class="text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($quotationImpuestoImprentaTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($quotationImpuestoImprentaTotal, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <?php else : ?>
+                        <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA', 'Impuesto de imprenta', 'Impuesto de imprenta'); ?>:</td>
+                        <td class="text-end"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($quotationImpuestoImprentaTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($quotationImpuestoImprentaTotal, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
+                        <td></td>
+                        <td></td>
+                        <?php endif; ?>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="table-secondary fw-bold">
                         <?php if ($quotationConfirmed) : ?>
                         <td colspan="4" class="text-end"><?php echo $l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total'); ?>:</td>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.300-STABLE] - 2026-08-04
+
+### Fixed
+- **Impuesto de imprenta (cotización):** Value field is treated as pre-tax base; impuesto is recalculated correctly on manual price edits and synced to pre-cotización. Matching also checks linked pre-cotización description. Cotización edit form and read-only view show a separate **Impuesto de imprenta** footer row when applicable.
+
 ## [3.119.299-STABLE] - 2026-08-03
 
 ### Fixed

@@ -341,6 +341,7 @@ class AjaxController extends BaseController
             $lines = QuotationLineImagesHelper::mergeLineImagesJsonFromRequest($lines);
             $items = $input->get('items', [], 'array');
             $qtyResolvedByPre = [];
+            $preIdsForQuote = [];
 
             // Validate required fields
             if (empty($clientName) || empty($clientNit) || empty($quoteDate)) {
@@ -359,7 +360,6 @@ class AjaxController extends BaseController
                     echo json_encode(['success' => false, 'message' => 'Add at least one Pre-Cotización line']);
                     exit;
                 }
-                $preIdsForQuote = [];
                 foreach ($lines as $line) {
                     if (!empty($line['pre_cotizacion_id'])) {
                         $preIdsForQuote[] = (int) $line['pre_cotizacion_id'];
@@ -385,6 +385,8 @@ class AjaxController extends BaseController
 
                 $qtyResolvedByPre = $precotModel->getQuotationLineCantidadesByPreIds(array_keys($uniqPreQty));
             }
+
+            $preDescMap = ImpuestoImprentaHelper::getPreCotizacionDescriptionsByIds($preIdsForQuote, $db);
 
             // Generate autonumeric quotation number
             $query = $db->getQuery(true)
@@ -414,8 +416,8 @@ class AjaxController extends BaseController
                         $lineDesc = $desc !== '' ? $desc : 'PRE-' . $preId;
                         $baseTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
                         $minTotal = $precotModel ? (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId) : $baseTotal;
-                        $prevImpuesto = ImpuestoImprentaHelper::getStoredAmount($preId, $db);
-                        $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto, $minTotal);
+                        $preCotDesc = $preDescMap[$preId] ?? '';
+                        $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $preCotDesc);
                         $valorBase = (float) $resolved['valor_base'];
                         $value = (float) $resolved['valor_final'];
                         if ($valorBase < $minTotal) {
@@ -686,6 +688,7 @@ class AjaxController extends BaseController
         }
 
         $qtyResolvedByPre = $precotModel->getQuotationLineCantidadesByPreIds(array_keys($uniqPreQtyUpd));
+        $preDescMap = ImpuestoImprentaHelper::getPreCotizacionDescriptionsByIds($preIdsForQuote, $db);
         $lineItems = [];
         $totalAmount = 0;
 
@@ -709,8 +712,8 @@ class AjaxController extends BaseController
                     $baseTotal = (float) $precotModel->getTotalForPreCotizacion($preId);
                     $minTotal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId);
                 }
-                $prevImpuesto = $preId > 0 ? ImpuestoImprentaHelper::getStoredAmount($preId, $db) : 0.0;
-                $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $prevImpuesto, $minTotal);
+                $preCotDesc = $preId > 0 ? ($preDescMap[$preId] ?? '') : '';
+                $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $preCotDesc);
                 $valorBase = (float) $resolved['valor_base'];
                 $value = (float) $resolved['valor_final'];
                 if ($preId > 0 && $precotModel) {
