@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.310-STABLE] - 2026-08-04
+
+### Changed
+- **Cotización display:** Only Timbre de Prensa (impuesto) lines omit the Pre-cotización link in the first column; product lines keep the PRE link as before.
+
 ## [3.119.309-STABLE] - 2026-08-04
 
 ### Changed
