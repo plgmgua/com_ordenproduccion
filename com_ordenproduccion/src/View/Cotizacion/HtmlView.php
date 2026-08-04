@@ -426,9 +426,11 @@ class HtmlView extends BaseHtmlView
                         if (ImpuestoImprentaHelper::isImpuestoLineItem($item)) {
                             $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($item->descripcion ?? ''));
                             if ($forPreId > 0) {
-                                $item->impuesto_for_pre_id = $forPreId;
+                                $item->is_impuesto_line       = true;
+                                $item->impuesto_for_pre_id    = $forPreId;
                                 $item->pre_cotizacion_number = $preNumberById[$forPreId] ?? ImpuestoImprentaHelper::getPreCotizacionNumberById($forPreId, $db);
                             }
+                            continue;
                         }
                         $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
                         $num = isset($item->pre_cotizacion_number) ? trim((string) $item->pre_cotizacion_number) : '';
@@ -445,6 +447,9 @@ class HtmlView extends BaseHtmlView
                     }
                     $preIdsDistinct = [];
                     foreach ($this->quotationItems as $qi) {
+                        if (!ImpuestoImprentaHelper::isOrdenTrabajoEligibleQuotationItem($qi)) {
+                            continue;
+                        }
                         $pid = isset($qi->pre_cotizacion_id) ? (int) $qi->pre_cotizacion_id : 0;
                         if ($pid > 0) {
                             $preIdsDistinct[$pid] = true;
@@ -510,6 +515,9 @@ class HtmlView extends BaseHtmlView
                         $this->pliegoSizesModal = $productosModel->getSizesWithNonZeroPrintPrice();
                         $this->elementosModal = $productosModel->elementosTableExists() ? $productosModel->getElementos() : [];
                         foreach ($this->quotationItems as $item) {
+                            if (!ImpuestoImprentaHelper::isOrdenTrabajoEligibleQuotationItem($item)) {
+                                continue;
+                            }
                             $preId = isset($item->pre_cotizacion_id) ? (int) $item->pre_cotizacion_id : 0;
                             if ($preId < 1) {
                                 continue;

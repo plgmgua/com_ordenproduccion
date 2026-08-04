@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService;
 use Joomla\CMS\Component\ComponentHelper;
@@ -678,6 +679,10 @@ class PrecotizacionModel extends ListModel
             ->where($db->quoteName('qi.quotation_id') . ' = ' . $quotationId)
             ->where($db->quoteName('qi.pre_cotizacion_id') . ' IS NOT NULL')
             ->where($db->quoteName('qi.pre_cotizacion_id') . ' > 0')
+            ->where(
+                $db->quoteName('qi.descripcion') . ' NOT LIKE '
+                . $db->quote(ImpuestoImprentaHelper::LINE_DESC_PREFIX . '%')
+            )
             ->setLimit(1);
         $db->setQuery($query);
 

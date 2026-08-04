@@ -16,6 +16,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\User\User;
 use Joomla\Database\DatabaseInterface;
 use Grimpsa\Component\Ordenproduccion\Administrator\Model\SettingsModel;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\PrecotizacionModel;
 
 /**
@@ -141,8 +142,8 @@ class OrdenFromQuotationService
         }
 
         $itemRow = $this->loadQuotationItemForPre($quotationId, $preCotizacionId);
-        if ($itemRow === null) {
-            return ['success' => false, 'message' => 'No quotation line for this pre-cotización'];
+        if ($itemRow === null || !ImpuestoImprentaHelper::isOrdenTrabajoEligibleQuotationItem($itemRow)) {
+            return ['success' => false, 'message' => 'No product quotation line for this pre-cotización'];
         }
 
         /** @var PrecotizacionModel $preModel */
@@ -556,11 +557,21 @@ class OrdenFromQuotationService
             ->select('*')
             ->from($this->db->quoteName('#__ordenproduccion_quotation_items'))
             ->where($this->db->quoteName('quotation_id') . ' = ' . $quotationId)
-            ->where($this->db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId);
+            ->where($this->db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+            ->where(
+                $this->db->quoteName('descripcion') . ' NOT LIKE '
+                . $this->db->quote(ImpuestoImprentaHelper::LINE_DESC_PREFIX . '%')
+            )
+            ->order($this->db->quoteName('line_order') . ' ASC, ' . $this->db->quoteName('id') . ' ASC');
 
-        $this->db->setQuery($q);
+        $this->db->setQuery($q, 0, 1);
 
-        return $this->db->loadObject() ?: null;
+        $row = $this->db->loadObject();
+        if ($row !== null && ImpuestoImprentaHelper::isOrdenTrabajoEligibleQuotationItem($row)) {
+            return $row;
+        }
+
+        return null;
     }
 
     protected function loadLatestConfirmation(int $quotationId, int $preCotizacionId): ?object

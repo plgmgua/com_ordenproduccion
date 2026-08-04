@@ -437,6 +437,75 @@ final class ImpuestoImprentaHelper
     }
 
     /**
+     * Timbre de prensa / impuesto cotización lines must not create work orders.
+     *
+     * @param   object|array<string, mixed>  $item
+     */
+    public static function isOrdenTrabajoEligibleQuotationItem($item): bool
+    {
+        return !self::isImpuestoLineItem($item);
+    }
+
+    /**
+     * Pre-cotización ids linked by product lines only (excludes impuesto marker rows).
+     *
+     * @return  int[]
+     */
+    public static function getOrdenTrabajoEligiblePreCotizacionIds(int $quotationId, ?DatabaseInterface $db = null): array
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return [];
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+            $qiCols = \is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+            if (!isset($qiCols['pre_cotizacion_id'])) {
+                return [];
+            }
+
+            $query = $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
+                ->where($db->quoteName('pre_cotizacion_id') . ' IS NOT NULL')
+                ->where($db->quoteName('pre_cotizacion_id') . ' > 0');
+            $db->setQuery($query);
+            $rows = $db->loadObjectList() ?: [];
+            $ids  = [];
+
+            foreach ($rows as $row) {
+                if (!self::isOrdenTrabajoEligibleQuotationItem($row)) {
+                    continue;
+                }
+                $pid = (int) ($row->pre_cotizacion_id ?? 0);
+                if ($pid > 0) {
+                    $ids[$pid] = true;
+                }
+            }
+
+            return array_keys($ids);
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    public static function isPreCotizacionEligibleForOrdenTrabajo(int $quotationId, int $preCotizacionId, ?DatabaseInterface $db = null): bool
+    {
+        $preCotizacionId = (int) $preCotizacionId;
+        if ($quotationId < 1 || $preCotizacionId < 1) {
+            return false;
+        }
+
+        $eligible = self::getOrdenTrabajoEligiblePreCotizacionIds($quotationId, $db);
+
+        return \in_array($preCotizacionId, $eligible, true);
+    }
+
+    /**
      * Human-readable label for display (cotización view / edit preview).
      */
     public static function getImpuestoLineDisplayLabel(int $forPreCotizacionId, string $preNumber = ''): string

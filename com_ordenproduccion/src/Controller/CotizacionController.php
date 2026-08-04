@@ -3292,6 +3292,13 @@ class CotizacionController extends BaseController
             return ['success' => false, 'message' => Text::_('JERROR_ALERTNOAUTHOR')];
         }
 
+        if (!ImpuestoImprentaHelper::isPreCotizacionEligibleForOrdenTrabajo($quotationId, $preCotizacionId, $db)) {
+            return [
+                'success' => false,
+                'message' => Text::_('COM_ORDENPRODUCCION_OT_NOT_FOR_IMPRENTA_LINE'),
+            ];
+        }
+
         if ($existing && isset($existing->id)) {
             $existingId = (int) $existing->id;
             $redirect   = $this->buildOrdenWizardRedirectUrl($db, $quotationId, $existingId);
@@ -3776,7 +3783,11 @@ class CotizacionController extends BaseController
                 ->update($db->quoteName('#__ordenproduccion_quotation_items'))
                 ->set($db->quoteName('orden_de_trabajo') . ' = ' . $db->quote($label))
                 ->where($db->quoteName('quotation_id') . ' = ' . $quotationId)
-                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId);
+                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preCotizacionId)
+                ->where(
+                    $db->quoteName('descripcion') . ' NOT LIKE '
+                    . $db->quote(ImpuestoImprentaHelper::LINE_DESC_PREFIX . '%')
+                );
 
             if (isset($qiCols['modified'])) {
                 $q->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()));
@@ -4115,6 +4126,10 @@ class CotizacionController extends BaseController
                 )
                 ->where($db->quoteName('qi.quotation_id') . ' = ' . $quotationId)
                 ->where($db->quoteName('qi.pre_cotizacion_id') . ' IS NOT NULL')
+                ->where(
+                    $db->quoteName('qi.descripcion') . ' NOT LIKE '
+                    . $db->quote(ImpuestoImprentaHelper::LINE_DESC_PREFIX . '%')
+                )
                 ->where($db->quoteName('o.id') . ' IS NULL')
                 ->group($db->quoteName('qi.pre_cotizacion_id'));
             $db->setQuery($q);

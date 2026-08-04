@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.312-STABLE] - 2026-08-04
+
+### Changed
+- **Cotización / OT:** Timbre de Prensa (impuesto de imprenta) lines never generate orden de trabajo — no OT button on display, backend rejects impuesto-only lines, and OT sync skips impuesto rows.
+
 ## [3.119.311-STABLE] - 2026-08-04
 
 ### Changed

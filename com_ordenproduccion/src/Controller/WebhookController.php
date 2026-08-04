@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Controller;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Controller\BaseController;
@@ -784,6 +785,8 @@ class WebhookController extends BaseController
                 ->innerJoin(
                     $qiTable . ' ON ' . $db->quoteName('qi.quotation_id') . ' = ' . $db->quoteName('q.id')
                     . ' AND ' . $db->quoteName('qi.pre_cotizacion_id') . ' IS NOT NULL'
+                    . ' AND ' . $db->quoteName('qi.descripcion') . ' NOT LIKE '
+                    . $db->quote(ImpuestoImprentaHelper::LINE_DESC_PREFIX . '%')
                 )
                 ->innerJoin(
                     $pcTable . ' ON ' . $db->quoteName('pc.id') . ' = ' . $db->quoteName('qi.pre_cotizacion_id')
