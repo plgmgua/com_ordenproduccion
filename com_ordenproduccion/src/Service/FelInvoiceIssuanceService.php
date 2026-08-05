@@ -372,6 +372,9 @@ class FelInvoiceIssuanceService
     {
         $sum = 0.0;
         foreach ($this->getInvoicesByQuotationId($quotationId) as $inv) {
+            if (InvoiceListHelper::isInvoiceCancelled($inv)) {
+                continue;
+            }
             if ((string) ($inv->fel_issue_status ?? '') !== 'completed') {
                 continue;
             }
@@ -666,6 +669,9 @@ class FelInvoiceIssuanceService
     public function hasCompletedInvoiceForQuotation(int $quotationId): bool
     {
         foreach ($this->getInvoicesByQuotationId($quotationId) as $inv) {
+            if (InvoiceListHelper::isInvoiceCancelled($inv)) {
+                continue;
+            }
             if ((string) ($inv->fel_issue_status ?? '') === 'completed') {
                 return true;
             }

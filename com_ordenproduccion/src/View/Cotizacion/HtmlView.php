@@ -22,6 +22,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\ApprovalWorkflowEntityHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\BlinkGatewayConfigHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel;
@@ -382,7 +383,11 @@ class HtmlView extends BaseHtmlView
                     $felSvc = new FelInvoiceIssuanceService();
                     $this->felEngineAvailable = $felSvc->isEngineAvailable() && $felSvc->hasQuotationIdColumn();
                     if ($this->felEngineAvailable) {
-                        $this->felInvoicesForQuotation = $felSvc->getInvoicesByQuotationId($quotationId);
+                        $allFelInvoices = $felSvc->getInvoicesByQuotationId($quotationId);
+                        $this->felInvoicesForQuotation = array_values(array_filter(
+                            $allFelInvoices,
+                            static fn ($inv) => !InvoiceListHelper::isInvoiceCancelled($inv)
+                        ));
                         $this->felInvoiceForQuotation = $this->felInvoicesForQuotation !== []
                             ? $this->felInvoicesForQuotation[0]
                             : null;

@@ -181,13 +181,21 @@ class InvoiceListHelper
     }
 
     /**
+     * In-app void (Administración → Anular factura); does not void with SAT.
+     */
+    public static function isInvoiceCancelled(object $invoice): bool
+    {
+        return isset($invoice->status) && strtolower((string) $invoice->status) === 'cancelled';
+    }
+
+    /**
      * Language key for Facturas lista / export: valid | fel_prueba (cotización prod counts as valid).
      *
      * @return  string  Joomla .ini key
      */
     public static function getInvoiceTipoLabelKey(object $invoice): string
     {
-        if (isset($invoice->status) && strtolower((string) $invoice->status) === 'cancelled') {
+        if (self::isInvoiceCancelled($invoice)) {
             return 'COM_ORDENPRODUCCION_INVOICE_TIPO_ANULADA';
         }
 

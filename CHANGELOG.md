@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.316-STABLE] - 2026-08-05
+
+### Fixed
+- **Cotización → Factura relacionada:** Hide system-voided (Anulada) invoices from the related-invoice list and exclude them from completed invoiced totals.
+
 ## [3.119.315-STABLE] - 2026-08-05
 
 ### Added
