@@ -481,7 +481,7 @@ class HtmlView extends BaseHtmlView
                         foreach ($this->quotationItems as $qiPreset) {
                             $t = $felPresetSvc->getLineTotalsForFelRow($qiPreset);
                             $this->manualFelLinePresets[] = [
-                                'descripcion'       => (string) ($qiPreset->descripcion ?? ''),
+                                'descripcion'       => ImpuestoImprentaHelper::getQuotationItemDisplayDescription($qiPreset, $db),
                                 'cantidad'          => (float) $t['qty'],
                                 'precio_unitario'   => (float) $t['unit_price'],
                                 'quotation_id'      => (int) $quotationId,

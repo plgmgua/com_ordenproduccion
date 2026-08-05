@@ -3278,6 +3278,13 @@ class FelInvoiceIssuanceService
                 continue;
             }
             $desc = trim((string) ($line['descripcion'] ?? $line['description'] ?? ''));
+            $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId($desc);
+            if ($forPreId > 0) {
+                $desc = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel(
+                    $forPreId,
+                    ImpuestoImprentaHelper::getPreCotizacionNumberById($forPreId, $this->db)
+                );
+            }
             $qty  = (float) ($line['cantidad'] ?? $line['qty'] ?? $line['quantity'] ?? 0);
             $unit = (float) ($line['precio_unitario'] ?? $line['valor_unitario'] ?? $line['unit_price'] ?? $line['price'] ?? 0);
             $sub  = (float) ($line['subtotal'] ?? $line['line_total'] ?? $line['total'] ?? 0);

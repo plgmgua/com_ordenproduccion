@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.314-STABLE] - 2026-08-05
+
+### Fixed
+- **Factura manual:** Timbre de Prensa lines show the configured impuesto label and PRE reference instead of raw `IMPUESTO_IMPRENTA:{id}` in the modal and when duplicating from an existing invoice.
+
 ## [3.119.313-STABLE] - 2026-08-04
 
 ### Added
