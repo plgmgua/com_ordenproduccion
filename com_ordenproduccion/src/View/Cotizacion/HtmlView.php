@@ -485,6 +485,7 @@ class HtmlView extends BaseHtmlView
                                 'cantidad'          => (float) $t['qty'],
                                 'precio_unitario'   => (float) $t['unit_price'],
                                 'quotation_id'      => (int) $quotationId,
+                                'item_type'         => FelInvoiceIssuanceService::normalizeDigifactItemType('Bien'),
                             ];
                         }
                         $this->manualFelOtherQuotations = $this->buildQuotationsForManualFelModal($db, $this->quotation);

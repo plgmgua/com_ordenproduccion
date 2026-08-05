@@ -11,7 +11,7 @@
  * @var bool $manualFelBillingIsCf
  * @var string $manualBuyerNameInitial
  * @var string $manualBuyerNitInitial
- * @var array<int, array{descripcion: string, cantidad: float, precio_unitario: float}> $manualFelLinePresets
+ * @var array<int, array{descripcion: string, cantidad: float, precio_unitario: float, item_type?: string}> $manualFelLinePresets
  * @var array<int, array{id: int, label: string, valor: float}> $manualFelOrdensForClient
  * @var array<int, array{id: int, label: string, total: float, quote_date: string}> $manualFelOtherQuotations
  * @var string $manualFelLinesUrl
@@ -180,6 +180,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                         <thead class="table-light">
                             <tr>
                                 <th style="width:6rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_QUOTATION_TH_CANT', 'Qty', 'Cant.')); ?></th>
+                                <th style="width:7rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_ITEM_TYPE', 'Type', 'Tipo')); ?></th>
                                 <th style="width: auto;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_ITEM_DESCRIPTION', 'Description', 'Descripción')); ?></th>
                                 <th style="width:8rem;"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_UNIT_PRICE', 'Unit price', 'Precio unit.')); ?></th>
                                 <th style="width:8rem;" class="text-end"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_LINE_TOTAL', 'Subtotal', 'Subtotal')); ?></th>
@@ -188,16 +189,23 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                         </thead>
                         <tbody id="manual-fel-lines-tbody">
                             <?php if ($manualFelLinePresets === []) :
-                                $manualFelLinePresets = [['descripcion' => '', 'cantidad' => 1.0, 'precio_unitario' => 0.0]];
+                                $manualFelLinePresets = [['descripcion' => '', 'cantidad' => 1.0, 'precio_unitario' => 0.0, 'item_type' => 'Bien']];
                             endif;
                             foreach ($manualFelLinePresets as $idx => $preset) :
                                 $pq = (float) ($preset['cantidad'] ?? 1);
                                 $pu = (float) ($preset['precio_unitario'] ?? 0);
                                 $ps = round($pq * $pu, 2);
                                 $presetQid = (int) ($preset['quotation_id'] ?? ($quotationId ?? 0));
+                                $itemType = \Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService::normalizeDigifactItemType((string) ($preset['item_type'] ?? 'Bien'));
                                 ?>
                             <tr class="manual-fel-line-row" data-quotation-id="<?php echo $presetQid; ?>" data-gtq-unit="<?php echo htmlspecialchars(number_format($pu, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-gtq-subtotal="<?php echo htmlspecialchars(number_format($ps, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
                                 <td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="<?php echo htmlspecialchars((string) $pq, ENT_QUOTES, 'UTF-8'); ?>" /></td>
+                                <td>
+                                    <select class="form-select form-select-sm manual-fel-item-type">
+                                        <option value="Bien"<?php echo $itemType === 'Bien' ? ' selected' : ''; ?>><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_ITEM_TYPE_BIEN', 'Good', 'Bien')); ?></option>
+                                        <option value="Servicio"<?php echo $itemType === 'Servicio' ? ' selected' : ''; ?>><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_ITEM_TYPE_SERVICIO', 'Service', 'Servicio')); ?></option>
+                                    </select>
+                                </td>
                                 <td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="<?php echo htmlspecialchars((string) ($preset['descripcion'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="<?php echo htmlspecialchars((string) $pu, ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="<?php echo htmlspecialchars(number_format($ps, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_SUBTOTAL_HINT', 'Edit subtotal; unit price is calculated from quantity.', 'Edite el subtotal; el precio unitario se calcula según la cantidad.'), ENT_QUOTES, 'UTF-8'); ?>" /></td>
@@ -209,7 +217,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                         </tbody>
                         <tfoot class="table-light">
                             <tr>
-                                <td colspan="3" class="text-end fw-semibold"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total')); ?></td>
+                                <td colspan="4" class="text-end fw-semibold"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total')); ?></td>
                                 <td class="text-end fw-semibold text-nowrap">
                                     <span id="manual-fel-total-currency">GTQ</span>
                                     <span id="manual-fel-invoice-total"><?php echo htmlspecialchars(number_format($manualFelLinesInitialTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></span>
@@ -218,7 +226,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                             </tr>
                             <?php if ($manualFelQuotationTotalGtq > 0 && !$manualFelInvoiceDuplicateMode) : ?>
                             <tr id="manual-fel-quotation-total-row" class="small">
-                                <td colspan="3" class="text-end text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_QUOTATION_TOTAL_REF', 'Quotation total (reference)', 'Total cotización (referencia)')); ?></td>
+                                <td colspan="4" class="text-end text-muted"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_QUOTATION_TOTAL_REF', 'Quotation total (reference)', 'Total cotización (referencia)')); ?></td>
                                 <td class="text-end text-muted text-nowrap">
                                     <span id="manual-fel-quotation-total-currency">GTQ</span>
                                     <span id="manual-fel-quotation-total-ref"><?php echo htmlspecialchars(number_format($manualFelQuotationTotalGtq, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></span>
@@ -342,8 +350,21 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     var msgExchangeRateLoading = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_LOADING', 'Loading exchange rate…', 'Cargando tipo de cambio…'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgExchangeRateManualHint = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_MANUAL_HINT', 'BANGUAT lookup failed — enter the reference rate manually (see banguat.gob.gt/tipo_cambio).', 'No se pudo consultar BANGUAT — ingrese el tipo de cambio de referencia manualmente (ver banguat.gob.gt/tipo_cambio).'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var msgExchangeRateHelp = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXCHANGE_RATE_HELP', 'Auto-filled from BANGUAT for the issue date; you may enter it manually if the lookup fails.', 'Se completa automáticamente desde BANGUAT según la fecha de emisión; puede ingresarlo manualmente si la consulta falla.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-    var exchangeRateLoaded = false;
+    var lblItemTypeBien = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_ITEM_TYPE_BIEN', 'Good', 'Bien'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var lblItemTypeServicio = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_ITEM_TYPE_SERVICIO', 'Service', 'Servicio'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    function normalizeItemType(v) {
+        var s = String(v || '').toLowerCase();
+        return (s === 'servicio' || s === 's') ? 'Servicio' : 'Bien';
+    }
+    function itemTypeSelectHtml(selected) {
+        var t = normalizeItemType(selected);
+        return '<select class="form-select form-select-sm manual-fel-item-type">'
+            + '<option value="Bien"' + (t === 'Bien' ? ' selected' : '') + '>' + lblItemTypeBien + '</option>'
+            + '<option value="Servicio"' + (t === 'Servicio' ? ' selected' : '') + '>' + lblItemTypeServicio + '</option>'
+            + '</select>';
+    }
     var exchangeRateLoading = false;
+    var exchangeRateLoaded = false;
     if (!modalEl || !generarBtn || !tbody) return;
 
     function showModal() {
@@ -767,6 +788,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         var pu = preset && preset.precio_unitario != null ? preset.precio_unitario : 0;
         var ps = Math.round(parseFloat(pq) * parseFloat(pu) * 100) / 100;
         var desc = preset && preset.descripcion != null ? String(preset.descripcion) : '';
+        var itemType = normalizeItemType(preset && preset.item_type != null ? preset.item_type : 'Bien');
         var presetCur = String(lineCurrency || 'GTQ').toUpperCase();
         var rate = getExchangeRateValue();
         var gtqUnit = round4(parseFloat(pu));
@@ -787,6 +809,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             displaySub = gtqSub;
         }
         tr.innerHTML = '<td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="' + pq + '" /></td>'
+            + '<td>' + itemTypeSelectHtml(itemType) + '</td>'
             + '<td class="p-1"><input type="text" class="form-control form-control-sm manual-fel-desc w-100" style="width: 100%; min-width: 0;" value="' + desc.replace(/"/g, '&quot;') + '" /></td>'
             + '<td><input type="number" class="form-control form-control-sm manual-fel-unit text-end" step="0.0001" min="0" value="' + displayUnit.toFixed(4) + '" /></td>'
             + '<td><input type="number" class="form-control form-control-sm manual-fel-subtotal text-end" step="0.01" min="0" value="' + displaySub.toFixed(2) + '" /></td>'
@@ -832,7 +855,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     }
 
     function addEmptyRow() {
-        addLineFromPreset({ descripcion: '', cantidad: 1, precio_unitario: 0 }, qid);
+        addLineFromPreset({ descripcion: '', cantidad: 1, precio_unitario: 0, item_type: 'Bien' }, qid);
     }
     if (addLineBtn) {
         addLineBtn.addEventListener('click', addEmptyRow);
@@ -1004,6 +1027,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             var qty = tr.querySelector('.manual-fel-qty');
             var unit = tr.querySelector('.manual-fel-unit');
             var sub = tr.querySelector('.manual-fel-subtotal');
+            var typeSel = tr.querySelector('.manual-fel-item-type');
             var d = desc ? String(desc.value || '').trim() : '';
             var q = qty ? parseNum(qty.value) : 0;
             var subVal = sub ? parseNum(sub.value) : 0;
@@ -1015,7 +1039,13 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 return;
             }
             var lineQid = parseInt(tr.getAttribute('data-quotation-id') || String(qid), 10) || qid;
-            rows.push({ descripcion: d, cantidad: q, precio_unitario: u, quotation_id: lineQid });
+            rows.push({
+                descripcion: d,
+                cantidad: q,
+                precio_unitario: u,
+                quotation_id: lineQid,
+                item_type: typeSel ? normalizeItemType(typeSel.value) : 'Bien'
+            });
         });
         return rows;
     }

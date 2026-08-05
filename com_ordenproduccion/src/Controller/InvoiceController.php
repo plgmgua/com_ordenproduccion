@@ -1171,23 +1171,8 @@ class InvoiceController extends BaseController
             $app->close();
         }
 
-        $manualLines = [];
-        foreach ($linesDec as $line) {
-            if (!\is_array($line)) {
-                continue;
-            }
-            $desc = trim((string) ($line['descripcion'] ?? ''));
-            $qty  = (float) ($line['cantidad'] ?? 0);
-            $unit = (float) ($line['precio_unitario'] ?? 0);
-            if ($desc === '' || $qty < 0.000001 || $unit < 0) {
-                continue;
-            }
-            $manualLines[] = [
-                'descripcion'     => $desc,
-                'cantidad'        => $qty,
-                'precio_unitario' => $unit,
-            ];
-        }
+        $felParse = new FelInvoiceIssuanceService();
+        $manualLines = $felParse->parseManualFelLinesFromDecoded($linesDec);
         if ($manualLines === []) {
             echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')], JSON_UNESCAPED_UNICODE);
             $app->close();

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.315-STABLE] - 2026-08-05
+
+### Added
+- **Factura manual:** Per-line **Bien / Servicio** selector; sent to Digifact NUC as `Items[].Type` (`Bien` or `Servicio`).
+
 ## [3.119.314-STABLE] - 2026-08-05
 
 ### Fixed

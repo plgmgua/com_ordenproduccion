@@ -62,6 +62,53 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Digifact NUC Items[].Type — literal "Bien" or "Servicio" (SAT B/S).
+     */
+    public static function normalizeDigifactItemType(?string $raw): string
+    {
+        $v = strtolower(trim((string) $raw));
+        if ($v === 'servicio' || $v === 's') {
+            return 'Servicio';
+        }
+
+        return 'Bien';
+    }
+
+    /**
+     * @param   array<int, array<string, mixed>>  $linesDec  Decoded manual_lines_json
+     *
+     * @return  list<array{descripcion: string, cantidad: float, precio_unitario: float, quotation_id?: int, item_type: string}>
+     */
+    public function parseManualFelLinesFromDecoded(array $linesDec, int $defaultQuotationId = 0): array
+    {
+        $manualLines = [];
+        foreach ($linesDec as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $desc = trim((string) ($line['descripcion'] ?? ''));
+            $qty  = (float) ($line['cantidad'] ?? 0);
+            $unit = (float) ($line['precio_unitario'] ?? 0);
+            if ($desc === '' || $qty < 0.000001 || $unit < 0) {
+                continue;
+            }
+            $itemTypeRaw = (string) ($line['item_type'] ?? $line['type'] ?? $line['bien_servicio'] ?? '');
+            $parsed = [
+                'descripcion'       => $desc,
+                'cantidad'          => $qty,
+                'precio_unitario'   => $unit,
+                'item_type'         => self::normalizeDigifactItemType($itemTypeRaw),
+            ];
+            if ($defaultQuotationId > 0) {
+                $parsed['quotation_id'] = (int) ($line['quotation_id'] ?? $defaultQuotationId);
+            }
+            $manualLines[] = $parsed;
+        }
+
+        return $manualLines;
+    }
+
+    /**
      * Active certifier environment from site config (test = prueba, prod = producción).
      *
      * @return  string  test|prod
@@ -534,6 +581,7 @@ class FelInvoiceIssuanceService
                 'cantidad'          => (float) $t['qty'],
                 'precio_unitario'   => (float) $t['unit_price'],
                 'quotation_id'      => $quotationId,
+                'item_type'         => self::normalizeDigifactItemType((string) ($row->item_type ?? 'Bien')),
             ];
         }
 
@@ -2280,10 +2328,12 @@ class FelInvoiceIssuanceService
                 $desc = 'Item';
             }
 
+            $itemType = self::normalizeDigifactItemType((string) ($row->item_type ?? 'Bien'));
+
             $items[] = [
                 'Number'         => (string) $lineNum,
                 'Codes'          => null,
-                'Type'           => 'Bien',
+                'Type'           => $itemType,
                 'Description'    => $desc,
                 'Qty'            => sprintf('%.6f', $r['qty']),
                 'UnitOfMeasure'  => 'UNI',
@@ -2527,6 +2577,7 @@ class FelInvoiceIssuanceService
             $row->cantidad        = $qty;
             $row->valor_unitario  = $unit;
             $row->subtotal        = round($qty * $unit, 2);
+            $row->item_type       = self::normalizeDigifactItemType((string) ($line['item_type'] ?? 'Bien'));
             $lineRows[]           = $row;
         }
 
@@ -2699,6 +2750,7 @@ class FelInvoiceIssuanceService
                 'precio_unitario'   => $unit,
                 'subtotal'          => $sub,
                 'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
+                'item_type'         => self::normalizeDigifactItemType((string) ($line['item_type'] ?? 'Bien')),
             ];
         }
 
@@ -3299,6 +3351,7 @@ class FelInvoiceIssuanceService
                 'cantidad'          => $qty,
                 'precio_unitario'   => $unit,
                 'quotation_id'      => (int) ($line['quotation_id'] ?? $quotationId),
+                'item_type'         => self::normalizeDigifactItemType((string) ($line['item_type'] ?? $line['type'] ?? $line['bien_servicio'] ?? 'Bien')),
             ];
         }
 
@@ -3661,6 +3714,7 @@ class FelInvoiceIssuanceService
                 'descripcion'     => $desc,
                 'precio_unitario' => $unit,
                 'subtotal'        => $sub,
+                'item_type'       => self::normalizeDigifactItemType((string) ($line['item_type'] ?? 'Bien')),
             ];
         }
 
