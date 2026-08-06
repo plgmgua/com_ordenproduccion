@@ -68,6 +68,9 @@ $laminationTypeIdsBySizeTiro = $this->pliegoLaminationTypeIdsBySizeTiro ?? [];
 $laminationTypeIdsBySizeRetiro = $this->pliegoLaminationTypeIdsBySizeRetiro ?? [];
 $pliegoBarnizBySizeTiro = $this->pliegoBarnizBySizeTiro ?? [];
 $pliegoBarnizBySizeRetiro = $this->pliegoBarnizBySizeRetiro ?? [];
+$pliegoSheetProcesses = $this->pliegoSheetProcesses ?? [];
+$pliegoSheetProcessAvailability = $this->pliegoSheetProcessAvailability ?? [];
+$pliegoSheetProcessFormFields = $this->pliegoSheetProcessFormFields ?? [];
 $laminationTypes = $this->pliegoLaminationTypes ?? [];
 $processes = $this->pliegoProcesses ?? [];
 $tablesExist = $this->pliegoTablesExist ?? false;
@@ -709,6 +712,7 @@ $solicitarDescuentoAction   = Route::_(
                             'lamination_type_id' => $line->lamination_type_id ? (int) $line->lamination_type_id : null,
                             'lamination_tiro_retiro' => $line->lamination_tiro_retiro ?? 'tiro',
                             'barniz_tiro_retiro' => !empty($line->barniz_tiro_retiro) ? (string) $line->barniz_tiro_retiro : null,
+                            'sheet_process_2_tiro_retiro' => !empty($line->sheet_process_2_tiro_retiro) ? (string) $line->sheet_process_2_tiro_retiro : null,
                             'process_ids' => $line->process_ids_array ?? [],
                             'price_per_sheet' => (float) $line->price_per_sheet,
                             'total' => (float) $line->total,
@@ -1466,20 +1470,44 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
                         </div>
                     </div>
 
-                    <div class="row mb-2">
+                    <?php if (!empty($pliegoSheetProcesses)) : ?>
+                    <?php foreach ($pliegoSheetProcesses as $sheetProc) :
+                        $sheetSlug = (string) ($sheetProc->slug ?? '');
+                        if ($sheetSlug === '') {
+                            continue;
+                        }
+                        $sheetFields = $pliegoSheetProcessFormFields[$sheetSlug] ?? \Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel::getPliegoSheetProcessFormFields($sheetSlug);
+                        if (!$sheetFields) {
+                            continue;
+                        }
+                        $sheetLabel = trim((string) ($sheetProc->name ?? ''));
+                        if ($sheetLabel === '') {
+                            $sheetLabel = $sheetSlug === 'barniz'
+                                ? Text::_('COM_ORDENPRODUCCION_QUOTE_NEEDS_BARNIZ')
+                                : Text::_('COM_ORDENPRODUCCION_SHEET_PROCESS_DEFAULT_NAME');
+                        }
+                        $needsField = $sheetFields['needs'];
+                        $retiroField = $sheetFields['tiro_retiro'];
+                        $needsDomId = 'pliego_modal_needs_' . preg_replace('/[^a-z0-9_]/', '', $sheetSlug);
+                        $retiroDomId = 'pliego_modal_' . preg_replace('/[^a-z0-9_]/', '', $sheetSlug) . '_retiro';
+                        $wrapDomId = 'pliego_modal_' . preg_replace('/[^a-z0-9_]/', '', $sheetSlug) . '_wrap';
+                    ?>
+                    <div class="row mb-2 pliego-sheet-process-row" data-sheet-process-slug="<?php echo htmlspecialchars($sheetSlug, ENT_QUOTES, 'UTF-8'); ?>">
                         <div class="col-md-6">
                             <div class="form-check">
-                                <input type="checkbox" id="pliego_modal_needs_barniz" name="needs_barniz" value="1" class="form-check-input">
-                                <label class="form-check-label" for="pliego_modal_needs_barniz"><?php echo Text::_('COM_ORDENPRODUCCION_QUOTE_NEEDS_BARNIZ'); ?></label>
+                                <input type="checkbox" id="<?php echo htmlspecialchars($needsDomId, ENT_QUOTES, 'UTF-8'); ?>" name="<?php echo htmlspecialchars($needsField, ENT_QUOTES, 'UTF-8'); ?>" value="1" class="form-check-input pliego-sheet-process-needs">
+                                <label class="form-check-label" for="<?php echo htmlspecialchars($needsDomId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($sheetLabel, ENT_QUOTES, 'UTF-8'); ?></label>
                             </div>
                         </div>
-                        <div class="col-md-6" id="pliego_modal_barniz_wrap" style="display:none;">
+                        <div class="col-md-6 pliego-sheet-process-retiro-wrap" id="<?php echo htmlspecialchars($wrapDomId, ENT_QUOTES, 'UTF-8'); ?>" style="display:none;">
                             <div class="form-check mt-1">
-                                <input type="checkbox" id="pliego_modal_barniz_retiro" name="barniz_tiro_retiro" value="retiro" class="form-check-input">
-                                <label class="form-check-label" for="pliego_modal_barniz_retiro"><?php echo Text::_('COM_ORDENPRODUCCION_BARNIZ_TIRO_RETIRO'); ?></label>
+                                <input type="checkbox" id="<?php echo htmlspecialchars($retiroDomId, ENT_QUOTES, 'UTF-8'); ?>" name="<?php echo htmlspecialchars($retiroField, ENT_QUOTES, 'UTF-8'); ?>" value="retiro" class="form-check-input pliego-sheet-process-retiro">
+                                <label class="form-check-label" for="<?php echo htmlspecialchars($retiroDomId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_SHEET_PROCESS_TIRO_RETIRO'); ?></label>
                             </div>
                         </div>
                     </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
 
                     <?php if (!empty($processes)) : ?>
                     <div class="mb-2">
@@ -1936,8 +1964,12 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
     var sizeIdsByPaperType = <?php echo json_encode($sizeIdsByPaperType); ?>;
     var laminationTypeIdsBySizeTiro = <?php echo json_encode($laminationTypeIdsBySizeTiro); ?>;
     var laminationTypeIdsBySizeRetiro = <?php echo json_encode($laminationTypeIdsBySizeRetiro); ?>;
-    var pliegoBarnizBySizeTiro = <?php echo json_encode($pliegoBarnizBySizeTiro); ?>;
-    var pliegoBarnizBySizeRetiro = <?php echo json_encode($pliegoBarnizBySizeRetiro); ?>;
+    var pliegoSheetProcessAvailability = <?php echo json_encode($pliegoSheetProcessAvailability); ?>;
+    var pliegoSheetProcessFormFields = <?php echo json_encode($pliegoSheetProcessFormFields); ?>;
+    var pliegoSheetProcessLineColumns = <?php echo json_encode([
+        'barniz' => 'barniz_tiro_retiro',
+        'sheet_process_2' => 'sheet_process_2_tiro_retiro',
+    ]); ?>;
     var addLineBtnLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_ADD_LINE_BTN')); ?>;
     var saveLineBtnLabel = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_SAVE_LINE_BTN')); ?>;
     var modalTitleNew = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_NUEVA_COTIZACION_PLIEGO_TITLE')); ?>;
@@ -1952,9 +1984,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
     var laminationRetiro = document.getElementById('pliego_modal_lamination_retiro');
     var laminationType = document.getElementById('pliego_modal_lamination_type');
     var laminationWrap = document.getElementById('pliego_modal_lamination_wrap');
-    var barniz = document.getElementById('pliego_modal_needs_barniz');
-    var barnizRetiro = document.getElementById('pliego_modal_barniz_retiro');
-    var barnizWrap = document.getElementById('pliego_modal_barniz_wrap');
+    var sheetProcessRows = document.querySelectorAll('.pliego-sheet-process-row');
     var submitBtn = document.getElementById('pliego_modal_submit_btn');
     var lineIdInput = document.getElementById('pliego_modal_line_id');
     var calcDetail = document.getElementById('pliego_modal_calc_detail');
@@ -2018,9 +2048,70 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
             if (show && opt.value === currentVal) ; else if (currentVal && !show) size.value = '';
         }
         filterLaminationBySize();
-        filterBarnizBySize();
+        filterSheetProcessesBySize();
     }
     if (paper) paper.addEventListener('change', filterSizeDropdown);
+
+    function getSheetProcessRowElements(row) {
+        return {
+            slug: row.getAttribute('data-sheet-process-slug') || '',
+            needs: row.querySelector('.pliego-sheet-process-needs'),
+            retiro: row.querySelector('.pliego-sheet-process-retiro'),
+            wrap: row.querySelector('.pliego-sheet-process-retiro-wrap')
+        };
+    }
+
+    function sheetProcessMapHasSize(map, sizeId) {
+        if (!sizeId || !map) {
+            return false;
+        }
+        return !!(map[sizeId] || map[String(sizeId)]);
+    }
+
+    function updateSheetProcessVisibility(rowEl) {
+        var parts = getSheetProcessRowElements(rowEl);
+        if (parts.wrap) {
+            parts.wrap.style.display = parts.needs && parts.needs.checked ? 'block' : 'none';
+        }
+    }
+
+    sheetProcessRows.forEach(function(rowEl) {
+        var parts = getSheetProcessRowElements(rowEl);
+        if (parts.needs) {
+            parts.needs.addEventListener('change', function() {
+                updateSheetProcessVisibility(rowEl);
+                recalc();
+            });
+        }
+        if (parts.retiro) {
+            parts.retiro.addEventListener('change', function() {
+                filterSheetProcessesBySize();
+                recalc();
+            });
+        }
+    });
+
+    function filterSheetProcessesBySize() {
+        var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
+        sheetProcessRows.forEach(function(rowEl) {
+            var parts = getSheetProcessRowElements(rowEl);
+            var slug = parts.slug;
+            var availability = pliegoSheetProcessAvailability[slug] || { tiro: {}, retiro: {} };
+            var hasTiro = sheetProcessMapHasSize(availability.tiro, sizeId);
+            var hasRetiro = sheetProcessMapHasSize(availability.retiro, sizeId);
+            var useRetiro = parts.retiro && parts.retiro.checked;
+            var hasPrice = useRetiro ? hasRetiro : hasTiro;
+            if (parts.needs) {
+                parts.needs.disabled = !(hasTiro || hasRetiro);
+                if (!hasPrice && parts.needs.checked) {
+                    parts.needs.checked = false;
+                    if (parts.retiro) parts.retiro.checked = false;
+                }
+            }
+            updateSheetProcessVisibility(rowEl);
+        });
+        recalc();
+    }
 
     function filterLaminationBySize() {
         var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
@@ -2046,37 +2137,22 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
         laminationWrap.style.display = lamination && lamination.checked ? 'block' : 'none';
     }
     if (lamination) lamination.addEventListener('change', updateLaminationVisibility);
-    if (size) size.addEventListener('change', function() { filterLaminationBySize(); filterBarnizBySize(); });
+    if (size) size.addEventListener('change', function() { filterLaminationBySize(); filterSheetProcessesBySize(); });
     if (laminationRetiro) laminationRetiro.addEventListener('change', function() { filterLaminationBySize(); recalc(); });
 
-    function updateBarnizVisibility() {
-        if (barnizWrap) barnizWrap.style.display = barniz && barniz.checked ? 'block' : 'none';
-    }
-    if (barniz) barniz.addEventListener('change', updateBarnizVisibility);
-    if (barnizRetiro) barnizRetiro.addEventListener('change', function() { filterBarnizBySize(); recalc(); });
-
-    function barnizMapHasSize(map, sizeId) {
-        if (!sizeId || !map) {
-            return false;
-        }
-        return !!(map[sizeId] || map[String(sizeId)]);
-    }
-
-    function filterBarnizBySize() {
-        var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
-        var barnRetiro = barnizRetiro && barnizRetiro.checked;
-        var hasTiro = barnizMapHasSize(pliegoBarnizBySizeTiro, sizeId);
-        var hasRetiro = barnizMapHasSize(pliegoBarnizBySizeRetiro, sizeId);
-        var hasPrice = barnRetiro ? hasRetiro : hasTiro;
-        if (barniz) {
-            barniz.disabled = !(hasTiro || hasRetiro);
-            if (!hasPrice && barniz.checked) {
-                barniz.checked = false;
-                if (barnizRetiro) barnizRetiro.checked = false;
-                if (barnizWrap) barnizWrap.style.display = 'none';
+    function appendSheetProcessParams(url) {
+        sheetProcessRows.forEach(function(rowEl) {
+            var parts = getSheetProcessRowElements(rowEl);
+            var fields = pliegoSheetProcessFormFields[parts.slug];
+            if (!fields || !fields.needs || !fields.tiro_retiro) {
+                return;
             }
-        }
-        recalc();
+            var enabled = parts.needs && parts.needs.checked ? '1' : '0';
+            var tiroRetiroVal = (parts.retiro && parts.retiro.checked) ? 'retiro' : 'tiro';
+            url += '&' + encodeURIComponent(fields.needs) + '=' + encodeURIComponent(enabled);
+            url += '&' + encodeURIComponent(fields.tiro_retiro) + '=' + encodeURIComponent(tiroRetiroVal);
+        });
+        return url;
     }
 
     function recalc() {
@@ -2094,12 +2170,11 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
         var tiroRetiro = (retiro && retiro.checked) ? 'retiro' : 'tiro';
         var lamTiroRetiro = (laminationRetiro && laminationRetiro.checked) ? 'retiro' : 'tiro';
         var lamId = (lamination && lamination.checked && laminationType && laminationType.value) ? laminationType.value : '';
-        var needsBarniz = barniz && barniz.checked ? '1' : '0';
-        var barnTiroRetiro = (barnizRetiro && barnizRetiro.checked) ? 'retiro' : 'tiro';
         var processIds = [];
         document.querySelectorAll('.pliego-modal-process-cb:checked').forEach(function(cb) { processIds.push(cb.value); });
 
-        var url = baseUrl + '&' + token + '=1&quantity=' + encodeURIComponent(quantity) + '&paper_type_id=' + encodeURIComponent(paperId) + '&size_id=' + encodeURIComponent(sizeId) + '&tiro_retiro=' + encodeURIComponent(tiroRetiro) + '&lamination_tiro_retiro=' + encodeURIComponent(lamTiroRetiro) + '&lamination_type_id=' + encodeURIComponent(lamId) + '&needs_barniz=' + encodeURIComponent(needsBarniz) + '&barniz_tiro_retiro=' + encodeURIComponent(barnTiroRetiro);
+        var url = baseUrl + '&' + token + '=1&quantity=' + encodeURIComponent(quantity) + '&paper_type_id=' + encodeURIComponent(paperId) + '&size_id=' + encodeURIComponent(sizeId) + '&tiro_retiro=' + encodeURIComponent(tiroRetiro) + '&lamination_tiro_retiro=' + encodeURIComponent(lamTiroRetiro) + '&lamination_type_id=' + encodeURIComponent(lamId);
+        url = appendSheetProcessParams(url);
         processIds.forEach(function(id) { url += '&process_ids[]=' + encodeURIComponent(id); });
 
         fetch(url)
@@ -2128,7 +2203,13 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
             });
     }
 
-    [qty, paper, size, retiro, lamination, laminationType, laminationRetiro, barniz, barnizRetiro].forEach(function(el) {
+    var sheetProcessChangeEls = [qty, paper, size, retiro, lamination, laminationType, laminationRetiro];
+    sheetProcessRows.forEach(function(rowEl) {
+        var parts = getSheetProcessRowElements(rowEl);
+        if (parts.needs) sheetProcessChangeEls.push(parts.needs);
+        if (parts.retiro) sheetProcessChangeEls.push(parts.retiro);
+    });
+    sheetProcessChangeEls.forEach(function(el) {
         if (el) el.addEventListener('change', recalc);
     });
     if (qty) qty.addEventListener('input', recalc);
@@ -2169,8 +2250,12 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
         if (lamination) { lamination.checked = false; }
         if (laminationType) laminationType.value = '';
         if (laminationRetiro) laminationRetiro.checked = false;
-        if (barniz) { barniz.checked = false; barniz.disabled = false; }
-        if (barnizRetiro) barnizRetiro.checked = false;
+        sheetProcessRows.forEach(function(rowEl) {
+            var parts = getSheetProcessRowElements(rowEl);
+            if (parts.needs) { parts.needs.checked = false; parts.needs.disabled = false; }
+            if (parts.retiro) parts.retiro.checked = false;
+            updateSheetProcessVisibility(rowEl);
+        });
         document.querySelectorAll('.pliego-modal-process-cb').forEach(function(cb) { cb.checked = false; });
         lastCalc = null;
         if (calcDetail) calcDetail.style.display = 'none';
@@ -2179,9 +2264,8 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
         updatePliegoSubmitEnabled();
         filterSizeDropdown();
         filterLaminationBySize();
-        filterBarnizBySize();
+        filterSheetProcessesBySize();
         updateLaminationVisibility();
-        updateBarnizVisibility();
     }
 
     var nuevaLineaBtn = document.querySelector('[data-bs-target="#pliegoLineModal"]');
@@ -2192,9 +2276,8 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
         pliegoModal.addEventListener('shown.bs.modal', function() {
             filterSizeDropdown();
             filterLaminationBySize();
-            filterBarnizBySize();
+            filterSheetProcessesBySize();
             updateLaminationVisibility();
-            updateBarnizVisibility();
         });
     }
 
@@ -2218,8 +2301,14 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
         if (lamination) lamination.checked = !!(line.lamination_type_id);
         if (laminationType) laminationType.value = (line.lamination_type_id || '').toString();
         if (laminationRetiro) laminationRetiro.checked = (line.lamination_tiro_retiro || '') === 'retiro';
-        if (barniz) barniz.checked = !!(line.barniz_tiro_retiro);
-        if (barnizRetiro) barnizRetiro.checked = (line.barniz_tiro_retiro || '') === 'retiro';
+        sheetProcessRows.forEach(function(rowEl) {
+            var parts = getSheetProcessRowElements(rowEl);
+            var column = pliegoSheetProcessLineColumns[parts.slug];
+            var selected = column && line[column] ? String(line[column]) : '';
+            if (parts.needs) parts.needs.checked = selected === 'tiro' || selected === 'retiro';
+            if (parts.retiro) parts.retiro.checked = selected === 'retiro';
+            updateSheetProcessVisibility(rowEl);
+        });
         var procIds = (line.process_ids || []).map(function(x) { return parseInt(x, 10); });
         document.querySelectorAll('.pliego-modal-process-cb').forEach(function(cb) {
             cb.checked = procIds.indexOf(parseInt(cb.value, 10)) !== -1;
@@ -2238,9 +2327,8 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
         updatePliegoSubmitEnabled();
         filterSizeDropdown();
         filterLaminationBySize();
-        filterBarnizBySize();
+        filterSheetProcessesBySize();
         updateLaminationVisibility();
-        updateBarnizVisibility();
         if (pliegoModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
             var modal = bootstrap.Modal.getOrCreateInstance(pliegoModal);
             modal.show();

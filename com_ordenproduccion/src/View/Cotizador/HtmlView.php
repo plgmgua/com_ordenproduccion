@@ -347,6 +347,19 @@ class HtmlView extends BaseHtmlView
         $barnizAvailability = $productosModel->getBarnizAvailabilityBySize();
         $this->pliegoBarnizBySizeTiro = $barnizAvailability['tiro'] ?? [];
         $this->pliegoBarnizBySizeRetiro = $barnizAvailability['retiro'] ?? [];
+        $this->pliegoSheetProcesses = $productosModel->getPliegoSheetProcesses();
+        $this->pliegoSheetProcessAvailability = $productosModel->getAllSheetProcessAvailabilityBySize();
+        $this->pliegoSheetProcessFormFields = [];
+        foreach ($this->pliegoSheetProcesses as $proc) {
+            $slug = (string) ($proc->slug ?? '');
+            if ($slug === '') {
+                continue;
+            }
+            $fields = \Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel::getPliegoSheetProcessFormFields($slug);
+            if ($fields) {
+                $this->pliegoSheetProcessFormFields[$slug] = $fields;
+            }
+        }
         $this->pliegoProcesses = $productosModel->getProcesses();
         $this->pliegoTablesExist = $productosModel->tablesExist();
 

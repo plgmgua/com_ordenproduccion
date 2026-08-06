@@ -14,7 +14,7 @@ defined('_JEXEC') or die;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\ImprentaParametrosHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionHelper;
-use Grimpsa\Component\Ordenproduccion\Site\Model\OrdencompraModel;
+use Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailBccHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\MailSendHelper;
@@ -59,6 +59,37 @@ class PrecotizacionController extends BaseController
         $tag = strtolower($lang->getTag());
 
         return str_starts_with($tag, 'es') ? $fallbackEs : $fallbackEn;
+    }
+
+    /**
+     * Parse pliego sheet process selections from pre-cotización line form input.
+     *
+     * @param   \Joomla\CMS\Input\Input  $input  Request input
+     *
+     * @return  array<string, string|null>
+     *
+     * @since   3.119.317
+     */
+    private function getPliegoSheetProcessLineDataFromInput($input): array
+    {
+        $out = [];
+        foreach (['barniz', 'sheet_process_2'] as $slug) {
+            $fields = ProductosModel::getPliegoSheetProcessFormFields($slug);
+            if (!$fields) {
+                continue;
+            }
+            $column = ProductosModel::getPliegoSheetProcessLineColumn($slug);
+            if (!$column) {
+                continue;
+            }
+            if ($input->getBool($fields['needs'], false)) {
+                $out[$column] = $input->get($fields['tiro_retiro'], 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro';
+            } else {
+                $out[$column] = null;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -453,7 +484,7 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        $data = [
+        $data = array_merge([
             'tipo_elemento'          => $tipoElemento,
             'quantity'               => (int) $app->input->get('quantity', 1),
             'paper_type_id'          => (int) $app->input->get('paper_type_id', 0),
@@ -461,14 +492,11 @@ class PrecotizacionController extends BaseController
             'tiro_retiro'            => $app->input->get('tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
             'lamination_type_id'     => (int) $app->input->get('lamination_type_id', 0) ?: null,
             'lamination_tiro_retiro' => $app->input->get('lamination_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
-            'barniz_tiro_retiro'     => $app->input->getBool('needs_barniz', false)
-                ? ($app->input->get('barniz_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro')
-                : null,
             'process_ids'            => $app->input->get('process_ids', [], 'array'),
             'price_per_sheet'        => (float) $app->input->get('price_per_sheet', 0),
             'total'                  => (float) $app->input->get('total', 0),
             'calculation_breakdown'  => $breakdown,
-        ];
+        ], $this->getPliegoSheetProcessLineDataFromInput($app->input));
 
         $model = $this->getModel('Precotizacion', 'Site');
         $lineId = $model->addLine($preCotizacionId, $data);
@@ -558,7 +586,7 @@ class PrecotizacionController extends BaseController
             return false;
         }
 
-        $data = [
+        $data = array_merge([
             'tipo_elemento'          => $tipoElemento,
             'quantity'               => (int) $app->input->get('quantity', 1),
             'paper_type_id'          => (int) $app->input->get('paper_type_id', 0),
@@ -566,14 +594,11 @@ class PrecotizacionController extends BaseController
             'tiro_retiro'            => $app->input->get('tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
             'lamination_type_id'     => (int) $app->input->get('lamination_type_id', 0) ?: null,
             'lamination_tiro_retiro' => $app->input->get('lamination_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro',
-            'barniz_tiro_retiro'     => $app->input->getBool('needs_barniz', false)
-                ? ($app->input->get('barniz_tiro_retiro', 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro')
-                : null,
             'process_ids'            => $app->input->get('process_ids', [], 'array'),
             'price_per_sheet'        => (float) $app->input->get('price_per_sheet', 0),
             'total'                  => (float) $app->input->get('total', 0),
             'calculation_breakdown'  => $breakdown,
-        ];
+        ], $this->getPliegoSheetProcessLineDataFromInput($app->input));
 
         $model = $this->getModel('Precotizacion', 'Site');
         if (!$model->updateLine($lineId, $data)) {

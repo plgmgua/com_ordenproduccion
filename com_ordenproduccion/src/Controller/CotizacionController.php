@@ -221,6 +221,24 @@ class CotizacionController extends BaseController
 
         $productosModel = $app->bootComponent('com_ordenproduccion')->getMVCFactory()->createModel('Productos', 'Site');
 
+        $sheetProcessSelections = [];
+        if ($needsBarniz) {
+            $sheetProcessSelections['barniz'] = $barnizTiroRetiro;
+        }
+        foreach ($productosModel->getPliegoSheetProcesses() as $proc) {
+            $slug = (string) ($proc->slug ?? '');
+            if ($slug === '' || $slug === 'barniz') {
+                continue;
+            }
+            $fields = \Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel::getPliegoSheetProcessFormFields($slug);
+            if (!$fields) {
+                continue;
+            }
+            if ($app->input->getBool($fields['needs'], false)) {
+                $sheetProcessSelections[$slug] = $app->input->get($fields['tiro_retiro'], 'tiro', 'cmd') === 'retiro' ? 'retiro' : 'tiro';
+            }
+        }
+
         $printPrice = $productosModel->getPrintPricePerSheet($paperTypeId, $sizeId, $tiroRetiro, $quantity);
         if ($printPrice === null) {
             echo json_encode(['success' => false, 'message' => 'No print price for this combination']);
@@ -235,12 +253,22 @@ class CotizacionController extends BaseController
             }
         }
 
-        $barnizPrice = 0.0;
-        if ($needsBarniz && method_exists($productosModel, 'getBarnizPricePerSheet')) {
-            $barnizPrice = $productosModel->getBarnizPricePerSheet($sizeId, $barnizTiroRetiro, $quantity);
-            if ($barnizPrice === null) {
-                $barnizPrice = 0.0;
+        $sheetProcessTotalPerSheet = 0.0;
+        $sheetProcessBreakdown = [];
+        foreach ($sheetProcessSelections as $slug => $selectedTiroRetiro) {
+            $sheetPrice = $productosModel->getSheetProcessPricePerSheet($slug, $sizeId, $selectedTiroRetiro, $quantity);
+            if ($sheetPrice === null) {
+                $sheetPrice = 0.0;
             }
+            if ($sheetPrice <= 0) {
+                continue;
+            }
+            $sheetProcessTotalPerSheet += $sheetPrice;
+            $sheetProcessBreakdown[] = [
+                'slug' => $slug,
+                'label' => $productosModel->getPliegoSheetProcessDisplayName($slug),
+                'price' => $sheetPrice,
+            ];
         }
 
         // Procesos Adicionales: custom range per process (range_1_ceiling = upper bound of first range)
@@ -262,7 +290,7 @@ class CotizacionController extends BaseController
             }
         }
 
-        $pricePerSheet = $printPrice + $laminationPrice + $barnizPrice;
+        $pricePerSheet = $printPrice + $laminationPrice + $sheetProcessTotalPerSheet;
         $total = $pricePerSheet * $quantity + $processesTotal;
 
         $getLabel = function ($key, $fallback) {
@@ -274,7 +302,6 @@ class CotizacionController extends BaseController
             ? $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_RETIRO', 'Impresión (Tiro/Retiro)')
             : $getLabel('COM_ORDENPRODUCCION_CALC_PRINT_TIRO', 'Impresión (Tiro)');
         $laminationLabel = $getLabel('COM_ORDENPRODUCCION_CALC_LAMINATION', 'Laminación');
-        $barnizLabel = $getLabel('COM_ORDENPRODUCCION_CALC_BARNIZ', 'Barniz');
 
         $rows = [];
         $rows[] = [
@@ -289,11 +316,11 @@ class CotizacionController extends BaseController
                 'subtotal' => round($laminationPrice * $quantity, 2),
             ];
         }
-        if ($barnizPrice > 0) {
+        foreach ($sheetProcessBreakdown as $sheetRow) {
             $rows[] = [
-                'label' => $barnizLabel,
-                'detail' => 'Q ' . number_format((float) $barnizPrice, 2),
-                'subtotal' => round($barnizPrice * $quantity, 2),
+                'label' => $sheetRow['label'],
+                'detail' => 'Q ' . number_format((float) $sheetRow['price'], 2),
+                'subtotal' => round((float) $sheetRow['price'] * $quantity, 2),
             ];
         }
         if (!empty($processIds)) {

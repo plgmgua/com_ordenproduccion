@@ -113,6 +113,30 @@ class HtmlView extends BaseHtmlView
     protected $barnizPrices = [];
 
     /**
+     * Pliego sheet process definitions for Procesos por pliego tab.
+     *
+     * @var    array<int, \stdClass>
+     * @since  3.119.317
+     */
+    protected $pliegoSheetProcesses = [];
+
+    /**
+     * Active subtab slug under Procesos por pliego.
+     *
+     * @var    string
+     * @since  3.119.317
+     */
+    protected $pliegoProcesosSubtab = 'barniz';
+
+    /**
+     * Sheet process prices keyed by slug (slug => size_id => ['tiro'=>, 'retiro'=>]).
+     *
+     * @var    array<string, array>
+     * @since  3.119.317
+     */
+    protected $sheetProcessPricesBySlug = [];
+
+    /**
      * Active section: pliegos | elementos
      *
      * @var    string
@@ -401,7 +425,21 @@ class HtmlView extends BaseHtmlView
                     : [];
             }
             if ($this->activeTab === 'pliego_procesos') {
-                $this->barnizPrices = $model->getBarnizPrices();
+                $this->pliegoSheetProcesses = $model->getPliegoSheetProcesses();
+                $validSlugs = array_map(static function ($proc) {
+                    return (string) ($proc->slug ?? '');
+                }, $this->pliegoSheetProcesses);
+                $requestedSubtab = preg_replace('/[^a-z0-9_]/', '', strtolower($input->get('pliego_subtab', 'barniz', 'cmd')));
+                $this->pliegoProcesosSubtab = in_array($requestedSubtab, $validSlugs, true) ? $requestedSubtab : ($validSlugs[0] ?? 'barniz');
+                $this->sheetProcessPricesBySlug = [];
+                foreach ($this->pliegoSheetProcesses as $proc) {
+                    $slug = (string) ($proc->slug ?? '');
+                    if ($slug === '') {
+                        continue;
+                    }
+                    $this->sheetProcessPricesBySlug[$slug] = $model->getSheetProcessPrices($slug);
+                }
+                $this->barnizPrices = $this->sheetProcessPricesBySlug['barniz'] ?? $model->getBarnizPrices();
             }
         } else {
             $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_PLIEGO_TABLES_MISSING'), 'warning');

@@ -762,48 +762,101 @@ $l = function ($key, $fallback) {
         <?php endif; ?>
 
         <?php if ($activeTab === 'pliego_procesos') : ?>
+            <?php
+            $pliegoSheetProcesses = $this->pliegoSheetProcesses ?? [];
+            $pliegoProcesosSubtab = $this->pliegoProcesosSubtab ?? 'barniz';
+            $sheetProcessPricesBySlug = $this->sheetProcessPricesBySlug ?? [];
+            $basePliegoProcesos = Route::_($basePliegos . '&tab=pliego_procesos', false);
+            ?>
+            <?php if (count($pliegoSheetProcesses) > 1) : ?>
+            <ul class="nav nav-pills mb-3">
+                <?php foreach ($pliegoSheetProcesses as $proc) :
+                    $procSlug = (string) ($proc->slug ?? '');
+                    if ($procSlug === '') {
+                        continue;
+                    }
+                    $procLabel = trim((string) ($proc->name ?? ''));
+                    if ($procLabel === '') {
+                        $procLabel = $procSlug === 'barniz'
+                            ? $l('COM_ORDENPRODUCCION_BARNIZ_DEFAULT_NAME', 'Barniz')
+                            : $l('COM_ORDENPRODUCCION_SHEET_PROCESS_DEFAULT_NAME', 'Proceso');
+                    }
+                ?>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $pliegoProcesosSubtab === $procSlug ? 'active' : ''; ?>"
+                       href="<?php echo Route::_($basePliegoProcesos . '&pliego_subtab=' . rawurlencode($procSlug)); ?>">
+                        <?php echo htmlspecialchars($procLabel, ENT_QUOTES, 'UTF-8'); ?>
+                    </a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+            <?php foreach ($pliegoSheetProcesses as $proc) :
+                $procSlug = (string) ($proc->slug ?? '');
+                if ($procSlug === '' || $procSlug !== $pliegoProcesosSubtab) {
+                    continue;
+                }
+                $procName = trim((string) ($proc->name ?? ''));
+                if ($procName === '') {
+                    $procName = $procSlug === 'barniz'
+                        ? $l('COM_ORDENPRODUCCION_BARNIZ_DEFAULT_NAME', 'Barniz')
+                        : $l('COM_ORDENPRODUCCION_SHEET_PROCESS_DEFAULT_NAME', 'Proceso');
+                }
+                $processPrices = $sheetProcessPricesBySlug[$procSlug] ?? [];
+                $formId = 'sheet-process-prices-form-' . preg_replace('/[^a-z0-9_]/', '', $procSlug);
+                $sameAllId = 'sheet_process_same_all_' . preg_replace('/[^a-z0-9_]/', '', $procSlug);
+                $sameFieldsId = 'sheet_process_same_all_fields_' . preg_replace('/[^a-z0-9_]/', '', $procSlug);
+                $perSizeTableId = 'sheet_process_per_size_table_' . preg_replace('/[^a-z0-9_]/', '', $procSlug);
+                $tiroAllId = 'sheet_process_price_tiro_all_' . preg_replace('/[^a-z0-9_]/', '', $procSlug);
+                $retiroAllId = 'sheet_process_price_retiro_all_' . preg_replace('/[^a-z0-9_]/', '', $procSlug);
+            ?>
             <div class="card mb-3">
-                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_PLIEGO_HEADER', 'Procesos por pliego – Barniz'); ?></div>
+                <div class="card-header"><?php echo $l('COM_ORDENPRODUCCION_SHEET_PROCESS_PLIEGO_HEADER', 'Procesos por pliego'); ?> – <?php echo htmlspecialchars($procName, ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="card-body">
-                    <p class="text-muted mb-3"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_PLIEGO_DESC', 'Defina el precio por pliego de Barniz para cada tamaño. Tiro = un solo lado; Tiro/Retiro = ambos lados.'); ?></p>
+                    <p class="text-muted mb-3"><?php echo $l('COM_ORDENPRODUCCION_SHEET_PROCESS_PLIEGO_DESC', 'Defina el precio por pliego para cada tamaño. Tiro = un solo lado; Tiro/Retiro = ambos lados.'); ?></p>
                     <?php if (!empty($this->sizes)) : ?>
                         <?php
-                        $barnizPrices = $this->barnizPrices ?? [];
-                        $barnizSameTiro = null;
-                        $barnizSameRetiro = null;
-                        $barnizAllSame = true;
+                        $sameTiro = null;
+                        $sameRetiro = null;
+                        $allSame = true;
                         foreach ($this->sizes as $s) {
                             $sid = (int) $s->id;
-                            $tiroVal = isset($barnizPrices[$sid]['tiro']) ? (float) $barnizPrices[$sid]['tiro'] : null;
-                            $retiroVal = isset($barnizPrices[$sid]['retiro']) ? (float) $barnizPrices[$sid]['retiro'] : null;
-                            if ($barnizSameTiro === null) {
-                                $barnizSameTiro = $tiroVal;
-                                $barnizSameRetiro = $retiroVal;
+                            $tiroVal = isset($processPrices[$sid]['tiro']) ? (float) $processPrices[$sid]['tiro'] : null;
+                            $retiroVal = isset($processPrices[$sid]['retiro']) ? (float) $processPrices[$sid]['retiro'] : null;
+                            if ($sameTiro === null) {
+                                $sameTiro = $tiroVal;
+                                $sameRetiro = $retiroVal;
                                 continue;
                             }
-                            if ($tiroVal !== $barnizSameTiro || $retiroVal !== $barnizSameRetiro) {
-                                $barnizAllSame = false;
+                            if ($tiroVal !== $sameTiro || $retiroVal !== $sameRetiro) {
+                                $allSame = false;
                                 break;
                             }
                         }
                         ?>
-                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveBarnizPrices'); ?>" method="post" id="barniz-prices-form">
+                        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=productos.saveSheetProcessPrices'); ?>" method="post" id="<?php echo htmlspecialchars($formId, ENT_QUOTES, 'UTF-8'); ?>">
                             <?php echo HTMLHelper::_('form.token'); ?>
+                            <input type="hidden" name="process_slug" value="<?php echo htmlspecialchars($procSlug, ENT_QUOTES, 'UTF-8'); ?>">
+                            <div class="mb-3">
+                                <label for="process_name_<?php echo htmlspecialchars($procSlug, ENT_QUOTES, 'UTF-8'); ?>" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_SHEET_PROCESS_NAME_LABEL', 'Nombre de proceso'); ?></label>
+                                <input type="text" class="form-control" name="process_name" id="process_name_<?php echo htmlspecialchars($procSlug, ENT_QUOTES, 'UTF-8'); ?>" maxlength="100" required value="<?php echo htmlspecialchars($procName, ENT_QUOTES, 'UTF-8'); ?>">
+                                <div class="form-text"><?php echo $l('COM_ORDENPRODUCCION_SHEET_PROCESS_NAME_DESC', 'Etiqueta mostrada como opción en la pre-cotización pliego.'); ?></div>
+                            </div>
                             <div class="form-check mb-3">
-                                <input type="checkbox" class="form-check-input" id="barniz_same_all_sizes" name="same_price_all" value="1" <?php echo $barnizAllSame && $barnizSameTiro !== null ? 'checked' : ''; ?>>
-                                <label class="form-check-label" for="barniz_same_all_sizes"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_SAME_PRICE_ALL', 'Usar el mismo precio para todos los tamaños'); ?></label>
+                                <input type="checkbox" class="form-check-input sheet-process-same-all" id="<?php echo htmlspecialchars($sameAllId, ENT_QUOTES, 'UTF-8'); ?>" name="same_price_all" value="1" data-same-fields="<?php echo htmlspecialchars($sameFieldsId, ENT_QUOTES, 'UTF-8'); ?>" data-per-size-table="<?php echo htmlspecialchars($perSizeTableId, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $allSame && $sameTiro !== null ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="<?php echo htmlspecialchars($sameAllId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_SAME_PRICE_ALL', 'Usar el mismo precio para todos los tamaños'); ?></label>
                             </div>
-                            <div id="barniz_same_all_fields" class="row g-2 mb-3" style="<?php echo ($barnizAllSame && $barnizSameTiro !== null) ? '' : 'display:none;'; ?>">
+                            <div id="<?php echo htmlspecialchars($sameFieldsId, ENT_QUOTES, 'UTF-8'); ?>" class="row g-2 mb-3" style="<?php echo ($allSame && $sameTiro !== null) ? '' : 'display:none;'; ?>">
                                 <div class="col-md-6">
-                                    <label for="barniz_price_tiro_all" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO', 'Tiro (un lado) – Precio (Q)'); ?></label>
-                                    <input type="number" name="price_tiro_all" id="barniz_price_tiro_all" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $barnizSameTiro !== null ? htmlspecialchars((string) $barnizSameTiro, ENT_QUOTES, 'UTF-8') : ''; ?>" placeholder="0.00">
+                                    <label for="<?php echo htmlspecialchars($tiroAllId, ENT_QUOTES, 'UTF-8'); ?>" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO', 'Tiro (un lado) – Precio (Q)'); ?></label>
+                                    <input type="number" name="price_tiro_all" id="<?php echo htmlspecialchars($tiroAllId, ENT_QUOTES, 'UTF-8'); ?>" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $sameTiro !== null ? htmlspecialchars((string) $sameTiro, ENT_QUOTES, 'UTF-8') : ''; ?>" placeholder="0.00">
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="barniz_price_retiro_all" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO_RETIRO', 'Tiro/Retiro (ambos lados) – Precio (Q)'); ?></label>
-                                    <input type="number" name="price_retiro_all" id="barniz_price_retiro_all" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $barnizSameRetiro !== null ? htmlspecialchars((string) $barnizSameRetiro, ENT_QUOTES, 'UTF-8') : ''; ?>" placeholder="0.00">
+                                    <label for="<?php echo htmlspecialchars($retiroAllId, ENT_QUOTES, 'UTF-8'); ?>" class="form-label"><?php echo $l('COM_ORDENPRODUCCION_BARNIZ_TIRO_RETIRO', 'Tiro/Retiro (ambos lados) – Precio (Q)'); ?></label>
+                                    <input type="number" name="price_retiro_all" id="<?php echo htmlspecialchars($retiroAllId, ENT_QUOTES, 'UTF-8'); ?>" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $sameRetiro !== null ? htmlspecialchars((string) $sameRetiro, ENT_QUOTES, 'UTF-8') : ''; ?>" placeholder="0.00">
                                 </div>
                             </div>
-                            <div id="barniz_per_size_table">
+                            <div id="<?php echo htmlspecialchars($perSizeTableId, ENT_QUOTES, 'UTF-8'); ?>">
                             <table class="table table-sm table-bordered">
                                 <thead>
                                     <tr>
@@ -817,17 +870,17 @@ $l = function ($key, $fallback) {
                                     <?php
                                     foreach ($this->sizes as $s) :
                                         $sid = (int) $s->id;
-                                        $tiroVal = isset($barnizPrices[$sid]['tiro']) ? (float) $barnizPrices[$sid]['tiro'] : '';
-                                        $retiroVal = isset($barnizPrices[$sid]['retiro']) ? (float) $barnizPrices[$sid]['retiro'] : '';
+                                        $tiroVal = isset($processPrices[$sid]['tiro']) ? (float) $processPrices[$sid]['tiro'] : '';
+                                        $retiroVal = isset($processPrices[$sid]['retiro']) ? (float) $processPrices[$sid]['retiro'] : '';
                                     ?>
                                         <tr>
                                             <td><?php echo htmlspecialchars($s->name ?? ''); ?></td>
                                             <td><?php echo htmlspecialchars(($s->width_in ?? $s->width_cm ?? '') . ' x ' . ($s->height_in ?? $s->height_cm ?? '')); ?></td>
                                             <td>
-                                                <input type="number" name="price_tiro[<?php echo $sid; ?>]" class="form-control form-control-sm barniz-price-tiro-input" step="0.01" min="0" value="<?php echo $tiroVal !== '' ? $tiroVal : ''; ?>" placeholder="0.00">
+                                                <input type="number" name="price_tiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $tiroVal !== '' ? $tiroVal : ''; ?>" placeholder="0.00">
                                             </td>
                                             <td>
-                                                <input type="number" name="price_retiro[<?php echo $sid; ?>]" class="form-control form-control-sm barniz-price-retiro-input" step="0.01" min="0" value="<?php echo $retiroVal !== '' ? $retiroVal : ''; ?>" placeholder="0.00">
+                                                <input type="number" name="price_retiro[<?php echo $sid; ?>]" class="form-control form-control-sm" step="0.01" min="0" value="<?php echo $retiroVal !== '' ? $retiroVal : ''; ?>" placeholder="0.00">
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -836,27 +889,29 @@ $l = function ($key, $fallback) {
                             </div>
                             <button type="submit" class="btn btn-primary mt-2"><?php echo $l('COM_ORDENPRODUCCION_SAVE_BARNIZ_PRICES', 'Guardar precios'); ?></button>
                         </form>
-                        <script>
-                        (function() {
-                            var sameAll = document.getElementById('barniz_same_all_sizes');
-                            var sameFields = document.getElementById('barniz_same_all_fields');
-                            var perSizeTable = document.getElementById('barniz_per_size_table');
-                            var tiroAll = document.getElementById('barniz_price_tiro_all');
-                            var retiroAll = document.getElementById('barniz_price_retiro_all');
-                            function syncBarnizSameAllUi() {
-                                var useSame = sameAll && sameAll.checked;
-                                if (sameFields) sameFields.style.display = useSame ? '' : 'none';
-                                if (perSizeTable) perSizeTable.style.display = useSame ? 'none' : '';
-                            }
-                            if (sameAll) sameAll.addEventListener('change', syncBarnizSameAllUi);
-                            syncBarnizSameAllUi();
-                        })();
-                        </script>
                     <?php else : ?>
                         <p class="text-muted"><?php echo $l('COM_ORDENPRODUCCION_NO_SIZES', 'No hay tamaños definidos.'); ?></p>
                     <?php endif; ?>
                 </div>
             </div>
+            <?php endforeach; ?>
+            <script>
+            (function() {
+                document.querySelectorAll('.sheet-process-same-all').forEach(function(sameAll) {
+                    var sameFieldsId = sameAll.getAttribute('data-same-fields');
+                    var perSizeTableId = sameAll.getAttribute('data-per-size-table');
+                    var sameFields = sameFieldsId ? document.getElementById(sameFieldsId) : null;
+                    var perSizeTable = perSizeTableId ? document.getElementById(perSizeTableId) : null;
+                    function syncUi() {
+                        var useSame = sameAll.checked;
+                        if (sameFields) sameFields.style.display = useSame ? '' : 'none';
+                        if (perSizeTable) perSizeTable.style.display = useSame ? 'none' : '';
+                    }
+                    sameAll.addEventListener('change', syncUi);
+                    syncUi();
+                });
+            })();
+            </script>
         <?php endif; ?>
 
             <?php endif; ?>

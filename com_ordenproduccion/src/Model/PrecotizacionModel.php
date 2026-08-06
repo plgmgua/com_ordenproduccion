@@ -1349,19 +1349,31 @@ class PrecotizacionModel extends ListModel
         }
 
         $barnizTiroRetiro = isset($line->barniz_tiro_retiro) ? (string) $line->barniz_tiro_retiro : '';
-        $barnizPrice = 0.0;
-        if (($barnizTiroRetiro === 'retiro' || $barnizTiroRetiro === 'tiro')
-            && method_exists($productosModel, 'getBarnizPricePerSheet')) {
-            $barnizPrice = $productosModel->getBarnizPricePerSheet($sizeId, $barnizTiroRetiro, $quantity);
-            if ($barnizPrice === null) {
-                $barnizPrice = 0.0;
+        $sheetProcesses = $productosModel->getPliegoSheetProcesses();
+        foreach ($sheetProcesses as $proc) {
+            $slug = (string) ($proc->slug ?? '');
+            if ($slug === '') {
+                continue;
             }
-        }
-        if ($barnizPrice > 0) {
+            $column = \Grimpsa\Component\Ordenproduccion\Site\Model\ProductosModel::getPliegoSheetProcessLineColumn($slug);
+            if (!$column) {
+                continue;
+            }
+            $selectedTiroRetiro = isset($line->$column) ? (string) $line->$column : '';
+            if ($selectedTiroRetiro !== 'retiro' && $selectedTiroRetiro !== 'tiro') {
+                continue;
+            }
+            $sheetPrice = $productosModel->getSheetProcessPricePerSheet($slug, $sizeId, $selectedTiroRetiro, $quantity);
+            if ($sheetPrice === null) {
+                $sheetPrice = 0.0;
+            }
+            if ($sheetPrice <= 0) {
+                continue;
+            }
             $rows[] = [
-                'label'    => $getLabel('COM_ORDENPRODUCCION_CALC_BARNIZ', 'Barniz'),
-                'detail'   => 'Q ' . number_format((float) $barnizPrice, 2),
-                'subtotal' => round((float) $barnizPrice * $quantity, 2),
+                'label'    => $productosModel->getPliegoSheetProcessDisplayName($slug),
+                'detail'   => 'Q ' . number_format((float) $sheetPrice, 2),
+                'subtotal' => round((float) $sheetPrice * $quantity, 2),
             ];
         }
 
@@ -2531,6 +2543,10 @@ class PrecotizacionModel extends ListModel
             $btr = $data['barniz_tiro_retiro'] ?? null;
             $obj->barniz_tiro_retiro = ($btr === 'retiro' || $btr === 'tiro') ? $btr : null;
         }
+        if (isset($columns['sheet_process_2_tiro_retiro'])) {
+            $sp2 = $data['sheet_process_2_tiro_retiro'] ?? null;
+            $obj->sheet_process_2_tiro_retiro = ($sp2 === 'retiro' || $sp2 === 'tiro') ? $sp2 : null;
+        }
 
         $lineType = isset($line->line_type) ? (string) $line->line_type : 'pliego';
         if (isset($columns['impresion_subtotal_base']) && $lineType === 'pliego'
@@ -2968,6 +2984,10 @@ class PrecotizacionModel extends ListModel
         if ($isPliego && isset($columns['barniz_tiro_retiro'])) {
             $btr = $data['barniz_tiro_retiro'] ?? null;
             $line->barniz_tiro_retiro = ($btr === 'retiro' || $btr === 'tiro') ? $btr : null;
+        }
+        if ($isPliego && isset($columns['sheet_process_2_tiro_retiro'])) {
+            $sp2 = $data['sheet_process_2_tiro_retiro'] ?? null;
+            $line->sheet_process_2_tiro_retiro = ($sp2 === 'retiro' || $sp2 === 'tiro') ? $sp2 : null;
         }
 
         try {

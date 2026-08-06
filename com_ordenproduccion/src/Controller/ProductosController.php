@@ -360,12 +360,12 @@ class ProductosController extends BaseController
     }
 
     /**
-     * Save barniz prices per size (Tiro and Tiro/Retiro).
+     * Save sheet process prices per size (Tiro and Tiro/Retiro) and process display name.
      *
      * @return  void
-     * @since   3.119.89
+     * @since   3.119.317
      */
-    public function saveBarnizPrices()
+    public function saveSheetProcessPrices()
     {
         if (!Session::checkToken('post')) {
             $this->setRedirectPliegoProcesos(Text::_('JINVALID_TOKEN'), 'error');
@@ -377,11 +377,22 @@ class ProductosController extends BaseController
             return;
         }
         $input = Factory::getApplication()->input;
+        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower($input->post->get('process_slug', 'barniz', 'cmd')));
+        if ($slug === '') {
+            $slug = 'barniz';
+        }
+        $processName = trim($input->post->getString('process_name', ''));
         $samePriceAll = $input->post->getBool('same_price_all', false);
         $pricesTiro = $input->post->get('price_tiro', [], 'array');
         $pricesRetiro = $input->post->get('price_retiro', [], 'array');
 
         $model = $this->getModel('Productos', 'Site');
+        if ($processName !== '') {
+            if (!$model->savePliegoSheetProcessName($slug, $processName)) {
+                $this->setRedirectPliegoProcesos($model->getError() ?: Text::_('COM_ORDENPRODUCCION_SHEET_PROCESS_NAME_SAVE_ERROR'), 'error', $slug);
+                return;
+            }
+        }
         if ($samePriceAll) {
             $globalTiro = $input->post->get('price_tiro_all', '', 'string');
             $globalRetiro = $input->post->get('price_retiro_all', '', 'string');
@@ -404,25 +415,42 @@ class ProductosController extends BaseController
             $pricesRetiro = array_map('floatval', $pricesRetiro);
         }
 
-        if (!$model->saveBarnizPrices($pricesTiro, $pricesRetiro)) {
-            $this->setRedirectPliegoProcesos($model->getError() ?: Text::_('COM_ORDENPRODUCCION_BARNIZ_SAVE_ERROR'), 'error');
+        if (!$model->saveSheetProcessPrices($slug, $pricesTiro, $pricesRetiro)) {
+            $this->setRedirectPliegoProcesos($model->getError() ?: Text::_('COM_ORDENPRODUCCION_SHEET_PROCESS_SAVE_ERROR'), 'error', $slug);
             return;
         }
-        $this->setRedirectPliegoProcesos(Text::_('COM_ORDENPRODUCCION_BARNIZ_SAVE_SUCCESS'), 'success');
+        $this->setRedirectPliegoProcesos(Text::_('COM_ORDENPRODUCCION_SHEET_PROCESS_SAVE_SUCCESS'), 'success', $slug);
+    }
+
+    /**
+     * Save barniz prices per size (Tiro and Tiro/Retiro).
+     *
+     * @return  void
+     * @since   3.119.89
+     */
+    public function saveBarnizPrices()
+    {
+        Factory::getApplication()->input->post->set('process_slug', 'barniz');
+        $this->saveSheetProcessPrices();
     }
 
     /**
      * Redirect to Productos Procesos por pliego tab.
      *
-     * @param   string  $msg   Message text
-     * @param   string  $type  Message type
+     * @param   string  $msg     Message text
+     * @param   string  $type    Message type
+     * @param   string  $subtab  Active pliego subtab slug
      * @return  void
      * @since   3.119.89
      */
-    private function setRedirectPliegoProcesos($msg, $type = 'notice')
+    private function setRedirectPliegoProcesos($msg, $type = 'notice', $subtab = '')
     {
         Factory::getApplication()->enqueueMessage($msg, $type);
-        $this->setRedirect(Route::_('index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=pliego_procesos', false));
+        $url = 'index.php?option=com_ordenproduccion&view=productos&section=pliegos&tab=pliego_procesos';
+        if ($subtab !== '') {
+            $url .= '&pliego_subtab=' . rawurlencode($subtab);
+        }
+        $this->setRedirect(Route::_($url, false));
     }
 
     /**

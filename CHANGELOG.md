@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.317-STABLE] - 2026-08-06
+
+### Added
+- **Administración de imprenta → Procesos por pliego:** Second configurable sheet process (duplicate of Barniz) with **Nombre de proceso** on both subtabs; labels drive pre-cotización pliego checkboxes and calculation breakdown.
+
 ## [3.119.316-STABLE] - 2026-08-05
 
 ### Fixed

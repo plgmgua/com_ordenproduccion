@@ -900,20 +900,171 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Get barniz prices per size (Tiro and Tiro/Retiro).
+     * Whether pliego sheet process definitions table exists.
      *
-     * @return  array  size_id => ['tiro' => price|null, 'retiro' => price|null]
-     * @since   3.119.89
+     * @return  bool
+     * @since   3.119.317
      */
-    public function getBarnizPrices()
+    public function pliegoSheetProcessesTableExists()
+    {
+        $db = $this->getDatabase();
+        $tables = $db->getTableList();
+        $prefix = $db->getPrefix();
+        $needle = $prefix . 'ordenproduccion_pliego_sheet_processes';
+        foreach ($tables as $name) {
+            if (strcasecmp($name, $needle) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Active pliego sheet processes (Barniz, duplicate process, etc.).
+     *
+     * @return  array<int, \stdClass>
+     * @since   3.119.317
+     */
+    public function getPliegoSheetProcesses()
+    {
+        if (!$this->pliegoSheetProcessesTableExists()) {
+            return [
+                (object) ['slug' => 'barniz', 'name' => 'Barniz', 'ordering' => 1, 'state' => 1],
+            ];
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->select('*')
+            ->from($db->quoteName('#__ordenproduccion_pliego_sheet_processes'))
+            ->where($db->quoteName('state') . ' = 1')
+            ->order($db->quoteName('ordering') . ' ASC, ' . $db->quoteName('id') . ' ASC');
+        $db->setQuery($query);
+
+        return $db->loadObjectList() ?: [];
+    }
+
+    /**
+     * Save display name for a pliego sheet process.
+     *
+     * @param   string  $slug  Process slug
+     * @param   string  $name  Display label
+     *
+     * @return  bool
+     * @since   3.119.317
+     */
+    public function savePliegoSheetProcessName($slug, $name)
+    {
+        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower((string) $slug));
+        if ($slug === '' || !$this->pliegoSheetProcessesTableExists()) {
+            return false;
+        }
+        $name = trim((string) $name);
+        if ($name === '') {
+            $this->setError('Process name is required.');
+            return false;
+        }
+        if (strlen($name) > 100) {
+            $name = substr($name, 0, 100);
+        }
+        $db = $this->getDatabase();
+        $query = $db->getQuery(true)
+            ->update($db->quoteName('#__ordenproduccion_pliego_sheet_processes'))
+            ->set($db->quoteName('name') . ' = ' . $db->quote($name))
+            ->set($db->quoteName('modified') . ' = ' . $db->quote(Factory::getDate()->toSql()))
+            ->where($db->quoteName('slug') . ' = ' . $db->quote($slug));
+        $db->setQuery($query);
+        $db->execute();
+
+        return true;
+    }
+
+    /**
+     * Display name for a pliego sheet process slug.
+     *
+     * @param   string  $slug  Process slug
+     *
+     * @return  string
+     * @since   3.119.317
+     */
+    public function getPliegoSheetProcessDisplayName($slug)
+    {
+        foreach ($this->getPliegoSheetProcesses() as $proc) {
+            if (($proc->slug ?? '') === $slug) {
+                $name = trim((string) ($proc->name ?? ''));
+                if ($name !== '') {
+                    return $name;
+                }
+            }
+        }
+
+        return $slug === 'barniz' ? 'Barniz' : $slug;
+    }
+
+    /**
+     * Pre-cotización line column for a sheet process slug.
+     *
+     * @param   string  $slug  Process slug
+     *
+     * @return  string|null
+     * @since   3.119.317
+     */
+    public static function getPliegoSheetProcessLineColumn($slug)
+    {
+        $map = [
+            'barniz'          => 'barniz_tiro_retiro',
+            'sheet_process_2' => 'sheet_process_2_tiro_retiro',
+        ];
+
+        return $map[$slug] ?? null;
+    }
+
+    /**
+     * Request field names for a sheet process in pre-cotización forms.
+     *
+     * @param   string  $slug  Process slug
+     *
+     * @return  array{needs: string, tiro_retiro: string}|null
+     * @since   3.119.317
+     */
+    public static function getPliegoSheetProcessFormFields($slug)
+    {
+        $map = [
+            'barniz' => [
+                'needs'       => 'needs_barniz',
+                'tiro_retiro' => 'barniz_tiro_retiro',
+            ],
+            'sheet_process_2' => [
+                'needs'       => 'needs_sheet_process_2',
+                'tiro_retiro' => 'sheet_process_2_tiro_retiro',
+            ],
+        ];
+
+        return $map[$slug] ?? null;
+    }
+
+    /**
+     * Get sheet process prices per size (Tiro and Tiro/Retiro).
+     *
+     * @param   string  $slug  Process slug
+     *
+     * @return  array<int, array{tiro: float|null, retiro: float|null}>
+     * @since   3.119.317
+     */
+    public function getSheetProcessPrices($slug = 'barniz')
     {
         if (!$this->barnizTableExists()) {
             return [];
+        }
+        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower((string) $slug));
+        if ($slug === '') {
+            $slug = 'barniz';
         }
         $db = $this->getDatabase();
         $query = $db->getQuery(true)
             ->select($db->quoteName('size_id') . ', ' . $db->quoteName('tiro_retiro') . ', ' . $db->quoteName('price_per_sheet'))
             ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+            ->where($db->quoteName('process_slug') . ' = ' . $db->quote($slug))
             ->where($db->quoteName('qty_min') . ' = 1')
             ->where($db->quoteName('state') . ' = 1');
         $db->setQuery($query);
@@ -932,18 +1083,35 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Save barniz prices: tiro and retiro price per size (qty 1–999999).
+     * Get barniz prices per size (Tiro and Tiro/Retiro).
      *
-     * @param   array  $pricesTiro    size_id => price_per_sheet (one side)
-     * @param   array  $pricesRetiro   size_id => price_per_sheet (both sides)
-     * @return  bool
+     * @return  array  size_id => ['tiro' => price|null, 'retiro' => price|null]
      * @since   3.119.89
      */
-    public function saveBarnizPrices($pricesTiro, $pricesRetiro = [])
+    public function getBarnizPrices()
+    {
+        return $this->getSheetProcessPrices('barniz');
+    }
+
+    /**
+     * Save sheet process prices: tiro and retiro price per size (qty 1–999999).
+     *
+     * @param   string  $slug          Process slug
+     * @param   array   $pricesTiro    size_id => price_per_sheet (one side)
+     * @param   array   $pricesRetiro  size_id => price_per_sheet (both sides)
+     *
+     * @return  bool
+     * @since   3.119.317
+     */
+    public function saveSheetProcessPrices($slug, $pricesTiro, $pricesRetiro = [])
     {
         if (!$this->barnizTableExists()) {
-            $this->setError('Barniz table not installed.');
+            $this->setError('Sheet process prices table not installed.');
             return false;
+        }
+        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower((string) $slug));
+        if ($slug === '') {
+            $slug = 'barniz';
         }
         $user = Factory::getUser();
         $db = $this->getDatabase();
@@ -968,6 +1136,7 @@ class ProductosModel extends BaseDatabaseModel
                 $query = $db->getQuery(true)
                     ->select($db->quoteName('id'))
                     ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+                    ->where($db->quoteName('process_slug') . ' = ' . $db->quote($slug))
                     ->where($db->quoteName('size_id') . ' = ' . $sizeId)
                     ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
                     ->where($db->quoteName('qty_min') . ' = 1');
@@ -984,6 +1153,7 @@ class ProductosModel extends BaseDatabaseModel
                     $db->updateObject('#__ordenproduccion_barniz_prices', $obj, ['id']);
                 } else {
                     $obj = (object) [
+                        'process_slug' => $slug,
                         'size_id' => $sizeId,
                         'tiro_retiro' => $tiroRetiro,
                         'qty_min' => 1,
@@ -1004,16 +1174,35 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Whether the given size has a non-zero barniz price for tiro or retiro.
+     * Save barniz prices: tiro and retiro price per size (qty 1–999999).
      *
-     * @param   int     $sizeId      Size ID
-     * @param   string  $tiroRetiro  'tiro' or 'retiro'
+     * @param   array  $pricesTiro    size_id => price_per_sheet (one side)
+     * @param   array  $pricesRetiro   size_id => price_per_sheet (both sides)
      * @return  bool
      * @since   3.119.89
      */
-    public function sizeHasBarnizPrice($sizeId, $tiroRetiro = 'tiro')
+    public function saveBarnizPrices($pricesTiro, $pricesRetiro = [])
+    {
+        return $this->saveSheetProcessPrices('barniz', $pricesTiro, $pricesRetiro);
+    }
+
+    /**
+     * Whether the given size has a non-zero sheet process price for tiro or retiro.
+     *
+     * @param   string  $slug        Process slug
+     * @param   int     $sizeId      Size ID
+     * @param   string  $tiroRetiro  'tiro' or 'retiro'
+     *
+     * @return  bool
+     * @since   3.119.317
+     */
+    public function sizeHasSheetProcessPrice($slug, $sizeId, $tiroRetiro = 'tiro')
     {
         if (!$this->barnizTableExists()) {
+            return false;
+        }
+        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower((string) $slug));
+        if ($slug === '') {
             return false;
         }
         $sizeId = (int) $sizeId;
@@ -1025,6 +1214,7 @@ class ProductosModel extends BaseDatabaseModel
         $query = $db->getQuery(true)
             ->select('COUNT(*)')
             ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+            ->where($db->quoteName('process_slug') . ' = ' . $db->quote($slug))
             ->where($db->quoteName('size_id') . ' = ' . $sizeId)
             ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
             ->where($db->quoteName('state') . ' = 1')
@@ -1035,15 +1225,30 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Size IDs that have a non-zero barniz price, keyed by size for JSON/JS lookup.
+     * Whether the given size has a non-zero barniz price for tiro or retiro.
+     *
+     * @param   int     $sizeId      Size ID
+     * @param   string  $tiroRetiro  'tiro' or 'retiro'
+     * @return  bool
+     * @since   3.119.89
+     */
+    public function sizeHasBarnizPrice($sizeId, $tiroRetiro = 'tiro')
+    {
+        return $this->sizeHasSheetProcessPrice('barniz', $sizeId, $tiroRetiro);
+    }
+
+    /**
+     * Size IDs that have a non-zero sheet process price, keyed by size for JSON/JS lookup.
+     *
+     * @param   string  $slug  Process slug
      *
      * @return  array{tiro: array<int, bool>, retiro: array<int, bool>}
-     * @since   3.119.90
+     * @since   3.119.317
      */
-    public function getBarnizAvailabilityBySize()
+    public function getSheetProcessAvailabilityBySize($slug = 'barniz')
     {
         $out = ['tiro' => [], 'retiro' => []];
-        foreach ($this->getBarnizPrices() as $sizeId => $prices) {
+        foreach ($this->getSheetProcessPrices($slug) as $sizeId => $prices) {
             $sizeId = (int) $sizeId;
             if ($sizeId < 1) {
                 continue;
@@ -1060,17 +1265,54 @@ class ProductosModel extends BaseDatabaseModel
     }
 
     /**
-     * Get barniz price per sheet for given size, tiro/retiro and quantity.
+     * Availability maps for all active sheet processes.
      *
-     * @param   int     $sizeId       Size ID
-     * @param   string  $tiroRetiro   'tiro' or 'retiro'
-     * @param   int     $quantity     Order quantity
-     * @return  float|null  Price per sheet or null if not found
-     * @since   3.119.89
+     * @return  array<string, array{tiro: array<int, bool>, retiro: array<int, bool>}>
+     * @since   3.119.317
      */
-    public function getBarnizPricePerSheet($sizeId, $tiroRetiro, $quantity)
+    public function getAllSheetProcessAvailabilityBySize()
+    {
+        $out = [];
+        foreach ($this->getPliegoSheetProcesses() as $proc) {
+            $slug = (string) ($proc->slug ?? '');
+            if ($slug === '') {
+                continue;
+            }
+            $out[$slug] = $this->getSheetProcessAvailabilityBySize($slug);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Size IDs that have a non-zero barniz price, keyed by size for JSON/JS lookup.
+     *
+     * @return  array{tiro: array<int, bool>, retiro: array<int, bool>}
+     * @since   3.119.90
+     */
+    public function getBarnizAvailabilityBySize()
+    {
+        return $this->getSheetProcessAvailabilityBySize('barniz');
+    }
+
+    /**
+     * Get sheet process price per sheet for given size, tiro/retiro and quantity.
+     *
+     * @param   string  $slug        Process slug
+     * @param   int     $sizeId      Size ID
+     * @param   string  $tiroRetiro  'tiro' or 'retiro'
+     * @param   int     $quantity    Order quantity
+     *
+     * @return  float|null  Price per sheet or null if not found
+     * @since   3.119.317
+     */
+    public function getSheetProcessPricePerSheet($slug, $sizeId, $tiroRetiro, $quantity)
     {
         if (!$this->barnizTableExists()) {
+            return null;
+        }
+        $slug = preg_replace('/[^a-z0-9_]/', '', strtolower((string) $slug));
+        if ($slug === '') {
             return null;
         }
         $db = $this->getDatabase();
@@ -1079,6 +1321,7 @@ class ProductosModel extends BaseDatabaseModel
         $query = $db->getQuery(true)
             ->select($db->quoteName('price_per_sheet'))
             ->from($db->quoteName('#__ordenproduccion_barniz_prices'))
+            ->where($db->quoteName('process_slug') . ' = ' . $db->quote($slug))
             ->where($db->quoteName('size_id') . ' = ' . (int) $sizeId)
             ->where($db->quoteName('tiro_retiro') . ' = ' . $db->quote($tiroRetiro))
             ->where($db->quoteName('state') . ' = 1')
@@ -1090,6 +1333,20 @@ class ProductosModel extends BaseDatabaseModel
         $result = $db->loadResult();
 
         return $result !== null ? (float) $result : null;
+    }
+
+    /**
+     * Get barniz price per sheet for given size, tiro/retiro and quantity.
+     *
+     * @param   int     $sizeId       Size ID
+     * @param   string  $tiroRetiro   'tiro' or 'retiro'
+     * @param   int     $quantity     Order quantity
+     * @return  float|null  Price per sheet or null if not found
+     * @since   3.119.89
+     */
+    public function getBarnizPricePerSheet($sizeId, $tiroRetiro, $quantity)
+    {
+        return $this->getSheetProcessPricePerSheet('barniz', $sizeId, $tiroRetiro, $quantity);
     }
 
     /**
