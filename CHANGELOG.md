@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.318-STABLE] - 2026-08-06
+
+### Fixed
+- **Pre-cotización pliego:** Show **Tiro/Retiro (ambos lados)** sub-checkbox for each sheet process (always visible; enabled when the process is selected and retiro pricing exists).
+
 ## [3.119.317-STABLE] - 2026-08-06
 
 ### Added

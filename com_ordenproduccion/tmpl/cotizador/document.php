@@ -1499,9 +1499,9 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
                                 <label class="form-check-label" for="<?php echo htmlspecialchars($needsDomId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($sheetLabel, ENT_QUOTES, 'UTF-8'); ?></label>
                             </div>
                         </div>
-                        <div class="col-md-6 pliego-sheet-process-retiro-wrap" id="<?php echo htmlspecialchars($wrapDomId, ENT_QUOTES, 'UTF-8'); ?>" style="display:none;">
+                        <div class="col-md-6 pliego-sheet-process-retiro-wrap" id="<?php echo htmlspecialchars($wrapDomId, ENT_QUOTES, 'UTF-8'); ?>">
                             <div class="form-check mt-1">
-                                <input type="checkbox" id="<?php echo htmlspecialchars($retiroDomId, ENT_QUOTES, 'UTF-8'); ?>" name="<?php echo htmlspecialchars($retiroField, ENT_QUOTES, 'UTF-8'); ?>" value="retiro" class="form-check-input pliego-sheet-process-retiro">
+                                <input type="checkbox" id="<?php echo htmlspecialchars($retiroDomId, ENT_QUOTES, 'UTF-8'); ?>" name="<?php echo htmlspecialchars($retiroField, ENT_QUOTES, 'UTF-8'); ?>" value="retiro" class="form-check-input pliego-sheet-process-retiro" disabled>
                                 <label class="form-check-label" for="<?php echo htmlspecialchars($retiroDomId, ENT_QUOTES, 'UTF-8'); ?>"><?php echo Text::_('COM_ORDENPRODUCCION_SHEET_PROCESS_TIRO_RETIRO'); ?></label>
                             </div>
                         </div>
@@ -2070,8 +2070,15 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
 
     function updateSheetProcessVisibility(rowEl) {
         var parts = getSheetProcessRowElements(rowEl);
-        if (parts.wrap) {
-            parts.wrap.style.display = parts.needs && parts.needs.checked ? 'block' : 'none';
+        var sizeId = size && size.value ? parseInt(size.value, 10) : 0;
+        var availability = pliegoSheetProcessAvailability[parts.slug] || { tiro: {}, retiro: {} };
+        var hasRetiro = sheetProcessMapHasSize(availability.retiro, sizeId);
+        var processSelected = !!(parts.needs && parts.needs.checked);
+        if (parts.retiro) {
+            parts.retiro.disabled = !processSelected || !hasRetiro;
+            if (!processSelected || !hasRetiro) {
+                parts.retiro.checked = false;
+            }
         }
     }
 
@@ -2089,6 +2096,7 @@ $showApproverDiscountActionsJs = !empty($lines) && !empty($canAdjustLineSubtotal
                 recalc();
             });
         }
+        updateSheetProcessVisibility(rowEl);
     });
 
     function filterSheetProcessesBySize() {
