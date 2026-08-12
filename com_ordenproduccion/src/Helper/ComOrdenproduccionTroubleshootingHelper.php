@@ -263,8 +263,8 @@ class ComOrdenproduccionTroubleshootingHelper
         $db = $this->db();
         $query = $db->getQuery(true)
             ->select('i.*')
-            ->from($db->quoteName('#__ordenproduccion_invoices', 'i'))
-            ->where($db->quoteName('i.state') . ' = 1');
+            ->from($db->quoteName('#__ordenproduccion_invoices', 'i'));
+        $this->applyPublishedState($query, 'ordenproduccion_invoices', 'i');
         if ($invoiceId > 0) {
             $query->where($db->quoteName('i.id') . ' = ' . $invoiceId);
         } else {
@@ -321,13 +321,12 @@ class ComOrdenproduccionTroubleshootingHelper
 
         $this->startSection('Vínculos OT (invoice_orden_suggestions)');
         if ($this->tableExists('ordenproduccion_invoice_orden_suggestions')) {
-            $db->setQuery(
-                $db->getQuery(true)
-                    ->select(['s.orden_id', 's.status', 's.score', 's.reasons'])
-                    ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions', 's'))
-                    ->where($db->quoteName('s.invoice_id') . ' = ' . $invoiceId)
-                    ->where($db->quoteName('s.state') . ' = 1')
-            );
+            $linkQuery = $db->getQuery(true)
+                ->select(['s.orden_id', 's.status', 's.score', 's.reasons'])
+                ->from($db->quoteName('#__ordenproduccion_invoice_orden_suggestions', 's'))
+                ->where($db->quoteName('s.invoice_id') . ' = ' . $invoiceId);
+            $this->applyPublishedState($linkQuery, 'ordenproduccion_invoice_orden_suggestions', 's');
+            $db->setQuery($linkQuery);
             $links = $db->loadObjectList() ?: [];
             if ($links === []) {
                 $this->addCheck('OT links', 'info', 'Ninguno');
@@ -510,8 +509,8 @@ class ComOrdenproduccionTroubleshootingHelper
         $db = $this->db();
         $query = $db->getQuery(true)
             ->select('*')
-            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
-            ->where($db->quoteName('state') . ' = 1');
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'));
+        $this->applyPublishedState($query, 'ordenproduccion_pre_cotizacion');
         if ($preId > 0) {
             $query->where($db->quoteName('id') . ' = ' . $preId);
         } else {
@@ -530,14 +529,12 @@ class ComOrdenproduccionTroubleshootingHelper
             return;
         }
         $db = $this->db();
-        $db->setQuery(
-            $db->getQuery(true)
-                ->select(['id', 'line_type', 'quantity', 'total', 'elemento_id', 'paper_type_id', 'size_id'])
-                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
-                ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preId)
-                ->where($db->quoteName('state') . ' = 1')
-                ->order($db->quoteName('id') . ' ASC')
-        );
+        $lineQuery = $db->getQuery(true)
+            ->select(['id', 'line_type', 'quantity', 'total', 'elemento_id', 'paper_type_id', 'size_id'])
+            ->from($db->quoteName('#__ordenproduccion_pre_cotizacion_line'))
+            ->where($db->quoteName('pre_cotizacion_id') . ' = ' . $preId)
+            ->order($db->quoteName('id') . ' ASC');
+        $db->setQuery($lineQuery);
         $lines = $db->loadObjectList() ?: [];
         if ($lines === []) {
             $this->addCheck('Líneas', 'warn', 'Sin líneas publicadas');
@@ -568,16 +565,15 @@ class ComOrdenproduccionTroubleshootingHelper
             return;
         }
         $db = $this->db();
-        $db->setQuery(
-            $db->getQuery(true)
-                ->select(['qi.id', 'qi.quotation_id', 'q.quotation_number', 'qi.descripcion', 'qi.valor_final'])
-                ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
-                ->leftJoin(
-                    $db->quoteName('#__ordenproduccion_quotations', 'q') . ' ON ' . $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
-                )
-                ->where($db->quoteName('qi.pre_cotizacion_id') . ' = ' . $preId)
-                ->where($db->quoteName('qi.state') . ' = 1')
-        );
+        $linkQuery = $db->getQuery(true)
+            ->select(['qi.id', 'qi.quotation_id', 'q.quotation_number', 'qi.descripcion', 'qi.valor_final'])
+            ->from($db->quoteName('#__ordenproduccion_quotation_items', 'qi'))
+            ->leftJoin(
+                $db->quoteName('#__ordenproduccion_quotations', 'q') . ' ON ' . $db->quoteName('q.id') . ' = ' . $db->quoteName('qi.quotation_id')
+            )
+            ->where($db->quoteName('qi.pre_cotizacion_id') . ' = ' . $preId);
+        $this->applyPublishedState($linkQuery, 'ordenproduccion_quotations', 'q');
+        $db->setQuery($linkQuery);
         $rows = $db->loadObjectList() ?: [];
         if ($rows === []) {
             $this->addCheck('Cotizaciones', 'info', 'No vinculada a ninguna cotización');
@@ -609,6 +605,38 @@ class ComOrdenproduccionTroubleshootingHelper
         }
 
         return false;
+    }
+
+    private function tableHasColumn(string $suffix, string $column): bool
+    {
+        if (!$this->tableExists($suffix)) {
+            return false;
+        }
+
+        $cols = $this->db()->getTableColumns('#__' . $suffix, false);
+        if (!is_array($cols)) {
+            return false;
+        }
+
+        $cols = array_change_key_case($cols, CASE_LOWER);
+
+        return isset($cols[strtolower($column)]);
+    }
+
+    /**
+     * Append `alias.state = 1` only when the column exists (legacy tables omit state).
+     *
+     * @param   \Joomla\Database\Query\QueryInterface  $query
+     */
+    private function applyPublishedState($query, string $tableSuffix, string $alias = ''): void
+    {
+        if (!$this->tableHasColumn($tableSuffix, 'state')) {
+            return;
+        }
+
+        $db = $this->db();
+        $col = ($alias !== '' ? $alias . '.' : '') . 'state';
+        $query->where($db->quoteName($col) . ' = 1');
     }
 
     private function componentVersion(): string

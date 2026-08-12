@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.321-STABLE] - 2026-08-12
+
+### Fixed
+- **ComOrdenproduccionTroubleshootingHelper:** Do not filter on `state` when the column is missing (`pre_cotizacion_line`, `quotation_items`); fixes PRE → Cotización tool SQL error.
+
 ## [3.119.320-STABLE] - 2026-08-12
 
 ### Fixed
