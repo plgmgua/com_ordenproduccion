@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.319-STABLE] - 2026-08-12
+
+### Added
+- **troubleshooting.php:** Multi-tool diagnostic hub (PRE→Cotización, factura origen/instrucciones, inspección de tablas, schema) via `ComOrdenproduccionTroubleshootingHelper`; keeps MT-940 payment tool. Requires Super User session.
+
 ## [3.119.317-STABLE] - 2026-08-06
 
 ### Added
