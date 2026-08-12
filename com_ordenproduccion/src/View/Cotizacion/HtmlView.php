@@ -469,8 +469,18 @@ class HtmlView extends BaseHtmlView
                     foreach ($this->quotationItems as $qiSync) {
                         $qp = isset($qiSync->pre_cotizacion_id) ? (int) $qiSync->pre_cotizacion_id : 0;
 
-                        if ($qp > 0 && isset($qtyByPreForLines[$qp])) {
+                        if ($qp > 0 && isset($qtyByPreForLines[$qp]) && !$precotModel->allowsQuotationQtyScaling($qp)) {
                             $qiSync->cantidad = $qtyByPreForLines[$qp];
+                        }
+
+                        if ($qp > 0) {
+                            $scaleCtx = $precotModel->getQuotationQtyScaleContext($qp);
+                            $qiSync->qty_scalable = $scaleCtx !== null;
+                            if ($scaleCtx !== null) {
+                                $qiSync->scale_base_qty           = (int) $scaleCtx['base_qty'];
+                                $qiSync->scale_base_min_valor     = (float) $scaleCtx['base_min_valor'];
+                                $qiSync->scale_base_subtotal_ref  = (float) $scaleCtx['base_subtotal_ref'];
+                            }
                         }
                     }
                     $this->quotationHasLinkedPreCotizacion = $preIdsDistinct !== [];
@@ -1288,6 +1298,13 @@ class HtmlView extends BaseHtmlView
         $minFinal = (float) $precotModel->getMinimumValorFinalForPreCotizacion($id);
         $row->pre_cot_line_text = ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($id);
         $row->min_valor_base    = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($id, $minFinal);
+        $scaleCtx               = $precotModel->getQuotationQtyScaleContext($id);
+        $row->qty_scalable      = $scaleCtx !== null;
+        if ($scaleCtx !== null) {
+            $row->scale_base_qty          = (int) $scaleCtx['base_qty'];
+            $row->scale_base_min_valor    = (float) $scaleCtx['base_min_valor'];
+            $row->scale_base_subtotal_ref = (float) $scaleCtx['base_subtotal_ref'];
+        }
 
         return $row;
     }

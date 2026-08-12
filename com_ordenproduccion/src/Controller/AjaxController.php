@@ -412,7 +412,9 @@ class AjaxController extends BaseController
                 foreach ($lines as $lineOrder => $line) {
                     $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
                     $value = isset($line['value']) ? (float) $line['value'] : 0;
-                    $cantidad = isset($qtyResolvedByPre[$preId]) ? (float) $qtyResolvedByPre[$preId] : 0.0;
+                    $cantidad = $precotModel
+                        ? $precotModel->resolveQuotationLineCantidadFromRequest($preId, $line, $qtyResolvedByPre)
+                        : (float) ($qtyResolvedByPre[$preId] ?? 0.0);
                     $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
                     if ($preId > 0 && $value >= 0) {
                         if ($cantidad < 0.001) {
@@ -423,7 +425,9 @@ class AjaxController extends BaseController
                         $lineDesc = $desc !== '' ? $desc : 'PRE-' . $preId;
                         $baseTotal = $precotModel ? (float) $precotModel->getTotalForPreCotizacion($preId) : 0;
                         $minTotal = $precotModel ? (float) $precotModel->getMinimumValorFinalForPreCotizacion($preId) : $baseTotal;
-                        $minBase = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minTotal);
+                        $minBase = $precotModel
+                            ? $precotModel->resolveMinimumValorBaseForQuotationQty($preId, $cantidad)
+                            : ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minTotal);
                         $preCotDesc = $preDescMap[$preId] ?? '';
                         $preLineText = $preLineTextMap[$preId] ?? '';
                         $resolved = ImpuestoImprentaHelper::resolveLineValue($value, $lineDesc, $preCotDesc, $preLineText);
@@ -716,7 +720,7 @@ class AjaxController extends BaseController
             $preId = isset($line['pre_cotizacion_id']) ? (int) $line['pre_cotizacion_id'] : 0;
             $value = isset($line['value']) ? (float) $line['value'] : 0;
             $cantidad = $preId > 0
-                ? (float) ($qtyResolvedByPre[$preId] ?? 0.0)
+                ? $precotModel->resolveQuotationLineCantidadFromRequest($preId, $line, $qtyResolvedByPre)
                 : (isset($line['cantidad']) ? (float) $line['cantidad'] : 0);
             $desc = isset($line['descripcion']) ? trim((string) $line['descripcion']) : '';
             if ($value >= 0 && ($preId > 0 || $desc !== '')) {
@@ -738,7 +742,7 @@ class AjaxController extends BaseController
                 $valorBase = (float) $resolved['valor_base'];
                 $value = (float) $resolved['valor_final'];
                 if ($preId > 0 && $precotModel) {
-                    $minBase = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minTotal);
+                    $minBase = $precotModel->resolveMinimumValorBaseForQuotationQty($preId, $cantidad);
                     if ($valorBase < $minBase) {
                         $app->getLanguage()->load('com_ordenproduccion', JPATH_SITE);
                         echo json_encode(['success' => false, 'message' => Text::sprintf('COM_ORDENPRODUCCION_VALOR_FINAL_MIN_ERROR', number_format($minBase, 2))]);

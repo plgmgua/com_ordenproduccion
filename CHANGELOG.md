@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.322-STABLE] - 2026-08-12
+
+### Added
+- **Cotización — líneas desde Oferta:** Editable quantity on PRE lines copied from oferta templates; valor final and minimum scale proportionally. New `oferta_template_id` on pre_cotizacion (legacy PREs with description starting with "Oferta" still work).
+
 ## [3.119.321-STABLE] - 2026-08-12
 
 ### Fixed

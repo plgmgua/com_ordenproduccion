@@ -199,7 +199,7 @@ if ($isEdit && !empty($this->quotationItems)) {
                 <i class="fas fa-list"></i>
                 <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_ITEMS', 'Quotation Details', 'Detalles de la cotización'); ?>
             </h4>
-            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation (description is filled automatically). Quantity on each line matches the Pre-Cotización “Cantidad Total” and cannot be edited. Total is the sum of all line values.', 'Agregue líneas eligiendo una Pre-Cotización (la descripción se copia sola). La cantidad de cada línea corresponde a la “Cantidad Total” de la Pre-Cotización y no se puede editar. El total es la suma de todos los valores.'); ?></p>
+            <p class="form-note"><?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_PRECOTIZACION_NOTE', 'Add lines by selecting a Pre-Quotation (description is filled automatically). Quantity on each line matches the Pre-Cotización “Cantidad Total” and cannot be edited. Total is the sum of all line values.', 'Agregue líneas eligiendo una Pre-Cotización (la descripción se copia sola). La cantidad de cada línea corresponde a la “Cantidad Total” de la Pre-Cotización y no se puede editar. El total es la suma de todos los valores.'); ?> <?php echo $l('COM_ORDENPRODUCCION_QUOTATION_LINES_OFERTA_QTY_NOTE', 'Lines from an Oferta template allow editing quantity; the final value scales proportionally.', 'Las líneas creadas desde plantilla Oferta permiten editar la cantidad; el valor final se ajusta proporcionalmente.'); ?></p>
             <?php
             $cotizacionCurrencyQuotationId = $quotationId;
             $cotizacionCurrencyPdfLinkId = '';
@@ -247,6 +247,12 @@ if ($isEdit && !empty($this->quotationItems)) {
                                     : (float) $pre->total);
                             $metaAttr = ' data-pre-line-text="' . htmlspecialchars($lineTextOpt, ENT_QUOTES, 'UTF-8') . '"'
                                 . ' data-min-valor-base="' . htmlspecialchars(number_format($minBaseOpt, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
+                            if (!empty($pre->qty_scalable) && isset($pre->scale_base_qty)) {
+                                $metaAttr .= ' data-qty-scalable="1"'
+                                    . ' data-base-qty="' . (int) $pre->scale_base_qty . '"'
+                                    . ' data-base-valor="' . htmlspecialchars(number_format((float) ($pre->scale_base_min_valor ?? $minBaseOpt), 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"'
+                                    . ' data-base-subtotal-ref="' . htmlspecialchars(number_format((float) ($pre->scale_base_subtotal_ref ?? $pre->total), 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
+                            }
                         ?>
                             <?php /* option value = pre_cotizacion.id (PK). Label uses $pre->number (PRE-xxxxx), never mix them. */ ?>
                             <option value="<?php echo (int) $pre->id; ?>" <?php echo $warmSelected ? ' selected' : ''; ?> data-total="<?php echo number_format($pre->total, 2, '.', ''); ?>" data-number="<?php echo htmlspecialchars($pre->number); ?>" data-descripcion="<?php echo htmlspecialchars($desc); ?>"<?php echo $tcAttr . $cotQtyAttr . $metaAttr; ?>>
@@ -340,10 +346,18 @@ if ($isEdit && !empty($this->quotationItems)) {
                         if (!empty($item->line_images_json)) {
                             $lineImagesJsonForRow = (string) $item->line_images_json;
                         }
+                        $qtyScalable = $preId > 0 && !empty($item->qty_scalable);
+                        $scaleBaseQty = $qtyScalable ? (int) ($item->scale_base_qty ?? $qty) : 0;
+                        $scaleBaseValor = $qtyScalable ? (float) ($item->scale_base_min_valor ?? $minValorBase) : 0.0;
+                        $scaleBaseSubtotal = $qtyScalable ? (float) ($item->scale_base_subtotal_ref ?? $subtotalRef) : 0.0;
+                        $rowDataAttrs = ' data-pre-id="' . $preId . '" data-pre-desc="' . htmlspecialchars($preCotDescForRow, ENT_QUOTES, 'UTF-8') . '" data-pre-line-text="' . htmlspecialchars($preCotLineTextForRow, ENT_QUOTES, 'UTF-8') . '" data-min-valor-base="' . number_format($minValorBase, 2, '.', '') . '" data-unit="' . number_format($subtotalRef, 2, '.', '') . '" data-subtotal-ref="' . number_format($subtotalRef, 2, '.', '') . '" data-min-valor="' . number_format($minValor, 2, '.', '') . '"';
+                        if ($qtyScalable) {
+                            $rowDataAttrs .= ' data-qty-scalable="1" data-base-qty="' . $scaleBaseQty . '" data-base-valor="' . number_format($scaleBaseValor, 2, '.', '') . '" data-base-subtotal-ref="' . number_format($scaleBaseSubtotal, 2, '.', '') . '"';
+                        }
                     ?>
-                    <tr class="quotation-item-row" data-pre-id="<?php echo $preId; ?>" data-pre-desc="<?php echo htmlspecialchars($preCotDescForRow, ENT_QUOTES, 'UTF-8'); ?>" data-pre-line-text="<?php echo htmlspecialchars($preCotLineTextForRow, ENT_QUOTES, 'UTF-8'); ?>" data-min-valor-base="<?php echo number_format($minValorBase, 2, '.', ''); ?>" data-unit="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-subtotal-ref="<?php echo number_format($subtotalRef, 2, '.', ''); ?>" data-min-valor="<?php echo number_format($minValor, 2, '.', ''); ?>">
+                    <tr class="quotation-item-row" <?php echo $rowDataAttrs; ?>>
                         <td><?php if ($preId > 0) : ?><a href="#" class="precotizacion-detail-link" data-pre-id="<?php echo $preId; ?>" data-pre-number="<?php echo htmlspecialchars($preNum); ?>"><?php echo htmlspecialchars($preNum); ?></a><?php else : ?><?php echo htmlspecialchars($preNum); ?><?php endif; ?></td>
-                        <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end<?php echo $preId > 0 ? ' readonly-prepop bg-light' : ''; ?>" min="0" step="1" value="<?php echo $qty; ?>"<?php echo $preId > 0 ? ' readonly tabindex="-1"' : ''; ?>></td>
+                        <td class="cotizacion-line-qty-cell"><input type="number" name="lines[<?php echo $lineIndex; ?>][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end<?php echo ($preId > 0 && !$qtyScalable) ? ' readonly-prepop bg-light' : ''; ?>" min="1" step="1" value="<?php echo $qty; ?>"<?php echo ($preId > 0 && !$qtyScalable) ? ' readonly tabindex="-1"' : ''; ?>></td>
                         <td class="cotizacion-line-desc-cell"><textarea name="lines[<?php echo $lineIndex; ?>][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;"><?php echo htmlspecialchars($desc); ?></textarea></td>
                         <td class="text-end line-precio-unidad-cell"><span class="cotizacion-amt" data-gtq="<?php echo htmlspecialchars(number_format($unitPriceDisplay, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="4"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($unitPriceDisplay, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 4)); ?></span></td>
                         <td class="text-end"><span class="cotizacion-amt line-subtotal-ref-amt" data-gtq="<?php echo htmlspecialchars(number_format($subtotalRef, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-decimals="2"><?php echo htmlspecialchars(CotizacionCurrencyHelper::formatAmount($subtotalRef, (float) ($cotizacionExchangeRate ?? 0), CotizacionCurrencyHelper::DISPLAY_GTQ, 2)); ?></span></td>
@@ -735,15 +749,57 @@ if ($isEdit && !empty($this->quotationItems)) {
         updateTotal();
     }
 
+    function applyQtyScaleToRow(row) {
+        if (!row || row.getAttribute('data-qty-scalable') !== '1') {
+            return;
+        }
+        var qtyInp = row.querySelector('input[name*="[cantidad]"]');
+        if (!qtyInp) {
+            return;
+        }
+        var q = parseInt(String(qtyInp.value).trim(), 10);
+        if (isNaN(q) || q < 1) {
+            return;
+        }
+        var baseQty = parseFloat(row.getAttribute('data-base-qty') || '1');
+        if (isNaN(baseQty) || baseQty < 1) {
+            baseQty = 1;
+        }
+        var baseValor = parseFloat(row.getAttribute('data-base-valor') || '0');
+        var baseSubtotal = parseFloat(row.getAttribute('data-base-subtotal-ref') || '0');
+        var scale = q / baseQty;
+        var newValor = baseValor * scale;
+        var valueInp = row.querySelector('input[name*="[value]"]');
+        if (valueInp) {
+            valueInp.value = newValor.toFixed(2);
+            valueInp.setAttribute('data-min', newValor.toFixed(2));
+            valueInp.setAttribute('placeholder', newValor.toFixed(2));
+        }
+        row.setAttribute('data-min-valor-base', newValor.toFixed(2));
+        row.setAttribute('data-min-valor', newValor.toFixed(2));
+        var subEl = row.querySelector('.line-subtotal-ref-amt');
+        if (subEl && !isNaN(baseSubtotal)) {
+            subEl.setAttribute('data-gtq', (baseSubtotal * scale).toFixed(2));
+        }
+    }
+
     function onRowCantidadChange(row) {
         var qtyInp = row.querySelector('input[name*="[cantidad]"]');
         if (qtyInp) {
             var q = parseInt(qtyInp.value, 10);
             if (isNaN(q) || q < 0) {
                 qtyInp.value = '0';
+            } else if (row.getAttribute('data-qty-scalable') === '1' && q < 1) {
+                qtyInp.value = '1';
+            }
+            if (row.getAttribute('data-qty-scalable') === '1') {
+                applyQtyScaleToRow(row);
             }
             updateUnitPriceDisplay(row);
             updateTotal();
+            if (window.CotizacionCurrency) {
+                window.CotizacionCurrency.refresh();
+            }
         }
     }
 
@@ -832,6 +888,7 @@ if ($isEdit && !empty($this->quotationItems)) {
             var value = minValorBase.toFixed(2);
             var preDescForRow = deriveDescFromPrecotOption(opt);
             var qtyForNewRow = qtyFromAttrs;
+            var qtyScalable = opt.getAttribute('data-qty-scalable') === '1';
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
@@ -842,10 +899,22 @@ if ($isEdit && !empty($this->quotationItems)) {
             tr.setAttribute('data-unit', String(baseTotal));
             tr.setAttribute('data-subtotal-ref', String(baseTotal));
             tr.setAttribute('data-min-valor', String(minValorLine));
+            if (qtyScalable) {
+                tr.setAttribute('data-qty-scalable', '1');
+                tr.setAttribute('data-base-qty', String(opt.getAttribute('data-base-qty') || qtyForNewRow));
+                tr.setAttribute('data-base-valor', String(opt.getAttribute('data-base-valor') || minValorBase.toFixed(2)));
+                tr.setAttribute('data-base-subtotal-ref', String(opt.getAttribute('data-base-subtotal-ref') || baseTotal.toFixed(2)));
+            }
             var unitPrice = '0.0000';
+            var qtyInputClass = 'form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end';
+            var qtyInputAttrs = ' min="1" step="1" value="' + String(qtyForNewRow) + '"';
+            if (!qtyScalable) {
+                qtyInputClass += ' readonly-prepop bg-light';
+                qtyInputAttrs += ' readonly tabindex="-1"';
+            }
             var firstCell = preId > 0 ? '<a href="#" class="precotizacion-detail-link" data-pre-id="' + escapeAttr(String(preId)) + '" data-pre-number="' + escapeAttr(number) + '">' + escapeAttr(number) + '</a>' : escapeAttr(number);
             tr.innerHTML = '<td>' + firstCell + '</td>' +
-                '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="form-control form-control-sm line-cantidad-input cotizacion-qty-input text-end readonly-prepop bg-light" readonly tabindex="-1" min="0" step="1" value="' + String(qtyForNewRow) + '"></td>' +
+                '<td class="cotizacion-line-qty-cell"><input type="number" name="lines[' + lineIndex + '][cantidad]" class="' + qtyInputClass + '"' + qtyInputAttrs + '></td>' +
                 '<td class="cotizacion-line-desc-cell"><textarea name="lines[' + lineIndex + '][descripcion]" class="form-control form-control-sm w-100 cotizacion-line-descripcion-input" rows="5" style="resize:vertical;">' + escapeAttr(desc) + '</textarea></td>' +
                 '<td class="text-end line-precio-unidad-cell"><span class="cotizacion-amt" data-gtq="' + unitPrice + '" data-decimals="4"></span></td>' +
                 '<td class="text-end"><span class="cotizacion-amt line-subtotal-ref-amt" data-gtq="' + baseTotal.toFixed(2) + '" data-decimals="2"></span></td>' +
@@ -865,7 +934,7 @@ if ($isEdit && !empty($this->quotationItems)) {
                 window.initLineImagesRow(tr);
             }
             var qtyInput = tr.querySelector('.line-cantidad-input');
-            if (qtyInput && !qtyInput.readOnly) {
+            if (qtyInput) {
                 qtyInput.addEventListener('input', function() { onRowCantidadChange(tr); });
             }
             var valueInput = tr.querySelector('.line-value-input');
@@ -915,7 +984,9 @@ if ($isEdit && !empty($this->quotationItems)) {
     // Bind cantidad and valor final change/blur on existing rows (edit mode)
     tbody.querySelectorAll('tr.quotation-item-row').forEach(function(tr) {
         var qtyInp = tr.querySelector('.line-cantidad-input');
-        if (qtyInp && !qtyInp.readOnly) qtyInp.addEventListener('input', function() { onRowCantidadChange(tr); });
+        if (qtyInp) {
+            qtyInp.addEventListener('input', function() { onRowCantidadChange(tr); });
+        }
         var valueInp = tr.querySelector('.line-value-input');
         if (valueInp) {
             valueInp.addEventListener('input', function() { onValorFinalChange(tr); });

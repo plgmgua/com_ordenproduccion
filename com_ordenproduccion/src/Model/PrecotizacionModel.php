@@ -2021,6 +2021,124 @@ class PrecotizacionModel extends ListModel
     }
 
     /**
+     * True when cotización line qty may be edited and totals scale proportionally (PRE from oferta template).
+     *
+     * @param   int  $preId  Pre-cotización PK
+     *
+     * @return  bool
+     *
+     * @since   3.119.322
+     */
+    public function allowsQuotationQtyScaling(int $preId): bool
+    {
+        return $this->getQuotationQtyScaleContext($preId) !== null;
+    }
+
+    /**
+     * Base qty and amounts for proportional scaling on cotización lines (oferta-derived PRE only).
+     *
+     * @param   int  $preId  Pre-cotización PK
+     *
+     * @return  array{base_qty: int, base_min_valor: float, base_subtotal_ref: float}|null
+     *
+     * @since   3.119.322
+     */
+    public function getQuotationQtyScaleContext(int $preId): ?array
+    {
+        $preId = (int) $preId;
+        if ($preId < 1) {
+            return null;
+        }
+
+        $db        = $this->getDatabase();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = \is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' = ' . $preId)
+        );
+        $row = $db->loadObject();
+        if (!$row) {
+            return null;
+        }
+
+        $fromTemplate = isset($tableCols['oferta_template_id']) && (int) ($row->oferta_template_id ?? 0) > 0;
+        $legacyOferta = false;
+        if (!$fromTemplate && isset($tableCols['cantidad_total'])) {
+            $baseQtyCheck = CotizacionHelper::parsePreCotCantidadTotalForQuotation((string) ($row->cantidad_total ?? ''));
+            $desc         = trim((string) ($row->descripcion ?? ''));
+            $legacyOferta = $baseQtyCheck > 0 && $desc !== '' && preg_match('/^oferta\b/u', $desc) === 1;
+        }
+
+        if (!$fromTemplate && !$legacyOferta) {
+            return null;
+        }
+
+        $qtyMap  = $this->getQuotationLineCantidadesByPreIds([$preId]);
+        $baseQty = (int) ($qtyMap[$preId] ?? 0);
+        if ($baseQty < 1) {
+            return null;
+        }
+
+        $minFinal     = (float) $this->getMinimumValorFinalForPreCotizacion($preId);
+        $baseMinValor = (float) ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minFinal);
+        $baseSubtotal = (float) $this->getTotalForPreCotizacion($preId);
+
+        return [
+            'base_qty'            => $baseQty,
+            'base_min_valor'      => $baseMinValor,
+            'base_subtotal_ref'   => $baseSubtotal,
+        ];
+    }
+
+    /**
+     * Cantidad for a cotización line: posted qty when oferta-scalable, else PRE header qty.
+     *
+     * @param   int                $preId
+     * @param   array<string,mixed>  $line
+     * @param   array<int, int>    $qtyResolvedByPre
+     *
+     * @since   3.119.322
+     */
+    public function resolveQuotationLineCantidadFromRequest(int $preId, array $line, array $qtyResolvedByPre): float
+    {
+        if ($preId > 0 && $this->allowsQuotationQtyScaling($preId)) {
+            $posted = isset($line['cantidad']) ? (float) $line['cantidad'] : 0.0;
+            if ($posted >= 0.001) {
+                return $posted;
+            }
+        }
+
+        return (float) ($qtyResolvedByPre[$preId] ?? 0.0);
+    }
+
+    /**
+     * Minimum valor base for a cotización line, scaled when qty differs from oferta base qty.
+     *
+     * @since   3.119.322
+     */
+    public function resolveMinimumValorBaseForQuotationQty(int $preId, float $cantidad): float
+    {
+        $ctx = $this->getQuotationQtyScaleContext($preId);
+        if ($ctx === null) {
+            $minTotal = (float) $this->getMinimumValorFinalForPreCotizacion($preId);
+
+            return (float) ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($preId, $minTotal);
+        }
+
+        $baseQty = (float) $ctx['base_qty'];
+        if ($baseQty < 0.001) {
+            $baseQty = 1.0;
+        }
+        $ratio = $cantidad / $baseQty;
+
+        return round((float) $ctx['base_min_valor'] * $ratio, 2);
+    }
+
+    /**
      * Get total amount for a Pre-Cotización: sum of all line totals (including Envío), then Margen / IVA / ISR / Comisión from params.
      * When facturar=1, IVA and ISR are included; when 0, they are excluded.
      *
@@ -2764,6 +2882,9 @@ class PrecotizacionModel extends ListModel
         }
         if (isset($tableCols['cantidad_total'])) {
             $newRow->cantidad_total = isset($template->cantidad_total) ? (string) $template->cantidad_total : '';
+        }
+        if (isset($tableCols['oferta_template_id'])) {
+            $newRow->oferta_template_id = $templateId;
         }
         if (isset($tableCols['document_mode'])) {
             $newRow->document_mode = isset($template->document_mode) && (string) $template->document_mode !== ''
