@@ -2029,21 +2029,22 @@ class PrecotizacionModel extends ListModel
      *
      * @since   3.119.322
      */
-    public function allowsQuotationQtyScaling(int $preId): bool
+    public function allowsQuotationQtyScaling(int $preId, string $lineDesc = ''): bool
     {
-        return $this->getQuotationQtyScaleContext($preId) !== null;
+        return $this->getQuotationQtyScaleContext($preId, $lineDesc) !== null;
     }
 
     /**
      * Base qty and amounts for proportional scaling on cotización lines (oferta-derived PRE only).
      *
-     * @param   int  $preId  Pre-cotización PK
+     * @param   int     $preId     Pre-cotización PK
+     * @param   string  $lineDesc  Cotización line description (fallback for oferta qty parse)
      *
      * @return  array{base_qty: int, base_min_valor: float, base_subtotal_ref: float}|null
      *
      * @since   3.119.322
      */
-    public function getQuotationQtyScaleContext(int $preId): ?array
+    public function getQuotationQtyScaleContext(int $preId, string $lineDesc = ''): ?array
     {
         $preId = (int) $preId;
         if ($preId < 1) {
@@ -2061,24 +2062,11 @@ class PrecotizacionModel extends ListModel
                 ->where($db->quoteName('id') . ' = ' . $preId)
         );
         $row = $db->loadObject();
-        if (!$row) {
+        if (!$row || !$this->isOfertaDerivedPreRow($row, $tableCols, $lineDesc)) {
             return null;
         }
 
-        $fromTemplate = isset($tableCols['oferta_template_id']) && (int) ($row->oferta_template_id ?? 0) > 0;
-        $legacyOferta = false;
-        if (!$fromTemplate && isset($tableCols['cantidad_total'])) {
-            $baseQtyCheck = CotizacionHelper::parsePreCotCantidadTotalForQuotation((string) ($row->cantidad_total ?? ''));
-            $desc         = trim((string) ($row->descripcion ?? ''));
-            $legacyOferta = $baseQtyCheck > 0 && $desc !== '' && preg_match('/^oferta\b/u', $desc) === 1;
-        }
-
-        if (!$fromTemplate && !$legacyOferta) {
-            return null;
-        }
-
-        $qtyMap  = $this->getQuotationLineCantidadesByPreIds([$preId]);
-        $baseQty = (int) ($qtyMap[$preId] ?? 0);
+        $baseQty = $this->resolveOfertaBaseQtyForPre($row, $lineDesc);
         if ($baseQty < 1) {
             return null;
         }
@@ -2092,6 +2080,65 @@ class PrecotizacionModel extends ListModel
             'base_min_valor'      => $baseMinValor,
             'base_subtotal_ref'   => $baseSubtotal,
         ];
+    }
+
+    /**
+     * @param   array<string, mixed>  $tableCols  lower-case column map
+     */
+    private function isOfertaDerivedPreRow(object $row, array $tableCols, string $lineDesc = ''): bool
+    {
+        if (isset($tableCols['oferta_template_id']) && (int) ($row->oferta_template_id ?? 0) > 0) {
+            return true;
+        }
+
+        foreach ([trim((string) ($row->descripcion ?? '')), trim($lineDesc)] as $desc) {
+            if ($desc !== '' && preg_match('/^oferta\b/ui', $desc) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function resolveOfertaBaseQtyForPre(object $row, string $lineDesc = ''): int
+    {
+        $fromHeader = CotizacionHelper::parsePreCotCantidadTotalForQuotation((string) ($row->cantidad_total ?? ''));
+        if ($fromHeader > 0) {
+            return $fromHeader;
+        }
+
+        foreach ([trim((string) ($row->descripcion ?? '')), trim($lineDesc)] as $desc) {
+            $fromDesc = CotizacionHelper::parseOfertaQtyFromDescripcion($desc);
+            if ($fromDesc > 0) {
+                return $fromDesc;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * @since  3.119.323
+     */
+    public function isOfertaDerivedPre(int $preId): bool
+    {
+        $preId = (int) $preId;
+        if ($preId < 1) {
+            return false;
+        }
+
+        $db        = $this->getDatabase();
+        $tableCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+        $tableCols = \is_array($tableCols) ? array_change_key_case($tableCols, CASE_LOWER) : [];
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                ->where($db->quoteName('id') . ' = ' . $preId)
+        );
+        $row = $db->loadObject();
+
+        return $row && $this->isOfertaDerivedPreRow($row, $tableCols);
     }
 
     /**

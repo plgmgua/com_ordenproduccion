@@ -247,10 +247,12 @@ if ($isEdit && !empty($this->quotationItems)) {
                                     : (float) $pre->total);
                             $metaAttr = ' data-pre-line-text="' . htmlspecialchars($lineTextOpt, ENT_QUOTES, 'UTF-8') . '"'
                                 . ' data-min-valor-base="' . htmlspecialchars(number_format($minBaseOpt, 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
-                            if (!empty($pre->qty_scalable) && isset($pre->scale_base_qty)) {
-                                $metaAttr .= ' data-qty-scalable="1"'
-                                    . ' data-base-qty="' . (int) $pre->scale_base_qty . '"'
-                                    . ' data-base-valor="' . htmlspecialchars(number_format((float) ($pre->scale_base_min_valor ?? $minBaseOpt), 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"'
+                            if (!empty($pre->qty_scalable)) {
+                                $metaAttr .= ' data-qty-scalable="1"';
+                                if (isset($pre->scale_base_qty)) {
+                                    $metaAttr .= ' data-base-qty="' . (int) $pre->scale_base_qty . '"';
+                                }
+                                $metaAttr .= ' data-base-valor="' . htmlspecialchars(number_format((float) ($pre->scale_base_min_valor ?? $minBaseOpt), 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"'
                                     . ' data-base-subtotal-ref="' . htmlspecialchars(number_format((float) ($pre->scale_base_subtotal_ref ?? $pre->total), 2, '.', ''), ENT_QUOTES, 'UTF-8') . '"';
                             }
                         ?>
@@ -346,8 +348,17 @@ if ($isEdit && !empty($this->quotationItems)) {
                         if (!empty($item->line_images_json)) {
                             $lineImagesJsonForRow = (string) $item->line_images_json;
                         }
-                        $qtyScalable = $preId > 0 && !empty($item->qty_scalable);
-                        $scaleBaseQty = $qtyScalable ? (int) ($item->scale_base_qty ?? $qty) : 0;
+                        $qtyScalable = $preId > 0 && (!empty($item->qty_scalable) || preg_match('/^oferta\b/ui', $desc) === 1);
+                        $scaleBaseQty = $qtyScalable ? (int) ($item->scale_base_qty ?? 0) : 0;
+                        if ($qtyScalable && $scaleBaseQty < 1) {
+                            $scaleBaseQty = CotizacionHelper::parseOfertaQtyFromDescripcion($desc);
+                        }
+                        if ($qtyScalable && $scaleBaseQty < 1) {
+                            $scaleBaseQty = $qty > 0 ? $qty : 1;
+                        }
+                        if ($qtyScalable && $scaleBaseQty >= 1 && $qty < $scaleBaseQty) {
+                            $qty = $scaleBaseQty;
+                        }
                         $scaleBaseValor = $qtyScalable ? (float) ($item->scale_base_min_valor ?? $minValorBase) : 0.0;
                         $scaleBaseSubtotal = $qtyScalable ? (float) ($item->scale_base_subtotal_ref ?? $subtotalRef) : 0.0;
                         $rowDataAttrs = ' data-pre-id="' . $preId . '" data-pre-desc="' . htmlspecialchars($preCotDescForRow, ENT_QUOTES, 'UTF-8') . '" data-pre-line-text="' . htmlspecialchars($preCotLineTextForRow, ENT_QUOTES, 'UTF-8') . '" data-min-valor-base="' . number_format($minValorBase, 2, '.', '') . '" data-unit="' . number_format($subtotalRef, 2, '.', '') . '" data-subtotal-ref="' . number_format($subtotalRef, 2, '.', '') . '" data-min-valor="' . number_format($minValor, 2, '.', '') . '"';
@@ -749,6 +760,25 @@ if ($isEdit && !empty($this->quotationItems)) {
         updateTotal();
     }
 
+    function parseOfertaQtyFromDesc(desc) {
+        if (!desc) {
+            return 0;
+        }
+        var m = desc.match(/-\s*(\d{1,7})\s+Volantes/i);
+        if (m) {
+            return parseInt(m[1], 10);
+        }
+        m = desc.match(/\b(\d{1,7})\s+Volantes/i);
+        if (m) {
+            return parseInt(m[1], 10);
+        }
+        m = desc.match(/^oferta\b[^-]*-\s*(\d+)/i);
+        if (m) {
+            return parseInt(m[1], 10);
+        }
+        return 0;
+    }
+
     function applyQtyScaleToRow(row) {
         if (!row || row.getAttribute('data-qty-scalable') !== '1') {
             return;
@@ -870,6 +900,11 @@ if ($isEdit && !empty($this->quotationItems)) {
                 return;
             }
             var qtyFromAttrs = readEffectivePrecotCantidad(opt);
+            var qtyFromDesc = parseOfertaQtyFromDesc(desc);
+            var qtyScalable = opt.getAttribute('data-qty-scalable') === '1' || /^oferta\b/i.test(desc);
+            if (qtyScalable && qtyFromDesc > 0) {
+                qtyFromAttrs = qtyFromDesc;
+            }
             if (qtyFromAttrs < 1) {
                 alert(msgCantidadRequired);
                 if (selectEl) {
@@ -888,7 +923,6 @@ if ($isEdit && !empty($this->quotationItems)) {
             var value = minValorBase.toFixed(2);
             var preDescForRow = deriveDescFromPrecotOption(opt);
             var qtyForNewRow = qtyFromAttrs;
-            var qtyScalable = opt.getAttribute('data-qty-scalable') === '1';
             lineIndex++;
             var tr = document.createElement('tr');
             tr.className = 'quotation-item-row';
@@ -901,7 +935,14 @@ if ($isEdit && !empty($this->quotationItems)) {
             tr.setAttribute('data-min-valor', String(minValorLine));
             if (qtyScalable) {
                 tr.setAttribute('data-qty-scalable', '1');
-                tr.setAttribute('data-base-qty', String(opt.getAttribute('data-base-qty') || qtyForNewRow));
+                var baseQtyAttr = parseInt(String(opt.getAttribute('data-base-qty') || qtyForNewRow), 10);
+                if (qtyFromDesc > 0) {
+                    baseQtyAttr = qtyFromDesc;
+                }
+                if (isNaN(baseQtyAttr) || baseQtyAttr < 1) {
+                    baseQtyAttr = qtyForNewRow;
+                }
+                tr.setAttribute('data-base-qty', String(baseQtyAttr));
                 tr.setAttribute('data-base-valor', String(opt.getAttribute('data-base-valor') || minValorBase.toFixed(2)));
                 tr.setAttribute('data-base-subtotal-ref', String(opt.getAttribute('data-base-subtotal-ref') || baseTotal.toFixed(2)));
             }

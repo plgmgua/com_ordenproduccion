@@ -474,12 +474,25 @@ class HtmlView extends BaseHtmlView
                         }
 
                         if ($qp > 0) {
-                            $scaleCtx = $precotModel->getQuotationQtyScaleContext($qp);
-                            $qiSync->qty_scalable = $scaleCtx !== null;
+                            $lineDesc = (string) ($qiSync->descripcion ?? '');
+                            $scaleCtx = $precotModel->getQuotationQtyScaleContext($qp, $lineDesc);
+                            $qiSync->qty_scalable = $scaleCtx !== null
+                                || preg_match('/^oferta\b/ui', $lineDesc) === 1
+                                || $precotModel->isOfertaDerivedPre($qp);
                             if ($scaleCtx !== null) {
-                                $qiSync->scale_base_qty           = (int) $scaleCtx['base_qty'];
-                                $qiSync->scale_base_min_valor     = (float) $scaleCtx['base_min_valor'];
-                                $qiSync->scale_base_subtotal_ref  = (float) $scaleCtx['base_subtotal_ref'];
+                                $qiSync->scale_base_qty          = (int) $scaleCtx['base_qty'];
+                                $qiSync->scale_base_min_valor    = (float) $scaleCtx['base_min_valor'];
+                                $qiSync->scale_base_subtotal_ref = (float) $scaleCtx['base_subtotal_ref'];
+                                $storedQty = (int) ($qiSync->cantidad ?? 0);
+                                $baseQty   = (int) $scaleCtx['base_qty'];
+                                if ($storedQty > 0 && $storedQty < $baseQty) {
+                                    $storedVf = (isset($qiSync->valor_final) && $qiSync->valor_final !== null && $qiSync->valor_final !== '')
+                                        ? (float) $qiSync->valor_final
+                                        : (float) ($qiSync->subtotal ?? 0);
+                                    if (abs($storedVf - (float) $scaleCtx['base_min_valor']) < 0.02) {
+                                        $qiSync->cantidad = $baseQty;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1299,11 +1312,14 @@ class HtmlView extends BaseHtmlView
         $row->pre_cot_line_text = ImpuestoImprentaHelper::getPreCotizacionLineMatchingText($id);
         $row->min_valor_base    = ImpuestoImprentaHelper::getMinimumValorBaseForPreCot($id, $minFinal);
         $scaleCtx               = $precotModel->getQuotationQtyScaleContext($id);
-        $row->qty_scalable      = $scaleCtx !== null;
+        $row->qty_scalable      = $scaleCtx !== null || $precotModel->isOfertaDerivedPre($id);
         if ($scaleCtx !== null) {
             $row->scale_base_qty          = (int) $scaleCtx['base_qty'];
             $row->scale_base_min_valor    = (float) $scaleCtx['base_min_valor'];
             $row->scale_base_subtotal_ref = (float) $scaleCtx['base_subtotal_ref'];
+        } elseif ($row->qty_scalable) {
+            $row->scale_base_min_valor    = (float) $row->min_valor_base;
+            $row->scale_base_subtotal_ref = (float) ($row->total ?? 0);
         }
 
         return $row;

@@ -268,4 +268,31 @@ abstract class CotizacionHelper
 
         return 0;
     }
+
+    /**
+     * Parse quantity embedded in oferta-style descriptions (e.g. "Oferta 1 - 1000 Volantes …").
+     *
+     * @since  3.119.323
+     */
+    public static function parseOfertaQtyFromDescripcion(?string $desc): int
+    {
+        $desc = trim((string) ($desc ?? ''));
+        if ($desc === '') {
+            return 0;
+        }
+
+        if (preg_match('/-\s*(\d{1,7})\s+Volantes/ui', $desc, $m)) {
+            return max(1, (int) $m[1]);
+        }
+
+        if (preg_match('/\b(\d{1,7})\s+Volantes/ui', $desc, $m)) {
+            return max(1, (int) $m[1]);
+        }
+
+        if (preg_match('/^oferta\b[^-]*-\s*(\d+)/ui', $desc, $m)) {
+            return max(1, (int) $m[1]);
+        }
+
+        return 0;
+    }
 }

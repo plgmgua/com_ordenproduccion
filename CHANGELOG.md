@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.323-STABLE] - 2026-08-12
+
+### Fixed
+- **Cotización — Oferta qty scaling:** Detect oferta lines by description (not only `cantidad_total`); parse base qty from text like "1000 Volantes"; Cant. field editable on edit and add.
+
 ## [3.119.322-STABLE] - 2026-08-12
 
 ### Added
