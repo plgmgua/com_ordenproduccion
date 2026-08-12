@@ -40,7 +40,7 @@ $dateIn = static function (string $key) use ($fv) : string {
 
     return strlen($s) >= 10 ? substr($s, 0, 10) : '';
 };
-$colCount = 8 + (!empty($this->showSalesAgentColumn) ? 1 : 0) + ($showOfertaColumn ? 1 : 0) + ($showFacturarColumn ? 1 : 0);
+$colCount = 9 + (!empty($this->showSalesAgentColumn) ? 1 : 0) + ($showOfertaColumn ? 1 : 0) + ($showFacturarColumn ? 1 : 0);
 $listLimit = (int) $state->get('list.limit', 20);
 $filterFormAction = Route::_('index.php?option=com_ordenproduccion&view=cotizador', false);
 $filterClearUrl = Route::_('index.php?option=com_ordenproduccion&view=cotizador&filter_reset=1', false);
@@ -58,7 +58,7 @@ $imprentaParamsOk = !isset($this->imprentaParametrosConfigured) || !empty($this-
 $parametrosAdminUrl = Route::_('index.php?option=com_ordenproduccion&view=productos&section=parametros', false);
 ?>
 
-<div class="com-ordenproduccion-precotizacion-list container py-4">
+<div class="com-ordenproduccion-precotizacion-list container-fluid px-3 px-md-4 py-4">
     <h1 class="page-title"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_TITLE'); ?></h1>
 
     <p class="lead"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_LIST_DESC'); ?></p>
@@ -213,7 +213,7 @@ $parametrosAdminUrl = Route::_('index.php?option=com_ordenproduccion&view=produc
                     <?php if ($showFacturarColumn) : ?>
                     <th scope="col" class="text-center col-facturar-short"><?php echo Text::_('COM_ORDENPRODUCCION_PRE_COTIZACION_FACTURAR_COLUMN_SHORT'); ?></th>
                     <?php endif; ?>
-                    <th scope="col" class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
+                    <th scope="col" class="text-end col-precot-actions"><?php echo Text::_('COM_ORDENPRODUCCION_ACTIONS'); ?></th>
                 </tr>
             </thead>
             <tbody>
@@ -340,7 +340,7 @@ $parametrosAdminUrl = Route::_('index.php?option=com_ordenproduccion&view=produc
                             ?>
                         </td>
                         <?php endif; ?>
-                        <td class="text-end">
+                        <td class="text-end col-precot-actions">
                             <?php
                             $currentUid = (int) Factory::getUser()->id;
                             $createdBy = (int) ($item->created_by ?? 0);
@@ -377,8 +377,25 @@ $parametrosAdminUrl = Route::_('index.php?option=com_ordenproduccion&view=produc
     <?php endif; ?>
 </div>
 <style>
+.com-ordenproduccion-precotizacion-list {
+    max-width: 100%;
+    overflow-x: visible;
+}
 .precotizacion-list-filters-card .form-label { font-weight: 500; color: #495057; }
-.precotizacion-list-table-wrap .precotizacion-list-table { font-size: 0.8rem; }
+.precotizacion-list-table-wrap {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table {
+    font-size: 0.8rem;
+    width: max-content;
+    min-width: 100%;
+    margin-bottom: 0;
+}
 .precotizacion-list-table-wrap .precotizacion-list-table th,
 .precotizacion-list-table-wrap .precotizacion-list-table td { padding: 0.3rem 0.4rem; vertical-align: middle; }
 .precotizacion-list-table-wrap .precotizacion-list-table .col-precot-num {
@@ -399,12 +416,43 @@ $parametrosAdminUrl = Route::_('index.php?option=com_ordenproduccion&view=produc
 .precotizacion-list-table-wrap .precotizacion-list-table .col-facturar-short {
     white-space: nowrap;
     width: 1%;
+    min-width: 3.5rem;
 }
 .precotizacion-list-table-wrap .precotizacion-list-table .col-precot-scope {
     white-space: nowrap;
     width: 1%;
+    min-width: 3.25rem;
 }
-.precotizacion-list-table-wrap .precotizacion-list-table .col-descripcion { max-width: 260px; }
-.precotizacion-list-table-wrap .precotizacion-list-table .col-client { max-width: 200px; }
+.precotizacion-list-table-wrap .precotizacion-list-table .col-descripcion {
+    max-width: 220px;
+    min-width: 140px;
+    white-space: normal;
+    word-break: break-word;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table .col-client {
+    max-width: 160px;
+    min-width: 100px;
+    white-space: normal;
+    word-break: break-word;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table .col-precot-actions {
+    white-space: nowrap;
+    width: 1%;
+    min-width: 3.25rem;
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: #fff;
+    box-shadow: -6px 0 8px -4px rgba(0, 0, 0, 0.12);
+}
+.precotizacion-list-table-wrap .precotizacion-list-table thead th.col-precot-actions {
+    z-index: 3;
+}
+.precotizacion-list-table-wrap .precotizacion-list-table.table-striped > tbody > tr:nth-of-type(odd) > td.col-precot-actions {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+.precotizacion-list-table-wrap .precotizacion-list-table.table-hover > tbody > tr:hover > td.col-precot-actions {
+    background-color: rgba(0, 0, 0, 0.075);
+}
 .precotizacion-list-table-wrap .precotizacion-list-table .btn .icon-trash { font-size: 1rem; }
 </style>
