@@ -343,8 +343,8 @@ class AjaxController extends BaseController
             $qtyResolvedByPre = [];
             $preIdsForQuote = [];
 
-            // Validate required fields
-            if (empty($clientName) || empty($clientNit) || empty($quoteDate)) {
+            // Validate required fields (allow NIT "0" — empty() treats "0" as empty in PHP)
+            if (trim($clientName) === '' || trim((string) $clientNit) === '' || trim($quoteDate) === '') {
                 echo json_encode(['success' => false, 'message' => 'Missing required fields']);
                 exit;
             }
@@ -674,7 +674,7 @@ class AjaxController extends BaseController
         $salesAgent = $input->getString('sales_agent', '');
         $lines = $input->get('lines', [], 'array');
         $lines = QuotationLineImagesHelper::mergeLineImagesJsonFromRequest($lines);
-        if (empty($clientName) || empty($clientNit)) {
+        if (trim($clientName) === '' || trim((string) $clientNit) === '') {
             echo json_encode(['success' => false, 'message' => 'Missing required fields']);
             exit;
         }

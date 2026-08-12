@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.325-STABLE] - 2026-08-12
+
+### Fixed
+- **Cotización save:** Allow client NIT `"0"` on create/update — PHP `empty('0')` falsely rejected valid NIT values.
+
+## [3.119.324-STABLE] - 2026-08-12
+
+### Fixed
+- **Pre-cotizaciones list:** Horizontal scroll and sticky Acciones column so Facturar/delete controls stay visible on wide tables.
+
 ## [3.119.323-STABLE] - 2026-08-12
 
 ### Fixed
