@@ -3,12 +3,20 @@
  * com_ordenproduccion — multi-tool troubleshooting hub.
  *
  * Standalone: https://yoursite.com/troubleshooting.php
- * Sourcerer: require JPATH_ROOT . '/troubleshooting.php';
+ *
+ * Sourcerer (Joomla article) — paste ONLY this one line inside Sourcerer php tags:
+ *   require JPATH_ROOT . '/troubleshooting.php';
+ * Do NOT paste this whole file into the article (Sourcerer tag chars in comments break parsing).
  *
  * Tools (?tool=): home | payment | precot | invoice | table | schema
  */
 
 declare(strict_types=1);
+
+if (defined('COM_ORDENPRODUCCION_TS_LOADED')) {
+    return;
+}
+define('COM_ORDENPRODUCCION_TS_LOADED', true);
 
 function tsIsStandalone(): bool
 {
@@ -65,6 +73,100 @@ function tsGetApplication(): \Joomla\CMS\Application\CMSApplication
 }
 
 /**
+ * Joomla input (works under Sourcerer and standalone bootstrap).
+ */
+function tsInput(): \Joomla\Input\Input
+{
+    return tsGetApplication()->input;
+}
+
+/** @return array<int, string> */
+function tsToolQueryKeys(): array
+{
+    return ['tool', 'pre_id', 'pre_number', 'invoice_id', 'fel_uuid', 'table', 'limit'];
+}
+
+/**
+ * Build URL preserving Joomla routing (option, view, id, Itemid) when embedded via Sourcerer.
+ *
+ * @param   array<string, scalar|null>  $params
+ */
+function tsBuildUrl(array $params = []): string
+{
+    if (!class_exists(\Joomla\CMS\Uri\Uri::class)) {
+        $q = http_build_query(array_filter($params, static fn($v) => $v !== '' && $v !== null));
+
+        return $q !== '' ? ('?' . $q) : '?';
+    }
+
+    $uri = \Joomla\CMS\Uri\Uri::getInstance();
+    $existing = $uri->getQuery(true);
+    if (!is_array($existing)) {
+        $existing = [];
+    }
+
+    foreach (tsToolQueryKeys() as $key) {
+        unset($existing[$key]);
+    }
+
+    $merged = array_merge($existing, $params);
+    $merged = array_filter(
+        $merged,
+        static fn($v) => $v !== '' && $v !== null && !is_array($v)
+    );
+
+    $newUri = clone $uri;
+    $newUri->setQuery($merged);
+
+    if (tsIsStandalone()) {
+        $query = $newUri->getQuery();
+
+        return $query !== '' ? ('?' . $query) : '?';
+    }
+
+    return (string) $newUri;
+}
+
+/**
+ * Form action URL (path only when embedded — routing vars go in hidden fields).
+ */
+function tsFormAction(): string
+{
+    if (tsIsStandalone()) {
+        return '';
+    }
+    if (!class_exists(\Joomla\CMS\Uri\Uri::class)) {
+        return '';
+    }
+
+    return \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port', 'path']);
+}
+
+/**
+ * Hidden fields so GET forms keep com_content (or other) routing under non-SEF URLs.
+ */
+function tsRenderHiddenRoutingFields(): void
+{
+    if (tsIsStandalone() || !class_exists(\Joomla\CMS\Uri\Uri::class)) {
+        return;
+    }
+
+    $vars = \Joomla\CMS\Uri\Uri::getInstance()->getQuery(true);
+    if (!is_array($vars)) {
+        return;
+    }
+
+    $skip = array_flip(tsToolQueryKeys());
+    foreach ($vars as $key => $value) {
+        if (isset($skip[$key]) || is_array($value)) {
+            continue;
+        }
+        echo '<input type="hidden" name="' . htmlspecialchars((string) $key) . '" value="'
+            . htmlspecialchars((string) $value) . '">';
+    }
+}
+
+/**
  * @param array<string, mixed> $check
  */
 function tsStatusClass(array $check): string
@@ -91,7 +193,7 @@ function tsToolCatalog(): array
 
 function tsCurrentTool(): string
 {
-    $tool = strtolower(trim((string) ($_GET['tool'] ?? 'home')));
+    $tool = strtolower(trim((string) tsInput()->get('tool', 'home', 'cmd')));
 
     foreach (tsToolCatalog() as $t) {
         if ($t['slug'] === $tool) {
@@ -107,23 +209,26 @@ function tsCurrentTool(): string
  */
 function tsCollectInput(string $tool): array
 {
-    $input = [];
+    $input = tsInput();
     switch ($tool) {
         case 'precot':
-            $input['pre_id']     = trim((string) ($_GET['pre_id'] ?? ''));
-            $input['pre_number'] = trim((string) ($_GET['pre_number'] ?? ''));
-            break;
+            return [
+                'pre_id'     => trim((string) $input->get('pre_id', '', 'string')),
+                'pre_number' => trim((string) $input->get('pre_number', '', 'string')),
+            ];
         case 'invoice':
-            $input['invoice_id'] = trim((string) ($_GET['invoice_id'] ?? ''));
-            $input['fel_uuid']   = trim((string) ($_GET['fel_uuid'] ?? ''));
-            break;
+            return [
+                'invoice_id' => trim((string) $input->get('invoice_id', '', 'string')),
+                'fel_uuid'   => trim((string) $input->get('fel_uuid', '', 'string')),
+            ];
         case 'table':
-            $input['table'] = trim((string) ($_GET['table'] ?? ''));
-            $input['limit'] = trim((string) ($_GET['limit'] ?? '5'));
-            break;
+            return [
+                'table' => trim((string) $input->get('table', '', 'string')),
+                'limit' => trim((string) $input->get('limit', '5', 'string')),
+            ];
+        default:
+            return [];
     }
-
-    return $input;
 }
 
 function tsCanAccess(): bool
@@ -212,7 +317,7 @@ function tsRender(array $vars): void
 
     <nav class="tools">
         <?php foreach ($catalog as $t): ?>
-            <a href="?tool=<?php echo htmlspecialchars($t['slug']); ?>" class="<?php echo $tool === $t['slug'] ? 'active' : ''; ?>">
+            <a href="<?php echo htmlspecialchars(tsBuildUrl(['tool' => $t['slug']])); ?>" class="<?php echo $tool === $t['slug'] ? 'active' : ''; ?>">
                 <?php echo htmlspecialchars($t['label']); ?>
             </a>
         <?php endforeach; ?>
@@ -309,7 +414,8 @@ function tsRenderToolForm(string $tool, ?array $report): void
         case 'precot':
             ?>
             <div class="tool-form">
-                <form method="get">
+                <form method="get" action="<?php echo htmlspecialchars(tsFormAction()); ?>">
+                    <?php tsRenderHiddenRoutingFields(); ?>
                     <input type="hidden" name="tool" value="precot">
                     <label for="pre_number">Número PRE (ej. PRE-01235)</label>
                     <input type="text" name="pre_number" id="pre_number" value="<?php echo htmlspecialchars((string) ($form['pre_number'] ?? '')); ?>">
@@ -324,7 +430,8 @@ function tsRenderToolForm(string $tool, ?array $report): void
         case 'invoice':
             ?>
             <div class="tool-form">
-                <form method="get">
+                <form method="get" action="<?php echo htmlspecialchars(tsFormAction()); ?>">
+                    <?php tsRenderHiddenRoutingFields(); ?>
                     <input type="hidden" name="tool" value="invoice">
                     <label for="invoice_id">ID factura (joomla_ordenproduccion_invoices.id)</label>
                     <input type="text" name="invoice_id" id="invoice_id" value="<?php echo htmlspecialchars((string) ($form['invoice_id'] ?? '')); ?>">
@@ -339,7 +446,8 @@ function tsRenderToolForm(string $tool, ?array $report): void
         case 'table':
             ?>
             <div class="tool-form">
-                <form method="get">
+                <form method="get" action="<?php echo htmlspecialchars(tsFormAction()); ?>">
+                    <?php tsRenderHiddenRoutingFields(); ?>
                     <input type="hidden" name="tool" value="table">
                     <label for="table">Tabla (sin prefijo joomla_)</label>
                     <input type="text" name="table" id="table" placeholder="ordenproduccion_pre_cotizacion" value="<?php echo htmlspecialchars((string) ($form['table'] ?? '')); ?>">

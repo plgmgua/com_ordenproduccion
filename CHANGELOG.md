@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.320-STABLE] - 2026-08-12
+
+### Fixed
+- **troubleshooting.php:** Sourcerer-safe URL building — nav links and GET forms preserve Joomla routing (`option`, `view`, `id`, `Itemid`); uses `$app->input` instead of raw `$_GET`; guard against double include.
+
 ## [3.119.319-STABLE] - 2026-08-12
 
 ### Added

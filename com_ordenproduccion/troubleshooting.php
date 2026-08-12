@@ -1,11 +1,14 @@
 <?php
 /**
- * Wrapper — forwards to Joomla root Verificar pago diagnostic.
+ * Wrapper — forwards to Joomla root troubleshooting hub.
  *
- * Sourcerer: use ONLY one require line (do not paste the full root troubleshooting.php).
+ * Sourcerer (recommended): create a Joomla article and put ONLY this inside Sourcerer php tags:
  *   require JPATH_ROOT . '/troubleshooting.php';
- * or:
+ *
+ * Alternative (same result):
  *   require JPATH_ROOT . '/components/com_ordenproduccion/troubleshooting.php';
+ *
+ * Do NOT paste the full root troubleshooting.php into the article.
  */
 
 defined('_JEXEC') or die;
