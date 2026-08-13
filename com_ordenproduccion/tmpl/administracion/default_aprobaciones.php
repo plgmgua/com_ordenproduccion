@@ -10,6 +10,7 @@
 defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
 use Grimpsa\Component\Ordenproduccion\Site\Service\Mt940PaymentMatchService;
 use Joomla\CMS\Factory;
@@ -228,25 +229,28 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
                                                         continue;
                                                     }
                                                     $mt = is_array($pl['mt940'] ?? null) ? $pl['mt940'] : [];
-                                                    $amtFmt = number_format((float) ($pl['amount'] ?? 0), 2);
-                                                    $mtAmtFmt = number_format((float) ($mt['amount'] ?? 0), 2);
+                                                    $lineCurrency = PaymentProofCurrencyHelper::normalizeCurrency(trim((string) ($pl['currency'] ?? PaymentProofCurrencyHelper::CURRENCY_GTQ)));
+                                                    $mtCurrency = PaymentProofCurrencyHelper::normalizeCurrency(trim((string) ($mt['currency'] ?? $lineCurrency)));
+                                                    $amtFmt = PaymentProofCurrencyHelper::formatAmount((float) ($pl['amount'] ?? 0), $lineCurrency);
+                                                    $mtAmtFmt = PaymentProofCurrencyHelper::formatAmount((float) ($mt['amount'] ?? 0), $mtCurrency);
                                                     $lineId = (int) ($pl['line_id'] ?? 0);
                                                     ?>
                                                 <tr data-line-id="<?php echo $lineId; ?>">
                                                     <td>
                                                         <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER'); ?>:</strong> <?php echo htmlspecialchars((string) ($pl['document_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
                                                         <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_DATE'); ?>:</strong> <?php echo htmlspecialchars((string) ($pl['document_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
-                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?>:</strong> Q <?php echo htmlspecialchars($amtFmt, ENT_QUOTES, 'UTF-8'); ?></div>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?>:</strong> <?php echo htmlspecialchars($amtFmt, ENT_QUOTES, 'UTF-8'); ?></div>
                                                         <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_ACCOUNT'); ?>:</strong> <?php echo htmlspecialchars((string) ($pl['account_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
                                                     </td>
                                                     <td class="mt940-suggestion-cell">
                                                         <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_REFERENCE'); ?>:</strong> <span class="mt940-ref"><?php echo htmlspecialchars((string) ($mt['reference'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></div>
                                                         <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_DOCUMENT_DATE'); ?>:</strong> <span class="mt940-date"><?php echo htmlspecialchars((string) ($mt['transaction_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></span></div>
-                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?>:</strong> Q <span class="mt940-amount"><?php echo htmlspecialchars($mtAmtFmt, ENT_QUOTES, 'UTF-8'); ?></span></div>
+                                                        <div><strong><?php echo Text::_('COM_ORDENPRODUCCION_PAYMENT_AMOUNT'); ?>:</strong> <span class="mt940-amount-display"><?php echo htmlspecialchars($mtAmtFmt, ENT_QUOTES, 'UTF-8'); ?></span></div>
                                                         <div class="text-muted mt940-desc"><?php echo htmlspecialchars((string) ($mt['description'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
                                                         <input type="hidden" class="mt940-tx-id" value="<?php echo (int) ($pl['mt940_transaction_id'] ?? 0); ?>" />
                                                         <input type="hidden" class="mt940-bank-account-id" value="<?php echo (int) ($pl['bank_account_id'] ?? 0); ?>" />
                                                         <input type="hidden" class="mt940-line-amount" value="<?php echo htmlspecialchars((string) ($pl['amount'] ?? '0'), ENT_QUOTES, 'UTF-8'); ?>" />
+                                                        <input type="hidden" class="mt940-line-currency" value="<?php echo htmlspecialchars($lineCurrency, ENT_QUOTES, 'UTF-8'); ?>" />
                                                         <input type="hidden" class="mt940-line-date" value="<?php echo htmlspecialchars((string) ($pl['document_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" />
                                                         <button type="button" class="btn btn-outline-secondary btn-sm mt-1 pp-mt940-search-btn"><?php echo Text::_('COM_ORDENPRODUCCION_PP_MT940_SEARCH_BTN'); ?></button>
                                                         <div class="pp-mt940-search-results mt-1 d-none"></div>
@@ -461,6 +465,18 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
 (function () {
   var searchUrl = <?php echo json_encode((string) $mt940SearchUrl); ?>;
 
+  function ppFmtCurrencyAmount(amt, currency) {
+    var n = parseFloat(amt);
+    if (isNaN(n)) {
+      n = 0;
+    }
+    var cur = String(currency || 'GTQ').toUpperCase();
+    if (cur === 'USD') {
+      return '$ ' + n.toFixed(2);
+    }
+    return 'Q ' + n.toFixed(2);
+  }
+
   function collectOverrides(container) {
     var lines = [];
     container.querySelectorAll('tr[data-line-id]').forEach(function (tr) {
@@ -510,8 +526,8 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
             }
             var html = '<ul class="list-unstyled mb-0">';
             data.data.rows.forEach(function (row) {
-              html += '<li class="mb-1"><button type="button" class="btn btn-link btn-sm p-0 pp-mt940-pick" data-tx-id="' + row.id + '" data-ref="' + (row.reference || '') + '" data-date="' + (row.transaction_date || '') + '" data-amount="' + row.amount + '" data-desc="' + (row.description || '').replace(/"/g, '&quot;') + '">'
-                + (row.reference || '—') + ' · ' + (row.transaction_date || '') + ' · Q ' + row.amount
+              html += '<li class="mb-1"><button type="button" class="btn btn-link btn-sm p-0 pp-mt940-pick" data-tx-id="' + row.id + '" data-ref="' + (row.reference || '') + '" data-date="' + (row.transaction_date || '') + '" data-amount="' + row.amount + '" data-currency="' + (row.currency || 'GTQ') + '" data-desc="' + (row.description || '').replace(/"/g, '&quot;') + '">'
+                + (row.reference || '—') + ' · ' + (row.transaction_date || '') + ' · ' + ppFmtCurrencyAmount(row.amount, row.currency)
                 + '</button></li>';
             });
             html += '</ul>';
@@ -523,6 +539,7 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
                 var ref = pick.getAttribute('data-ref') || '';
                 var dt = pick.getAttribute('data-date') || '';
                 var amt = pick.getAttribute('data-amount') || '';
+                var cur = pick.getAttribute('data-currency') || 'GTQ';
                 var desc = pick.getAttribute('data-desc') || '';
                 var txInput = cell.querySelector('.mt940-tx-id');
                 if (txInput) txInput.value = String(txId);
@@ -530,8 +547,13 @@ $mt940PaymentVerifyEnabled = Mt940PaymentMatchLogHelper::isMt940VerificationEnab
                 if (refEl) refEl.textContent = ref;
                 var dateEl = cell.querySelector('.mt940-date');
                 if (dateEl) dateEl.textContent = dt;
-                var amtEl = cell.querySelector('.mt940-amount');
-                if (amtEl) amtEl.textContent = amt;
+                var amtEl = cell.querySelector('.mt940-amount-display');
+                if (amtEl) {
+                  amtEl.textContent = ppFmtCurrencyAmount(amt, cur);
+                } else {
+                  var amtLegacy = cell.querySelector('.mt940-amount');
+                  if (amtLegacy) amtLegacy.textContent = amt;
+                }
                 var descEl = cell.querySelector('.mt940-desc');
                 if (descEl) descEl.textContent = desc;
                 results.classList.add('d-none');

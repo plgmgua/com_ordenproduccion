@@ -13,6 +13,7 @@ defined('_JEXEC') or die;
 
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940ImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\Database\DatabaseInterface;
@@ -29,6 +30,9 @@ class Mt940PaymentMatchService
 
     /** @var DatabaseInterface */
     protected $db;
+
+    /** @var array<int, string> */
+    protected $bankAccountCurrencyCache = [];
 
     public function __construct(?DatabaseInterface $db = null)
     {
@@ -343,6 +347,7 @@ class Mt940PaymentMatchService
             'document_number'      => $docNum,
             'document_date'        => $this->normalizeLineDate($line),
             'amount'               => round((float) ($line->amount ?? 0), 2),
+            'currency'             => $this->resolveLineCurrency($line),
             'bank_account_id'      => (int) ($line->bank_account_id ?? 0),
             'account_number'       => $this->getAccountNumber((int) ($line->bank_account_id ?? 0)),
             'mt940_transaction_id' => 0,
@@ -354,7 +359,7 @@ class Mt940PaymentMatchService
                 'reference'        => '',
                 'description'      => '',
                 'amount'           => 0.0,
-                'currency'         => 'GTQ',
+                'currency'         => $this->getBankAccountCurrency((int) ($line->bank_account_id ?? 0)),
                 'debit_credit'     => 'C',
             ],
         ];
@@ -441,6 +446,7 @@ class Mt940PaymentMatchService
             'document_number'      => $docNum,
             'document_date'        => $this->normalizeLineDate($line),
             'amount'               => round((float) ($line->amount ?? 0), 2),
+            'currency'             => $this->resolveLineCurrency($line),
             'bank_account_id'      => (int) ($line->bank_account_id ?? 0),
             'account_number'       => $this->getAccountNumber((int) ($line->bank_account_id ?? 0)),
             'mt940_transaction_id' => (int) ($tx->id ?? 0),
@@ -451,7 +457,7 @@ class Mt940PaymentMatchService
                 'reference'        => $ref,
                 'description'      => $desc,
                 'amount'           => round((float) ($tx->amount ?? 0), 2),
-                'currency'         => trim((string) ($tx->currency ?? 'GTQ')),
+                'currency'         => PaymentProofCurrencyHelper::normalizeCurrency(trim((string) ($tx->currency ?? 'GTQ'))),
                 'debit_credit'     => trim((string) ($tx->debit_credit ?? '')),
             ],
         ];
@@ -794,6 +800,42 @@ class Mt940PaymentMatchService
         return trim((string) $this->db->loadResult());
     }
 
+    protected function getBankAccountCurrency(int $bankAccountId): string
+    {
+        if ($bankAccountId < 1) {
+            return PaymentProofCurrencyHelper::CURRENCY_GTQ;
+        }
+
+        if (isset($this->bankAccountCurrencyCache[$bankAccountId])) {
+            return $this->bankAccountCurrencyCache[$bankAccountId];
+        }
+
+        try {
+            $q = $this->db->getQuery(true)
+                ->select($this->db->quoteName('currency'))
+                ->from($this->db->quoteName('#__ordenproduccion_bank_accounts'))
+                ->where($this->db->quoteName('id') . ' = ' . $bankAccountId);
+            $this->db->setQuery($q);
+            $row = $this->db->loadObject();
+        } catch (\Throwable $e) {
+            $row = null;
+        }
+
+        $currency = PaymentProofCurrencyHelper::currencyFromBankAccount($row);
+        $this->bankAccountCurrencyCache[$bankAccountId] = $currency;
+
+        return $currency;
+    }
+
+    protected function resolveLineCurrency(object $line): string
+    {
+        $bankAccountId = (int) ($line->bank_account_id ?? 0);
+
+        return PaymentProofCurrencyHelper::resolveLineCurrency($line, [
+            $bankAccountId => $this->getBankAccountCurrency($bankAccountId),
+        ]);
+    }
+
     protected function describeLine(object $line): string
     {
         return \sprintf(
@@ -1052,6 +1094,7 @@ class Mt940PaymentMatchService
                 'l.' . $this->db->quoteName('document_date'),
                 'l.' . $this->db->quoteName('amount'),
                 'l.' . $this->db->quoteName('payment_type'),
+                'l.' . $this->db->quoteName('currency'),
                 'MIN(' . $this->db->quoteName('po.order_id') . ')' . ' AS ' . $this->db->quoteName('order_id'),
             ])
             ->from($this->db->quoteName('#__ordenproduccion_payment_proofs', 'pp'))
@@ -1123,6 +1166,7 @@ class Mt940PaymentMatchService
                 'document_number' => trim((string) ($row->document_number ?? '')),
                 'document_date'   => $lineDate,
                 'amount'          => $lineAmount,
+                'currency'        => $this->resolveLineCurrency($row),
                 'payment_type'    => trim((string) ($row->payment_type ?? '')),
                 'order_id'        => (int) ($row->order_id ?? 0),
                 '_amount_diff'    => $amountDiff,

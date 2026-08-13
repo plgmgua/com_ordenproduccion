@@ -10,6 +10,7 @@
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 
 if (empty($mt940Approver) || empty($mt940Approver['lines']) || !\is_array($mt940Approver['lines'])) {
@@ -45,7 +46,11 @@ foreach ($mt940Approver['lines'] as $pl) {
             $txDateDisplay = substr($txDate, 0, 10);
         }
     }
-    $mtAmount = number_format((float) ($mt['amount'] ?? ($pl['amount'] ?? 0)), 2);
+    $mtAmountRaw = (float) ($mt['amount'] ?? ($pl['amount'] ?? 0));
+    $mtCurrency  = PaymentProofCurrencyHelper::normalizeCurrency(
+        trim((string) ($mt['currency'] ?? ($pl['currency'] ?? PaymentProofCurrencyHelper::CURRENCY_GTQ)))
+    );
+    $mtAmountDisplay = PaymentProofCurrencyHelper::formatAmount($mtAmountRaw, $mtCurrency);
     $acct     = trim((string) ($pl['account_number'] ?? ''));
     $desc     = trim((string) ($mt['description'] ?? ''));
     $badgeLabel = $needsManualPick && $txId < 1
@@ -58,7 +63,7 @@ foreach ($mt940Approver['lines'] as $pl) {
     <td class="text-nowrap"><span class="mt940-date"><?php echo htmlspecialchars($txDateDisplay, ENT_QUOTES, 'UTF-8'); ?></span></td>
     <td><?php echo htmlspecialchars($this->labelMt940RowType ?? 'Movimiento bancario', ENT_QUOTES, 'UTF-8'); ?></td>
     <td><?php echo htmlspecialchars($acct !== '' ? $acct : '—', ENT_QUOTES, 'UTF-8'); ?></td>
-    <td class="text-nowrap">Q <span class="mt940-amount"><?php echo htmlspecialchars($mtAmount, ENT_QUOTES, 'UTF-8'); ?></span></td>
+    <td class="text-nowrap"><span class="mt940-amount-display"><?php echo htmlspecialchars($mtAmountDisplay, ENT_QUOTES, 'UTF-8'); ?></span></td>
     <td class="payment-proof-mt940-estado">
         <span class="badge payment-proof-mt940-badge"><?php echo htmlspecialchars($badgeLabel, ENT_QUOTES, 'UTF-8'); ?></span>
     </td>
@@ -74,6 +79,7 @@ foreach ($mt940Approver['lines'] as $pl) {
         <input type="hidden" class="mt940-tx-id" value="<?php echo $txId; ?>" />
         <input type="hidden" class="mt940-bank-account-id" value="<?php echo $bankAccountId; ?>" />
         <input type="hidden" class="mt940-line-amount" value="<?php echo htmlspecialchars((string) $lineAmount, ENT_QUOTES, 'UTF-8'); ?>" />
+        <input type="hidden" class="mt940-line-currency" value="<?php echo htmlspecialchars($mtCurrency, ENT_QUOTES, 'UTF-8'); ?>" />
         <input type="hidden" class="mt940-line-date" value="<?php echo htmlspecialchars($lineDate, ENT_QUOTES, 'UTF-8'); ?>" />
         <?php if (!empty($this->canUseMt940Picker)) : ?>
         <button type="button"

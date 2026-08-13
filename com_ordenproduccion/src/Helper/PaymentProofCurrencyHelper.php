@@ -203,8 +203,38 @@ class PaymentProofCurrencyHelper
     {
         $amount   = round((float) ($line->amount ?? 0), 2);
         $currency = self::resolveLineCurrency($line, $bankAccountCurrencies);
-        $symbol   = $currency === self::CURRENCY_USD ? '$' : 'Q';
 
-        return $symbol . ' ' . number_format($amount, 2, '.', ',');
+        return self::formatAmount($amount, $currency);
+    }
+
+    /**
+     * Format a numeric amount with GTQ/USD prefix (payment proof / MT-940 match UI).
+     *
+     * @param   float   $amount
+     * @param   string  $currency  GTQ|USD
+     */
+    public static function formatAmount(float $amount, string $currency): string
+    {
+        $amount = round($amount, 2);
+
+        if (self::normalizeCurrency($currency) === self::CURRENCY_USD) {
+            return '$ ' . number_format($amount, 2, '.', ',');
+        }
+
+        return 'Q ' . number_format($amount, 2, '.', ',');
+    }
+
+    /**
+     * Financiero MT-940 movements list style (USD code prefix, not $).
+     */
+    public static function formatMt940MovementAmount(float $amount, string $currency): string
+    {
+        $amount = round(abs($amount), 2);
+
+        if (self::normalizeCurrency($currency) === self::CURRENCY_USD) {
+            return 'USD ' . number_format($amount, 2, '.', ',');
+        }
+
+        return 'Q ' . number_format($amount, 2, '.', ',');
     }
 }

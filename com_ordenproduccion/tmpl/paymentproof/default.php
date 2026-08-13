@@ -2330,6 +2330,18 @@ document.addEventListener('DOMContentLoaded', function () {
         noResultsLabel = 'Sin resultados';
     }
 
+    function ppFmtCurrencyAmount(amt, currency) {
+        var n = parseFloat(amt);
+        if (isNaN(n)) {
+            n = 0;
+        }
+        var cur = String(currency || 'GTQ').toUpperCase();
+        if (cur === 'USD') {
+            return '$ ' + n.toFixed(2);
+        }
+        return 'Q ' + n.toFixed(2);
+    }
+
     function collectOverrides(blockId) {
         var lines = [];
         document.querySelectorAll('[data-pp-mt940-block="' + blockId + '"].pp-mt940-line-row').forEach(function (row) {
@@ -2419,8 +2431,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             + ' data-ref="' + ref.replace(/"/g, '&quot;') + '"'
                             + ' data-date="' + dt + '"'
                             + ' data-amount="' + amt + '"'
+                            + ' data-currency="' + (txRow.currency || 'GTQ') + '"'
                             + ' data-desc="' + desc + '">'
-                            + ref + ' · ' + dt + ' · Q ' + parseFloat(amt).toFixed(2)
+                            + ref + ' · ' + dt + ' · ' + ppFmtCurrencyAmount(amt, txRow.currency)
                             + '</button></li>';
                     });
                     html += '</ul>';
@@ -2432,6 +2445,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             var ref = pick.getAttribute('data-ref') || '';
                             var dt = pick.getAttribute('data-date') || '';
                             var amt = pick.getAttribute('data-amount') || '';
+                            var cur = pick.getAttribute('data-currency') || 'GTQ';
                             var desc = pick.getAttribute('data-desc') || '';
                             var txInput = cell.querySelector('.mt940-tx-id');
                             if (txInput) {
@@ -2454,9 +2468,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                     dateEl.textContent = dt;
                                 }
                             }
-                            var amtEl = row.querySelector('.mt940-amount');
-                            if (amtEl) {
-                                amtEl.textContent = parseFloat(amt).toFixed(2);
+                            var amtDisplayEl = row.querySelector('.mt940-amount-display');
+                            if (amtDisplayEl) {
+                                amtDisplayEl.textContent = ppFmtCurrencyAmount(amt, cur);
                             }
                             var descEl = row.querySelector('.mt940-desc');
                             if (descEl) {

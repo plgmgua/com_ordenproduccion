@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.327-STABLE] - 2026-08-13
+
+### Fixed
+- **MT-940 / PA match:** Show USD (`$` / `USD`) instead of hardcoded `Q` on payment-proof verification rows, Aprobaciones, Financiero Asociar PA modal, and MT-940 search pickers.
+
 ## [3.119.326-STABLE] - 2026-08-13
 
 ### Fixed

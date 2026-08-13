@@ -715,7 +715,8 @@ $pagoConfirmadoBadge = static function ($r): string {
                                             data-tx-id="<?php echo $txId; ?>"
                                             data-tx-ref="<?php echo htmlspecialchars((string) ($row->reference ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
                                             data-tx-date="<?php echo htmlspecialchars((string) ($row->transaction_date ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
-                                            data-tx-amount="<?php echo htmlspecialchars(number_format(round((float) ($row->amount ?? 0), 2), 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
+                                            data-tx-amount="<?php echo htmlspecialchars(number_format(round((float) ($row->amount ?? 0), 2), 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                            data-tx-currency="<?php echo htmlspecialchars($currency, ENT_QUOTES, 'UTF-8'); ?>">
                                         <?php echo Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_BTN'); ?>
                                     </button>
                                 <?php else : ?>
@@ -788,6 +789,18 @@ $pagoConfirmadoBadge = static function ($r): string {
             return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
           }
 
+          function finFmtCurrencyAmount(amt, currency, useMt940Code) {
+            var n = parseFloat(amt);
+            if (isNaN(n)) {
+              n = 0;
+            }
+            var cur = String(currency || 'GTQ').toUpperCase();
+            if (cur === 'USD') {
+              return useMt940Code ? ('USD ' + n.toFixed(2)) : ('$ ' + n.toFixed(2));
+            }
+            return 'Q ' + n.toFixed(2);
+          }
+
           function renderRows(rows) {
             if (!resultsEl) return;
             resultsEl.innerHTML = '';
@@ -803,11 +816,11 @@ $pagoConfirmadoBadge = static function ($r): string {
               btn.setAttribute('data-proof-id', String(row.proof_id || '0'));
               var doc = row.document_number ? escHtml(row.document_number) : '—';
               var dt = row.document_date ? escHtml(row.document_date) : '—';
-              var amt = typeof row.amount === 'number' ? row.amount.toFixed(2) : escHtml(row.amount);
+              var amtDisplay = finFmtCurrencyAmount(row.amount, row.currency || 'GTQ', false);
               btn.innerHTML = '<div><strong>' + escHtml(row.pa_label || '') + '</strong></div>'
                 + '<div class="text-muted">' + <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_DOCUMENT_NUMBER')); ?> + ': ' + doc
                 + ' · ' + <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_DOCUMENT_DATE')); ?> + ': ' + dt
-                + ' · Q ' + amt + '</div>';
+                + ' · ' + escHtml(amtDisplay) + '</div>';
               resultsEl.appendChild(btn);
             });
           }
@@ -843,12 +856,13 @@ $pagoConfirmadoBadge = static function ($r): string {
               var ref = btn.getAttribute('data-tx-ref') || '';
               var dt = btn.getAttribute('data-tx-date') || '';
               var amt = btn.getAttribute('data-tx-amount') || '';
+              var cur = btn.getAttribute('data-tx-currency') || 'GTQ';
               if (summaryEl) {
                 var summaryTpl = <?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_TX_SUMMARY')); ?>;
                 summaryEl.textContent = summaryTpl
                   .replace('%1$s', ref)
                   .replace('%2$s', dt)
-                  .replace('%3$s', amt);
+                  .replace('%3$s', finFmtCurrencyAmount(amt, cur, true));
               }
               if (searchInput) searchInput.value = '';
               loadCandidates();
