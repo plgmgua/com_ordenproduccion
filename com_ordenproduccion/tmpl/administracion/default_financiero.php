@@ -454,6 +454,10 @@ $pagoConfirmadoBadge = static function ($r): string {
     <?php
     HTMLHelper::_('bootstrap.framework');
     HTMLHelper::_('form.csrf');
+    $waFin = Factory::getApplication()->getDocument()->getWebAssetManager();
+    if ($waFin->assetExists('script', 'bootstrap.modal')) {
+        $waFin->useScript('bootstrap.modal');
+    }
     $mt940SchemaOk     = !empty($this->financieroMt940SchemaOk);
     $mt940Accounts     = isset($this->financieroMt940BankAccountOptions) && \is_array($this->financieroMt940BankAccountOptions)
         ? $this->financieroMt940BankAccountOptions : [];
@@ -771,7 +775,14 @@ $pagoConfirmadoBadge = static function ($r): string {
           var formTxId = document.getElementById('fin-mt940-link-form-tx-id');
           var formProofId = document.getElementById('fin-mt940-link-form-proof-id');
           var activeTxId = 0;
-          var modal = modalEl && window.bootstrap ? new window.bootstrap.Modal(modalEl) : null;
+
+          function getFinMt940Modal() {
+            if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+              return null;
+            }
+
+            return bootstrap.Modal.getOrCreateInstance(modalEl);
+          }
 
           function escHtml(s) {
             return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -823,7 +834,12 @@ $pagoConfirmadoBadge = static function ($r): string {
           document.querySelectorAll('.fin-mt940-link-pa-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
               activeTxId = parseInt(btn.getAttribute('data-tx-id') || '0', 10);
-              if (activeTxId < 1 || !modal) return;
+              if (activeTxId < 1) return;
+              var modal = getFinMt940Modal();
+              if (!modal) {
+                window.alert(<?php echo json_encode(Text::_('COM_ORDENPRODUCCION_FINANCIERO_MT940_LINK_PA_MODAL_BOOTSTRAP_MISSING')); ?>);
+                return;
+              }
               var ref = btn.getAttribute('data-tx-ref') || '';
               var dt = btn.getAttribute('data-tx-date') || '';
               var amt = btn.getAttribute('data-tx-amount') || '';

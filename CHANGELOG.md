@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.326-STABLE] - 2026-08-13
+
+### Fixed
+- **Financiero — Asociar PA:** MT-940 link modal now opens on click — Bootstrap Modal was initialized before Bootstrap JS loaded.
+
 ## [3.119.325-STABLE] - 2026-08-12
 
 ### Fixed
