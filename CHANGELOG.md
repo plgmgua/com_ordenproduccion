@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.333-STABLE] - 2026-08-14
+
+### Added
+- **Facturas SAT reconciliation:** Upload `FacturasEmitidas.xls` / `.xlsx` from SAT.GOB.GT on the Facturas list to compare UUID, totals, and status (Vigente vs anulada) against internal invoice records.
+
+## [3.119.332-STABLE] - 2026-08-14
+
+### Fixed
+- **Payment proof list:** PA-00000 id stays on one line; note sub-row now spans from column 2 (Doc. No) through the end of the table.
+
 ## [3.119.331-STABLE] - 2026-08-14
 
 ### Changed

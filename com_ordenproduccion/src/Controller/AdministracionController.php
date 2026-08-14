@@ -29,6 +29,8 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940MailboxImportHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940RunLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelPendingHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\RetencionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\SatFacturasEmitidasExcelHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\SatFacturasReconciliationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\SatRetencionExcelHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\TelegramNotificationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\CotizacionPreciosAjusteService;
@@ -3650,6 +3652,140 @@ class AdministracionController extends BaseController
                 'COM_ORDENPRODUCCION_RETENCIONES_SAT_NO_MATCHES',
                 'No se encontró ninguna coincidencia entre el Excel SAT y los PDF importados.'
             ), 'notice');
+        }
+
+        $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Compare Facturas Emitidas Excel from SAT.GOB.GT against internal invoice records.
+     *
+     * @return  void
+     *
+     * @since   3.119.333
+     */
+    public function validateInvoicesSatExcel()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista', false);
+
+        if (!Session::checkToken()) {
+            $app->enqueueMessage(Text::_('JINVALID_TOKEN'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $files = self::normalizeUploadedFiles($app->input->files->get('sat_facturas_excel', [], 'array'));
+        if (empty($files)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_NO_FILE'), 'warning');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $index = SatFacturasReconciliationHelper::buildInvoiceIndex();
+        $fileReports = [];
+        $matchedOk = [];
+        $mismatches = [];
+        $missingInDb = [];
+        $missingInSat = [];
+        $allMatchedInvoiceIds = [];
+
+        foreach ($files as $file) {
+            $tmpPath = $file['tmp_name'] ?? '';
+            $fileName = $file['name'] ?? 'FacturasEmitidas.xls';
+            if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+                $fileReports[] = [
+                    'file'    => $fileName,
+                    'status'  => 'error',
+                    'message' => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_READ_ERROR'),
+                ];
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['xlsx', 'xls'], true)) {
+                $fileReports[] = [
+                    'file'    => $fileName,
+                    'status'  => 'error',
+                    'message' => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_NOT_EXCEL'),
+                ];
+                continue;
+            }
+
+            $parsed = SatFacturasEmitidasExcelHelper::parseFile($tmpPath);
+            if (empty($parsed['success'])) {
+                $fileReports[] = [
+                    'file'    => $fileName,
+                    'status'  => 'error',
+                    'message' => $parsed['error'] ?? Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_ERROR'),
+                ];
+                continue;
+            }
+
+            $excelRows = $parsed['rows'] ?? [];
+            $result = SatFacturasReconciliationHelper::compareSatRows($excelRows, $index, $fileName);
+
+            $matchedOk = array_merge($matchedOk, $result['matched_ok'] ?? []);
+            $mismatches = array_merge($mismatches, $result['mismatches'] ?? []);
+            $missingInDb = array_merge($missingInDb, $result['missing_in_db'] ?? []);
+            $allMatchedInvoiceIds = array_merge($allMatchedInvoiceIds, $result['matched_invoice_ids'] ?? []);
+
+            $okCount = count($result['matched_ok'] ?? []);
+            $mismatchCount = count($result['mismatches'] ?? []);
+            $missingDbCount = count($result['missing_in_db'] ?? []);
+
+            $fileReports[] = [
+                'file'    => $fileName,
+                'status'  => 'ok',
+                'message' => Text::sprintf(
+                    'COM_ORDENPRODUCCION_INVOICES_SAT_FILE_SUMMARY',
+                    count($excelRows),
+                    $okCount,
+                    $mismatchCount,
+                    $missingDbCount
+                ),
+            ];
+        }
+
+        $missingInSat = SatFacturasReconciliationHelper::findMissingInSat($index, $allMatchedInvoiceIds);
+
+        $app->getSession()->set('com_ordenproduccion.invoices_sat_report', [
+            'files'          => $fileReports,
+            'matched_ok'     => $matchedOk,
+            'mismatches'     => $mismatches,
+            'missing_in_db'  => $missingInDb,
+            'missing_in_sat' => $missingInSat,
+        ]);
+
+        $okTotal = count($matchedOk);
+        $mismatchTotal = count($mismatches);
+        $missingDbTotal = count($missingInDb);
+        $missingSatTotal = count($missingInSat);
+
+        if ($okTotal > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_OK_COUNT', $okTotal), 'success');
+        }
+        if ($mismatchTotal > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISMATCH_COUNT', $mismatchTotal), 'warning');
+        }
+        if ($missingDbTotal > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_DB_COUNT', $missingDbTotal), 'warning');
+        }
+        if ($missingSatTotal > 0) {
+            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_SAT_COUNT', $missingSatTotal), 'notice');
+        }
+        if ($okTotal === 0 && $mismatchTotal === 0 && $missingDbTotal === 0 && empty(array_filter($fileReports, static fn ($r) => ($r['status'] ?? '') === 'ok'))) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_NO_DATA'), 'notice');
         }
 
         $app->redirect($redirectUrl);

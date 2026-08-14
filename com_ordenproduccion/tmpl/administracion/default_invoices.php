@@ -34,6 +34,15 @@ $importReport = Factory::getApplication()->getSession()->get('com_ordenproduccio
 if ($importReport !== null) {
     Factory::getApplication()->getSession()->set('com_ordenproduccion.import_report', null);
 }
+$satReport = Factory::getApplication()->getSession()->get('com_ordenproduccion.invoices_sat_report', null);
+if ($satReport !== null) {
+    Factory::getApplication()->getSession()->set('com_ordenproduccion.invoices_sat_report', null);
+}
+$satFileReports = is_array($satReport) ? ($satReport['files'] ?? []) : [];
+$satMatchedOk = is_array($satReport) ? ($satReport['matched_ok'] ?? []) : [];
+$satMismatches = is_array($satReport) ? ($satReport['mismatches'] ?? []) : [];
+$satMissingInDb = is_array($satReport) ? ($satReport['missing_in_db'] ?? []) : [];
+$satMissingInSat = is_array($satReport) ? ($satReport['missing_in_sat'] ?? []) : [];
 
 $invoicesSubtab = $this->get('invoicesSubtab');
 if ($invoicesSubtab !== 'lista' && $invoicesSubtab !== 'match' && $invoicesSubtab !== 'cola') {
@@ -960,6 +969,16 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                 <i class="fas fa-file-import"></i> <?php echo Text::_('COM_ORDENPRODUCCION_IMPORT_XML'); ?>
             </button>
         </form>
+        <form action="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.validateInvoicesSatExcel'); ?>"
+              method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center">
+            <?php echo HTMLHelper::_('form.token'); ?>
+            <input type="file" name="sat_facturas_excel[]" accept=".xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                   multiple="multiple" class="form-control form-control-sm" style="max-width: 320px;"
+                   title="<?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_HINT'); ?>" />
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-check-double"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_VALIDATE'); ?>
+            </button>
+        </form>
         <?php
         $state = $this->state ?? new \Joomla\Registry\Registry();
         $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.exportInvoicesExcel&format=raw');
@@ -976,6 +995,152 @@ tr.invoice-row-cancelled { background: #faf5f5; }
             <i class="fas fa-file-excel"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_EXPORT_EXCEL'); ?>
         </a>
     </div>
+
+    <?php if (!empty($satFileReports) || !empty($satMismatches) || !empty($satMissingInDb) || !empty($satMissingInSat)): ?>
+    <div class="import-report-box mb-3">
+        <h3 class="h6 mb-2"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_REPORT'); ?></h3>
+        <?php if (!empty($satFileReports)): ?>
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered" style="font-size: 0.875rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FILE'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RESULT'); ?></th>
+                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DETAIL'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($satFileReports as $r):
+                        $st = $r['status'] ?? '';
+                        $rowClass = $st === 'ok' ? 'table-success' : 'table-danger';
+                    ?>
+                    <tr class="<?php echo $rowClass; ?>">
+                        <td><?php echo htmlspecialchars((string) ($r['file'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                        <td><?php echo $st === 'ok' ? Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_STATUS_OK') : Text::_('COM_ORDENPRODUCCION_IMPORT_STATUS_ERROR'); ?></td>
+                        <td><?php echo htmlspecialchars((string) ($r['message'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!empty($satMismatches)): ?>
+        <div class="alert alert-warning">
+            <strong><?php echo Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISMATCH_HEADING', count($satMismatches)); ?></strong>
+            <p class="mb-2 small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISMATCH_HELP'); ?></p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered bg-white" style="font-size: 0.8rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE_NUMERO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_TOTAL'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ISSUES'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($satMismatches as $m):
+                            $issues = $m['issues'] ?? [];
+                            $issueLabels = [];
+                            if (in_array('amount', $issues, true)) {
+                                $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_AMOUNT');
+                            }
+                            if (in_array('status', $issues, true)) {
+                                $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_STATUS');
+                            }
+                            $serieNum = trim(($m['serie'] ?? '') . ' | ' . ($m['numero'] ?? ''), ' |');
+                        ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($serieNum, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="small"><?php echo htmlspecialchars((string) ($m['uuid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="text-end"><?php echo number_format((float) ($m['sat_total'] ?? 0), 2); ?></td>
+                            <td class="text-end"><?php echo number_format((float) ($m['db_total'] ?? 0), 2); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($m['sat_estado'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($m['db_status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars(implode(', ', $issueLabels), ENT_QUOTES, 'UTF-8'); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!empty($satMissingInDb)): ?>
+        <div class="alert alert-warning">
+            <strong><?php echo Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_DB_HEADING', count($satMissingInDb)); ?></strong>
+            <p class="mb-2 small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_DB_HELP'); ?></p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered bg-white" style="font-size: 0.8rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE_NUMERO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($satMissingInDb as $m):
+                            $serieNum = trim(($m['serie'] ?? '') . ' | ' . ($m['numero'] ?? ''), ' |');
+                        ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($serieNum, ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="small"><?php echo htmlspecialchars((string) ($m['uuid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($m['sat_estado'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="text-end"><?php echo number_format((float) ($m['sat_total'] ?? 0), 2); ?></td>
+                            <td><?php echo htmlspecialchars(trim(($m['nit'] ?? '') . ' ' . ($m['receptor'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!empty($satMissingInSat)): ?>
+        <div class="alert alert-info">
+            <strong><?php echo Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_SAT_HEADING', count($satMissingInSat)); ?></strong>
+            <p class="mb-2 small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_SAT_HELP'); ?></p>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered bg-white" style="font-size: 0.8rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE_NUMERO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'); ?></th>
+                            <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_TOTAL'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO'); ?></th>
+                            <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($satMissingInSat as $m):
+                            $serieNum = trim(($m['serie'] ?? '') . ' | ' . ($m['numero'] ?? ''), ' |');
+                        ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($serieNum !== '' ? $serieNum : (string) ($m['invoice_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="small"><?php echo htmlspecialchars((string) ($m['uuid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td class="text-end"><?php echo number_format((float) ($m['db_total'] ?? 0), 2); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($m['db_status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                            <td><?php echo htmlspecialchars(trim(($m['nit'] ?? '') . ' ' . ($m['receptor'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!empty($satMatchedOk)): ?>
+        <p class="small text-muted mb-0"><?php echo Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MATCHED_OK_NOTE', count($satMatchedOk)); ?></p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
 
     <?php if (!empty($importReport) && is_array($importReport)): ?>
     <div class="import-report-box mb-3">
