@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.329-STABLE] - 2026-08-14
+
+### Fixed
+- **Cotización PDF:** Términos, encabezado and pie de página now honor font-size from the WYSIWYG HTML (`font-size` in px/pt/em and list/paragraph styles) instead of always rendering at the hardcoded section default.
+
 ## [3.119.328-STABLE] - 2026-08-14
 
 ### Fixed

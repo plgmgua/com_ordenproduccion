@@ -108,12 +108,14 @@ class CotizacionFpdfBlocksHelper
             static function ($m) {
                 $idx   = 1;
                 $lines = [];
+                $fsPt  = self::resolveListFontSizePt($m[0], $m[1]);
                 preg_match_all('/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is', $m[1], $ms);
                 foreach ($ms[1] as $item) {
                     $lines[] = ($idx++) . '. ' . trim(strip_tags($item));
                 }
+                $prefix = $fsPt !== null ? '<__FSPT__>' . $fsPt . '</__FSPT__>' : '';
 
-                return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
+                return '<__LISTBLOCK__>' . $prefix . implode("\n", $lines) . '</__LISTBLOCK__>';
             },
             $html
         );
@@ -122,12 +124,14 @@ class CotizacionFpdfBlocksHelper
             '/<\s*ul[^>]*>(.*?)<\s*\/\s*ul\s*>/is',
             static function ($m) {
                 $lines = [];
+                $fsPt  = self::resolveListFontSizePt($m[0], $m[1]);
                 preg_match_all('/<\s*li[^>]*>(.*?)<\s*\/\s*li\s*>/is', $m[1], $ms);
                 foreach ($ms[1] as $item) {
                     $lines[] = '* ' . trim(strip_tags($item));
                 }
+                $prefix = $fsPt !== null ? '<__FSPT__>' . $fsPt . '</__FSPT__>' : '';
 
-                return '<__LISTBLOCK__>' . implode("\n", $lines) . '</__LISTBLOCK__>';
+                return '<__LISTBLOCK__>' . $prefix . implode("\n", $lines) . '</__LISTBLOCK__>';
             },
             $html
         );
@@ -181,17 +185,23 @@ class CotizacionFpdfBlocksHelper
                             $cellStyle .= 'I';
                         }
 
+                        $cellFontSize = self::extractFontSizePtFromHtml($cellTag);
+                        if ($cellFontSize === null) {
+                            $cellFontSize = self::extractFontSizePtFromHtml($cellContent);
+                        }
+
                         $cellContent = self::expandAnchorHrefsForPdf($cellContent);
                         $cellText = preg_replace('/<br\s*\/?>/i', "\n", $cellContent);
                         $cellText = strip_tags($cellText);
                         $cellText = trim(preg_replace('/[ \t]+/', ' ', $cellText));
 
                         $cells[] = [
-                            'text'    => $cellText,
-                            'align'   => $cellAlign,
-                            'style'   => $cellStyle,
-                            'images'  => $cellImages,
-                            'colspan' => $colspan,
+                            'text'     => $cellText,
+                            'align'    => $cellAlign,
+                            'style'    => $cellStyle,
+                            'images'   => $cellImages,
+                            'colspan'  => $colspan,
+                            'fontSize' => $cellFontSize,
                         ];
                     }
                     if (!empty($cells)) {
@@ -221,7 +231,7 @@ class CotizacionFpdfBlocksHelper
                 foreach ($tbMatches[1] as $encoded) {
                     $rows = json_decode(base64_decode($encoded), true);
                     if (!empty($rows)) {
-                        $blocks[] = ['type' => 'table', 'rows' => $rows, 'text' => '', 'align' => 'L', 'list' => false, 'style' => ''];
+                        $blocks[] = ['type' => 'table', 'rows' => $rows, 'text' => '', 'align' => 'L', 'list' => false, 'style' => '', 'fontSize' => null];
                     }
                 }
                 $chunk = trim(preg_replace('/<__TABLEBLOCK__>.*?<\/__TABLEBLOCK__>/s', '', $chunk));
@@ -295,7 +305,22 @@ class CotizacionFpdfBlocksHelper
             $text = trim(implode("\n", array_map('trim', explode("\n", $text))));
 
             if ($text !== '') {
-                $blocks[] = ['type' => 'text', 'text' => $text, 'align' => $align, 'list' => $isList, 'style' => $fontStyle];
+                $blockFontSize = self::extractFontSizePtFromHtml($chunk);
+                if ($isList) {
+                    $listFontSize = self::peelListBlockFontSizeMarker($text);
+                    if ($listFontSize !== null) {
+                        $blockFontSize = $listFontSize;
+                    }
+                    $text = self::stripListBlockFontSizeMarker($text);
+                }
+                $blocks[] = [
+                    'type'     => 'text',
+                    'text'     => $text,
+                    'align'    => $align,
+                    'list'     => $isList,
+                    'style'    => $fontStyle,
+                    'fontSize' => $blockFontSize,
+                ];
             }
         }
 
@@ -304,7 +329,14 @@ class CotizacionFpdfBlocksHelper
             $text = strip_tags(self::expandAnchorHrefsForPdf($text));
             $text = trim(preg_replace('/[ \t]+/', ' ', $text));
             if ($text !== '') {
-                $blocks[] = ['type' => 'text', 'text' => $text, 'align' => 'L', 'list' => false, 'style' => ''];
+                $blocks[] = [
+                    'type'     => 'text',
+                    'text'     => $text,
+                    'align'    => 'L',
+                    'list'     => false,
+                    'style'    => '',
+                    'fontSize' => self::extractFontSizePtFromHtml($html),
+                ];
             }
         }
 
@@ -456,6 +488,9 @@ class CotizacionFpdfBlocksHelper
 
         foreach ($blocks as $block) {
             $type = $block['type'] ?? 'text';
+            $metrics = self::resolveBlockFontMetrics($block, (float) $fontSize, (float) $lineH);
+            $blockFontSize = $metrics['fontSize'];
+            $blockLineH    = $metrics['lineH'];
 
             if ($type === 'image') {
                 $imgPath = self::resolveImagePath($block['src'] ?? '');
@@ -478,11 +513,11 @@ class CotizacionFpdfBlocksHelper
                 $label = $encode($block['label'] ?? '');
                 $st    = $block['style'] ?? '';
                 $align = $block['align'] ?? 'L';
-                $pdf->SetFont('Arial', $st, $fontSize);
+                $pdf->SetFont('Arial', $st, $blockFontSize);
                 $usableW = $pageW - $marginL - $marginR;
 
                 $iconWmm  = 0.0;
-                $iconHmm  = $lineH;
+                $iconHmm  = $blockLineH;
                 $imgMeta  = $block['img'] ?? null;
                 $imgPath  = null;
                 if (is_array($imgMeta) && !empty($imgMeta['src'])) {
@@ -509,12 +544,12 @@ class CotizacionFpdfBlocksHelper
                 }
 
                 if ($imgPath !== null && $iconWmm > 0) {
-                    $pdf->Image($imgPath, $startX, $rowY + max(0, ($lineH - $iconHmm) / 2), $iconWmm);
+                    $pdf->Image($imgPath, $startX, $rowY + max(0, ($blockLineH - $iconHmm) / 2), $iconWmm);
                 }
                 $labelX = $startX + $iconWmm + ($iconWmm > 0 ? $gapMm : 0);
                 $pdf->SetXY($labelX, $rowY);
-                $pdf->Cell(0, $lineH, $label, 0, 0, 'L', false, $href);
-                $rowBottom = $rowY + max($lineH, $iconHmm);
+                $pdf->Cell(0, $blockLineH, $label, 0, 0, 'L', false, $href);
+                $rowBottom = $rowY + max($blockLineH, $iconHmm);
                 $pdf->SetY($rowBottom);
                 if ($gap > 0) {
                     $pdf->Ln($gap);
@@ -533,12 +568,19 @@ class CotizacionFpdfBlocksHelper
                     }
                     $colW = $tableW / $numCols;
                     $rowY = $pdf->GetY();
-                    $maxH = $lineH;
+                    $maxH = $blockLineH;
                     $curX = $marginL;
 
                     foreach ($row as $cell) {
                         $cw    = $colW * max(1, (int) ($cell['colspan'] ?? 1));
                         $cellY = $rowY;
+                        $cellMetrics = self::resolveBlockFontMetrics(
+                            ['fontSize' => $cell['fontSize'] ?? null],
+                            $blockFontSize,
+                            $blockLineH
+                        );
+                        $cellFontSize = $cellMetrics['fontSize'];
+                        $cellLineH    = $cellMetrics['lineH'];
 
                         foreach ($cell['images'] ?? [] as $img) {
                             $imgPath = self::resolveImagePath($img['src'] ?? '');
@@ -554,9 +596,9 @@ class CotizacionFpdfBlocksHelper
 
                         $cellText = $encode($cell['text'] ?? '');
                         if ($cellText !== '') {
-                            $pdf->SetFont('Arial', $cell['style'] ?? '', $fontSize);
+                            $pdf->SetFont('Arial', $cell['style'] ?? '', $cellFontSize);
                             $pdf->SetXY($curX, $cellY);
-                            $pdf->MultiCell($cw, $lineH, $cellText, 0, $cell['align'] ?? 'L');
+                            $pdf->MultiCell($cw, $cellLineH, $cellText, 0, $cell['align'] ?? 'L');
                             $textH = $pdf->GetY() - $cellY;
                             $maxH  = max($maxH, $textH);
                         }
@@ -584,7 +626,7 @@ class CotizacionFpdfBlocksHelper
             $align  = $block['align'];
             $text   = $encode($block['text']);
             $isList = !empty($block['list']);
-            $pdf->SetFont('Arial', $block['style'] ?? '', $fontSize);
+            $pdf->SetFont('Arial', $block['style'] ?? '', $blockFontSize);
 
             $textW = ($maxWidth > 0 ? $maxWidth : 0);
             if ($align === 'R') {
@@ -595,15 +637,172 @@ class CotizacionFpdfBlocksHelper
                     }
                     $w = $pdf->GetStringWidth($line);
                     $pdf->SetX($pageW - $marginR - $w);
-                    $pdf->Cell($w, $lineH, $line, 0, 1, 'L');
+                    $pdf->Cell($w, $blockLineH, $line, 0, 1, 'L');
                 }
             } elseif ($align === 'L' && preg_match('#https?://#i', $text)) {
-                self::renderLatin1TextLinesWithHttpLinks($pdf, $text, $lineH, $textW);
+                self::renderLatin1TextLinesWithHttpLinks($pdf, $text, $blockLineH, $textW);
             } else {
-                $pdf->MultiCell($textW, $lineH, $text, 0, $align);
+                $pdf->MultiCell($textW, $blockLineH, $text, 0, $align);
             }
             $pdf->Ln($isList ? 1 : $gap);
         }
+    }
+
+    /**
+     * Convert a CSS font-size value to FPDF points (pt).
+     *
+     * @param   string  $value  e.g. "10px", "12pt", "1.2em"
+     *
+     * @return  float|null
+     *
+     * @since   3.119.329
+     */
+    public static function cssFontSizeToPoints(string $value): ?float
+    {
+        $value = trim(strtolower($value));
+        if ($value === '') {
+            return null;
+        }
+
+        if (!preg_match('/^([\d.]+)\s*(px|pt|em|rem|%)?$/', $value, $m)) {
+            return null;
+        }
+
+        $num  = (float) $m[1];
+        $unit = $m[2] ?? 'px';
+
+        switch ($unit) {
+            case 'pt':
+                return round($num, 2);
+            case 'px':
+                return round($num * 72 / 96, 2);
+            case 'em':
+            case 'rem':
+                return round($num * 12, 2);
+            case '%':
+                return round($num / 100 * 12, 2);
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Extract the first font-size from an HTML fragment (inline styles or legacy font tags).
+     *
+     * @param   string  $html
+     *
+     * @return  float|null  Size in pt for FPDF
+     *
+     * @since   3.119.329
+     */
+    public static function extractFontSizePtFromHtml(string $html): ?float
+    {
+        if ($html === '') {
+            return null;
+        }
+
+        if (preg_match('/font-size\s*:\s*([^;"\'>]+)/i', $html, $m)) {
+            $pt = self::cssFontSizeToPoints(trim($m[1]));
+            if ($pt !== null && $pt > 0) {
+                return $pt;
+            }
+        }
+
+        if (preg_match('/<\s*font[^>]*\ssize\s*=\s*["\']?(\d+)["\']?/i', $html, $m)) {
+            $map = [1 => 8, 2 => 10, 3 => 12, 4 => 14, 5 => 18, 6 => 24, 7 => 36];
+            $n   = (int) $m[1];
+
+            return $map[$n] ?? null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve font-size for a list block from its container tag or first list item.
+     *
+     * @param   string  $fullListHtml  Full ul/ol element HTML
+     * @param   string  $innerHtml     Inner HTML of the list
+     *
+     * @return  float|null
+     *
+     * @since   3.119.329
+     */
+    private static function resolveListFontSizePt(string $fullListHtml, string $innerHtml): ?float
+    {
+        if (preg_match('/<\s*(ul|ol)\b([^>]*)>/is', $fullListHtml, $tagM)) {
+            $fsPt = self::extractFontSizePtFromHtml('<' . $tagM[1] . $tagM[2] . '>');
+            if ($fsPt !== null) {
+                return $fsPt;
+            }
+        }
+
+        if (preg_match('/<\s*li\b([^>]*)>/is', $innerHtml, $liM)) {
+            $fsPt = self::extractFontSizePtFromHtml('<li' . $liM[1] . '>');
+            if ($fsPt !== null) {
+                return $fsPt;
+            }
+        }
+
+        return self::extractFontSizePtFromHtml($innerHtml);
+    }
+
+    /**
+     * Read and remove an embedded list font-size marker produced during HTML normalization.
+     *
+     * @param   string  $text  List text (modified in place by reference semantics via return)
+     *
+     * @return  float|null
+     *
+     * @since   3.119.329
+     */
+    private static function peelListBlockFontSizeMarker(string $text): ?float
+    {
+        if (preg_match('/^<__FSPT__>([\d.]+)<\/__FSPT__>/', $text, $m)) {
+            return (float) $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Strip list font-size marker prefix from list block text.
+     *
+     * @param   string  $text
+     *
+     * @return  string
+     *
+     * @since   3.119.329
+     */
+    private static function stripListBlockFontSizeMarker(string $text): string
+    {
+        return preg_replace('/^<__FSPT__>[\d.]+<\/__FSPT__>/', '', $text) ?? $text;
+    }
+
+    /**
+     * Resolve effective font size and line height for a parsed block.
+     *
+     * @param   array<string, mixed>  $block
+     * @param   float                 $defaultFontSize
+     * @param   float                 $defaultLineH
+     *
+     * @return  array{fontSize: float, lineH: float}
+     *
+     * @since   3.119.329
+     */
+    private static function resolveBlockFontMetrics(array $block, float $defaultFontSize, float $defaultLineH): array
+    {
+        $fontSize = $defaultFontSize;
+        if (isset($block['fontSize']) && is_numeric($block['fontSize']) && (float) $block['fontSize'] > 0) {
+            $fontSize = (float) $block['fontSize'];
+        }
+
+        $lineH = $defaultLineH;
+        if ($defaultFontSize > 0 && abs($fontSize - $defaultFontSize) > 0.01) {
+            $lineH = $defaultLineH * ($fontSize / $defaultFontSize);
+        }
+
+        return ['fontSize' => $fontSize, 'lineH' => $lineH];
     }
 
     /**
@@ -691,14 +890,15 @@ class CotizacionFpdfBlocksHelper
         }
 
         return [
-            'type'   => 'wa_inline',
-            'img'    => $imgMeta,
-            'href'   => $href,
-            'label'  => $label,
-            'align'  => $align,
-            'list'   => false,
-            'style'  => $fontStyle,
-            'text'   => '',
+            'type'     => 'wa_inline',
+            'img'      => $imgMeta,
+            'href'     => $href,
+            'label'    => $label,
+            'align'    => $align,
+            'list'     => false,
+            'style'    => $fontStyle,
+            'text'     => '',
+            'fontSize' => self::extractFontSizePtFromHtml($chunk),
         ];
     }
 
