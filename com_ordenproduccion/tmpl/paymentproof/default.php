@@ -606,6 +606,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                     $canManualVerifyProof = !empty($this->canMarkVerificadoForProofId[$proofIdForMt940]);
                                     $isMerged = !empty($proof->_merged);
                                     $lines = !$isMerged && method_exists($proofModel, 'getPaymentProofLines') ? $proofModel->getPaymentProofLines($proof->id ?? 0) : [];
+                                    $proofNoteText = trim((string) ($proof->mismatch_note ?? ''));
                                     if (!empty($lines)):
                                         $groupedLineFiles = method_exists($proofModel, 'groupFilesByPaymentLineForDisplay')
                                             ? $proofModel->groupFilesByPaymentLineForDisplay($proof, $lines)
@@ -789,15 +790,11 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                     ?></td>
                                     <td class="align-top"><?php
                                         if ($isFirstLine) {
-                                            $pn = trim((string)($proof->mismatch_note ?? ''));
-                                            if ($pn !== '') {
-                                                echo '<span class="small text-muted d-block" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span>';
-                                            }
                                             $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                             $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                             $isOwnProof = ((int) ($proof->created_by ?? 0) === (int) Factory::getUser()->id);
                                             $mt940CanApprove = $proofHasMt940Approver && !empty($mt940Approver['can_approve']);
-                                            echo '<div class="payment-proof-actions-row mt-1">';
+                                            echo '<div class="payment-proof-actions-row">';
                                             if ($isIngresado && $canManualVerifyProof && !$isOwnProof && !$proofRequiresMt940) {
                                                 echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                                 echo HTMLHelper::_('form.token');
@@ -816,6 +813,16 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                 <?php
                                         $isFirstLine = false;
                                         endforeach;
+                                        if ($proofNoteText !== '') :
+                                ?>
+                                <tr class="payment-proof-note-subrow">
+                                    <td colspan="10" class="payment-proof-note-subrow-cell">
+                                        <span class="payment-proof-note-label"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') !== 'COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL' ? Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') : 'Nota'); ?>:</span>
+                                        <span class="payment-proof-note-text"><?php echo htmlspecialchars($proofNoteText); ?></span>
+                                    </td>
+                                </tr>
+                                <?php
+                                        endif;
                                         $proofId = $proofIdForMt940;
                                         include __DIR__ . '/mt940_approver_subrows.php';
                                         $totalMonto += $proofMonto;
@@ -930,15 +937,11 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                         }
                                     ?></td>
                                     <td class="align-top"><?php
-                                        $pn = trim((string)($proof->mismatch_note ?? ''));
-                                        if ($pn !== '') {
-                                            echo '<span class="small text-muted d-block" title="' . htmlspecialchars($pn) . '">' . htmlspecialchars(mb_strlen($pn) > 40 ? mb_substr($pn, 0, 37) . '…' : $pn) . '</span>';
-                                        }
                                         $proofStatus = isset($proof->verification_status) ? trim((string)$proof->verification_status) : '';
                                         $isIngresado = ($proofStatus === '' || strtolower($proofStatus) === 'ingresado');
                                         $isOwnProofLeg = ((int) ($proof->created_by ?? 0) === (int) Factory::getUser()->id);
                                         $mt940CanApproveLeg = $proofHasMt940Approver && !empty($mt940Approver['can_approve']);
-                                        echo '<div class="payment-proof-actions-row mt-1">';
+                                        echo '<div class="payment-proof-actions-row">';
                                         if ($isIngresado && $canManualVerifyProof && !$isOwnProofLeg && !$proofRequiresMt940) {
                                             echo '<form action="' . Route::_('index.php?option=com_ordenproduccion&task=paymentproof.markAsVerificado') . '" method="post" class="d-inline">';
                                             echo HTMLHelper::_('form.token');
@@ -953,6 +956,14 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                         echo '</div>';
                                     ?></td>
                                 </tr>
+                                <?php if ($proofNoteText !== '') : ?>
+                                <tr class="payment-proof-note-subrow">
+                                    <td colspan="10" class="payment-proof-note-subrow-cell">
+                                        <span class="payment-proof-note-label"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') !== 'COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL' ? Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') : 'Nota'); ?>:</span>
+                                        <span class="payment-proof-note-text"><?php echo htmlspecialchars($proofNoteText); ?></span>
+                                    </td>
+                                </tr>
+                                <?php endif; ?>
                                 <?php
                                     $proofId = $proofIdForMt940;
                                     include __DIR__ . '/mt940_approver_subrows.php';

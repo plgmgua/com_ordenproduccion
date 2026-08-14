@@ -257,6 +257,28 @@
     max-width: 42px;
 }
 
+/* Payment proof note sub-row: full-width note under primary line */
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-note-subrow td.payment-proof-note-subrow-cell {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    background-color: #f8f9fa;
+    border-top: none;
+    padding: 0.35rem 0.65rem 0.5rem;
+    white-space: normal;
+    word-break: break-word;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-note-subrow + tr td {
+    border-top-width: 1px;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table .payment-proof-note-label {
+    color: #6c757d;
+    font-weight: 600;
+    margin-right: 0.35rem;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table .payment-proof-note-text {
+    color: #495057;
+}
+
 /* MT-940 match sub-row (approver only): distinct background, compact type, no overflow */
 .com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-mt940-row td {
     font-size: calc(0.78rem - 1pt);
