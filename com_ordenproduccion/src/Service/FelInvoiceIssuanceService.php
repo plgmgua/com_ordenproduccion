@@ -56,6 +56,12 @@ class FelInvoiceIssuanceService
     /** Guatemala IVA rate (12%) for price breakdown when totals are tax-inclusive */
     public const IVA_RATE = 0.12;
 
+    /** Digifact NUC default document type (factura cambiaria). */
+    private const DEFAULT_DIGIFACT_DOC_TYPE = 'FCAM';
+
+    /** Digifact NUC sector tax description for timbre de prensa (SAT / D1012). */
+    private const TIMBRE_PRENSA_TAX_DESCRIPTION = 'TIMBRE DE PRENSA';
+
     public function __construct(?DatabaseInterface $db = null)
     {
         $this->db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
@@ -578,12 +584,16 @@ class FelInvoiceIssuanceService
 
         $out = [];
         foreach ($this->loadQuotationLines($quotationId) as $row) {
+            if (ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
+                continue;
+            }
             $t = $this->getLineTotalsForFelRow($row);
             $out[] = [
                 'descripcion'       => (string) ($row->descripcion ?? ''),
                 'cantidad'          => (float) $t['qty'],
                 'precio_unitario'   => (float) $t['unit_price'],
                 'quotation_id'      => $quotationId,
+                'pre_cotizacion_id' => (int) ($row->pre_cotizacion_id ?? 0),
                 'item_type'         => self::normalizeDigifactItemType((string) ($row->item_type ?? 'Bien')),
             ];
         }
@@ -1713,7 +1723,9 @@ class FelInvoiceIssuanceService
             foreach ($rows as $row) {
                 if (ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
                     $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($row->descripcion ?? ''));
-                    $row->descripcion = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel(
+                    $row->is_impuesto_line    = true;
+                    $row->impuesto_for_pre_id = $forPreId;
+                    $row->descripcion           = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel(
                         $forPreId,
                         ImpuestoImprentaHelper::getPreCotizacionNumberById($forPreId, $this->db)
                     );
@@ -2260,7 +2272,110 @@ class FelInvoiceIssuanceService
     }
 
     /**
-     * NUC JSON body for Digifact transform (GT FACT): Buyer + Items from cotización; Seller name/email from site;
+     * Build NUC Totals.TotalTaxes entries for IVA and optional timbre de prensa.
+     *
+     * @return  list<array{Description: string, Amount: string}>
+     *
+     * @since   3.119.338
+     */
+    protected function buildNucTotalTaxEntries(float $totalIva, float $totalTimbre): array
+    {
+        $entries = [
+            [
+                'Description' => 'IVA',
+                'Amount'      => sprintf('%.6f', $totalIva),
+            ],
+        ];
+        if ($totalTimbre > 0.000001) {
+            $entries[] = [
+                'Description' => self::TIMBRE_PRENSA_TAX_DESCRIPTION,
+                'Amount'      => sprintf('%.6f', $totalTimbre),
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Collect timbre de prensa amounts keyed by pre_cotizacion_id from quotation line rows.
+     *
+     * @param   list<object>  $lines
+     *
+     * @return  array<int, float>
+     *
+     * @since   3.119.338
+     */
+    protected function collectTimbreAmountsByPreIdFromLines(array $lines): array
+    {
+        $map = [];
+        foreach ($lines as $row) {
+            if (!\is_object($row) || !ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
+                continue;
+            }
+            $preId = (int) ($row->impuesto_for_pre_id ?? 0);
+            if ($preId < 1) {
+                $preId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($row->descripcion ?? ''));
+            }
+            if ($preId < 1) {
+                continue;
+            }
+            $amt = round($this->resolveQuotationLineTotals($row)['line_total'], 2);
+            if ($amt <= 0.000001) {
+                continue;
+            }
+            $map[$preId] = ($map[$preId] ?? 0.0) + $amt;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Load timbre de prensa amounts for a cotización from DB quotation_items rows.
+     *
+     * @return  array<int, float>
+     *
+     * @since   3.119.338
+     */
+    protected function loadTimbreAmountsByPreIdForQuotation(int $quotationId): array
+    {
+        if ($quotationId < 1) {
+            return [];
+        }
+
+        return $this->collectTimbreAmountsByPreIdFromLines($this->loadQuotationLines($quotationId));
+    }
+
+    /**
+     * Default Digifact NUC options: FCAM with a single abono due in 30 days.
+     *
+     * @return  array<string, mixed>
+     *
+     * @since   3.119.338
+     */
+    protected function buildDefaultDigifactNucOptions(float $grandTotal, ?\DateTimeInterface $issuedAt = null): array
+    {
+        $issued = $issuedAt ?? Factory::getDate('now', 'America/Guatemala');
+        if ($issued instanceof \DateTimeImmutable) {
+            $due = $issued->modify('+30 days');
+        } else {
+            $due = Factory::getDate($issued->format('Y-m-d'), 'America/Guatemala');
+            $due->modify('+30 days');
+        }
+
+        return [
+            'doc_type'      => self::DEFAULT_DIGIFACT_DOC_TYPE,
+            'observaciones' => '',
+            'fcam_abonos'   => [[
+                'numero' => 1,
+                'fecha'  => $due->format('Y-m-d'),
+                'monto'  => \round($grandTotal, 2),
+            ]],
+            'currency'      => 'GTQ',
+        ];
+    }
+
+    /**
+     * NUC JSON body for Digifact transform (GT FACT/FCAM): Buyer + Items from cotización; Seller name/email from site;
      * Seller.BranchInfo from certificador branch_* keys (active modo) with legacy defaults when empty.
      * AdditionalDocumentInfo: compact AdditionalInfo entry with @Name Cotizacion and #text = trimmed quotation_number, or COT-{id} if blank (Xml-to-JSON style keys for Digifact NUC). Work order numbers are not sent in NUC metadata.
      * Line amounts are IVA-inclusive; TaxableAmount = lineTotal/1.12, IVA Amount = lineTotal − TaxableAmount (12%).
@@ -2311,12 +2426,26 @@ class FelInvoiceIssuanceService
             ? $issuedAt->format('c')
             : Factory::getDate('now')->format('c');
 
-        $items   = [];
-        $grand   = 0.0;
-        $totalIva = 0.0;
-        $lineNum = 1;
+        $quotationId  = (int) ($quotation->id ?? 0);
+        $timbreByPreId = $this->collectTimbreAmountsByPreIdFromLines($lines);
+        if ($quotationId > 0) {
+            foreach ($this->loadTimbreAmountsByPreIdForQuotation($quotationId) as $preId => $amt) {
+                if (!isset($timbreByPreId[$preId])) {
+                    $timbreByPreId[$preId] = $amt;
+                }
+            }
+        }
+
+        $items        = [];
+        $grand        = 0.0;
+        $totalIva     = 0.0;
+        $totalTimbre  = 0.0;
+        $lineNum      = 1;
         foreach ($lines as $row) {
             if (!\is_object($row)) {
+                continue;
+            }
+            if (ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
                 continue;
             }
             $r         = $this->resolveQuotationLineTotals($row);
@@ -2328,6 +2457,30 @@ class FelInvoiceIssuanceService
             $taxable = $lineTotal / (1 + self::IVA_RATE);
             $ivaLine = $lineTotal - $taxable;
             $totalIva += $ivaLine;
+
+            $taxes = [
+                [
+                    'Code'          => '1',
+                    'Description'   => 'IVA',
+                    'TaxableAmount' => sprintf('%.6f', $taxable),
+                    'Amount'        => sprintf('%.6f', $ivaLine),
+                ],
+            ];
+
+            $preId = (int) ($row->pre_cotizacion_id ?? 0);
+            if ($preId > 0 && isset($timbreByPreId[$preId])) {
+                $timbreAmt = round((float) $timbreByPreId[$preId], 2);
+                if ($timbreAmt > 0.000001) {
+                    $taxes[] = [
+                        'Description'   => self::TIMBRE_PRENSA_TAX_DESCRIPTION,
+                        'TaxableAmount' => sprintf('%.6f', $taxable),
+                        'Amount'        => sprintf('%.6f', $timbreAmt),
+                    ];
+                    $totalTimbre += $timbreAmt;
+                    $grand += $timbreAmt;
+                    unset($timbreByPreId[$preId]);
+                }
+            }
 
             $desc = isset($row->descripcion) ? trim((string) $row->descripcion) : '';
             if ($desc === '') {
@@ -2346,17 +2499,46 @@ class FelInvoiceIssuanceService
                 'Price'          => sprintf('%.6f', $r['unit_price']),
                 'Discounts'      => null,
                 'Taxes'          => [
+                    'Tax' => $taxes,
+                ],
+                'Totals' => [
+                    'TotalItem' => sprintf('%.6f', $lineTotal),
+                ],
+            ];
+            $lineNum++;
+        }
+
+        foreach ($timbreByPreId as $preId => $timbreAmt) {
+            $timbreAmt = round((float) $timbreAmt, 2);
+            if ($timbreAmt <= 0.000001) {
+                continue;
+            }
+            $preLabel = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel(
+                (int) $preId,
+                ImpuestoImprentaHelper::getPreCotizacionNumberById((int) $preId, $this->db)
+            );
+            $grand += $timbreAmt;
+            $totalTimbre += $timbreAmt;
+            $items[] = [
+                'Number'         => (string) $lineNum,
+                'Codes'          => null,
+                'Type'           => 'Servicio',
+                'Description'    => $preLabel,
+                'Qty'            => '1.000000',
+                'UnitOfMeasure'  => 'UNI',
+                'Price'          => sprintf('%.6f', $timbreAmt),
+                'Discounts'      => null,
+                'Taxes'          => [
                     'Tax' => [
                         [
-                            'Code'          => '1',
-                            'Description'   => 'IVA',
-                            'TaxableAmount' => sprintf('%.6f', $taxable),
-                            'Amount'        => sprintf('%.6f', $ivaLine),
+                            'Description'   => self::TIMBRE_PRENSA_TAX_DESCRIPTION,
+                            'TaxableAmount' => sprintf('%.6f', $timbreAmt),
+                            'Amount'        => sprintf('%.6f', $timbreAmt),
                         ],
                     ],
                 ],
                 'Totals' => [
-                    'TotalItem' => sprintf('%.6f', $lineTotal),
+                    'TotalItem' => sprintf('%.6f', $timbreAmt),
                 ],
             ];
             $lineNum++;
@@ -2450,27 +2632,28 @@ class FelInvoiceIssuanceService
             ];
         }
 
-        $docType      = 'FACT';
+        $docType      = self::DEFAULT_DIGIFACT_DOC_TYPE;
         $currency     = 'GTQ';
         $exchangeRate = null;
-        if ($nucOptions !== []) {
-            $normalizedOpts = $this->normalizeManualFelNucOptions($nucOptions, $grand);
-            $docType        = (string) $normalizedOpts['doc_type'];
-            $currency       = (string) ($normalizedOpts['currency'] ?? 'GTQ');
-            if ($currency === 'USD') {
-                $exchangeRate = (float) ($normalizedOpts['exchange_rate'] ?? 0);
-                if ($exchangeRate <= 0.000001) {
-                    $exchangeRate = null;
-                }
-            }
-            $this->appendNucAdditionalDocumentBlocks(
-                $additionalInfos,
-                $cotRef,
-                (int) ($quotation->id ?? 0),
-                $normalizedOpts,
-                (int) ($nucOptions['source_invoice_id'] ?? 0)
-            );
+        if ($nucOptions === []) {
+            $nucOptions = $this->buildDefaultDigifactNucOptions($grand, $issuedAt);
         }
+        $normalizedOpts = $this->normalizeManualFelNucOptions($nucOptions, $grand);
+        $docType        = (string) $normalizedOpts['doc_type'];
+        $currency       = (string) ($normalizedOpts['currency'] ?? 'GTQ');
+        if ($currency === 'USD') {
+            $exchangeRate = (float) ($normalizedOpts['exchange_rate'] ?? 0);
+            if ($exchangeRate <= 0.000001) {
+                $exchangeRate = null;
+            }
+        }
+        $this->appendNucAdditionalDocumentBlocks(
+            $additionalInfos,
+            $cotRef,
+            (int) ($quotation->id ?? 0),
+            $normalizedOpts,
+            (int) ($nucOptions['source_invoice_id'] ?? 0)
+        );
 
         $header = [
             'DocType'        => $docType,
@@ -2531,12 +2714,7 @@ class FelInvoiceIssuanceService
             'Items'        => $items,
             'Totals'       => [
                 'TotalTaxes' => [
-                    'TotalTax' => [
-                        [
-                            'Description' => 'IVA',
-                            'Amount'      => sprintf('%.6f', $totalIva),
-                        ],
-                    ],
+                    'TotalTax' => $this->buildNucTotalTaxEntries($totalIva, $totalTimbre),
                 ],
                 'GrandTotal' => [
                     'InvoiceTotal' => sprintf('%.6f', $grand),
@@ -2579,12 +2757,13 @@ class FelInvoiceIssuanceService
                 continue;
             }
             $row = new \stdClass();
-            $row->descripcion     = $desc;
-            $row->cantidad        = $qty;
-            $row->valor_unitario  = $unit;
-            $row->subtotal        = round($qty * $unit, 2);
-            $row->item_type       = self::normalizeDigifactItemType((string) ($line['item_type'] ?? 'Bien'));
-            $lineRows[]           = $row;
+            $row->descripcion        = $desc;
+            $row->cantidad           = $qty;
+            $row->valor_unitario     = $unit;
+            $row->subtotal           = round($qty * $unit, 2);
+            $row->pre_cotizacion_id  = (int) ($line['pre_cotizacion_id'] ?? 0);
+            $row->item_type          = self::normalizeDigifactItemType((string) ($line['item_type'] ?? 'Bien'));
+            $lineRows[]              = $row;
         }
 
         $payload = $this->buildDigifactNucJsonPayload(
@@ -2861,9 +3040,9 @@ class FelInvoiceIssuanceService
      */
     protected function normalizeManualFelNucOptions(array $nucOptions, float $grandTotal = 0.0): array
     {
-        $docType = strtoupper(trim((string) ($nucOptions['doc_type'] ?? 'FACT')));
+        $docType = strtoupper(trim((string) ($nucOptions['doc_type'] ?? self::DEFAULT_DIGIFACT_DOC_TYPE)));
         if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
-            $docType = 'FACT';
+            $docType = self::DEFAULT_DIGIFACT_DOC_TYPE;
         }
 
         $currency = strtoupper(trim((string) ($nucOptions['currency'] ?? 'GTQ')));
@@ -2900,6 +3079,15 @@ class FelInvoiceIssuanceService
                         'monto'  => \round($monto, 2),
                     ];
                 }
+            }
+            if ($abonos === [] && $grandTotal > 0.00001) {
+                $due = Factory::getDate('now', 'America/Guatemala');
+                $due->modify('+30 days');
+                $abonos[] = [
+                    'numero' => 1,
+                    'fecha'  => $due->format('Y-m-d'),
+                    'monto'  => \round($grandTotal, 2),
+                ];
             }
         }
 
@@ -2950,9 +3138,9 @@ class FelInvoiceIssuanceService
             }
         }
 
-        $docType = strtoupper(trim((string) ($invoice->fel_tipo_dte ?? 'FACT')));
+        $docType = strtoupper(trim((string) ($invoice->fel_tipo_dte ?? self::DEFAULT_DIGIFACT_DOC_TYPE)));
         if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
-            $docType = 'FACT';
+            $docType = self::DEFAULT_DIGIFACT_DOC_TYPE;
         }
 
         $currency = strtoupper(trim((string) ($invoice->fel_moneda ?? '')));
@@ -3338,10 +3526,7 @@ class FelInvoiceIssuanceService
             $desc = trim((string) ($line['descripcion'] ?? $line['description'] ?? ''));
             $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId($desc);
             if ($forPreId > 0) {
-                $desc = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel(
-                    $forPreId,
-                    ImpuestoImprentaHelper::getPreCotizacionNumberById($forPreId, $this->db)
-                );
+                continue;
             }
             $qty  = (float) ($line['cantidad'] ?? $line['qty'] ?? $line['quantity'] ?? 0);
             $unit = (float) ($line['precio_unitario'] ?? $line['valor_unitario'] ?? $line['unit_price'] ?? $line['price'] ?? 0);
@@ -4242,7 +4427,7 @@ class FelInvoiceIssuanceService
                 $html = (string) \ob_get_clean();
             }
 
-            $docType = 'FACT';
+            $docType = self::DEFAULT_DIGIFACT_DOC_TYPE;
             if (isset($payload['Header']['DocType'])) {
                 $dt = strtoupper(trim((string) $payload['Header']['DocType']));
                 if (\in_array($dt, ['FACT', 'FCAM'], true)) {
@@ -4752,7 +4937,7 @@ class FelInvoiceIssuanceService
         $item->id               = 0;
         $item->invoice_source = 'fel_import';
         $item->invoice_number = '';
-        $item->fel_tipo_dte   = (string) ($payload['Header']['DocType'] ?? 'FACT');
+        $item->fel_tipo_dte   = (string) ($payload['Header']['DocType'] ?? self::DEFAULT_DIGIFACT_DOC_TYPE);
         $item->fel_emisor_nombre = $issuerName;
         $item->fel_emisor_nit    = (string) ($seller['TaxID'] ?? '');
         $item->fel_autorizacion_uuid = '';
@@ -5188,7 +5373,7 @@ class FelInvoiceIssuanceService
                 $receptorDireccion = $addrFromPayload;
             }
         }
-        $felTipoDte = 'FACT';
+        $felTipoDte = self::DEFAULT_DIGIFACT_DOC_TYPE;
         if (isset($nucPayload['Header']['DocType'])) {
             $dt = strtoupper(trim((string) $nucPayload['Header']['DocType']));
             if (\in_array($dt, ['FACT', 'FCAM'], true)) {

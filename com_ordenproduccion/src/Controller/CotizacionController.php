@@ -2519,9 +2519,9 @@ class CotizacionController extends BaseController
      */
     protected function parseManualFelNucOptionsFromPost(\Joomla\Input\Input $input): array
     {
-        $docType = strtoupper(trim((string) $input->post->getString('manual_doc_type', 'FACT')));
+        $docType = strtoupper(trim((string) $input->post->getString('manual_doc_type', 'FCAM')));
         if (!\in_array($docType, ['FACT', 'FCAM'], true)) {
-            $docType = 'FACT';
+            $docType = 'FCAM';
         }
 
         $observaciones = trim((string) $input->post->getString('manual_observaciones', ''));

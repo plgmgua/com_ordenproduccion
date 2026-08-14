@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.338-STABLE] - 2026-08-14
+
+### Changed
+- **Digifact FEL:** Default document type is now **FCAM** (factura cambiaria) for direct, queue, and manual issuance; auto-generates a single abono due in 30 days when none is supplied.
+- **Digifact NUC:** Timbre de prensa is sent as `TIMBRE DE PRENSA` sector tax on the matching product line (not as a separate IVA line item), aligning totals with SAT Facturas Emitidas.
+
 ## [3.119.337-STABLE] - 2026-08-14
 
 ### Added

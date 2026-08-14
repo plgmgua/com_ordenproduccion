@@ -90,8 +90,8 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                     <div class="col-md-3">
                         <label class="form-label small mb-1" for="manual-fel-doc-type"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE', 'Document type', 'Tipo de documento')); ?></label>
                         <select class="form-select form-select-sm" id="manual-fel-doc-type">
+                            <option value="FCAM" selected><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE_FCAM', 'FCAM — Exchange invoice', 'FCAM — Factura cambiaria')); ?></option>
                             <option value="FACT"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE_FACT', 'FACT — Invoice', 'FACT — Factura')); ?></option>
-                            <option value="FCAM"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_DOC_TYPE_FCAM', 'FCAM — Exchange invoice', 'FCAM — Factura cambiaria')); ?></option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -420,11 +420,24 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         }
     }
     function toggleFcamPanel() {
-        var isFcam = docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM';
+        var isFcam = docTypeSelect && String(docTypeSelect.value || 'FCAM').toUpperCase() === 'FCAM';
         if (fcamPanel) {
             fcamPanel.classList.toggle('d-none', !isFcam);
         }
         syncFcamAmountFromLines();
+    }
+    function defaultFcamDueDateYmd() {
+        var base = (issueDateInput && issueDateInput.value) ? issueDateInput.value : issueDateDefault;
+        if (!base || !/^\d{4}-\d{2}-\d{2}$/.test(base)) {
+            return '';
+        }
+        var parts = base.split('-');
+        var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        d.setDate(d.getDate() + 30);
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        return y + '-' + m + '-' + day;
     }
     if (docTypeSelect) {
         docTypeSelect.addEventListener('change', toggleFcamPanel);
@@ -758,7 +771,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             });
         }
         toggleFcamPanel();
-        if (docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM' && Array.isArray(seed.fcam_abonos) && seed.fcam_abonos.length) {
+        if (docTypeSelect && String(docTypeSelect.value || 'FCAM').toUpperCase() === 'FCAM' && Array.isArray(seed.fcam_abonos) && seed.fcam_abonos.length) {
             var ab = seed.fcam_abonos[0];
             if (fcamDueDate && ab.fecha) {
                 fcamDueDate.value = String(ab.fecha);
@@ -898,7 +911,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             issueDateInput.max = issueDateDefault;
         }
         if (docTypeSelect) {
-            docTypeSelect.value = 'FACT';
+            docTypeSelect.value = 'FCAM';
         }
         if (currencySelect) {
             currencySelect.value = 'GTQ';
@@ -909,7 +922,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             observacionesInput.value = quotationRefDefault || '';
         }
         if (fcamDueDate) {
-            fcamDueDate.value = '';
+            fcamDueDate.value = defaultFcamDueDateYmd();
         }
         toggleFcamPanel();
         resetCuiGate();
@@ -1061,7 +1074,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     }
 
     function buildFcamAbonosJson() {
-        if (!docTypeSelect || String(docTypeSelect.value || 'FACT').toUpperCase() !== 'FCAM') {
+        if (!docTypeSelect || String(docTypeSelect.value || 'FCAM').toUpperCase() !== 'FCAM') {
             return '[]';
         }
         var due = fcamDueDate ? String(fcamDueDate.value || '').trim() : '';
@@ -1101,7 +1114,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 return null;
             }
         }
-        if (docTypeSelect && String(docTypeSelect.value || 'FACT').toUpperCase() === 'FCAM') {
+        if (docTypeSelect && String(docTypeSelect.value || 'FCAM').toUpperCase() === 'FCAM') {
             var dueCheck = fcamDueDate ? String(fcamDueDate.value || '').trim() : '';
             if (!dueCheck) {
                 showAlert(msgFcamDateRequired);
@@ -1123,7 +1136,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         fd.append('manual_lines_json', JSON.stringify(lines));
         fd.append('manual_orden_ids_json', JSON.stringify(collectOrdenIds()));
         fd.append('manual_quotation_ids_json', JSON.stringify(collectQuotationIds()));
-        fd.append('manual_doc_type', docTypeSelect ? String(docTypeSelect.value || 'FACT') : 'FACT');
+        fd.append('manual_doc_type', docTypeSelect ? String(docTypeSelect.value || 'FCAM') : 'FCAM');
         fd.append('manual_currency', currencySelect ? String(currencySelect.value || 'GTQ') : 'GTQ');
         fd.append('manual_observaciones', observacionesInput ? String(observacionesInput.value || '').trim() : '');
         fd.append('manual_fcam_abonos_json', buildFcamAbonosJson());
