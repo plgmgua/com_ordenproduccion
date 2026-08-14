@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.331-STABLE] - 2026-08-14
+
+### Changed
+- **Payment proof list:** Mismatch/note text now renders on a full-width sub-row under the payment line instead of truncated in the Acciones column.
+
 ## [3.119.330-STABLE] - 2026-08-14
 
 ### Fixed

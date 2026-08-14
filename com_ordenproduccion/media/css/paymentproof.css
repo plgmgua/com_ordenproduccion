@@ -168,8 +168,17 @@
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(1),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(1) {
-    width: 5%;
-    min-width: 3.25rem;
+    width: 5.5rem;
+    min-width: 5.5rem;
+    max-width: 5.5rem;
+}
+.com-ordenproduccion-paymentproof .payment-proof-list-table .payment-proof-id-cell {
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.74rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .com-ordenproduccion-paymentproof .payment-proof-list-table th:nth-child(2),
 .com-ordenproduccion-paymentproof .payment-proof-list-table td:nth-child(2) {
@@ -257,7 +266,12 @@
     max-width: 42px;
 }
 
-/* Payment proof note sub-row: full-width note under primary line */
+/* Payment proof note sub-row: note spans columns 2–10 under primary line */
+.com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-note-subrow td.payment-proof-note-subrow-spacer {
+    background-color: #fff;
+    border-top: none;
+    padding: 0;
+}
 .com-ordenproduccion-paymentproof .payment-proof-list-table tr.payment-proof-note-subrow td.payment-proof-note-subrow-cell {
     font-size: 0.78rem;
     line-height: 1.35;

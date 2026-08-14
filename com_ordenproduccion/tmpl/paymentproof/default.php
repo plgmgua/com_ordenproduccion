@@ -623,7 +623,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                             $cellFiles = $groupedLineFiles[$lineId] ?? [];
                                 ?>
                                 <tr<?php if ($isFirstLine) { echo ' id="proof-' . (int)($proof->id ?? 0) . '"'; } ?>>
-                                    <td><?php echo $isFirstLine ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
+                                    <td class="payment-proof-id-cell text-nowrap"><?php echo $isFirstLine ? ('PA-' . str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT)) : ''; ?></td>
                                     <td class="payment-proof-doc-number"><?php echo htmlspecialchars($line->document_number ?? ''); ?></td>
                                     <td class="text-nowrap"><?php
                                         $docDate = $line->document_date ?? null;
@@ -816,7 +816,8 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                         if ($proofNoteText !== '') :
                                 ?>
                                 <tr class="payment-proof-note-subrow">
-                                    <td colspan="10" class="payment-proof-note-subrow-cell">
+                                    <td class="payment-proof-note-subrow-spacer"></td>
+                                    <td colspan="9" class="payment-proof-note-subrow-cell">
                                         <span class="payment-proof-note-label"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') !== 'COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL' ? Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') : 'Nota'); ?>:</span>
                                         <span class="payment-proof-note-text"><?php echo htmlspecialchars($proofNoteText); ?></span>
                                     </td>
@@ -840,7 +841,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                         $proofFilesLegacy = method_exists($proofModel, 'getPaymentProofFiles') ? $proofModel->getPaymentProofFiles($proof) : [];
                                 ?>
                                 <tr id="proof-<?php echo (int)($proof->id ?? 0); ?>">
-                                    <td>PA-<?php echo str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT); ?></td>
+                                    <td class="payment-proof-id-cell text-nowrap">PA-<?php echo str_pad((string)(int)($proof->id ?? 0), 5, '0', STR_PAD_LEFT); ?></td>
                                     <td class="payment-proof-doc-number"><?php echo htmlspecialchars($proof->document_number ?? ''); ?></td>
                                     <td class="text-nowrap">—</td>
                                     <td><?php echo $this->translatePaymentType($proof->payment_type ?? ''); ?></td>
@@ -958,7 +959,8 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                 </tr>
                                 <?php if ($proofNoteText !== '') : ?>
                                 <tr class="payment-proof-note-subrow">
-                                    <td colspan="10" class="payment-proof-note-subrow-cell">
+                                    <td class="payment-proof-note-subrow-spacer"></td>
+                                    <td colspan="9" class="payment-proof-note-subrow-cell">
                                         <span class="payment-proof-note-label"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') !== 'COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL' ? Text::_('COM_ORDENPRODUCCION_PAYMENT_NOTE_LABEL') : 'Nota'); ?>:</span>
                                         <span class="payment-proof-note-text"><?php echo htmlspecialchars($proofNoteText); ?></span>
                                     </td>
