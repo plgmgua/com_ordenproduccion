@@ -13,4 +13,4 @@ Consult these official docs when working on Digifact integration, FEL certificat
   Digifact MCP server documentation (Server-Sent Events). Use for MCP tool schemas, certification flows, and certificador-related integration.
 
 - **NUC JSON (Guatemala):** https://documentacion.digifact.com/gt/nuc/json  
-  NUC field reference for GT FEL (FACT/FCAM). Sector taxes such as **TIMBRE DE PRENSA** use `Items[].Taxes.Tax[]` with `Description: "TIMBRE DE PRENSA"`, `TaxableAmount`, and `Amount` (not IVA code `1`).
+  NUC field reference for GT FEL (FACT/FCAM). Sector taxes such as **TIMBRE DE PRENSA** use `Items[].Taxes.Tax[]` with `Code: "1"` (D1011 unidad gravable), `Description: "TIMBRE DE PRENSA"`, `TaxableAmount`, and `Amount` (IVA uses the same `Code` field with value `"1"` for a different tax type).

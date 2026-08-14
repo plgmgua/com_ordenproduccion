@@ -62,6 +62,9 @@ class FelInvoiceIssuanceService
     /** Digifact NUC sector tax description for timbre de prensa (SAT / D1012). */
     private const TIMBRE_PRENSA_TAX_DESCRIPTION = 'TIMBRE DE PRENSA';
 
+    /** SAT D1011 — timbre de prensa 0.5‰ on IVA-inclusive base (/ 1.12) when IVA Code is 1. */
+    private const TIMBRE_PRENSA_TAX_CODE = '1';
+
     public function __construct(?DatabaseInterface $db = null)
     {
         $this->db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
@@ -2335,6 +2338,21 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * NUC Items[].Taxes.Tax entry for timbre de prensa (requires D1011 Code per Digifact transform).
+     *
+     * @since  3.119.342
+     */
+    protected function buildTimbrePrensaNucTaxEntry(float $taxableAmount, float $timbreAmount): array
+    {
+        return [
+            'Code'          => self::TIMBRE_PRENSA_TAX_CODE,
+            'Description'   => self::TIMBRE_PRENSA_TAX_DESCRIPTION,
+            'TaxableAmount' => sprintf('%.6f', round($taxableAmount, 6)),
+            'Amount'        => sprintf('%.6f', round($timbreAmount, 6)),
+        ];
+    }
+
+    /**
      * Collect timbre de prensa amounts keyed by pre_cotizacion_id from quotation line rows.
      *
      * @param   list<object>  $lines
@@ -2505,17 +2523,15 @@ class FelInvoiceIssuanceService
                 ],
             ];
 
+            $itemTotal = $lineTotal;
             $preId = (int) ($row->pre_cotizacion_id ?? 0);
             if ($preId > 0 && isset($timbreByPreId[$preId])) {
                 $timbreAmt = round((float) $timbreByPreId[$preId], 2);
                 if ($timbreAmt > 0.000001) {
-                    $taxes[] = [
-                        'Description'   => self::TIMBRE_PRENSA_TAX_DESCRIPTION,
-                        'TaxableAmount' => sprintf('%.6f', $taxable),
-                        'Amount'        => sprintf('%.6f', $timbreAmt),
-                    ];
+                    $taxes[] = $this->buildTimbrePrensaNucTaxEntry($taxable, $timbreAmt);
                     $totalTimbre += $timbreAmt;
                     $grand += $timbreAmt;
+                    $itemTotal += $timbreAmt;
                     unset($timbreByPreId[$preId]);
                 }
             }
@@ -2540,7 +2556,7 @@ class FelInvoiceIssuanceService
                     'Tax' => $taxes,
                 ],
                 'Totals' => [
-                    'TotalItem' => sprintf('%.6f', $lineTotal),
+                    'TotalItem' => sprintf('%.6f', $itemTotal),
                 ],
             ];
             $lineNum++;
@@ -2557,6 +2573,11 @@ class FelInvoiceIssuanceService
             );
             $grand += $timbreAmt;
             $totalTimbre += $timbreAmt;
+            $timbreRate = ImpuestoImprentaHelper::getParamPercent() / 100;
+            if ($timbreRate <= 0.000001) {
+                $timbreRate = 0.005;
+            }
+            $timbreTaxableBase = round($timbreAmt / $timbreRate, 2);
             $items[] = [
                 'Number'         => (string) $lineNum,
                 'Codes'          => null,
@@ -2568,11 +2589,7 @@ class FelInvoiceIssuanceService
                 'Discounts'      => null,
                 'Taxes'          => [
                     'Tax' => [
-                        [
-                            'Description'   => self::TIMBRE_PRENSA_TAX_DESCRIPTION,
-                            'TaxableAmount' => sprintf('%.6f', $timbreAmt),
-                            'Amount'        => sprintf('%.6f', $timbreAmt),
-                        ],
+                        $this->buildTimbrePrensaNucTaxEntry($timbreTaxableBase, $timbreAmt),
                     ],
                 ],
                 'Totals' => [

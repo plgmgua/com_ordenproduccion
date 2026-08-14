@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.342-STABLE] - 2026-08-14
+
+### Fixed
+- **Digifact NUC / Timbre de prensa:** Include required SAT `Code` (`1`) on `TIMBRE DE PRENSA` tax entries (D1011 unidad gravable). Fixes Digifact transform error *"No se encuentra el elemento Code que indica el Codigo de Unidad Gravable del impuesto"*. Item `TotalItem` now includes the timbre amount when attached to a product line.
+
 ## [3.119.341-STABLE] - 2026-08-14
 
 ### Fixed
