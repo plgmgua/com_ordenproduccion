@@ -15,6 +15,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Session\Session;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 
 /** @var \Grimpsa\Component\Ordenproduccion\Site\View\Paymentproof\HtmlView $this */
@@ -430,7 +431,8 @@ window.validateFiles = function(input) {
 endif;
 
 $invoiceValue = (float) ($order->invoice_value ?? 0);
-$defaultAmount = $invoiceValue > 0 ? number_format($invoiceValue, 2, '.', '') : '';
+$coverageTotal = (float) ($order->coverage_total ?? ImpuestoImprentaHelper::getOrderPaymentCoverageTotal($order));
+$defaultAmount = $coverageTotal > 0 ? number_format($coverageTotal, 2, '.', '') : '';
 
 // Bank options for payment lines (JS will clone from first row)
 $bankOptions = [];
@@ -992,7 +994,7 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                                 <?php foreach ($availableOrders as $ao) :
                                                     $aoId = (int)($ao->id ?? 0);
                                                     if ($aoId === (int) $orderId) { continue; }
-                                                    $invVal = isset($ao->invoice_value) ? (float) $ao->invoice_value : 0;
+                                                    $invVal = (float) ($ao->coverage_total ?? $ao->invoice_value ?? 0);
                                                 ?>
                                                 <option value="<?php echo $aoId; ?>" data-invoice-value="<?php echo $invVal > 0 ? number_format($invVal, 2, '.', '') : ''; ?>"><?php echo htmlspecialchars(($ao->order_number ?? '#' . ($ao->id ?? '')) . ' — ' . ($ao->client_name ?? '')); ?></option>
                                                 <?php endforeach; ?>
@@ -1073,6 +1075,8 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                 'order_number' => $order->order_number ?? $order->orden_de_trabajo ?? 'N/A',
                                 'client_name' => $order->client_name ?? $order->nombre_del_cliente ?? '—',
                                 'invoice_value' => $order->invoice_value ?? $order->valor_a_facturar ?? 0,
+                                'coverage_total' => $order->coverage_total ?? ImpuestoImprentaHelper::getOrderPaymentCoverageTotal($order),
+                                'impuesto_imprenta_amount' => $order->impuesto_imprenta_amount ?? 0,
                                 'request_date' => $order->request_date ?? $order->fecha_de_solicitud ?? null,
                                 'amount_applied' => !empty($existingPayments) ? (float)($existingPayments[0]->amount_applied ?? 0) : 0,
                             ];
@@ -1094,12 +1098,19 @@ $paymentTypeDefaults = method_exists($this, 'getPaymentTypeDefaultsMap')
                                     <?php
                                     $totalOrdersValue = 0.0;
                                     foreach ($orderInfoRows as $po) :
-                                        $totalOrdersValue += (float) ($po->invoice_value ?? 0);
+                                        $rowCoverage = (float) ($po->coverage_total ?? $po->invoice_value ?? 0);
+                                        $totalOrdersValue += $rowCoverage;
+                                        $rowImpuesto = (float) ($po->impuesto_imprenta_amount ?? 0);
                                     ?>
                                     <tr>
                                         <td class="small"><?php echo htmlspecialchars($po->order_number ?? '#' . ($po->order_id ?? '')); ?></td>
                                         <td class="small"><?php echo htmlspecialchars($po->client_name ?? '—'); ?></td>
-                                        <td class="small"><?php echo $this->formatCurrency($po->invoice_value ?? 0); ?></td>
+                                        <td class="small">
+                                            <?php echo $this->formatCurrency($rowCoverage); ?>
+                                            <?php if ($rowImpuesto > 0.009) : ?>
+                                                <br><span class="text-muted" style="font-size: 0.85em;"><?php echo htmlspecialchars(Text::_('COM_ORDENPRODUCCION_PARAM_IMPUESTO_IMPRENTA')); ?>: <?php echo $this->formatCurrency($rowImpuesto); ?></span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="small"><?php echo $this->formatDate($po->request_date ?? ''); ?></td>
                                     </tr>
                                     <?php endforeach; ?>

@@ -14,6 +14,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\Mt940PaymentMatchLogHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
@@ -127,6 +128,8 @@ class HtmlView extends BaseHtmlView
             if (!AccessHelper::canAccessPaymentProofForOrder($this->order->sales_agent ?? '')) {
                 throw new \Exception(Text::_('COM_ORDENPRODUCCION_ERROR_ACCESS_DENIED'));
             }
+
+            ImpuestoImprentaHelper::enrichOrdersWithPaymentCoverage([$this->order]);
         } catch (\Exception $e) {
             $app->enqueueMessage($e->getMessage(), 'error');
             $app->redirect(Route::_('index.php?option=com_ordenproduccion&view=ordenes'));
@@ -813,13 +816,20 @@ class HtmlView extends BaseHtmlView
                     'o.id',
                     $orderNumCol . ' AS order_number',
                     'COALESCE(' . $invoiceCol . ', 0) AS invoice_value',
-                    $totalPaidExpr . ' AS total_paid'
+                    $totalPaidExpr . ' AS total_paid',
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where('o.state = 1')
                 ->where('TRIM(' . $clientCol . ') = ' . $db->quote($clientName))
                 ->where('o.id != ' . (int) $this->orderId)
                 ->order($orderNumCol . ' DESC');
+
+            if (isset($orderColumns['pre_cotizacion_id'])) {
+                $query->select('o.pre_cotizacion_id');
+            }
+            if (isset($orderColumns['orden_source_json'])) {
+                $query->select('o.orden_source_json');
+            }
 
             $db->setQuery($query);
             $orders = $db->loadObjectList();
@@ -831,12 +841,14 @@ class HtmlView extends BaseHtmlView
             return [];
         }
 
-        // Filter: only orders with remaining balance (total_paid < invoice_value)
+        $orders = ImpuestoImprentaHelper::enrichOrdersWithPaymentCoverage($orders, $db);
+
+        // Filter: only orders with remaining balance (total_paid < coverage total)
         $result = [];
         foreach ($orders as $order) {
-            $invoiceValue = (float) ($order->invoice_value ?? 0);
+            $coverageTotal = (float) ($order->coverage_total ?? $order->invoice_value ?? 0);
             $totalPaid = (float) ($order->total_paid ?? 0);
-            $remainingBalance = $invoiceValue - $totalPaid;
+            $remainingBalance = $coverageTotal - $totalPaid;
             if ($remainingBalance > 0.01) {
                 $order->remaining_balance = $remainingBalance;
                 $result[] = $order;
@@ -861,8 +873,8 @@ class HtmlView extends BaseHtmlView
             $data[] = [
                 'id' => (int) $order->id,
                 'order_number' => $order->order_number ?? $order->orden_de_trabajo ?? '',
-                'invoice_value' => (float) ($order->invoice_value ?? 0),
-                'remaining_balance' => (float) ($order->remaining_balance ?? $order->invoice_value ?? 0)
+                'invoice_value' => (float) ($order->coverage_total ?? $order->invoice_value ?? 0),
+                'remaining_balance' => (float) ($order->remaining_balance ?? $order->coverage_total ?? $order->invoice_value ?? 0)
             ];
         }
         
@@ -918,12 +930,19 @@ class HtmlView extends BaseHtmlView
                     'o.id',
                     $orderNumCol . ' AS order_number',
                     'COALESCE(' . $invoiceCol . ', 0) AS invoice_value',
-                    $totalPaidExpr . ' AS total_paid'
+                    $totalPaidExpr . ' AS total_paid',
                 ])
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
                 ->where('o.state = 1')
                 ->order($orderNumCol . ' DESC')
                 ->setLimit(500);
+
+            if (isset($orderColumns['pre_cotizacion_id'])) {
+                $query->select('o.pre_cotizacion_id');
+            }
+            if (isset($orderColumns['orden_source_json'])) {
+                $query->select('o.orden_source_json');
+            }
 
             if ($statusCol) {
                 $query->where('(LOWER(TRIM(' . $statusCol . ')) IS NULL OR LOWER(TRIM(' . $statusCol . ')) != ' . $db->quote('anulada') . ')');
@@ -944,11 +963,13 @@ class HtmlView extends BaseHtmlView
             return [];
         }
 
+        $orders = ImpuestoImprentaHelper::enrichOrdersWithPaymentCoverage($orders, $db);
+
         $result = [];
         foreach ($orders as $order) {
-            $invoiceValue = (float) ($order->invoice_value ?? 0);
+            $coverageTotal = (float) ($order->coverage_total ?? $order->invoice_value ?? 0);
             $totalPaid = (float) ($order->total_paid ?? 0);
-            $remainingBalance = $invoiceValue - $totalPaid;
+            $remainingBalance = $coverageTotal - $totalPaid;
             $order->remaining_balance = $remainingBalance;
             $result[] = $order;
         }
@@ -970,8 +991,8 @@ class HtmlView extends BaseHtmlView
             $data[] = [
                 'id' => (int) $order->id,
                 'order_number' => $order->order_number ?? '',
-                'invoice_value' => (float) ($order->invoice_value ?? 0),
-                'remaining_balance' => (float) ($order->remaining_balance ?? $order->invoice_value ?? 0)
+                'invoice_value' => (float) ($order->coverage_total ?? $order->invoice_value ?? 0),
+                'remaining_balance' => (float) ($order->remaining_balance ?? $order->coverage_total ?? $order->invoice_value ?? 0)
             ];
         }
         return json_encode($data);

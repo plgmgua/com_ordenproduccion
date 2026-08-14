@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.330-STABLE] - 2026-08-14
+
+### Fixed
+- **Payment registration:** Work orders now include linked **timbre de prensa** (impuesto imprenta) from the cotización PRE in payment coverage totals, so Total órdenes matches invoice/payment amounts and false positive mismatches are avoided.
+
 ## [3.119.329-STABLE] - 2026-08-14
 
 ### Fixed

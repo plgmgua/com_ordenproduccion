@@ -12,6 +12,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\Language\Text;
 use Joomla\CMS\MVC\Model\ItemModel;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\AsistenciaHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentOrderQueryHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\PaymentProofCurrencyHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Service\ApprovalWorkflowService;
@@ -1010,15 +1011,26 @@ class PaymentproofModel extends ItemModel
     {
         try {
             $db = $this->getDatabase();
+            $orderCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
+            $orderCols = \is_array($orderCols) ? array_change_key_case($orderCols, CASE_LOWER) : [];
+
+            $selectCols = [
+                'po.order_id',
+                'po.amount_applied',
+                'o.order_number',
+                'o.client_name',
+                'o.invoice_value',
+                'o.request_date',
+            ];
+            if (isset($orderCols['pre_cotizacion_id'])) {
+                $selectCols[] = 'o.pre_cotizacion_id';
+            }
+            if (isset($orderCols['orden_source_json'])) {
+                $selectCols[] = 'o.orden_source_json';
+            }
+
             $query = $db->getQuery(true)
-                ->select([
-                    'po.order_id',
-                    'po.amount_applied',
-                    'o.order_number',
-                    'o.client_name',
-                    'o.invoice_value',
-                    'o.request_date'
-                ])
+                ->select($selectCols)
                 ->from($db->quoteName('#__ordenproduccion_payment_orders', 'po'))
                 ->innerJoin(
                     $db->quoteName('#__ordenproduccion_ordenes', 'o') . ' ON o.id = po.order_id'
@@ -1027,7 +1039,9 @@ class PaymentproofModel extends ItemModel
                 ->where('o.' . $db->quoteName('state') . ' = 1');
 
             $db->setQuery($query);
-            return $db->loadObjectList();
+            $rows = $db->loadObjectList() ?: [];
+
+            return ImpuestoImprentaHelper::enrichOrdersWithPaymentCoverage($rows, $db);
 
         } catch (\Exception $e) {
             return [];
@@ -1082,6 +1096,12 @@ class PaymentproofModel extends ItemModel
                 ->from($db->quoteName('#__ordenproduccion_payment_orders'));
             $selectCols = ['o.id', 'o.order_number', 'o.invoice_value'];
             $selectCols[] = $hasClientName ? 'o.client_name' : 'o.nombre_del_cliente AS client_name';
+            if (isset($orderCols['pre_cotizacion_id'])) {
+                $selectCols[] = 'o.pre_cotizacion_id';
+            }
+            if (isset($orderCols['orden_source_json'])) {
+                $selectCols[] = 'o.orden_source_json';
+            }
             $query = $db->getQuery(true)
                 ->select($selectCols)
                 ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
@@ -1092,7 +1112,9 @@ class PaymentproofModel extends ItemModel
                 ->order('o.id DESC')
                 ->setLimit((int) $limit);
             $db->setQuery($query);
-            return $db->loadObjectList() ?: [];
+            $rows = $db->loadObjectList() ?: [];
+
+            return ImpuestoImprentaHelper::enrichOrdersWithPaymentCoverage($rows, $db);
         } catch (\Exception $e) {
             return [];
         }
@@ -1602,7 +1624,7 @@ class PaymentproofModel extends ItemModel
 
         $ordersTotal = 0.0;
         foreach ($this->getOrdersByPaymentProofId($proofId) as $orderRow) {
-            $ordersTotal += (float) ($orderRow->invoice_value ?? 0);
+            $ordersTotal += (float) ($orderRow->coverage_total ?? $orderRow->invoice_value ?? 0);
         }
         $ordersTotal = round($ordersTotal, 2);
         $diff        = round($paymentAmount - $ordersTotal, 2);

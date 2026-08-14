@@ -785,4 +785,293 @@ final class ImpuestoImprentaHelper
         } catch (\Throwable $e) {
         }
     }
+
+    /**
+     * Resolve pre-cotización id linked to an orden de trabajo row.
+     *
+     * @param   object|array<string, mixed>  $order
+     */
+    public static function resolvePreCotizacionIdForOrder($order): int
+    {
+        if (\is_array($order)) {
+            $preId = (int) ($order['pre_cotizacion_id'] ?? 0);
+            if ($preId > 0) {
+                return $preId;
+            }
+            $json = (string) ($order['orden_source_json'] ?? '');
+        } else {
+            $preId = (int) ($order->pre_cotizacion_id ?? 0);
+            if ($preId > 0) {
+                return $preId;
+            }
+            $json = (string) ($order->orden_source_json ?? '');
+        }
+
+        if ($json !== '') {
+            $data = json_decode($json, true);
+            if (\is_array($data)) {
+                return max(0, (int) ($data['pre_cotizacion_id'] ?? 0));
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Resolve cotización id for an orden de trabajo (JSON snapshot, then DB lookups).
+     *
+     * @param   object|array<string, mixed>  $order
+     */
+    public static function resolveQuotationIdForOrder($order, ?DatabaseInterface $db = null): int
+    {
+        $json = \is_array($order) ? (string) ($order['orden_source_json'] ?? '') : (string) ($order->orden_source_json ?? '');
+        if ($json !== '') {
+            $data = json_decode($json, true);
+            if (\is_array($data) && !empty($data['quotation_id'])) {
+                return (int) $data['quotation_id'];
+            }
+        }
+
+        $preId = self::resolvePreCotizacionIdForOrder($order);
+        if ($preId < 1) {
+            return 0;
+        }
+
+        $map = self::resolveQuotationIdsForPreIds([$preId], $db);
+
+        return (int) ($map[$preId] ?? 0);
+    }
+
+    /**
+     * Timbre de prensa amount for a PRE on a cotización (0 when no line exists).
+     */
+    public static function getImpuestoAmountForPreCotizacion(int $quotationId, int $preCotizacionId, ?DatabaseInterface $db = null): float
+    {
+        if ($quotationId < 1 || $preCotizacionId < 1) {
+            return 0.0;
+        }
+
+        $map = self::loadImpuestoAmountMap($db, [$quotationId]);
+
+        return (float) ($map[$quotationId . ':' . $preCotizacionId] ?? 0.0);
+    }
+
+    /**
+     * Full amount a payment should cover for an OT: product invoice_value + linked timbre de prensa.
+     *
+     * @param   object|array<string, mixed>  $order
+     */
+    public static function getOrderPaymentCoverageTotal($order, ?DatabaseInterface $db = null): float
+    {
+        $enriched = self::enrichOrdersWithPaymentCoverage([$order], $db);
+        $row      = $enriched[0] ?? $order;
+
+        if (\is_array($row)) {
+            return round((float) ($row['coverage_total'] ?? $row['invoice_value'] ?? 0), 2);
+        }
+
+        return round((float) ($row->coverage_total ?? $row->invoice_value ?? 0), 2);
+    }
+
+    /**
+     * Attach coverage_total, impuesto_imprenta_amount and adjusted remaining_balance to order rows.
+     *
+     * @param   array<int, object|array<string, mixed>>  $orders
+     *
+     * @return  array<int, object|array<string, mixed>>
+     */
+    public static function enrichOrdersWithPaymentCoverage(array $orders, ?DatabaseInterface $db = null): array
+    {
+        if ($orders === []) {
+            return $orders;
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        $preIdsNeedingQuotation = [];
+        $orderMeta              = [];
+
+        foreach ($orders as $idx => $order) {
+            $preId = self::resolvePreCotizacionIdForOrder($order);
+            $qId   = 0;
+            $json  = \is_array($order) ? (string) ($order['orden_source_json'] ?? '') : (string) ($order->orden_source_json ?? '');
+            if ($json !== '') {
+                $data = json_decode($json, true);
+                if (\is_array($data) && !empty($data['quotation_id'])) {
+                    $qId = (int) $data['quotation_id'];
+                }
+            }
+            if ($preId > 0 && $qId < 1) {
+                $preIdsNeedingQuotation[$preId] = true;
+            }
+            $orderMeta[$idx] = ['pre_id' => $preId, 'q_id' => $qId];
+        }
+
+        $preToQuotation = self::resolveQuotationIdsForPreIds(array_keys($preIdsNeedingQuotation), $db);
+
+        $quotationIds = [];
+        foreach ($orderMeta as $idx => $meta) {
+            if ($meta['q_id'] < 1 && $meta['pre_id'] > 0) {
+                $orderMeta[$idx]['q_id'] = (int) ($preToQuotation[$meta['pre_id']] ?? 0);
+            }
+            if ($orderMeta[$idx]['q_id'] > 0) {
+                $quotationIds[$orderMeta[$idx]['q_id']] = true;
+            }
+        }
+
+        $impuestoMap = self::loadImpuestoAmountMap($db, array_keys($quotationIds));
+
+        foreach ($orders as $idx => $order) {
+            $invoiceValue = round((float) (\is_array($order)
+                ? ($order['invoice_value'] ?? 0)
+                : ($order->invoice_value ?? 0)), 2);
+            $meta     = $orderMeta[$idx];
+            $impuesto = 0.0;
+            if ($meta['pre_id'] > 0 && $meta['q_id'] > 0) {
+                $impuesto = (float) ($impuestoMap[$meta['q_id'] . ':' . $meta['pre_id']] ?? 0.0);
+            }
+            $coverage = round($invoiceValue + $impuesto, 2);
+
+            if (\is_array($order)) {
+                $order['impuesto_imprenta_amount'] = $impuesto;
+                $order['coverage_total']           = $coverage;
+                if (isset($order['total_paid'])) {
+                    $order['remaining_balance'] = max(0.0, round($coverage - (float) $order['total_paid'], 2));
+                }
+                $orders[$idx] = $order;
+            } else {
+                $order->impuesto_imprenta_amount = $impuesto;
+                $order->coverage_total           = $coverage;
+                if (isset($order->total_paid)) {
+                    $order->remaining_balance = max(0.0, round($coverage - (float) $order->total_paid, 2));
+                }
+            }
+        }
+
+        return $orders;
+    }
+
+    /**
+     * @param   int[]  $preIds
+     *
+     * @return  array<int, int>  pre_cotizacion_id => quotation_id
+     */
+    private static function resolveQuotationIdsForPreIds(array $preIds, ?DatabaseInterface $db = null): array
+    {
+        $preIds = array_values(array_unique(array_filter(array_map('intval', $preIds))));
+        if ($preIds === []) {
+            return [];
+        }
+
+        $db  = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+        $map = [];
+
+        try {
+            $pcCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion', false);
+            $pcCols = \is_array($pcCols) ? array_change_key_case($pcCols, CASE_LOWER) : [];
+            if (isset($pcCols['quotation_id'])) {
+                $q = $db->getQuery(true)
+                    ->select([
+                        $db->quoteName('id'),
+                        $db->quoteName('quotation_id'),
+                    ])
+                    ->from($db->quoteName('#__ordenproduccion_pre_cotizacion'))
+                    ->where($db->quoteName('id') . ' IN (' . implode(',', $preIds) . ')');
+                $db->setQuery($q);
+                foreach ($db->loadObjectList() ?: [] as $row) {
+                    $pid = (int) ($row->id ?? 0);
+                    $qid = (int) ($row->quotation_id ?? 0);
+                    if ($pid > 0 && $qid > 0) {
+                        $map[$pid] = $qid;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        $missing = array_values(array_diff($preIds, array_keys($map)));
+        if ($missing === []) {
+            return $map;
+        }
+
+        try {
+            $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+            $qiCols = \is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+            if (!isset($qiCols['pre_cotizacion_id'], $qiCols['quotation_id'])) {
+                return $map;
+            }
+
+            $q = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('pre_cotizacion_id'),
+                    $db->quoteName('quotation_id'),
+                ])
+                ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->where($db->quoteName('pre_cotizacion_id') . ' IN (' . implode(',', $missing) . ')')
+                ->group($db->quoteName('pre_cotizacion_id') . ', ' . $db->quoteName('quotation_id'));
+            $db->setQuery($q);
+            foreach ($db->loadObjectList() ?: [] as $row) {
+                $pid = (int) ($row->pre_cotizacion_id ?? 0);
+                $qid = (int) ($row->quotation_id ?? 0);
+                if ($pid > 0 && $qid > 0 && !isset($map[$pid])) {
+                    $map[$pid] = $qid;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param   int[]  $quotationIds
+     *
+     * @return  array<string, float>  "{quotation_id}:{pre_id}" => amount
+     */
+    private static function loadImpuestoAmountMap(?DatabaseInterface $db, array $quotationIds): array
+    {
+        $quotationIds = array_values(array_unique(array_filter(array_map('intval', $quotationIds))));
+        if ($quotationIds === []) {
+            return [];
+        }
+
+        $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+
+        try {
+            $qiCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
+            $qiCols = \is_array($qiCols) ? array_change_key_case($qiCols, CASE_LOWER) : [];
+            if (!isset($qiCols['descripcion'], $qiCols['quotation_id'])) {
+                return [];
+            }
+            $amountCol = isset($qiCols['valor_final']) ? 'valor_final' : (isset($qiCols['subtotal']) ? 'subtotal' : null);
+            if ($amountCol === null) {
+                return [];
+            }
+
+            $q = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('quotation_id'),
+                    $db->quoteName('descripcion'),
+                    'COALESCE(' . $db->quoteName($amountCol) . ', 0) AS amount',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_quotation_items'))
+                ->where($db->quoteName('quotation_id') . ' IN (' . implode(',', $quotationIds) . ')')
+                ->where($db->quoteName('descripcion') . ' LIKE ' . $db->quote(self::LINE_DESC_PREFIX . '%'));
+            $db->setQuery($q);
+
+            $map = [];
+            foreach ($db->loadObjectList() ?: [] as $row) {
+                $preId = self::parseImpuestoLineForPreId((string) ($row->descripcion ?? ''));
+                if ($preId < 1) {
+                    continue;
+                }
+                $key       = (int) ($row->quotation_id ?? 0) . ':' . $preId;
+                $map[$key] = round((float) ($row->amount ?? 0), 2);
+            }
+
+            return $map;
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
 }
