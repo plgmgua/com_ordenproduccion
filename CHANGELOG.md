@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.328-STABLE] - 2026-08-14
+
+### Fixed
+- **Cotización PDF:** Table headers and section titles now show proper Spanish accents (Código, Descripción, Términos y Condiciones, Aceptación de cotización) in both PDF format v1 and v2.
+
 ## [3.119.327-STABLE] - 2026-08-13
 
 ### Fixed

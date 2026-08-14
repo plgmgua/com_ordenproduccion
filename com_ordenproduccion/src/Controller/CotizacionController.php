@@ -4580,10 +4580,10 @@ class CotizacionController extends BaseController
         $lineH     = 6;
 
         $pdf->SetFont('Arial', 'B', 8);
-        $pdf->Cell($colCodigo, $lineH, 'Codigo', 1, 0, 'L');
+        $pdf->Cell($colCodigo, $lineH, $fixSpanishChars('Código'), 1, 0, 'L');
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($colCant, $lineH, 'Cant.', 1, 0, 'L');
-        $pdf->Cell($colDesc, $lineH, 'Descripcion', 1, 0, 'L');
+        $pdf->Cell($colDesc, $lineH, $fixSpanishChars('Descripción'), 1, 0, 'L');
         $pdf->Cell($colUnit, $lineH, 'Precio unit.', 1, 0, 'R');
         $pdf->Cell($colSub, $lineH, 'Subtotal', 1, 1, 'R');
         $pdf->SetFont('Arial', '', 9);
@@ -4651,7 +4651,7 @@ class CotizacionController extends BaseController
         $termStartY   = ($termY > 0 ? $termY : $pdf->GetY());
         $pdf->SetXY($termStartX, $termStartY);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($termW, $lineH, 'Terminos y Condiciones', 0, 1, 'L');
+        $pdf->Cell($termW, $lineH, $fixSpanishChars('Términos y Condiciones'), 0, 1, 'L');
         if (!empty($terminosBlocks)) {
             CotizacionFpdfBlocksHelper::renderPdfBlocks($pdf, $terminosBlocks, 5, 9, $pageW, $marginR, 15, 3, $fixSpanishChars, $termW);
         }
@@ -4659,7 +4659,7 @@ class CotizacionController extends BaseController
         $aceptacionX = $termStartX + $termW;
         $pdf->SetXY($aceptacionX, $termStartY);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Aceptacion de cotizacion'), 0, 1, 'L');
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Aceptación de cotización'), 0, 1, 'L');
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetX($aceptacionX);
         $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Nombre'), 0, 1, 'L');
@@ -4775,7 +4775,7 @@ class CotizacionController extends BaseController
         $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($contentW, $sectionH, $fixSpanishChars('Datos del cliente / Cotizacion'), 0, 1, 'L', true);
+        $pdf->Cell($contentW, $sectionH, $fixSpanishChars('Datos del cliente / Cotización'), 0, 1, 'L', true);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFillColor(255, 255, 255);
 
@@ -4805,10 +4805,10 @@ class CotizacionController extends BaseController
         $pdf->SetFillColor($tableHeaderR, $tableHeaderG, $tableHeaderB);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('Arial', 'B', 8);
-        $pdf->Cell($colCodigo, $lineH, 'Codigo', 1, 0, 'L', true);
+        $pdf->Cell($colCodigo, $lineH, $fixSpanishChars('Código'), 1, 0, 'L', true);
         $pdf->SetFont('Arial', 'B', 10);
         $pdf->Cell($colCant, $lineH, 'Cant.', 1, 0, 'L', true);
-        $pdf->Cell($colDesc, $lineH, 'Descripcion', 1, 0, 'L', true);
+        $pdf->Cell($colDesc, $lineH, $fixSpanishChars('Descripción'), 1, 0, 'L', true);
         $pdf->Cell($colUnit, $lineH, 'Precio unit.', 1, 0, 'R', true);
         $pdf->Cell($colSub, $lineH, 'Subtotal', 1, 1, 'R', true);
         $pdf->SetTextColor(0, 0, 0);
@@ -4881,7 +4881,7 @@ class CotizacionController extends BaseController
         $pdf->SetFillColor($sectionR, $sectionG, $sectionB);
         $pdf->SetTextColor(255, 255, 255);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($contentW, $sectionH, $fixSpanishChars('Terminos y Condiciones'), 0, 1, 'L', true);
+        $pdf->Cell($contentW, $sectionH, $fixSpanishChars('Términos y Condiciones'), 0, 1, 'L', true);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFillColor(255, 255, 255);
 
@@ -4898,7 +4898,7 @@ class CotizacionController extends BaseController
         $aceptacionX = $termStartX + $termW;
         $pdf->SetXY($aceptacionX, $termStartY);
         $pdf->SetFont('Arial', 'B', 10);
-        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Aceptacion de cotizacion'), 0, 1, 'L');
+        $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Aceptación de cotización'), 0, 1, 'L');
         $pdf->SetFont('Arial', '', 10);
         $pdf->SetX($aceptacionX);
         $pdf->Cell($aceptacionW, $aceptacionLineH, $fixSpanishChars('Nombre'), 0, 1, 'L');
