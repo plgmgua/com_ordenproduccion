@@ -602,6 +602,44 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Read-only timbre de prensa rows for manual FEL UI (not sent as separate NUC Items).
+     *
+     * @return  list<array{descripcion: string, amount: float, quotation_id: int, pre_cotizacion_id: int}>
+     *
+     * @since   3.119.341
+     */
+    public function getManualFelTimbreDisplayLinesForQuotation(int $quotationId): array
+    {
+        $quotationId = (int) $quotationId;
+        if ($quotationId < 1) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($this->loadQuotationLines($quotationId) as $row) {
+            if (!ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
+                continue;
+            }
+            $forPreId = (int) ($row->impuesto_for_pre_id ?? 0);
+            if ($forPreId < 1) {
+                $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($row->descripcion ?? ''));
+            }
+            $amount = round($this->getLineTotalsForFelRow($row)['line_total'], 2);
+            if ($amount <= 0.000001) {
+                continue;
+            }
+            $out[] = [
+                'descripcion'       => (string) ($row->descripcion ?? ImpuestoImprentaHelper::getImpuestoLineDisplayLabel($forPreId)),
+                'amount'            => $amount,
+                'quotation_id'      => $quotationId,
+                'pre_cotizacion_id' => $forPreId,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * Parse manual issue date (Y-m-d). Defaults to today; rejects invalid or future dates.
      */
     public function resolveManualIssueDate(?string $dateYmd): ?\DateTimeImmutable

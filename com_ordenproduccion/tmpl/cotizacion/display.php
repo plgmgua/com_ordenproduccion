@@ -227,6 +227,7 @@ if ($manualFelQuotationRef === '') {
     $manualFelQuotationRef = 'COT-' . $quotationId;
 }
 $manualFelLinePresets = isset($this->manualFelLinePresets) && is_array($this->manualFelLinePresets) ? $this->manualFelLinePresets : [];
+$manualFelTimbreLines = isset($this->manualFelTimbreLines) && is_array($this->manualFelTimbreLines) ? $this->manualFelTimbreLines : [];
 $manualFelOrdensForClient = isset($this->manualFelOrdensForClient) && is_array($this->manualFelOrdensForClient) ? $this->manualFelOrdensForClient : [];
 $manualFelOtherQuotations = isset($this->manualFelOtherQuotations) && is_array($this->manualFelOtherQuotations) ? $this->manualFelOtherQuotations : [];
 $manualFelLinesUrl = Route::_('index.php?option=com_ordenproduccion&task=cotizacion.manualFelQuotationLines&format=json', false);

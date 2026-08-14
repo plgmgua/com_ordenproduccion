@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.341-STABLE] - 2026-08-14
+
+### Fixed
+- **Manual FEL:** Show **Timbre de prensa** as a read-only row in the factura manual modal (matching the cotización), while still sending it only as `TIMBRE DE PRENSA` sector tax in the Digifact NUC (avoids FCAM double-count).
+
 ## [3.119.340-STABLE] - 2026-08-14
 
 ### Fixed

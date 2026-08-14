@@ -2077,6 +2077,7 @@ class CotizacionController extends BaseController
         }
 
         $lines = $fel->getManualFelLinePresetsForQuotation($targetId);
+        $timbreLines = $fel->getManualFelTimbreDisplayLinesForQuotation($targetId);
         $db->setQuery(
             $db->getQuery(true)
                 ->select($db->quoteName('quotation_number'))
@@ -2086,9 +2087,10 @@ class CotizacionController extends BaseController
         $qNum = trim((string) $db->loadResult());
         $label = $qNum !== '' ? $qNum : ('COT-' . str_pad((string) $targetId, 5, '0', STR_PAD_LEFT));
         echo json_encode([
-            'success' => true,
-            'lines'   => $lines,
-            'label'   => $label,
+            'success'      => true,
+            'lines'        => $lines,
+            'timbre_lines' => $timbreLines,
+            'label'        => $label,
             'quotation_id' => $targetId,
         ], JSON_UNESCAPED_UNICODE);
         $app->close();

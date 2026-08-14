@@ -29,6 +29,7 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\HTML\HTMLHelper;
 
 $manualFelLinePresets = is_array($manualFelLinePresets ?? null) ? $manualFelLinePresets : [];
+$manualFelTimbreLines = is_array($manualFelTimbreLines ?? null) ? $manualFelTimbreLines : [];
 $manualFelOrdensForClient = is_array($manualFelOrdensForClient ?? null) ? $manualFelOrdensForClient : [];
 $manualFelOtherQuotations = is_array($manualFelOtherQuotations ?? null) ? $manualFelOtherQuotations : [];
 $manualFelSourceInvoiceId = (int) ($manualFelSourceInvoiceId ?? 0);
@@ -54,6 +55,11 @@ $manualFelDisplayTotal = $manualFelLinesInitialTotal;
 if ($manualFelQuotationTotalGtq > $manualFelDisplayTotal + 0.001) {
     $manualFelDisplayTotal = $manualFelQuotationTotalGtq;
 }
+$manualFelTimbreTotalGtq = 0.0;
+foreach ($manualFelTimbreLines as $timbreRow) {
+    $manualFelTimbreTotalGtq += round((float) ($timbreRow['amount'] ?? 0), 2);
+}
+$manualFelTimbreTotalGtq = round($manualFelTimbreTotalGtq, 2);
 $manualFelBuyerAddressInitial = 'Ciudad';
 if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoice['buyer_address'] ?? '')) !== '') {
     $manualFelBuyerAddressInitial = trim((string) $manualFelSeedFromInvoice['buyer_address']);
@@ -179,6 +185,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                         <i class="fas fa-plus" aria-hidden="true"></i> <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_ADD_LINE', 'Add line', 'Agregar línea')); ?>
                     </button>
                 </div>
+                <p class="small text-muted mb-2 d-none" id="manual-fel-timbre-hint"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_TIMBRE_FEL_HINT', 'Timbre de prensa is included in the FEL total as TIMBRE DE PRENSA sector tax (Digifact); it is not sent as a separate editable line.', 'El timbre de prensa se incluye en el total FEL como impuesto sectorial TIMBRE DE PRENSA (Digifact); no se envía como línea editable separada.')); ?></p>
                 <div class="table-responsive mb-3" style="max-height: 40vh;">
                     <table class="table table-sm table-bordered align-middle mb-0 w-100" id="manual-fel-lines-table" style="table-layout: fixed;">
                         <thead class="table-light">
@@ -217,6 +224,23 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                                 <td class="text-center">
                                     <button type="button" class="btn btn-sm btn-outline-danger manual-fel-remove-line py-0 px-1" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_REMOVE_LINE', 'Remove line', 'Quitar línea')); ?>">&times;</button>
                                 </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php foreach ($manualFelTimbreLines as $timbreRow) :
+                                $timbreQid = (int) ($timbreRow['quotation_id'] ?? ($quotationId ?? 0));
+                                $timbreAmt = round((float) ($timbreRow['amount'] ?? 0), 2);
+                                $timbreDesc = trim((string) ($timbreRow['descripcion'] ?? ''));
+                                if ($timbreDesc === '' || $timbreAmt <= 0) {
+                                    continue;
+                                }
+                                ?>
+                            <tr class="manual-fel-timbre-row manual-fel-line-row table-secondary" data-quotation-id="<?php echo $timbreQid; ?>" data-timbre-amount="<?php echo htmlspecialchars(number_format($timbreAmt, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" aria-readonly="true">
+                                <td class="text-muted text-center small">—</td>
+                                <td class="text-muted small"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_TIMBRE_TYPE', 'Tax', 'Impuesto')); ?></td>
+                                <td class="small text-muted"><span class="manual-fel-timbre-desc"><?php echo htmlspecialchars($timbreDesc, ENT_QUOTES, 'UTF-8'); ?></span></td>
+                                <td class="text-muted text-end small">—</td>
+                                <td class="text-end text-muted fw-semibold manual-fel-timbre-amount"><?php echo htmlspecialchars(number_format($timbreAmt, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                <td class="text-center text-muted" title="<?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_TIMBRE_FEL_HINT', 'Timbre de prensa is included in the FEL total as TIMBRE DE PRENSA sector tax (Digifact); it is not sent as a separate editable line.', 'El timbre de prensa se incluye en el total FEL como impuesto sectorial TIMBRE DE PRENSA (Digifact); no se envía como línea editable separada.'), ENT_QUOTES, 'UTF-8'); ?>"><i class="fas fa-info-circle" aria-hidden="true"></i></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -384,19 +408,36 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     }
     function sumLineTotals() {
         var total = 0;
-        tbody.querySelectorAll('.manual-fel-line-row').forEach(function(tr) {
+        tbody.querySelectorAll('.manual-fel-line-row:not(.manual-fel-timbre-row)').forEach(function(tr) {
             var sub = tr.querySelector('.manual-fel-subtotal');
             total += sub ? parseNum(sub.value) : 0;
         });
         return round2(total);
     }
-    /** NUC grand: line sum + timbre de prensa when timbre is not a separate modal line. */
+    function sumTimbreDisplayGtq() {
+        var total = 0;
+        tbody.querySelectorAll('.manual-fel-timbre-row').forEach(function(tr) {
+            total += parseNum(tr.getAttribute('data-timbre-amount') || '0');
+        });
+        return round2(total);
+    }
+    function syncTimbreHintVisibility() {
+        var hint = document.getElementById('manual-fel-timbre-hint');
+        if (!hint) {
+            return;
+        }
+        var hasTimbre = tbody.querySelectorAll('.manual-fel-timbre-row').length > 0;
+        hint.classList.toggle('d-none', !hasTimbre);
+    }
+    /** NUC grand: editable lines + timbre de prensa (sector tax, not a separate NUC Item). */
     function getFelGrandTotalGtq() {
         var lineSum = sumLineTotals();
-        if (quotationTotalGtq > lineSum + 0.01) {
+        var timbreGtq = sumTimbreDisplayGtq();
+        var combined = round2(lineSum + timbreGtq);
+        if (quotationTotalGtq > combined + 0.01) {
             return quotationTotalGtq;
         }
-        return lineSum;
+        return combined;
     }
     function getFelGrandTotalDisplay() {
         var gtq = getFelGrandTotalGtq();
@@ -542,8 +583,20 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         }
     }
     function applyDisplayCurrencyToAllRows() {
-        tbody.querySelectorAll('.manual-fel-line-row').forEach(function(tr) {
+        tbody.querySelectorAll('.manual-fel-line-row:not(.manual-fel-timbre-row)').forEach(function(tr) {
             displayRowFromGtqBaseline(tr);
+        });
+        tbody.querySelectorAll('.manual-fel-timbre-row').forEach(function(tr) {
+            var gtq = parseNum(tr.getAttribute('data-timbre-amount') || '0');
+            var amtEl = tr.querySelector('.manual-fel-timbre-amount');
+            if (!amtEl) {
+                return;
+            }
+            if (isUsdCurrency() && hasValidExchangeRate()) {
+                amtEl.textContent = gtqToUsdAmount(gtq, getExchangeRateValue(), 2).toFixed(2);
+            } else {
+                amtEl.textContent = round2(gtq).toFixed(2);
+            }
         });
         syncFcamAmountFromLines();
     }
@@ -743,7 +796,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         var rm = tr.querySelector('.manual-fel-remove-line');
         if (rm) {
             rm.addEventListener('click', function() {
-                if (tbody.querySelectorAll('.manual-fel-line-row').length <= 1) {
+                if (tbody.querySelectorAll('.manual-fel-line-row:not(.manual-fel-timbre-row)').length <= 1) {
                     return;
                 }
                 tr.remove();
@@ -751,7 +804,8 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             });
         }
     }
-    tbody.querySelectorAll('.manual-fel-line-row').forEach(bindRow);
+    tbody.querySelectorAll('.manual-fel-line-row:not(.manual-fel-timbre-row)').forEach(bindRow);
+    syncTimbreHintVisibility();
     toggleFcamPanel();
     syncInvoiceTotalDisplay();
 
@@ -853,12 +907,41 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         bindRow(tr);
     }
 
+    var msgTimbreType = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_TIMBRE_TYPE', 'Tax', 'Impuesto'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+    var msgTimbreHint = <?php echo json_encode($l('COM_ORDENPRODUCCION_MANUAL_FEL_TIMBRE_FEL_HINT', 'Timbre de prensa is included in the FEL total as TIMBRE DE PRENSA sector tax (Digifact); it is not sent as a separate editable line.', 'El timbre de prensa se incluye en el total FEL como impuesto sectorial TIMBRE DE PRENSA (Digifact); no se envía como línea editable separada.'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+
+    function addTimbreDisplayRow(preset, quotationIdForRow) {
+        if (!preset || parseNum(preset.amount) <= 0) {
+            return;
+        }
+        var tr = document.createElement('tr');
+        tr.className = 'manual-fel-timbre-row manual-fel-line-row table-secondary';
+        tr.setAttribute('data-quotation-id', String(quotationIdForRow || qid));
+        var gtqAmt = round2(parseNum(preset.amount));
+        tr.setAttribute('data-timbre-amount', String(gtqAmt));
+        var desc = preset.descripcion != null ? String(preset.descripcion) : '';
+        var displayAmt = gtqAmt;
+        if (isUsdCurrency() && hasValidExchangeRate()) {
+            displayAmt = gtqToUsdAmount(gtqAmt, getExchangeRateValue(), 2);
+        }
+        tr.innerHTML = '<td class="text-muted text-center small">—</td>'
+            + '<td class="text-muted small">' + msgTimbreType.replace(/</g, '&lt;') + '</td>'
+            + '<td class="small text-muted"><span class="manual-fel-timbre-desc">' + desc.replace(/</g, '&lt;').replace(/"/g, '&quot;') + '</span></td>'
+            + '<td class="text-muted text-end small">—</td>'
+            + '<td class="text-end text-muted fw-semibold manual-fel-timbre-amount">' + displayAmt.toFixed(2) + '</td>'
+            + '<td class="text-center text-muted" title="' + msgTimbreHint.replace(/"/g, '&quot;') + '"><i class="fas fa-info-circle" aria-hidden="true"></i></td>';
+        tbody.appendChild(tr);
+        syncTimbreHintVisibility();
+    }
+
     function removeLinesForQuotation(quotationIdForRow) {
         tbody.querySelectorAll('.manual-fel-line-row[data-quotation-id="' + String(quotationIdForRow) + '"]').forEach(function(tr) {
             if (String(quotationIdForRow) !== String(qid)) {
                 tr.remove();
             }
         });
+        syncTimbreHintVisibility();
+        syncFcamAmountFromLines();
     }
 
     function loadQuotationLines(quotationIdForRow, done) {
@@ -879,8 +962,15 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 j.lines.forEach(function(line) {
                     addLineFromPreset(line, quotationIdForRow, 'GTQ');
                 });
+                if (Array.isArray(j.timbre_lines)) {
+                    j.timbre_lines.forEach(function(timbreLine) {
+                        addTimbreDisplayRow(timbreLine, quotationIdForRow);
+                    });
+                }
                 if (isUsdCurrency() && hasValidExchangeRate()) {
                     applyDisplayCurrencyToAllRows();
+                } else {
+                    syncFcamAmountFromLines();
                 }
                 if (done) done(true);
             })
@@ -1057,7 +1147,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
 
     function collectLines() {
         var rows = [];
-        tbody.querySelectorAll('.manual-fel-line-row').forEach(function(tr) {
+        tbody.querySelectorAll('.manual-fel-line-row:not(.manual-fel-timbre-row)').forEach(function(tr) {
             var desc = tr.querySelector('.manual-fel-desc');
             var qty = tr.querySelector('.manual-fel-qty');
             var unit = tr.querySelector('.manual-fel-unit');

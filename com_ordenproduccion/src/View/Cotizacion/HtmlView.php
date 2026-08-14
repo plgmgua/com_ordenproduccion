@@ -159,6 +159,14 @@ class HtmlView extends BaseHtmlView
     protected $manualFelLinePresets = [];
 
     /**
+     * Timbre de prensa rows for manual FEL (read-only display; NUC sector tax).
+     *
+     * @var    array<int, array{descripcion: string, amount: float, quotation_id: int, pre_cotizacion_id: int}>
+     * @since  3.119.341
+     */
+    protected $manualFelTimbreLines = [];
+
+    /**
      * Other cotizaciones for same client (manual FEL multi-cot).
      *
      * @var    array<int, array{id: int, label: string, total: float, quote_date: string}>
@@ -506,6 +514,7 @@ class HtmlView extends BaseHtmlView
                         );
                         $felPresetSvc = new FelInvoiceIssuanceService();
                         $this->manualFelLinePresets = $felPresetSvc->getManualFelLinePresetsForQuotation((int) $quotationId);
+                        $this->manualFelTimbreLines  = $felPresetSvc->getManualFelTimbreDisplayLinesForQuotation((int) $quotationId);
                         $this->manualFelOtherQuotations = $this->buildQuotationsForManualFelModal($db, $this->quotation);
                     }
                     $seedInvoiceId = $input->getInt('manual_fel_seed_invoice', 0);
