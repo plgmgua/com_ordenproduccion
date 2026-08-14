@@ -86,7 +86,7 @@ class FelInvoiceIssuanceService
     /**
      * @param   array<int, array<string, mixed>>  $linesDec  Decoded manual_lines_json
      *
-     * @return  list<array{descripcion: string, cantidad: float, precio_unitario: float, quotation_id?: int, item_type: string}>
+     * @return  list<array{descripcion: string, cantidad: float, precio_unitario: float, quotation_id?: int, pre_cotizacion_id?: int, item_type: string}>
      */
     public function parseManualFelLinesFromDecoded(array $linesDec, int $defaultQuotationId = 0): array
     {
@@ -101,6 +101,9 @@ class FelInvoiceIssuanceService
             if ($desc === '' || $qty < 0.000001 || $unit < 0) {
                 continue;
             }
+            if (ImpuestoImprentaHelper::isFelExcludedLineDescription($desc)) {
+                continue;
+            }
             $itemTypeRaw = (string) ($line['item_type'] ?? $line['type'] ?? $line['bien_servicio'] ?? '');
             $parsed = [
                 'descripcion'       => $desc,
@@ -110,6 +113,10 @@ class FelInvoiceIssuanceService
             ];
             if ($defaultQuotationId > 0) {
                 $parsed['quotation_id'] = (int) ($line['quotation_id'] ?? $defaultQuotationId);
+            }
+            $preId = (int) ($line['pre_cotizacion_id'] ?? $line['pre_cotizacion'] ?? 0);
+            if ($preId > 0) {
+                $parsed['pre_cotizacion_id'] = $preId;
             }
             $manualLines[] = $parsed;
         }
@@ -2353,6 +2360,106 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * IVA-exclusive base already on a built NUC item (for timbre TaxableAmount).
+     */
+    protected function resolveNucItemIvaTaxableAmount(array $item): float
+    {
+        $taxes = $item['Taxes']['Tax'] ?? [];
+        if (!\is_array($taxes)) {
+            $taxes = [];
+        }
+        foreach ($taxes as $tax) {
+            if (!\is_array($tax)) {
+                continue;
+            }
+            if (strtoupper(trim((string) ($tax['Description'] ?? ''))) === 'IVA') {
+                return (float) ($tax['TaxableAmount'] ?? 0);
+            }
+        }
+
+        $totalItem = (float) ($item['Totals']['TotalItem'] ?? 0);
+
+        return $totalItem > 0 ? $totalItem / (1 + self::IVA_RATE) : 0.0;
+    }
+
+    /**
+     * Append timbre sector tax to an existing product NUC item (never a separate Item row).
+     */
+    protected function appendTimbreTaxToNucItem(array &$item, float $taxableAmount, float $timbreAmount): void
+    {
+        if ($timbreAmount <= 0.000001) {
+            return;
+        }
+        if (!isset($item['Taxes']['Tax']) || !\is_array($item['Taxes']['Tax'])) {
+            $item['Taxes'] = ['Tax' => []];
+        }
+        $item['Taxes']['Tax'][] = $this->buildTimbrePrensaNucTaxEntry($taxableAmount, $timbreAmount);
+        $prevTotal = (float) ($item['Totals']['TotalItem'] ?? 0);
+        $item['Totals']['TotalItem'] = sprintf('%.6f', round($prevTotal + $timbreAmount, 6));
+    }
+
+    /**
+     * Attach unmatched timbre amounts to product items (by pre_cotizacion_id); never emit a timbre-only Item.
+     *
+     * @param   list<array<string, mixed>>  $items
+     * @param   list<object>                $lines
+     * @param   array<int, float>           $timbreByPreId
+     */
+    protected function attachRemainingTimbreTaxesToNucItems(
+        array &$items,
+        array $lines,
+        array $timbreByPreId,
+        float &$grand,
+        float &$totalTimbre
+    ): void {
+        if ($timbreByPreId === [] || $items === []) {
+            return;
+        }
+
+        $itemIndexByPreId = [];
+        $productItemIndex = 0;
+        foreach ($lines as $row) {
+            if (!\is_object($row) || ImpuestoImprentaHelper::shouldExcludeFromDigifactNucItems($row)) {
+                continue;
+            }
+            $lineTotal = round((float) $this->resolveQuotationLineTotals($row)['line_total'], 2);
+            if ($lineTotal <= 0.000001) {
+                continue;
+            }
+            $preId = (int) ($row->pre_cotizacion_id ?? 0);
+            if ($preId > 0) {
+                $itemIndexByPreId[$preId] = $productItemIndex;
+            }
+            $productItemIndex++;
+        }
+
+        foreach ($timbreByPreId as $preId => $timbreAmt) {
+            $timbreAmt = round((float) $timbreAmt, 2);
+            if ($timbreAmt <= 0.000001) {
+                continue;
+            }
+
+            $itemIndex = null;
+            if ($preId > 0 && isset($itemIndexByPreId[$preId])) {
+                $itemIndex = $itemIndexByPreId[$preId];
+            } elseif (\count($items) === 1) {
+                $itemIndex = 0;
+            } elseif ($preId > 0 && isset($items[0])) {
+                $itemIndex = 0;
+            }
+
+            if ($itemIndex === null || !isset($items[$itemIndex])) {
+                continue;
+            }
+
+            $taxable = $this->resolveNucItemIvaTaxableAmount($items[$itemIndex]);
+            $this->appendTimbreTaxToNucItem($items[$itemIndex], $taxable, $timbreAmt);
+            $totalTimbre += $timbreAmt;
+            $grand += $timbreAmt;
+        }
+    }
+
+    /**
      * Collect timbre de prensa amounts keyed by pre_cotizacion_id from quotation line rows.
      *
      * @param   list<object>  $lines
@@ -2562,42 +2669,7 @@ class FelInvoiceIssuanceService
             $lineNum++;
         }
 
-        foreach ($timbreByPreId as $preId => $timbreAmt) {
-            $timbreAmt = round((float) $timbreAmt, 2);
-            if ($timbreAmt <= 0.000001) {
-                continue;
-            }
-            $preLabel = ImpuestoImprentaHelper::getImpuestoLineDisplayLabel(
-                (int) $preId,
-                ImpuestoImprentaHelper::getPreCotizacionNumberById((int) $preId, $this->db)
-            );
-            $grand += $timbreAmt;
-            $totalTimbre += $timbreAmt;
-            $timbreRate = ImpuestoImprentaHelper::getParamPercent() / 100;
-            if ($timbreRate <= 0.000001) {
-                $timbreRate = 0.005;
-            }
-            $timbreTaxableBase = round($timbreAmt / $timbreRate, 2);
-            $items[] = [
-                'Number'         => (string) $lineNum,
-                'Codes'          => null,
-                'Type'           => 'Servicio',
-                'Description'    => $preLabel,
-                'Qty'            => '1.000000',
-                'UnitOfMeasure'  => 'UNI',
-                'Price'          => sprintf('%.6f', $timbreAmt),
-                'Discounts'      => null,
-                'Taxes'          => [
-                    'Tax' => [
-                        $this->buildTimbrePrensaNucTaxEntry($timbreTaxableBase, $timbreAmt),
-                    ],
-                ],
-                'Totals' => [
-                    'TotalItem' => sprintf('%.6f', $timbreAmt),
-                ],
-            ];
-            $lineNum++;
-        }
+        $this->attachRemainingTimbreTaxesToNucItems($items, $lines, $timbreByPreId, $grand, $totalTimbre);
 
         if ($items === []) {
             $t = round((float) ($quotation->total_amount ?? 0), 2);

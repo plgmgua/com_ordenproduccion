@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.343-STABLE] - 2026-08-14
+
+### Fixed
+- **Manual FEL / Timbre de prensa:** Preserve `pre_cotizacion_id` from manual line JSON so timbre attaches as sector tax on the product item (not a separate NUC Item). Removes invalid timbre-only line that caused Digifact XML malformation.
+
 ## [3.119.342-STABLE] - 2026-08-14
 
 ### Fixed
