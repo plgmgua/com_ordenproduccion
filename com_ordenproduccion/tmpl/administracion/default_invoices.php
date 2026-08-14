@@ -42,9 +42,9 @@ if ($satShowModal) {
 $satFileReports = $satShowModal ? ($satReport['files'] ?? []) : [];
 $satMismatches = $satShowModal ? ($satReport['mismatches'] ?? []) : [];
 $satMissingInDb = $satShowModal ? ($satReport['missing_in_db'] ?? []) : [];
-$satMissingInSat = $satShowModal ? ($satReport['missing_in_sat'] ?? []) : [];
 $satMatchedOkCount = $satShowModal ? (int) ($satReport['matched_ok_count'] ?? 0) : 0;
-$satDifferenceCount = count($satMismatches) + count($satMissingInDb) + count($satMissingInSat);
+$satParsedAnyFile = $satShowModal ? (bool) ($satReport['parsed_any_file'] ?? false) : false;
+$satDifferenceCount = count($satMismatches) + count($satMissingInDb);
 $satFileErrors = array_values(array_filter($satFileReports, static function ($r) {
     return ($r['status'] ?? '') !== 'ok';
 }));
@@ -1024,7 +1024,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                     </div>
                     <?php endif; ?>
 
-                    <?php if ($satDifferenceCount === 0 && empty($satFileErrors)): ?>
+                    <?php if ($satParsedAnyFile && $satDifferenceCount === 0): ?>
                     <div class="alert alert-success mb-0">
                         <i class="fas fa-check-circle me-1"></i>
                         <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_NO_DIFFERENCES'); ?>
@@ -1032,7 +1032,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         <span class="d-block small mt-1 text-muted"><?php echo Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_SUMMARY_MATCHED', $satMatchedOkCount); ?></span>
                         <?php endif; ?>
                     </div>
-                    <?php elseif ($satDifferenceCount > 0): ?>
+                    <?php elseif ($satParsedAnyFile && $satDifferenceCount > 0): ?>
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle me-1"></i>
                         <?php echo Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_DIFFERENCES_FOUND', $satDifferenceCount); ?>
@@ -1118,40 +1118,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                         </div>
                     </section>
                     <?php endif; ?>
-
-                    <?php if (!empty($satMissingInSat)): ?>
-                    <section class="mb-2">
-                        <h6 class="fw-bold"><?php echo Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_SAT_HEADING', count($satMissingInSat)); ?></h6>
-                        <p class="small text-muted"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_SAT_HELP'); ?></p>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered table-striped" style="font-size: 0.8rem;">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE_NUMERO'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'); ?></th>
-                                        <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_TOTAL'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO'); ?></th>
-                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR'); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($satMissingInSat as $m):
-                                        $serieNum = trim(($m['serie'] ?? '') . ' | ' . ($m['numero'] ?? ''), ' |');
-                                    ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($serieNum !== '' ? $serieNum : (string) ($m['invoice_number'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td class="small text-break"><?php echo htmlspecialchars((string) ($m['uuid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td class="text-end"><?php echo number_format((float) ($m['db_total'] ?? 0), 2); ?></td>
-                                        <td><?php echo htmlspecialchars((string) ($m['db_status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td><?php echo htmlspecialchars(trim(($m['nit'] ?? '') . ' ' . ($m['receptor'] ?? '')), ENT_QUOTES, 'UTF-8'); ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-                    <?php endif; ?>
-                    <?php elseif (!empty($satFileErrors)): ?>
+                    <?php elseif (!$satParsedAnyFile && !empty($satFileErrors)): ?>
                     <p class="text-muted mb-0 small"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MODAL_PARSE_ONLY_ERRORS'); ?></p>
                     <?php endif; ?>
                 </div>

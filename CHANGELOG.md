@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.335-STABLE] - 2026-08-14
+
+### Fixed
+- **Facturas SAT reconciliation:** Parse upload using the original filename and scan all worksheets; only rows from the Excel file are compared (removed false "503 missing from SAT" when parse failed).
+
 ## [3.119.334-STABLE] - 2026-08-14
 
 ### Changed

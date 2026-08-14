@@ -3697,8 +3697,7 @@ class AdministracionController extends BaseController
         $matchedOk = [];
         $mismatches = [];
         $missingInDb = [];
-        $missingInSat = [];
-        $allMatchedInvoiceIds = [];
+        $parsedAnyFile = false;
 
         foreach ($files as $file) {
             $tmpPath = $file['tmp_name'] ?? '';
@@ -3722,23 +3721,23 @@ class AdministracionController extends BaseController
                 continue;
             }
 
-            $parsed = SatFacturasEmitidasExcelHelper::parseFile($tmpPath);
+            $parsed = SatFacturasEmitidasExcelHelper::parseFile($tmpPath, $fileName);
             if (empty($parsed['success'])) {
                 $fileReports[] = [
                     'file'    => $fileName,
                     'status'  => 'error',
-                    'message' => $parsed['error'] ?? Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_ERROR'),
+                    'message' => $this->mapInvoicesSatParseError($parsed['error'] ?? Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_ERROR')),
                 ];
                 continue;
             }
 
             $excelRows = $parsed['rows'] ?? [];
+            $parsedAnyFile = true;
             $result = SatFacturasReconciliationHelper::compareSatRows($excelRows, $index, $fileName);
 
             $matchedOk = array_merge($matchedOk, $result['matched_ok'] ?? []);
             $mismatches = array_merge($mismatches, $result['mismatches'] ?? []);
             $missingInDb = array_merge($missingInDb, $result['missing_in_db'] ?? []);
-            $allMatchedInvoiceIds = array_merge($allMatchedInvoiceIds, $result['matched_invoice_ids'] ?? []);
 
             $okCount = count($result['matched_ok'] ?? []);
             $mismatchCount = count($result['mismatches'] ?? []);
@@ -3757,17 +3756,43 @@ class AdministracionController extends BaseController
             ];
         }
 
-        $missingInSat = SatFacturasReconciliationHelper::findMissingInSat($index, $allMatchedInvoiceIds);
-
         $app->getSession()->set('com_ordenproduccion.invoices_sat_report', [
             'files'            => $fileReports,
+            'parsed_any_file'  => $parsedAnyFile,
             'matched_ok_count' => count($matchedOk),
             'mismatches'       => $mismatches,
             'missing_in_db'    => $missingInDb,
-            'missing_in_sat'   => $missingInSat,
         ]);
 
         $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Human-readable SAT Excel parse error for Facturas upload.
+     *
+     * @param   string  $error  Raw helper error
+     *
+     * @return  string
+     *
+     * @since   3.119.335
+     */
+    private function mapInvoicesSatParseError(string $error): string
+    {
+        $error = trim($error);
+        if ($error === 'Not a SAT Facturas Emitidas (InformacionDTE-FEL) report') {
+            return Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_NOT_FEL');
+        }
+        if ($error === 'Header row (Número de Autorización / Serie / Número del DTE) not found') {
+            return Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_NO_HEADER');
+        }
+        if ($error === 'PhpSpreadsheet not available') {
+            return Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_NO_LIB');
+        }
+        if ($error === 'No invoice rows found in Excel') {
+            return Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_NO_ROWS');
+        }
+
+        return $error !== '' ? $error : Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_PARSE_ERROR');
     }
 
     /**

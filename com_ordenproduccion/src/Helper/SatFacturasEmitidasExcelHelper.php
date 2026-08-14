@@ -20,11 +20,12 @@ class SatFacturasEmitidasExcelHelper
     /**
      * Parse a SAT facturas emitidas Excel file.
      *
-     * @param   string  $path  Absolute path to .xls / .xlsx
+     * @param   string  $path               Absolute path to .xls / .xlsx (often a PHP upload temp name)
+     * @param   string  $originalFilename   Original client filename (e.g. FacturasEmitidas.xls)
      *
-     * @return  array{success:bool,rows?:array,error?:string,title?:string}
+     * @return  array{success:bool,rows?:array,error?:string,title?:string,sheet?:string}
      */
-    public static function parseFile(string $path): array
+    public static function parseFile(string $path, string $originalFilename = ''): array
     {
         if ($path === '' || !is_file($path) || !is_readable($path)) {
             return ['success' => false, 'error' => 'Excel file not found'];
@@ -41,16 +42,63 @@ class SatFacturasEmitidasExcelHelper
 
         try {
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($path);
-            $sheet = $spreadsheet->getActiveSheet();
-            $matrix = $sheet->toArray(null, true, true, false);
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
 
-        if (!is_array($matrix) || $matrix === []) {
-            return ['success' => false, 'error' => 'Empty Excel workbook'];
+        $detectName = $originalFilename !== '' ? $originalFilename : basename($path);
+        $sheetsToTry = [];
+        foreach ($spreadsheet->getSheetNames() as $sheetName) {
+            $fold = mb_strtoupper(RetencionPdfHelper::foldAccentsPublic($sheetName), 'UTF-8');
+            if (strpos($fold, 'INFORMACIONDTE') !== false || strpos($fold, 'FEL') !== false) {
+                array_unshift($sheetsToTry, $sheetName);
+            } else {
+                $sheetsToTry[] = $sheetName;
+            }
+        }
+        if ($sheetsToTry === []) {
+            $sheetsToTry[] = $spreadsheet->getActiveSheet()->getTitle();
         }
 
+        $lastError = 'Header row (Número de Autorización / Serie / Número del DTE) not found';
+        foreach ($sheetsToTry as $sheetName) {
+            $sheet = $spreadsheet->getSheetByName($sheetName);
+            if ($sheet === null) {
+                continue;
+            }
+            $matrix = $sheet->toArray(null, true, true, false);
+            if (!is_array($matrix) || $matrix === []) {
+                continue;
+            }
+
+            $parsed = self::parseMatrix($matrix, $detectName, $sheetName);
+            if (!empty($parsed['success'])) {
+                return $parsed;
+            }
+            $lastError = $parsed['error'] ?? $lastError;
+        }
+
+        if (self::isFacturasEmitidasReport('', $detectName)) {
+            return ['success' => false, 'error' => $lastError];
+        }
+
+        return [
+            'success' => false,
+            'error'   => 'Not a SAT Facturas Emitidas (InformacionDTE-FEL) report',
+        ];
+    }
+
+    /**
+     * Parse one worksheet matrix into SAT invoice rows.
+     *
+     * @param   array   $matrix            Sheet cells
+     * @param   string  $originalFilename  Client filename for soft validation
+     * @param   string  $sheetName         Worksheet title
+     *
+     * @return  array{success:bool,rows?:array,error?:string,title?:string,sheet?:string}
+     */
+    protected static function parseMatrix(array $matrix, string $originalFilename, string $sheetName): array
+    {
         $title = '';
         foreach ($matrix as $row) {
             $cell = trim((string) ($row[0] ?? ''));
@@ -58,10 +106,6 @@ class SatFacturasEmitidasExcelHelper
                 $title = $cell;
                 break;
             }
-        }
-
-        if (!self::isFacturasEmitidasReport($title, basename($path))) {
-            return ['success' => false, 'error' => 'Not a SAT Facturas Emitidas (InformacionDTE-FEL) report'];
         }
 
         $headerRowIndex = null;
@@ -128,6 +172,7 @@ class SatFacturasEmitidasExcelHelper
         return [
             'success' => true,
             'title'   => $title,
+            'sheet'   => $sheetName,
             'rows'    => $rows,
         ];
     }
