@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.334-STABLE] - 2026-08-14
+
+### Changed
+- **Facturas SAT reconciliation:** Differences-only report now opens automatically in a popup modal after upload; matching invoices are summarized by count only.
+
 ## [3.119.333-STABLE] - 2026-08-14
 
 ### Added

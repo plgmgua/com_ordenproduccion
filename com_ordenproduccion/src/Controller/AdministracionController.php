@@ -3760,33 +3760,12 @@ class AdministracionController extends BaseController
         $missingInSat = SatFacturasReconciliationHelper::findMissingInSat($index, $allMatchedInvoiceIds);
 
         $app->getSession()->set('com_ordenproduccion.invoices_sat_report', [
-            'files'          => $fileReports,
-            'matched_ok'     => $matchedOk,
-            'mismatches'     => $mismatches,
-            'missing_in_db'  => $missingInDb,
-            'missing_in_sat' => $missingInSat,
+            'files'            => $fileReports,
+            'matched_ok_count' => count($matchedOk),
+            'mismatches'       => $mismatches,
+            'missing_in_db'    => $missingInDb,
+            'missing_in_sat'   => $missingInSat,
         ]);
-
-        $okTotal = count($matchedOk);
-        $mismatchTotal = count($mismatches);
-        $missingDbTotal = count($missingInDb);
-        $missingSatTotal = count($missingInSat);
-
-        if ($okTotal > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_OK_COUNT', $okTotal), 'success');
-        }
-        if ($mismatchTotal > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISMATCH_COUNT', $mismatchTotal), 'warning');
-        }
-        if ($missingDbTotal > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_DB_COUNT', $missingDbTotal), 'warning');
-        }
-        if ($missingSatTotal > 0) {
-            $app->enqueueMessage(Text::sprintf('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_SAT_COUNT', $missingSatTotal), 'notice');
-        }
-        if ($okTotal === 0 && $mismatchTotal === 0 && $missingDbTotal === 0 && empty(array_filter($fileReports, static fn ($r) => ($r['status'] ?? '') === 'ok'))) {
-            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_NO_DATA'), 'notice');
-        }
 
         $app->redirect($redirectUrl);
     }
