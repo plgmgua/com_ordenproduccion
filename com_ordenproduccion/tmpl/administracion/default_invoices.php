@@ -1069,9 +1069,16 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                             $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_STATUS');
                                         }
                                         $serieNum = trim(($m['serie'] ?? '') . ' | ' . ($m['numero'] ?? ''), ' |');
+                                        $invoiceId = (int) ($m['invoice_id'] ?? 0);
                                     ?>
                                     <tr>
-                                        <td><?php echo htmlspecialchars($serieNum, ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td>
+                                            <?php if ($invoiceId > 0): ?>
+                                            <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&view=invoice&id=' . $invoiceId); ?>" target="_blank" rel="noopener noreferrer"><?php echo htmlspecialchars($serieNum, ENT_QUOTES, 'UTF-8'); ?></a>
+                                            <?php else: ?>
+                                            <?php echo htmlspecialchars($serieNum, ENT_QUOTES, 'UTF-8'); ?>
+                                            <?php endif; ?>
+                                        </td>
                                         <td class="small text-break"><?php echo htmlspecialchars((string) ($m['uuid'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                         <td class="text-end"><?php echo number_format((float) ($m['sat_total'] ?? 0), 2); ?></td>
                                         <td class="text-end"><?php echo number_format((float) ($m['db_total'] ?? 0), 2); ?></td>

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.336-STABLE] - 2026-08-14
+
+### Changed
+- **Facturas SAT reconciliation:** Serie | Número in the differences table links to the matching system invoice.
+
 ## [3.119.335-STABLE] - 2026-08-14
 
 ### Fixed
