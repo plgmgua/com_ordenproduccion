@@ -50,6 +50,10 @@ foreach ($manualFelLinePresets as $presetRow) {
     $manualFelLinesInitialTotal += round($pq * $pu, 2);
 }
 $manualFelLinesInitialTotal = round($manualFelLinesInitialTotal, 2);
+$manualFelDisplayTotal = $manualFelLinesInitialTotal;
+if ($manualFelQuotationTotalGtq > $manualFelDisplayTotal + 0.001) {
+    $manualFelDisplayTotal = $manualFelQuotationTotalGtq;
+}
 $manualFelBuyerAddressInitial = 'Ciudad';
 if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoice['buyer_address'] ?? '')) !== '') {
     $manualFelBuyerAddressInitial = trim((string) $manualFelSeedFromInvoice['buyer_address']);
@@ -196,9 +200,10 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                                 $pu = (float) ($preset['precio_unitario'] ?? 0);
                                 $ps = round($pq * $pu, 2);
                                 $presetQid = (int) ($preset['quotation_id'] ?? ($quotationId ?? 0));
+                                $presetPreId = (int) ($preset['pre_cotizacion_id'] ?? 0);
                                 $itemType = \Grimpsa\Component\Ordenproduccion\Site\Service\FelInvoiceIssuanceService::normalizeDigifactItemType((string) ($preset['item_type'] ?? 'Bien'));
                                 ?>
-                            <tr class="manual-fel-line-row" data-quotation-id="<?php echo $presetQid; ?>" data-gtq-unit="<?php echo htmlspecialchars(number_format($pu, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-gtq-subtotal="<?php echo htmlspecialchars(number_format($ps, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
+                            <tr class="manual-fel-line-row" data-quotation-id="<?php echo $presetQid; ?>" data-pre-cotizacion-id="<?php echo $presetPreId; ?>" data-gtq-unit="<?php echo htmlspecialchars(number_format($pu, 4, '.', ''), ENT_QUOTES, 'UTF-8'); ?>" data-gtq-subtotal="<?php echo htmlspecialchars(number_format($ps, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?>">
                                 <td><input type="number" class="form-control form-control-sm manual-fel-qty" step="0.001" min="0.001" value="<?php echo htmlspecialchars((string) $pq, ENT_QUOTES, 'UTF-8'); ?>" /></td>
                                 <td>
                                     <select class="form-select form-select-sm manual-fel-item-type">
@@ -220,7 +225,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                                 <td colspan="4" class="text-end fw-semibold"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_TOTAL', 'Total', 'Total')); ?></td>
                                 <td class="text-end fw-semibold text-nowrap">
                                     <span id="manual-fel-total-currency">GTQ</span>
-                                    <span id="manual-fel-invoice-total"><?php echo htmlspecialchars(number_format($manualFelLinesInitialTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <span id="manual-fel-invoice-total"><?php echo htmlspecialchars(number_format($manualFelDisplayTotal, 2, '.', ''), ENT_QUOTES, 'UTF-8'); ?></span>
                                 </td>
                                 <td></td>
                             </tr>
@@ -385,11 +390,27 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         });
         return round2(total);
     }
+    /** NUC grand: line sum + timbre de prensa when timbre is not a separate modal line. */
+    function getFelGrandTotalGtq() {
+        var lineSum = sumLineTotals();
+        if (quotationTotalGtq > lineSum + 0.01) {
+            return quotationTotalGtq;
+        }
+        return lineSum;
+    }
+    function getFelGrandTotalDisplay() {
+        var gtq = getFelGrandTotalGtq();
+        if (isUsdCurrency() && hasValidExchangeRate()) {
+            return gtqToUsdAmount(gtq, getExchangeRateValue(), 2);
+        }
+        return gtq;
+    }
     function syncFcamAmountFromLines() {
         syncInvoiceTotalDisplay();
     }
     function syncInvoiceTotalDisplay() {
-        var total = sumLineTotals();
+        var lineSum = sumLineTotals();
+        var total = getFelGrandTotalDisplay();
         var currency = isUsdCurrency() ? 'USD' : 'GTQ';
         if (manualFelTotalEl) {
             manualFelTotalEl.textContent = total.toFixed(2);
@@ -797,6 +818,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         var tr = document.createElement('tr');
         tr.className = 'manual-fel-line-row';
         tr.setAttribute('data-quotation-id', String(quotationIdForRow || qid));
+        tr.setAttribute('data-pre-cotizacion-id', String(preset && preset.pre_cotizacion_id != null ? preset.pre_cotizacion_id : 0));
         var pq = preset && preset.cantidad != null ? preset.cantidad : 1;
         var pu = preset && preset.precio_unitario != null ? preset.precio_unitario : 0;
         var ps = Math.round(parseFloat(pq) * parseFloat(pu) * 100) / 100;
@@ -1052,11 +1074,13 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 return;
             }
             var lineQid = parseInt(tr.getAttribute('data-quotation-id') || String(qid), 10) || qid;
+            var linePreId = parseInt(tr.getAttribute('data-pre-cotizacion-id') || '0', 10) || 0;
             rows.push({
                 descripcion: d,
                 cantidad: q,
                 precio_unitario: u,
                 quotation_id: lineQid,
+                pre_cotizacion_id: linePreId,
                 item_type: typeSel ? normalizeItemType(typeSel.value) : 'Bien'
             });
         });
@@ -1078,7 +1102,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             return '[]';
         }
         var due = fcamDueDate ? String(fcamDueDate.value || '').trim() : '';
-        var amt = fcamAmount ? parseNum(fcamAmount.value) : sumLineTotals();
+        var amt = fcamAmount ? parseNum(fcamAmount.value) : getFelGrandTotalDisplay();
         if (!due || amt <= 0) {
             return '[]';
         }

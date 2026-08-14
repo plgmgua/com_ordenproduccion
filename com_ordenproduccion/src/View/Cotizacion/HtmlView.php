@@ -504,18 +504,8 @@ class HtmlView extends BaseHtmlView
                             $this->quotation,
                             array_keys($preIdsDistinct)
                         );
-                        $this->manualFelLinePresets = [];
                         $felPresetSvc = new FelInvoiceIssuanceService();
-                        foreach ($this->quotationItems as $qiPreset) {
-                            $t = $felPresetSvc->getLineTotalsForFelRow($qiPreset);
-                            $this->manualFelLinePresets[] = [
-                                'descripcion'       => ImpuestoImprentaHelper::getQuotationItemDisplayDescription($qiPreset, $db),
-                                'cantidad'          => (float) $t['qty'],
-                                'precio_unitario'   => (float) $t['unit_price'],
-                                'quotation_id'      => (int) $quotationId,
-                                'item_type'         => FelInvoiceIssuanceService::normalizeDigifactItemType('Bien'),
-                            ];
-                        }
+                        $this->manualFelLinePresets = $felPresetSvc->getManualFelLinePresetsForQuotation((int) $quotationId);
                         $this->manualFelOtherQuotations = $this->buildQuotationsForManualFelModal($db, $this->quotation);
                     }
                     $seedInvoiceId = $input->getInt('manual_fel_seed_invoice', 0);

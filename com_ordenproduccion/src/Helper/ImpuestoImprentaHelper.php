@@ -437,6 +437,53 @@ final class ImpuestoImprentaHelper
     }
 
     /**
+     * Human-readable timbre / impuesto cotización labels (manual FEL UI) — not separate NUC Items.
+     *
+     * @since  3.119.340
+     */
+    public static function isFelExcludedLineDescription(string $descripcion): bool
+    {
+        if (self::parseImpuestoLineForPreId($descripcion) > 0) {
+            return true;
+        }
+
+        $descripcion = trim($descripcion);
+        if ($descripcion === '' || !preg_match('/\bPRE-\d+/i', $descripcion)) {
+            return false;
+        }
+
+        $descLower = mb_strtolower($descripcion, 'UTF-8');
+        $label     = mb_strtolower(self::getParamLabel(), 'UTF-8');
+        if ($label !== '' && mb_strpos($descLower, $label) !== false) {
+            return true;
+        }
+
+        foreach (['timbre de prensa', 'impuesto de imprenta', 'impuesto imprenta'] as $keyword) {
+            if (mb_strpos($descLower, $keyword) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param   object|array<string, mixed>  $row
+     */
+    public static function shouldExcludeFromDigifactNucItems($row): bool
+    {
+        if (self::isImpuestoLineItem($row)) {
+            return true;
+        }
+
+        $desc = \is_array($row)
+            ? (string) ($row['descripcion'] ?? '')
+            : (string) ($row->descripcion ?? '');
+
+        return self::isFelExcludedLineDescription($desc);
+    }
+
+    /**
      * Timbre de prensa / impuesto cotización lines must not create work orders.
      *
      * @param   object|array<string, mixed>  $item

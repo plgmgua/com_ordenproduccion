@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.340-STABLE] - 2026-08-14
+
+### Fixed
+- **Manual FEL / FCAM:** Timbre de prensa no longer appears as a separate invoice line; it is sent as `TIMBRE DE PRENSA` sector tax only. Fixes FCAM abono total mismatch when modal lines summed to Q 793.95 but NUC grand was Q 797.90 (double timbre).
+
 ## [3.119.339-STABLE] - 2026-08-14
 
 ### Fixed

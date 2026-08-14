@@ -2445,7 +2445,7 @@ class FelInvoiceIssuanceService
             if (!\is_object($row)) {
                 continue;
             }
-            if (ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
+            if (ImpuestoImprentaHelper::shouldExcludeFromDigifactNucItems($row)) {
                 continue;
             }
             $r         = $this->resolveQuotationLineTotals($row);
@@ -2751,9 +2751,12 @@ class FelInvoiceIssuanceService
                 continue;
             }
             $desc = trim((string) ($line['descripcion'] ?? ''));
+            if ($desc === '' || ImpuestoImprentaHelper::isFelExcludedLineDescription($desc)) {
+                continue;
+            }
             $qty  = (float) ($line['cantidad'] ?? 0);
             $unit = (float) ($line['precio_unitario'] ?? 0);
-            if ($desc === '' || $qty < 0.000001 || $unit < 0) {
+            if ($qty < 0.000001 || $unit < 0) {
                 continue;
             }
             $row = new \stdClass();
