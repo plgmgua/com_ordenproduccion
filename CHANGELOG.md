@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.339-STABLE] - 2026-08-14
+
+### Fixed
+- **MT-940 payment match:** Include **cheque** lines on MT-940 destination accounts (manual «Asociar PA» and cron auto-match). Cheques deposited to the bank appear as MT-940 credits but were previously excluded because only transferencia/depósito were eligible.
+
 ## [3.119.338-STABLE] - 2026-08-14
 
 ### Changed

@@ -397,7 +397,7 @@ class PaymentVerificationDiagnosticHelper
         } catch (\Throwable $e) {
         }
         $checks[] = $this->check(
-            'Eligible bank lines (transferencia/depósito)',
+            'Eligible bank lines (transferencia/depósito/cheque)',
             $bankLines > 0 ? 'info' : 'warn',
             (string) $bankLines . ' line(s) with bank_account_id on ingresado proofs'
         );

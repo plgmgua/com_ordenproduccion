@@ -25,8 +25,8 @@ use Joomla\Database\DatabaseInterface;
  */
 class Mt940PaymentMatchService
 {
-    /** @var string[] */
-    public const BANK_PAYMENT_TYPES = ['transferencia', 'deposito'];
+    /** @var string[] Payment line types matched against MT-940 bank credits (incl. cheque deposited to cuenta destino). */
+    public const BANK_PAYMENT_TYPES = ['transferencia', 'deposito', 'cheque'];
 
     /** @var DatabaseInterface */
     protected $db;
@@ -214,7 +214,7 @@ class Mt940PaymentMatchService
                 $proofId,
                 0,
                 Mt940PaymentMatchLogHelper::STATUS_SKIPPED,
-                'No transferencia/deposito lines on MT-940 destination accounts.'
+                'No transferencia/deposito/cheque lines on MT-940 destination accounts.'
             );
 
             return ['status' => 'skipped', 'approval_created' => false];
@@ -577,7 +577,7 @@ class Mt940PaymentMatchService
     }
 
     /**
-     * Payment proofs with transferencia/depósito lines on MT-940 destination accounts require MT-940 match.
+     * Payment proofs with transferencia/depósito/cheque lines on MT-940 destination accounts require MT-940 match.
      *
      * @since   3.119.279
      */
@@ -606,7 +606,7 @@ class Mt940PaymentMatchService
     }
 
     /**
-     * Transferencia/depósito lines limited to MT-940 destination bank accounts.
+     * Transferencia/depósito/cheque lines limited to MT-940 destination bank accounts.
      *
      * @return  array<int, object>
      *
