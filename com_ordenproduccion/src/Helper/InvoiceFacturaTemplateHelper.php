@@ -12,6 +12,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\HTML\HTMLHelper;
+use Joomla\CMS\Language\Text;
 
 /**
  * Invoice print template placeholders (same style as CotizacionPdfHelper: {NAME}).
@@ -40,12 +41,15 @@ final class InvoiceFacturaTemplateHelper
 
     public const PLACEHOLDER_NIT_CERTIFICADOR = '{NIT_CERTIFICADOR}';
 
+    public const PLACEHOLDER_TIPO_DOCUMENTO = '{TIPO_DOCUMENTO}';
+
     /**
      * @return array<string, string> placeholder => language key for Ajustes UI
      */
     public static function getPlaceholdersForUi(): array
     {
         return [
+            self::PLACEHOLDER_TIPO_DOCUMENTO             => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_TIPO_DOCUMENTO',
             self::PLACEHOLDER_NUMERO_AUTORIZACION        => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NUMERO_AUTORIZACION',
             self::PLACEHOLDER_SERIE                      => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_SERIE',
             self::PLACEHOLDER_NUMERO_DTE               => 'COM_ORDENPRODUCCION_INVOICE_TEMPLATE_VAR_NUMERO_DTE',
@@ -114,6 +118,7 @@ final class InvoiceFacturaTemplateHelper
         $nomCert    = trim((string) ($cert['nombre_certificador'] ?? ''));
 
         $moneda = trim((string) ($item->currency ?? 'Q'));
+        $tipoDocumento = self::resolveDocumentTypeLabel($item);
 
         $xml = self::getXmlRawForInvoiceTemplate($item);
         if ($xml !== '') {
@@ -145,6 +150,9 @@ final class InvoiceFacturaTemplateHelper
             if ($xf['moneda'] !== '') {
                 $moneda = $xf['moneda'];
             }
+            if (($xf['tipo_dte'] ?? '') !== '') {
+                $tipoDocumento = self::resolveDocumentTypeLabelFromCode((string) $xf['tipo_dte']);
+            }
         }
 
         if ($xml !== '' && ($nitCert === '' || $nomCert === '')) {
@@ -161,6 +169,7 @@ final class InvoiceFacturaTemplateHelper
         }
 
         return [
+            self::PLACEHOLDER_TIPO_DOCUMENTO             => $tipoDocumento,
             self::PLACEHOLDER_NUMERO_AUTORIZACION        => $numAuth,
             self::PLACEHOLDER_SERIE                      => $serie,
             self::PLACEHOLDER_NUMERO_DTE                 => $numDte,
@@ -185,6 +194,12 @@ final class InvoiceFacturaTemplateHelper
         if ($html === '') {
             return '';
         }
+
+        $tipoLabelRaw = (string) ($values[self::PLACEHOLDER_TIPO_DOCUMENTO] ?? '');
+        if ($tipoLabelRaw !== '' && !str_contains($html, self::PLACEHOLDER_TIPO_DOCUMENTO)) {
+            $html = self::substituteLegacyHardcodedDocumentTypeLabel($html, $tipoLabelRaw);
+        }
+
         $search  = [];
         $replace = [];
         foreach ($values as $token => $val) {
@@ -193,6 +208,105 @@ final class InvoiceFacturaTemplateHelper
         }
 
         return str_replace($search, $replace, $html);
+    }
+
+    /**
+     * Resolve SAT/Digifact document type code (FACT, FCAM, …).
+     *
+     * Priority: invoice fel_tipo_dte → certified XML Tipo → NUC Header.DocType → FACT.
+     *
+     * @since  3.119.345
+     */
+    public static function resolveDocumentTypeCode(object $item): string
+    {
+        $code = strtoupper(trim((string) ($item->fel_tipo_dte ?? '')));
+        if ($code !== '' && self::isKnownDocumentTypeCode($code)) {
+            return $code;
+        }
+
+        $xml = self::getXmlRawForInvoiceTemplate($item);
+        if ($xml !== '') {
+            $xf = FelXmlHelper::extractInvoiceTemplateFieldsFromXml($xml);
+            $fromXml = strtoupper(trim((string) ($xf['tipo_dte'] ?? '')));
+            if ($fromXml !== '' && self::isKnownDocumentTypeCode($fromXml)) {
+                return $fromXml;
+            }
+        }
+
+        $requestRaw = trim((string) ($item->fel_request_json ?? ''));
+        if ($requestRaw !== '') {
+            $decoded = json_decode($requestRaw, true);
+            if (\is_array($decoded)) {
+                $fromNuc = strtoupper(trim((string) ($decoded['Header']['DocType'] ?? '')));
+                if ($fromNuc !== '' && self::isKnownDocumentTypeCode($fromNuc)) {
+                    return $fromNuc;
+                }
+            }
+        }
+
+        return 'FACT';
+    }
+
+    /**
+     * Human-readable document type for PDF header and browser title.
+     *
+     * @since  3.119.345
+     */
+    public static function resolveDocumentTypeLabel(object $item): string
+    {
+        return self::resolveDocumentTypeLabelFromCode(self::resolveDocumentTypeCode($item));
+    }
+
+    /**
+     * @since  3.119.345
+     */
+    public static function resolveDocumentTypeLabelFromCode(string $code): string
+    {
+        $code = strtoupper(trim($code));
+        if ($code === '') {
+            $code = 'FACT';
+        }
+
+        $key = 'COM_ORDENPRODUCCION_FEL_DOC_TYPE_LABEL_' . $code;
+        $label = Text::_($key);
+        if ($label === $key || strncmp($label, 'COM_', 4) === 0) {
+            return $code === 'FCAM' ? 'Factura cambiaria' : 'Factura';
+        }
+
+        return $label;
+    }
+
+    /**
+     * @since  3.119.345
+     */
+    private static function isKnownDocumentTypeCode(string $code): bool
+    {
+        return \in_array(strtoupper(trim($code)), ['FACT', 'FCAM'], true);
+    }
+
+    /**
+     * Existing plantillas often hardcode "Factura :" instead of {TIPO_DOCUMENTO}.
+     *
+     * @since  3.119.345
+     */
+    private static function substituteLegacyHardcodedDocumentTypeLabel(string $html, string $label): string
+    {
+        if ($label === '' || strcasecmp($label, 'Factura') === 0 || strcasecmp($label, 'Invoice') === 0) {
+            return $html;
+        }
+
+        $patterns = [
+            '/\bFactura\b(\s*:)/iu',
+            '/\bInvoice\b(\s*:)/iu',
+        ];
+        foreach ($patterns as $pattern) {
+            $replaced = preg_replace($pattern, $label . '$1', $html, 1);
+            if (\is_string($replaced)) {
+                $html = $replaced;
+            }
+        }
+
+        return $html;
     }
 
     /**

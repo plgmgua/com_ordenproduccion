@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.345-STABLE] - 2026-08-14
+
+### Fixed
+- **Invoice PDF (Grimpsa template):** Header and document title now show the selected FEL document type (e.g. **Factura cambiaria** for FCAM) via `{TIPO_DOCUMENTO}` placeholder; existing plantillas that hardcode "Factura :" are updated automatically at render time.
+
 ## [3.119.344-STABLE] - 2026-08-14
 
 ### Fixed

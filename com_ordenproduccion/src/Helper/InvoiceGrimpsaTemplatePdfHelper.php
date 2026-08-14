@@ -99,14 +99,15 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $invoiceNumForTitle = 'FAC-' . (int) ($inv->id ?? 0);
         }
 
+        $docLabel = InvoiceFacturaTemplateHelper::resolveDocumentTypeLabel($inv);
         $key = 'COM_ORDENPRODUCCION_INVOICE_PDF_DOCUMENT_TITLE';
-        $t   = Text::sprintf($key, $invoiceNumForTitle);
+        $t   = Text::sprintf($key, $docLabel, $invoiceNumForTitle);
         if ($t === $key || \strncmp($t, 'COM_', 4) === 0) {
             $tag = Factory::getApplication()->getLanguage()->getTag();
 
             return \stripos($tag, 'es') === 0
-                ? ('Factura ' . $invoiceNumForTitle)
-                : ('Invoice ' . $invoiceNumForTitle);
+                ? ($docLabel . ' número ' . $invoiceNumForTitle)
+                : ($docLabel . ' no. ' . $invoiceNumForTitle);
         }
 
         return $t;

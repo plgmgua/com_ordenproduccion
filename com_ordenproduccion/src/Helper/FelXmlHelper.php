@@ -331,7 +331,8 @@ class FelXmlHelper
      *   direccion_comprador:string,
      *   fecha_hora_emision_raw:string,
      *   fecha_hora_certificacion_raw:string,
-     *   moneda:string
+     *   moneda:string,
+     *   tipo_dte:string
      * }
      *
      * @since   3.118.81
@@ -348,6 +349,7 @@ class FelXmlHelper
             'fecha_hora_emision_raw'        => '',
             'fecha_hora_certificacion_raw'  => '',
             'moneda'                        => '',
+            'tipo_dte'                      => '',
         ];
 
         $meta = self::extractCertificacionDisplayMeta($xmlContent);
@@ -378,6 +380,10 @@ class FelXmlHelper
             $cm = self::domElementGetAttributeLenient($g, 'CodigoMoneda');
             if ($cm !== '') {
                 $out['moneda'] = self::ensureUtf8String($cm);
+            }
+            $tipo = self::domElementGetAttributeLenient($g, 'Tipo');
+            if ($tipo !== '') {
+                $out['tipo_dte'] = strtoupper(self::ensureUtf8String($tipo));
             }
         }
 
