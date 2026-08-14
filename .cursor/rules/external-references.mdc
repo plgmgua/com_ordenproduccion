@@ -1,0 +1,13 @@
+---
+description: External documentation links (Digifact MCP, APIs, etc.)
+alwaysApply: true
+---
+
+# External reference library
+
+Consult these official docs when working on Digifact integration, FEL certification, or MCP tooling in this project.
+
+## Digifact
+
+- **MCP (SSE) documentation:** https://documentacion.digifact.com/mcp/sse  
+  Digifact MCP server documentation (Server-Sent Events). Use for MCP tool schemas, certification flows, and certificador-related integration.
