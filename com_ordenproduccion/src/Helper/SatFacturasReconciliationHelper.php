@@ -40,6 +40,8 @@ class SatFacturasReconciliationHelper
                 $db->quoteName('fel_autorizacion_uuid'),
                 $db->quoteName('fel_extra'),
                 $db->quoteName('invoice_source'),
+                $db->quoteName('notes'),
+                $db->quoteName('fel_scheduled_at'),
                 $db->quoteName('fel_fecha_emision'),
                 $db->quoteName('invoice_date'),
                 $db->quoteName('fel_receptor_id'),
@@ -259,6 +261,7 @@ class SatFacturasReconciliationHelper
             'fecha_emision'    => trim((string) ($satRow['fecha_emision'] ?? '')),
             'issues'           => $issues,
             'source_file'      => $sourceFile,
+            'creation_method_key' => InvoiceListHelper::getInvoiceCreationMethodLabelKey($invoice),
         ];
     }
 

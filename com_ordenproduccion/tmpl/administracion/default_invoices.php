@@ -1055,6 +1055,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                         <th class="text-end"><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_TOTAL'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ORIGIN'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ISSUES'); ?></th>
                                     </tr>
                                 </thead>
@@ -1084,6 +1085,10 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                         <td class="text-end"><?php echo number_format((float) ($m['db_total'] ?? 0), 2); ?></td>
                                         <td><?php echo htmlspecialchars((string) ($m['sat_estado'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
                                         <td><?php echo htmlspecialchars((string) ($m['db_status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td><?php
+                                            $originKey = trim((string) ($m['creation_method_key'] ?? ''));
+                                            echo $originKey !== '' ? Text::_($originKey) : Text::_('COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN');
+                                        ?></td>
                                         <td><?php echo htmlspecialchars(implode(', ', $issueLabels), ENT_QUOTES, 'UTF-8'); ?></td>
                                     </tr>
                                     <?php endforeach; ?>

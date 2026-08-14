@@ -189,6 +189,40 @@ class InvoiceListHelper
     }
 
     /**
+     * How the invoice was created (Envío automático, factura manual, import XML, etc.).
+     *
+     * @return  string  Joomla .ini key
+     *
+     * @since   3.119.337
+     */
+    public static function getInvoiceCreationMethodLabelKey(object $invoice): string
+    {
+        $notes  = (string) ($invoice->notes ?? '');
+        $source = (string) ($invoice->invoice_source ?? '');
+
+        if ($source === 'fel_import') {
+            return 'COM_ORDENPRODUCCION_INVOICE_ORIGIN_FEL_IMPORT';
+        }
+        if ($source === 'invoice_fel_duplicate' || str_contains($notes, 'FEL manual duplicada')) {
+            return 'COM_ORDENPRODUCCION_INVOICE_ORIGIN_MANUAL_DUPLICATE';
+        }
+        if (str_contains($notes, 'FEL manual')) {
+            return 'COM_ORDENPRODUCCION_INVOICE_ORIGIN_MANUAL_FEL';
+        }
+        if (str_contains($notes, 'FEL scheduled queue') || !empty($invoice->fel_scheduled_at)) {
+            return 'COM_ORDENPRODUCCION_INVOICE_ORIGIN_AUTO_SCHEDULED';
+        }
+        if (str_contains($notes, 'FEL mock queue') || $source === self::SOURCE_MOCKUP) {
+            return 'COM_ORDENPRODUCCION_INVOICE_ORIGIN_AUTO_ENVIO';
+        }
+        if ($source === 'order' || $source === '') {
+            return 'COM_ORDENPRODUCCION_INVOICE_ORIGIN_ORDER';
+        }
+
+        return 'COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN';
+    }
+
+    /**
      * Language key for Facturas lista / export: valid | fel_prueba (cotización prod counts as valid).
      *
      * @return  string  Joomla .ini key

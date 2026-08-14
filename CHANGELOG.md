@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.337-STABLE] - 2026-08-14
+
+### Added
+- **Facturas SAT reconciliation:** Differences table shows invoice origin (automatic envío/queue, manual FEL, XML import, etc.).
+
 ## [3.119.336-STABLE] - 2026-08-14
 
 ### Changed
