@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.344-STABLE] - 2026-08-14
+
+### Fixed
+- **Invoice PDF (Grimpsa template):** Show **Timbre de prensa** as a separate detail line (cotización-style) and in the Impuestos column; IVA no longer absorbs timbre amounts. Applies when rendering from stored FEL XML.
+
 ## [3.119.343-STABLE] - 2026-08-14
 
 ### Fixed

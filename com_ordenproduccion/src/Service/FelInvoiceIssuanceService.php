@@ -5033,13 +5033,38 @@ class FelInvoiceIssuanceService
                 if (!\is_array($it)) {
                     continue;
                 }
+                $impuestos = [];
+                $taxList   = $it['Taxes']['Tax'] ?? [];
+                if (\is_array($taxList)) {
+                    foreach ($taxList as $tax) {
+                        if (!\is_array($tax)) {
+                            continue;
+                        }
+                        $impuestos[] = [
+                            'nombre_corto'   => (string) ($tax['Description'] ?? ''),
+                            'monto_impuesto' => (float) ($tax['Amount'] ?? 0),
+                        ];
+                    }
+                }
+                $subtotal = (float) ($it['Totals']['TotalItem'] ?? 0);
+                $timbreOnLine = 0.0;
+                foreach ($impuestos as $im) {
+                    $n = strtoupper(trim((string) ($im['nombre_corto'] ?? '')));
+                    if (str_contains($n, 'TIMBRE')) {
+                        $timbreOnLine += (float) ($im['monto_impuesto'] ?? 0);
+                    }
+                }
+                if ($timbreOnLine > 0.000001 && $subtotal > $timbreOnLine) {
+                    $subtotal = round($subtotal - $timbreOnLine, 2);
+                }
                 $lineItems[] = [
                     'numero_linea'    => (int) ($it['Number'] ?? ($idx + 1)),
                     'cantidad'        => (float) ($it['Qty'] ?? 0),
                     'descripcion'     => (string) ($it['Description'] ?? ''),
-                    'subtotal'        => (float) ($it['Totals']['TotalItem'] ?? 0),
+                    'subtotal'        => $subtotal,
                     'precio_unitario' => (float) ($it['Price'] ?? 0),
                     'valor_unitario'  => (float) ($it['Price'] ?? 0),
+                    'impuestos'       => $impuestos,
                 ];
             }
         }

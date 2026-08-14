@@ -21,6 +21,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionFpdfBlocksHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\CotizacionPdfHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelXmlHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\ImpuestoImprentaHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFacturaTemplateHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceFelQrPngHelper;
 
@@ -180,6 +181,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         if ($felXmlRaw !== '') {
             $lineItems = self::mergeStoredLineItemsWithFelXml($lineItems, $felXmlRaw);
         }
+        $lineItems = self::expandLineItemsWithTimbreDisplayRows($lineItems);
         $plantilla                 = null;
         $headerIzqHtmlProcessed    = '';
         $headerDerHtmlProcessed    = '';
@@ -369,6 +371,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->SetFont('Helvetica', '', 7.5);
 
         $totalIva = 0.0;
+        $totalTimbre = 0.0;
         $i        = 0;
         $nLines   = \count($lineItems);
         $yBodySegmentTop = $yTable;
@@ -396,6 +399,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
             }
 
             $totalIva += self::rowIva($row);
+            $totalTimbre += self::rowTimbrePrensa($row);
             $yTable = self::drawTableDataRow(
                 $pdf,
                 $yTable,
@@ -421,7 +425,16 @@ final class InvoiceGrimpsaTemplatePdfHelper
         $pdf->Cell($wSum, $totH, CotizacionPdfHelper::encodeTextForFpdf('TOTALES:'), 1, 0, 'R', true);
         $pdf->Cell($colWidths[5], $totH, number_format((float) ($inv->invoice_amount ?? 0), 2, '.', ''), 1, 0, 'R', true);
         $xImp = $xTot + $wSum + $colWidths[5];
-        self::drawImpuestosSubCells($pdf, $xImp, $totalsTop, $totH, $colWidths[6], number_format($totalIva, 2, '.', ''), true);
+        self::drawImpuestosTotalsSubCells(
+            $pdf,
+            $xImp,
+            $totalsTop,
+            $totH,
+            $colWidths[6],
+            number_format($totalIva, 2, '.', ''),
+            number_format($totalTimbre, 2, '.', ''),
+            true
+        );
         $pdf->SetXY(self::MARGIN_X, $totalsTop + $totH);
         $pdf->SetFillColor(255, 255, 255);
 
@@ -608,6 +621,13 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $pu = $st / (float) $qty;
         }
         $iva = self::rowIva($row);
+        $timbre = self::rowTimbrePrensa($row);
+        $isTimbreRow = !empty($row['is_timbre_display_row']);
+        $impLabel = $isTimbreRow ? 'TIMBRE' : 'IVA';
+        $impAmount = $isTimbreRow ? number_format($timbre, 2, '.', '') : number_format($iva, 2, '.', '');
+        if (!$isTimbreRow && $timbre <= 0.000001 && $iva <= 0.000001) {
+            $impAmount = '';
+        }
 
         $padXDesc = 0.9;
 
@@ -666,8 +686,9 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $y,
             $rowH,
             $cw[6],
-            number_format($iva, 2, '.', ''),
-            false
+            $impAmount,
+            false,
+            $impLabel
         );
 
         return $y + $rowH;
@@ -771,7 +792,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
     }
 
     /**
-     * Impuestos: sub-celda "IVA" + importe (como factura GRIMPSA de referencia).
+     * Impuestos: sub-celda label + importe (IVA and/or TIMBRE DE PRENSA).
      *
      * @param   bool   $accentFill  When true, fill uses {@see TABLE_ACCENT_FILL_*} (header/totales band).
      */
@@ -781,8 +802,9 @@ final class InvoiceGrimpsaTemplatePdfHelper
         float $y,
         float $rowH,
         float $wImp,
-        string $ivaText,
-        bool $accentFill
+        string $amountText,
+        bool $accentFill,
+        string $taxLabel = 'IVA'
     ): void {
         $wLabel = max(11.5, min(17.5, round($wImp * 0.36, 2)));
         $wVal   = round($wImp - $wLabel, 2);
@@ -800,10 +822,147 @@ final class InvoiceGrimpsaTemplatePdfHelper
             $border = 'LR';
         }
 
+        $label = $taxLabel !== '' ? $taxLabel : 'IVA';
         $pdf->SetFont('Helvetica', 'B', 7.0);
-        $pdf->Cell($wLabel, $rowH, 'IVA', $border, 0, 'C', $accentFill);
+        $pdf->Cell($wLabel, $rowH, CotizacionPdfHelper::encodeTextForFpdf($label), $border, 0, 'C', $accentFill);
         $pdf->SetFont('Helvetica', '', 7.2);
-        $pdf->Cell($wVal, $rowH, $ivaText, $border, 0, 'R', $accentFill);
+        $pdf->Cell($wVal, $rowH, $amountText, $border, 0, 'R', $accentFill);
+    }
+
+    /**
+     * Totales row: stack IVA and TIMBRE when both apply.
+     */
+    private static function drawImpuestosTotalsSubCells(
+        InvoiceGrimpsaPdfDocument $pdf,
+        float $x,
+        float $y,
+        float $rowH,
+        float $wImp,
+        string $ivaText,
+        string $timbreText,
+        bool $accentFill
+    ): void {
+        $ivaAmt = (float) $ivaText;
+        $timbreAmt = (float) $timbreText;
+        if ($timbreAmt <= 0.000001) {
+            self::drawImpuestosSubCells($pdf, $x, $y, $rowH, $wImp, $ivaText, $accentFill, 'IVA');
+
+            return;
+        }
+
+        $halfH = round($rowH / 2, 2);
+        self::drawImpuestosSubCells($pdf, $x, $y, $halfH, $wImp, $ivaText, $accentFill, 'IVA');
+        self::drawImpuestosSubCells($pdf, $x, $y + $halfH, $halfH, $wImp, $timbreText, $accentFill, 'TIMBRE');
+    }
+
+    /**
+     * Split product lines and append read-only timbre de prensa rows for PDF (cotización-style).
+     *
+     * @param   list<array<string, mixed>>  $lineItems
+     *
+     * @return  list<array<string, mixed>>
+     */
+    private static function expandLineItemsWithTimbreDisplayRows(array $lineItems): array
+    {
+        $out = [];
+        $lineNum = 1;
+        foreach ($lineItems as $row) {
+            if (!\is_array($row)) {
+                continue;
+            }
+            if (!empty($row['is_timbre_display_row'])) {
+                $row['numero_linea'] = $lineNum++;
+                $out[] = $row;
+                continue;
+            }
+
+            $timbreAmt = self::rowTimbrePrensa($row);
+            $productRow = $row;
+            if ($timbreAmt > 0.000001 && isset($productRow['impuestos']) && \is_array($productRow['impuestos'])) {
+                $productRow['impuestos'] = array_values(array_filter(
+                    $productRow['impuestos'],
+                    static function ($im): bool {
+                        if (!\is_array($im)) {
+                            return false;
+                        }
+                        $name = strtoupper(trim((string) ($im['nombre_corto'] ?? '')));
+
+                        return $name === 'IVA' || (str_contains($name, 'IVA') && !str_contains($name, 'TIMBRE'));
+                    }
+                ));
+            }
+            $productRow['numero_linea'] = $lineNum++;
+            $out[] = $productRow;
+
+            if ($timbreAmt <= 0.000001) {
+                continue;
+            }
+
+            $timbreLabel = ImpuestoImprentaHelper::getParamLabel();
+            if ($timbreLabel === '') {
+                $timbreLabel = 'Timbre de Prensa';
+            }
+            $out[] = [
+                'numero_linea'          => $lineNum++,
+                'bien_servicio'         => 'S',
+                'cantidad'              => 1,
+                'descripcion'           => $timbreLabel . ' (Decreto 56-90)',
+                'precio_unitario'       => $timbreAmt,
+                'valor_unitario'        => $timbreAmt,
+                'subtotal'              => $timbreAmt,
+                'impuestos'             => [[
+                    'nombre_corto'    => 'TIMBRE DE PRENSA',
+                    'monto_impuesto'  => $timbreAmt,
+                ]],
+                'is_timbre_display_row' => true,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private static function rowIva(array $row): float
+    {
+        $iva = 0.0;
+        foreach ($row['impuestos'] ?? [] as $im) {
+            if (!\is_array($im)) {
+                continue;
+            }
+            $name = strtoupper(trim((string) ($im['nombre_corto'] ?? '')));
+            if ($name !== 'IVA' && !(str_contains($name, 'IVA') && !str_contains($name, 'TIMBRE'))) {
+                continue;
+            }
+            $iva += (float) ($im['monto_impuesto'] ?? 0);
+        }
+
+        return round($iva, 6);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private static function rowTimbrePrensa(array $row): float
+    {
+        if (!empty($row['is_timbre_display_row'])) {
+            return round((float) ($row['subtotal'] ?? 0), 6);
+        }
+
+        $timbre = 0.0;
+        foreach ($row['impuestos'] ?? [] as $im) {
+            if (!\is_array($im)) {
+                continue;
+            }
+            $name = strtoupper(trim((string) ($im['nombre_corto'] ?? '')));
+            if (!str_contains($name, 'TIMBRE')) {
+                continue;
+            }
+            $timbre += (float) ($im['monto_impuesto'] ?? 0);
+        }
+
+        return round($timbre, 6);
     }
 
     /**
@@ -959,18 +1118,5 @@ final class InvoiceGrimpsaTemplatePdfHelper
         }
 
         return $cur !== '' ? $cur : 'Q';
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private static function rowIva(array $row): float
-    {
-        $iva = 0.0;
-        foreach ($row['impuestos'] ?? [] as $im) {
-            $iva += (float) ($im['monto_impuesto'] ?? 0);
-        }
-
-        return round($iva, 6);
     }
 }
