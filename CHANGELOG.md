@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.347-STABLE] - 2026-08-17
+
+### Changed
+- **troubleshooting.php:** Canonical hub lives in `components/com_ordenproduccion/troubleshooting.php` (NUC vs DB invoice tool included); Joomla root copy forwards to component file.
+
 ## [3.119.346-STABLE] - 2026-08-17
 
 ### Added
