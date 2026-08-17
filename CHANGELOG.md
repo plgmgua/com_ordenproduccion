@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.346-STABLE] - 2026-08-17
+
+### Added
+- **Troubleshooting (Factura):** NUC vs database validation — timbre de prensa, IVA, GrandTotal, missing TIMBRE `Code`, PDF line totals; lookup by `COT-xxxxx`; suggested fixes (recalc cotización timbre, patch NUC Code, rebuild NUC, sync invoice_amount).
+
 ## [3.119.345-STABLE] - 2026-08-14
 
 ### Fixed

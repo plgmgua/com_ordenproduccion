@@ -89,7 +89,7 @@ class ComOrdenproduccionTroubleshootingHelper
         $tools = [
             ['payment', 'Verificar pago (MT-940)', '?tool=payment'],
             ['precot', 'Pre-cotización → Cotización (oferta, vínculos)', '?tool=precot'],
-            ['invoice', 'Factura: automatizada vs manual + instrucciones', '?tool=invoice'],
+            ['invoice', 'Factura: NUC vs DB + timbre + fixes', '?tool=invoice'],
             ['table', 'Inspeccionar tabla', '?tool=table'],
             ['schema', 'Tablas clave del componente', '?tool=schema'],
         ];
@@ -247,43 +247,95 @@ class ComOrdenproduccionTroubleshootingHelper
      */
     private function runInvoiceTool(array $input): array
     {
+        $nucHelper = new FelNucTroubleshootingHelper($this->db());
+        $ctx       = $nucHelper->resolveInvoiceContext($input);
+        $inv       = $ctx['invoice'];
+        $quotationId = (int) $ctx['quotation_id'];
+
         $invoiceId = (int) ($input['invoice_id'] ?? 0);
         $felUuid   = trim((string) ($input['fel_uuid'] ?? ''));
+        $cotNumber = trim((string) ($input['cot_number'] ?? ''));
 
-        if ($invoiceId < 1 && $felUuid === '') {
+        if ($inv === null && $invoiceId < 1 && $felUuid === '' && $cotNumber === '' && $quotationId < 1) {
             $this->startSection('Lookup');
-            $this->addCheck('Input', 'warn', 'Provide invoice_id or fel_uuid');
+            $this->addCheck('Input', 'warn', 'Provide invoice_id, fel_uuid, cot_number (e.g. COT-001032), or quotation_id');
 
-            return $this->buildReport('Factura — origen e instrucciones', 'invoice', [
-                'invoice_id' => '',
-                'fel_uuid'   => '',
+            return $this->buildReport('Factura — NUC vs DB', 'invoice', [
+                'invoice_id'   => '',
+                'fel_uuid'     => '',
+                'cot_number'   => '',
+                'quotation_id' => '',
             ]);
         }
 
-        $db = $this->db();
-        $query = $db->getQuery(true)
-            ->select('i.*')
-            ->from($db->quoteName('#__ordenproduccion_invoices', 'i'));
-        $this->applyPublishedState($query, 'ordenproduccion_invoices', 'i');
-        if ($invoiceId > 0) {
-            $query->where($db->quoteName('i.id') . ' = ' . $invoiceId);
-        } else {
-            $query->where($db->quoteName('i.fel_autorizacion_uuid') . ' = ' . $db->quote($felUuid));
-        }
-        $db->setQuery($query, 0, 1);
-        $inv = $db->loadObject();
+        if ($inv === null && ($quotationId > 0 || $cotNumber !== '')) {
+            $fixMessages = [];
+            $fixIds      = $input['fix'] ?? [];
+            if (!\is_array($fixIds)) {
+                $fixIds = [$fixIds];
+            }
+            $fixIds = array_values(array_filter(array_map('strval', $fixIds)));
+            if ($fixIds !== [] && !empty($input['apply_fix'])) {
+                $fixResult   = $nucHelper->applyFixes(null, $quotationId, $fixIds, (int) Factory::getUser()->id);
+                $fixMessages = $fixResult['messages'] ?? [];
+            }
 
-        if (!$inv) {
+            $this->startSection('Lookup');
+            $this->addCheck(
+                'Factura',
+                'info',
+                'Sin factura vinculada — solo diagnóstico de cotización'
+                . ($ctx['quotation_number'] !== '' ? ' (' . $ctx['quotation_number'] . ')' : '')
+            );
+            if ($fixMessages !== []) {
+                $this->startSection('Fixes applied');
+                foreach ($fixMessages as $msg) {
+                    $this->addCheck('Fix', 'info', (string) $msg);
+                }
+            }
+            $this->runFelNucAnalysisSection($nucHelper, null, $quotationId);
+            $analysisOnly = $nucHelper->analyze(null, $quotationId);
+
+            return $this->buildReport('Factura — NUC vs DB (cotización)', 'invoice', [
+                'invoice_id'      => '',
+                'fel_uuid'        => '',
+                'cot_number'      => $cotNumber !== '' ? $cotNumber : ($ctx['quotation_number'] ?? ''),
+                'quotation_id'    => $quotationId > 0 ? (string) $quotationId : '',
+                'suggested_fixes' => $analysisOnly['suggested_fixes'] ?? [],
+            ]);
+        }
+
+        if ($inv === null) {
             $this->startSection('Lookup');
             $this->addCheck('Factura', 'fail', 'Not found');
 
-            return $this->buildReport('Factura — origen e instrucciones', 'invoice', [
-                'invoice_id' => $invoiceId > 0 ? (string) $invoiceId : '',
-                'fel_uuid'   => $felUuid,
+            return $this->buildReport('Factura — NUC vs DB', 'invoice', [
+                'invoice_id'   => $invoiceId > 0 ? (string) $invoiceId : '',
+                'fel_uuid'     => $felUuid,
+                'cot_number'   => $cotNumber,
+                'quotation_id' => $quotationId > 0 ? (string) $quotationId : '',
             ]);
         }
 
+        $fixMessages = [];
+        $fixIds      = $input['fix'] ?? [];
+        if (!\is_array($fixIds)) {
+            $fixIds = [$fixIds];
+        }
+        $fixIds = array_values(array_filter(array_map('strval', $fixIds)));
+        if ($fixIds !== [] && !empty($input['apply_fix'])) {
+            $fixResult   = $nucHelper->applyFixes($inv, $quotationId, $fixIds, (int) Factory::getUser()->id);
+            $fixMessages = $fixResult['messages'] ?? [];
+            $inv         = $nucHelper->resolveInvoiceContext([
+                'invoice_id' => (string) ($inv->id ?? ''),
+            ])['invoice'] ?? $inv;
+            if ($quotationId < 1) {
+                $quotationId = (int) ($inv->quotation_id ?? 0);
+            }
+        }
+
         $invoiceId = (int) $inv->id;
+        $db = $this->db();
         $this->startSection('Factura');
         $this->addDetail('id', (string) $invoiceId);
         $this->addDetail('invoice_number', (string) ($inv->invoice_number ?? ''));
@@ -355,10 +407,49 @@ class ComOrdenproduccionTroubleshootingHelper
             $this->addCheck('Tabla invoice_orden_suggestions', 'warn', 'No existe');
         }
 
-        return $this->buildReport('Factura — origen e instrucciones', 'invoice', [
-            'invoice_id' => (string) $invoiceId,
-            'fel_uuid'   => (string) ($inv->fel_autorizacion_uuid ?? ''),
+        if ($fixMessages !== []) {
+            $this->startSection('Fixes applied');
+            foreach ($fixMessages as $msg) {
+                $this->addCheck('Fix', str_starts_with((string) $msg, 'rebuild_nuc:') ? 'pass' : 'info', (string) $msg);
+            }
+        }
+
+        $nucAnalysis = $this->runFelNucAnalysisSection($nucHelper, $inv, $quotationId);
+
+        return $this->buildReport('Factura — NUC vs DB', 'invoice', [
+            'invoice_id'      => (string) $invoiceId,
+            'fel_uuid'        => (string) ($inv->fel_autorizacion_uuid ?? ''),
+            'cot_number'      => $cotNumber !== '' ? $cotNumber : ($ctx['quotation_number'] ?? ''),
+            'quotation_id'    => $quotationId > 0 ? (string) $quotationId : '',
+            'suggested_fixes' => $nucAnalysis['suggested_fixes'] ?? [],
         ]);
+    }
+
+    /**
+     * @return array{suggested_fixes: list<array{id:string, label:string, detail:string}>}
+     */
+    private function runFelNucAnalysisSection(FelNucTroubleshootingHelper $helper, ?object $inv, int $quotationId): array
+    {
+        $this->startSection('NUC vs base de datos');
+        $analysis = $helper->analyze($inv, $quotationId);
+
+        foreach ($analysis['details'] ?? [] as $key => $val) {
+            $this->addDetail((string) $key, (string) $val);
+        }
+        foreach ($analysis['checks'] ?? [] as $check) {
+            $this->addCheck(
+                (string) ($check['label'] ?? ''),
+                (string) ($check['status'] ?? 'info'),
+                (string) ($check['detail'] ?? '')
+            );
+        }
+        foreach ($analysis['tables'] ?? [] as $tbl) {
+            if (!empty($tbl['headers']) && !empty($tbl['rows'])) {
+                $this->addDataTable($tbl['headers'], $tbl['rows']);
+            }
+        }
+
+        return ['suggested_fixes' => $analysis['suggested_fixes'] ?? []];
     }
 
     /**

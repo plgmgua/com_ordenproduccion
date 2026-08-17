@@ -83,7 +83,7 @@ function tsInput(): \Joomla\Input\Input
 /** @return array<int, string> */
 function tsToolQueryKeys(): array
 {
-    return ['tool', 'pre_id', 'pre_number', 'invoice_id', 'fel_uuid', 'table', 'limit'];
+    return ['tool', 'pre_id', 'pre_number', 'invoice_id', 'fel_uuid', 'cot_number', 'quotation_id', 'table', 'limit'];
 }
 
 /**
@@ -185,7 +185,7 @@ function tsToolCatalog(): array
         ['slug' => 'home', 'label' => 'Inicio', 'desc' => 'Entorno y lista de herramientas'],
         ['slug' => 'payment', 'label' => 'Verificar pago', 'desc' => 'MT-940, cron, aprobaciones payment_proof'],
         ['slug' => 'precot', 'label' => 'PRE → Cotización', 'desc' => 'Oferta, propietario, vínculos, selector'],
-        ['slug' => 'invoice', 'label' => 'Factura', 'desc' => 'Automatizada vs manual, instrucciones, OT links'],
+        ['slug' => 'invoice', 'label' => 'Factura', 'desc' => 'NUC vs DB, timbre, fixes Digifact'],
         ['slug' => 'table', 'label' => 'Tabla', 'desc' => 'Columnas, conteo y filas de muestra'],
         ['slug' => 'schema', 'label' => 'Schema', 'desc' => 'Tablas clave del componente'],
     ];
@@ -218,8 +218,12 @@ function tsCollectInput(string $tool): array
             ];
         case 'invoice':
             return [
-                'invoice_id' => trim((string) $input->get('invoice_id', '', 'string')),
-                'fel_uuid'   => trim((string) $input->get('fel_uuid', '', 'string')),
+                'invoice_id'   => trim((string) $input->get('invoice_id', '', 'string')),
+                'fel_uuid'     => trim((string) $input->get('fel_uuid', '', 'string')),
+                'cot_number'   => trim((string) $input->get('cot_number', '', 'string')),
+                'quotation_id' => trim((string) $input->get('quotation_id', '', 'string')),
+                'apply_fix'    => (int) $input->post->get('apply_fix', $input->get('apply_fix', 0, 'int'), 'int'),
+                'fix'          => $input->post->get('fix', $input->get('fix', [], 'array'), 'array'),
             ];
         case 'table':
             return [
@@ -296,7 +300,8 @@ function tsRender(array $vars): void
         .odoo-ts table.data { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
         .odoo-ts table.data th, .odoo-ts table.data td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
         .odoo-ts table.data th { background: #f0f0f0; }
-        .odoo-ts table.data tr:nth-child(even) { background: #fafafa; }
+        .odoo-ts .tool-form button.fix { background: #2e7d32; margin-left: 8px; }
+        .odoo-ts .fix-box { background: #fff3e0; border: 1px solid #ffb74d; padding: 12px; border-radius: 6px; margin: 12px 0; }
     </style>
 <?php if ($standalone): ?>
 </head>
@@ -334,6 +339,30 @@ function tsRender(array $vars): void
     <?php else: ?>
 
         <?php tsRenderToolForm($tool, $report ?? null); ?>
+
+        <?php if ($tool === 'invoice' && !empty($report['form']['suggested_fixes']) && is_array($report['form']['suggested_fixes'])) : ?>
+            <div class="fix-box">
+                <strong>Correcciones sugeridas</strong>
+                <form method="post" action="<?php echo htmlspecialchars(tsFormAction()); ?>" class="tool-form" style="margin-top:10px;background:transparent;border:none;padding:0;">
+                    <?php tsRenderHiddenRoutingFields(); ?>
+                    <input type="hidden" name="tool" value="invoice">
+                    <input type="hidden" name="apply_fix" value="1">
+                    <input type="hidden" name="invoice_id" value="<?php echo htmlspecialchars((string) ($report['form']['invoice_id'] ?? '')); ?>">
+                    <input type="hidden" name="fel_uuid" value="<?php echo htmlspecialchars((string) ($report['form']['fel_uuid'] ?? '')); ?>">
+                    <input type="hidden" name="cot_number" value="<?php echo htmlspecialchars((string) ($report['form']['cot_number'] ?? '')); ?>">
+                    <input type="hidden" name="quotation_id" value="<?php echo htmlspecialchars((string) ($report['form']['quotation_id'] ?? '')); ?>">
+                    <?php foreach ($report['form']['suggested_fixes'] as $fix) : ?>
+                        <?php if (!is_array($fix)) { continue; } ?>
+                        <label style="display:block;margin:6px 0;font-weight:normal;">
+                            <input type="checkbox" name="fix[]" value="<?php echo htmlspecialchars((string) ($fix['id'] ?? '')); ?>">
+                            <strong><?php echo htmlspecialchars((string) ($fix['label'] ?? '')); ?></strong>
+                            — <?php echo htmlspecialchars((string) ($fix['detail'] ?? '')); ?>
+                        </label>
+                    <?php endforeach; ?>
+                    <button type="submit" class="fix">Aplicar correcciones seleccionadas</button>
+                </form>
+            </div>
+        <?php endif; ?>
 
         <?php if (!empty($report) && is_array($report)): ?>
             <?php
@@ -437,8 +466,16 @@ function tsRenderToolForm(string $tool, ?array $report): void
                     <input type="text" name="invoice_id" id="invoice_id" value="<?php echo htmlspecialchars((string) ($form['invoice_id'] ?? '')); ?>">
                     <label for="fel_uuid">o FEL UUID</label>
                     <input type="text" name="fel_uuid" id="fel_uuid" value="<?php echo htmlspecialchars((string) ($form['fel_uuid'] ?? '')); ?>">
-                    <button type="submit">Analizar</button>
+                    <label for="cot_number">o Cotización (ej. COT-001032)</label>
+                    <input type="text" name="cot_number" id="cot_number" value="<?php echo htmlspecialchars((string) ($form['cot_number'] ?? '')); ?>">
+                    <label for="quotation_id">o quotation_id numérico</label>
+                    <input type="text" name="quotation_id" id="quotation_id" value="<?php echo htmlspecialchars((string) ($form['quotation_id'] ?? '')); ?>">
+                    <button type="submit">Analizar NUC vs DB</button>
                 </form>
+                <p class="subtitle" style="margin-top:10px;margin-bottom:0;">
+                    Valida <code>fel_request_json</code> (NUC), timbre de prensa, IVA, totales vs cotización e <code>invoice_amount</code>.
+                    Si hay errores, use las correcciones sugeridas abajo del reporte.
+                </p>
             </div>
             <?php
             break;
