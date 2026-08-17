@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.349-STABLE] - 2026-08-17
+
+### Fixed
+- Troubleshooting home: component version falls back to manifest.xml or #__extensions when VERSION file is missing on disk.
+
 ## [3.119.348-STABLE] - 2026-08-17
 
 ### Changed

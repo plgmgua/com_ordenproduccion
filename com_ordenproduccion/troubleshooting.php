@@ -241,7 +241,33 @@ function tsCollectInput(string $tool): array
     }
 }
 
-function tsCanAccess(): bool
+function tsComponentVersion(): string
+{
+    $root = tsJoomlaRootPath();
+    $versionFile = $root . '/components/com_ordenproduccion/VERSION';
+    if (is_file($versionFile)) {
+        return trim((string) file_get_contents($versionFile));
+    }
+
+    foreach ([
+        $root . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml',
+        $root . '/components/com_ordenproduccion/com_ordenproduccion.xml',
+    ] as $manifest) {
+        if (!is_file($manifest)) {
+            continue;
+        }
+        $xml = @simplexml_load_file($manifest);
+        if ($xml !== false && isset($xml->version)) {
+            $v = trim((string) $xml->version);
+            if ($v !== '') {
+                return $v;
+            }
+        }
+    }
+
+    return '';
+}
+
 {
     $user = \Joomla\CMS\Factory::getUser();
     if ($user->guest) {
@@ -560,6 +586,8 @@ try {
     $versionFile = tsJoomlaRootPath() . '/components/com_ordenproduccion/VERSION';
     if (is_file($versionFile)) {
         $componentVersion = trim((string) file_get_contents($versionFile));
+    } else {
+        $componentVersion = tsComponentVersion();
     }
 } catch (\Throwable $e) {
     $fatalError = $e->getMessage();

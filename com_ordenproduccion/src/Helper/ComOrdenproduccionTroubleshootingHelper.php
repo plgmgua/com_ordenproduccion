@@ -733,9 +733,49 @@ class ComOrdenproduccionTroubleshootingHelper
     private function componentVersion(): string
     {
         $root = defined('JPATH_ROOT') ? JPATH_ROOT : '';
-        $file = $root . '/components/com_ordenproduccion/VERSION';
+        if ($root !== '') {
+            $versionFile = $root . '/components/com_ordenproduccion/VERSION';
+            if (is_file($versionFile)) {
+                return trim((string) file_get_contents($versionFile));
+            }
 
-        return is_file($file) ? trim((string) file_get_contents($file)) : '';
+            foreach ([
+                $root . '/administrator/components/com_ordenproduccion/com_ordenproduccion.xml',
+                $root . '/components/com_ordenproduccion/com_ordenproduccion.xml',
+            ] as $manifest) {
+                if (!is_file($manifest)) {
+                    continue;
+                }
+                $xml = @simplexml_load_file($manifest);
+                if ($xml !== false && isset($xml->version)) {
+                    $v = trim((string) $xml->version);
+                    if ($v !== '') {
+                        return $v;
+                    }
+                }
+            }
+        }
+
+        try {
+            $db = $this->db();
+            $query = $db->getQuery(true)
+                ->select($db->quoteName('manifest_cache'))
+                ->from($db->quoteName('#__extensions'))
+                ->where($db->quoteName('type') . ' = ' . $db->quote('component'))
+                ->where($db->quoteName('element') . ' = ' . $db->quote('com_ordenproduccion'));
+            $db->setQuery($query);
+            $cache = $db->loadResult();
+            if (is_string($cache) && $cache !== '') {
+                $data = json_decode($cache, true);
+                if (is_array($data) && !empty($data['version'])) {
+                    return trim((string) $data['version']);
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return '';
     }
 
     private function db(): DatabaseInterface
