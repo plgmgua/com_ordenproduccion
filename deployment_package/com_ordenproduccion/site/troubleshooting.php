@@ -268,6 +268,7 @@ function tsComponentVersion(): string
     return '';
 }
 
+function tsCanAccess(): bool
 {
     $user = \Joomla\CMS\Factory::getUser();
     if ($user->guest) {
