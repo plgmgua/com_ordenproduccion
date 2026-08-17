@@ -1,17 +1,13 @@
 <?php
 /**
- * com_ordenproduccion — multi-tool troubleshooting hub.
+ * com_ordenproduccion — multi-tool troubleshooting hub (single file).
  *
- * Standalone (Joomla root copy): https://yoursite.com/troubleshooting.php
- * Component URL: /components/com_ordenproduccion/troubleshooting.php
+ * Deploy to: JPATH_ROOT/troubleshooting.php
  *
- * Sourcerer (Joomla article) — paste ONLY this one line inside Sourcerer php tags:
- *   require JPATH_ROOT . '/components/com_ordenproduccion/troubleshooting.php';
- *
- * Alternative (if root copy is deployed):
+ * Sourcerer — paste ONLY this one line inside Sourcerer php tags:
  *   require JPATH_ROOT . '/troubleshooting.php';
  *
- * Do NOT paste this whole file into the article (Sourcerer tag chars in comments break parsing).
+ * Standalone URL: https://yoursite.com/troubleshooting.php
  *
  * Tools (?tool=): home | payment | precot | invoice | table | schema
  */
@@ -32,7 +28,7 @@ function tsJoomlaRootPath(): string
         return JPATH_BASE;
     }
 
-    return dirname(__DIR__, 2);
+    return __DIR__;
 }
 
 function tsIsStandalone(): bool
@@ -61,7 +57,6 @@ function tsGetApplication(): \Joomla\CMS\Application\CMSApplication
     if (!defined('JPATH_BASE')) {
         $roots = [
             tsJoomlaRootPath(),
-            dirname(__DIR__, 2),
             __DIR__,
             '/var/www/grimpsa_webserver',
         ];
@@ -94,9 +89,6 @@ function tsGetApplication(): \Joomla\CMS\Application\CMSApplication
     return $app;
 }
 
-/**
- * Joomla input (works under Sourcerer and standalone bootstrap).
- */
 function tsInput(): \Joomla\Input\Input
 {
     return tsGetApplication()->input;
@@ -109,9 +101,7 @@ function tsToolQueryKeys(): array
 }
 
 /**
- * Build URL preserving Joomla routing (option, view, id, Itemid) when embedded via Sourcerer.
- *
- * @param   array<string, scalar|null>  $params
+ * @param array<string, scalar|null> $params
  */
 function tsBuildUrl(array $params = []): string
 {
@@ -149,9 +139,6 @@ function tsBuildUrl(array $params = []): string
     return (string) $newUri;
 }
 
-/**
- * Form action URL (path only when embedded — routing vars go in hidden fields).
- */
 function tsFormAction(): string
 {
     if (tsIsStandalone()) {
@@ -164,9 +151,6 @@ function tsFormAction(): string
     return \Joomla\CMS\Uri\Uri::getInstance()->toString(['scheme', 'host', 'port', 'path']);
 }
 
-/**
- * Hidden fields so GET forms keep com_content (or other) routing under non-SEF URLs.
- */
 function tsRenderHiddenRoutingFields(): void
 {
     if (tsIsStandalone() || !class_exists(\Joomla\CMS\Uri\Uri::class)) {
@@ -496,7 +480,7 @@ function tsRenderToolForm(string $tool, ?array $report): void
                     <button type="submit">Analizar NUC vs DB</button>
                 </form>
                 <p class="subtitle" style="margin-top:10px;margin-bottom:0;">
-                    Valida <code>fel_request_json</code> (NUC), timbre de prensa, IVA, totales vs cotización e <code>invoice_amount</code>.
+                    Valida fel_request_json (NUC), timbre de prensa, IVA, totales vs cotización e invoice_amount.
                     Si hay errores, use las correcciones sugeridas abajo del reporte.
                 </p>
             </div>
@@ -538,10 +522,6 @@ function tsRenderToolForm(string $tool, ?array $report): void
     }
 }
 
-// ---------------------------------------------------------------------------
-// Run
-// ---------------------------------------------------------------------------
-
 $fatalError          = null;
 $componentBootError  = null;
 $diagnosticError     = null;
@@ -577,10 +557,7 @@ try {
         }
     }
 
-    $versionFile = __DIR__ . '/VERSION';
-    if (!is_file($versionFile)) {
-        $versionFile = tsJoomlaRootPath() . '/components/com_ordenproduccion/VERSION';
-    }
+    $versionFile = tsJoomlaRootPath() . '/components/com_ordenproduccion/VERSION';
     if (is_file($versionFile)) {
         $componentVersion = trim((string) file_get_contents($versionFile));
     }

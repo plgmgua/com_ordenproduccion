@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.348-STABLE] - 2026-08-17
+
+### Changed
+- **troubleshooting.php:** Single self-contained file at Joomla root; Sourcerer uses `require JPATH_ROOT . '/troubleshooting.php';`
+
 ## [3.119.347-STABLE] - 2026-08-17
 
 ### Changed
