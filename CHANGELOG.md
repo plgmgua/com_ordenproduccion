@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.351-STABLE] - 2026-08-18
+
+### Fixed
+- **FEL exportación:** IVA on items uses SAT unidad gravable **Code 2** (0%) instead of Code 1. Digifact rejected export NUC with validation 2.7.2.2.
+
 ## [3.119.350-STABLE] - 2026-08-18
 
 ### Added

@@ -3302,6 +3302,96 @@ class FelInvoiceIssuanceService
         if ($foreign !== '') {
             $this->appendExportTaxIdToObservaciones($payload, $foreign);
         }
+
+        $this->applyExportIvaUnidadGravable2($payload);
+    }
+
+    /**
+     * SAT 2.7.2.2: export DTE must use IVA unidad gravable Code 2 (0%), not Code 1 (12%).
+     *
+     * @param   array<string, mixed>  $payload
+     *
+     * @since  3.119.351
+     */
+    protected function applyExportIvaUnidadGravable2(array &$payload): void
+    {
+        $items = $payload['Items'] ?? [];
+        if (!\is_array($items)) {
+            return;
+        }
+
+        $totalIva = 0.0;
+        foreach ($items as $i => $item) {
+            if (!\is_array($item)) {
+                continue;
+            }
+            $itemTotal = (float) ($item['Totals']['TotalItem'] ?? 0);
+            $taxes     = $item['Taxes']['Tax'] ?? [];
+            if (!\is_array($taxes)) {
+                $taxes = [];
+            }
+            $timbreAmt = 0.0;
+            foreach ($taxes as $tax) {
+                if (!\is_array($tax)) {
+                    continue;
+                }
+                if (strtoupper(trim((string) ($tax['Description'] ?? ''))) === 'TIMBRE DE PRENSA') {
+                    $timbreAmt += (float) ($tax['Amount'] ?? 0);
+                }
+            }
+            $exportBase = round($itemTotal - $timbreAmt, 6);
+            if ($exportBase < 0) {
+                $exportBase = $itemTotal;
+            }
+
+            $hasIva = false;
+            foreach ($taxes as $j => $tax) {
+                if (!\is_array($tax)) {
+                    continue;
+                }
+                if (strtoupper(trim((string) ($tax['Description'] ?? ''))) !== 'IVA') {
+                    continue;
+                }
+                $hasIva = true;
+                $taxes[$j]['Code']          = '2';
+                $taxes[$j]['Description']   = 'IVA';
+                $taxes[$j]['TaxableAmount'] = sprintf('%.6f', $exportBase);
+                $taxes[$j]['Amount']        = sprintf('%.6f', 0);
+            }
+            if (!$hasIva) {
+                array_unshift($taxes, [
+                    'Code'          => '2',
+                    'Description'   => 'IVA',
+                    'TaxableAmount' => sprintf('%.6f', $exportBase),
+                    'Amount'        => sprintf('%.6f', 0),
+                ]);
+            }
+            $payload['Items'][$i]['Taxes']['Tax'] = array_values($taxes);
+        }
+
+        if (!isset($payload['Totals']['TotalTaxes']['TotalTax']) || !\is_array($payload['Totals']['TotalTaxes']['TotalTax'])) {
+            $payload['Totals']['TotalTaxes']['TotalTax'] = $this->buildNucTotalTaxEntries(0.0, 0.0);
+
+            return;
+        }
+
+        $replacedIva = false;
+        foreach ($payload['Totals']['TotalTaxes']['TotalTax'] as $k => $tot) {
+            if (!\is_array($tot)) {
+                continue;
+            }
+            if (strtoupper(trim((string) ($tot['Description'] ?? ''))) !== 'IVA') {
+                continue;
+            }
+            $payload['Totals']['TotalTaxes']['TotalTax'][$k]['Amount'] = sprintf('%.6f', $totalIva);
+            $replacedIva = true;
+        }
+        if (!$replacedIva) {
+            array_unshift($payload['Totals']['TotalTaxes']['TotalTax'], [
+                'Description' => 'IVA',
+                'Amount'      => sprintf('%.6f', 0),
+            ]);
+        }
     }
 
     /**
