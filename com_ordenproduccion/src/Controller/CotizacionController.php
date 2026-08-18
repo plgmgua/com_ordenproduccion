@@ -2316,7 +2316,7 @@ class CotizacionController extends BaseController
             $cuiPost = trim((string) $app->input->post->getString('digifact_buyer_cui', ''));
             $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
 
-            if ($isCf) {
+            if ($isCf && empty($nucOptions['export'])) {
                 if ($cuiDigits === '') {
                     echo json_encode(['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_DIGIFACT_DIRECT_CUI_REQUIRED')], JSON_UNESCAPED_UNICODE);
                     $app->close();
@@ -2553,12 +2553,22 @@ class CotizacionController extends BaseController
             }
         }
 
+        $export = $input->post->getInt('manual_export', 0) === 1;
+        $foreignTaxId = trim((string) $input->post->getString('manual_export_foreign_tax_id', ''));
+        if ($export && $foreignTaxId === '') {
+            $foreignTaxId = trim((string) $input->post->getString('manual_buyer_nit', ''));
+        }
+
         return [
-            'doc_type'       => $docType,
-            'observaciones'  => $observaciones,
-            'fcam_abonos'    => $fcamAbonos,
-            'currency'       => $currency,
-            'exchange_rate'  => $exchangeRate,
+            'doc_type'              => $docType,
+            'observaciones'         => $observaciones,
+            'fcam_abonos'           => $fcamAbonos,
+            'currency'              => $currency,
+            'exchange_rate'         => $exchangeRate,
+            'export'                => $export,
+            'export_incoterm'       => strtoupper(trim((string) $input->post->getString('manual_export_incoterm', 'EXW'))),
+            'export_country'        => strtoupper(trim((string) $input->post->getString('manual_export_country', 'US'))),
+            'export_foreign_tax_id' => $foreignTaxId,
         ];
     }
 

@@ -1205,7 +1205,7 @@ class InvoiceController extends BaseController
         $cuiDigits = CertificadorFactNitLookupHelper::digitsOnlyBillingId($cuiPost);
         $cuiOverride = null;
 
-        if ($isCf) {
+        if ($isCf && empty($nucOptions['export'])) {
             if ($previewOnly) {
                 if ($cuiDigits !== '') {
                     $cuiOverride = $cuiDigits;
@@ -1318,12 +1318,22 @@ class InvoiceController extends BaseController
             }
         }
 
+        $export = $input->post->getInt('manual_export', 0) === 1;
+        $foreignTaxId = trim((string) $input->post->getString('manual_export_foreign_tax_id', ''));
+        if ($export && $foreignTaxId === '') {
+            $foreignTaxId = trim((string) $input->post->getString('manual_buyer_nit', ''));
+        }
+
         return [
-            'doc_type'       => $docType,
-            'observaciones'  => $observaciones,
-            'fcam_abonos'    => $fcamAbonos,
-            'currency'       => $currency,
-            'exchange_rate'  => $exchangeRate,
+            'doc_type'              => $docType,
+            'observaciones'         => $observaciones,
+            'fcam_abonos'           => $fcamAbonos,
+            'currency'              => $currency,
+            'exchange_rate'         => $exchangeRate,
+            'export'                => $export,
+            'export_incoterm'       => strtoupper(trim((string) $input->post->getString('manual_export_incoterm', 'EXW'))),
+            'export_country'        => strtoupper(trim((string) $input->post->getString('manual_export_country', 'US'))),
+            'export_foreign_tax_id' => $foreignTaxId,
         ];
     }
 }

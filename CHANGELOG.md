@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.350-STABLE] - 2026-08-18
+
+### Added
+- **FEL exportación:** checkbox in the manual invoice modal to certify export invoices for foreign buyers. SAT still requires `Buyer.TaxID=CF`; the foreign EIN/VAT is sent on Digifact complemento EXP (`CodigoComprador`, INCOTERM, consignee) plus `Header.Exp=Si`.
+
 ## [3.119.349-STABLE] - 2026-08-17
 
 ### Fixed

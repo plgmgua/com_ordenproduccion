@@ -122,6 +122,33 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                         <div class="form-text small"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_OBSERVACIONES_HELP', 'Shown on the invoice PDF and sent to Digifact as OBSERVACIONES. Default is the quotation reference.', 'Se muestra en el PDF y se envía a Digifact como OBSERVACIONES. Por defecto es la referencia de cotización.')); ?></div>
                     </div>
                 </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="manual-fel-export" value="1">
+                    <label class="form-check-label" for="manual-fel-export">
+                        <?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXPORT', 'Export invoice (foreign buyer)', 'Factura de exportación (cliente extranjero)')); ?>
+                    </label>
+                </div>
+                <div id="manual-fel-export-panel" class="border rounded p-3 mb-3 bg-light d-none">
+                    <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXPORT_HELP', 'SAT does not accept a US EIN as NIT. Digifact will send Buyer.TaxID = CF and put the foreign tax ID on the EXP export complement.', 'SAT no acepta un EIN de EE.UU. como NIT. Digifact envía Buyer.TaxID = CF y coloca el tax ID extranjero en el complemento EXP de exportación.')); ?></p>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="manual-fel-export-country"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXPORT_COUNTRY', 'Buyer country (ISO)', 'País del comprador (ISO)')); ?></label>
+                            <input type="text" class="form-control form-control-sm" id="manual-fel-export-country" maxlength="2" value="US" placeholder="US">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="manual-fel-export-incoterm"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXPORT_INCOTERM', 'INCOTERM', 'INCOTERM')); ?></label>
+                            <select class="form-select form-select-sm" id="manual-fel-export-incoterm">
+                                <?php foreach (['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DDP', 'DAT', 'ZZZ'] as $inc) : ?>
+                                    <option value="<?php echo $inc; ?>"<?php echo $inc === 'EXW' ? ' selected' : ''; ?>><?php echo $inc; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1" for="manual-fel-export-tax-id"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_EXPORT_TAX_ID', 'Foreign tax ID (EIN / VAT)', 'Tax ID extranjero (EIN / VAT)')); ?></label>
+                            <input type="text" class="form-control form-control-sm" id="manual-fel-export-tax-id" maxlength="50" placeholder="853040491">
+                        </div>
+                    </div>
+                </div>
                 <div id="manual-fel-fcam-panel" class="border rounded p-3 mb-3 bg-light d-none">
                     <h6 class="text-uppercase text-muted small mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_HEADING', 'Exchange invoice — payment schedule', 'Factura cambiaria — abonos')); ?></h6>
                     <p class="small text-muted mb-2"><?php echo htmlspecialchars($l('COM_ORDENPRODUCCION_MANUAL_FEL_FCAM_HELP', 'Enter the due date and amount for the payment (amount must equal invoice total).', 'Ingrese la fecha de vencimiento y el monto del abono (debe coincidir con el total de la factura).')); ?></p>
@@ -358,6 +385,12 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     var fcamPanel = document.getElementById('manual-fel-fcam-panel');
     var fcamDueDate = document.getElementById('manual-fel-fcam-due-date');
     var fcamAmount = document.getElementById('manual-fel-fcam-amount');
+    var exportCheck = document.getElementById('manual-fel-export');
+    var exportPanel = document.getElementById('manual-fel-export-panel');
+    var exportCountry = document.getElementById('manual-fel-export-country');
+    var exportIncoterm = document.getElementById('manual-fel-export-incoterm');
+    var exportTaxId = document.getElementById('manual-fel-export-tax-id');
+    var cfCuiWrap = document.getElementById('manual-fel-cf-cui-wrap');
     var quotationRefDefault = <?php echo json_encode($manualFelQuotationRef, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var manualFelSeed = <?php echo json_encode($manualFelSeedFromInvoice, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
     var sourceInvoiceId = <?php echo (int) $manualFelSourceInvoiceId; ?>;
@@ -480,6 +513,27 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         } else if (manualFelTotalCell) {
             manualFelTotalCell.classList.remove('text-success', 'text-danger');
         }
+    }
+    function isExportChecked() {
+        return !!(exportCheck && exportCheck.checked);
+    }
+    function toggleExportPanel() {
+        var on = isExportChecked();
+        if (exportPanel) {
+            exportPanel.classList.toggle('d-none', !on);
+        }
+        if (cfCuiWrap) {
+            cfCuiWrap.classList.toggle('d-none', on);
+        }
+        if (on && exportTaxId && nitInput && !String(exportTaxId.value || '').trim()) {
+            exportTaxId.value = String(nitInput.value || '').trim();
+        }
+        if (generarBtn) {
+            generarBtn.disabled = needsCfCui && !cuiValidated && !on;
+        }
+    }
+    if (exportCheck) {
+        exportCheck.addEventListener('change', toggleExportPanel);
     }
     function toggleFcamPanel() {
         var isFcam = docTypeSelect && String(docTypeSelect.value || 'FCAM').toUpperCase() === 'FCAM';
@@ -807,6 +861,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     tbody.querySelectorAll('.manual-fel-line-row:not(.manual-fel-timbre-row)').forEach(bindRow);
     syncTimbreHintVisibility();
     toggleFcamPanel();
+    toggleExportPanel();
     syncInvoiceTotalDisplay();
 
     function applyManualFelSeed(seed) {
@@ -838,6 +893,22 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         if (observacionesInput && seed.observaciones != null) {
             observacionesInput.value = String(seed.observaciones);
         }
+        if (exportCheck && seed.export) {
+            exportCheck.checked = true;
+        }
+        if (exportIncoterm && seed.export_incoterm) {
+            exportIncoterm.value = String(seed.export_incoterm).toUpperCase();
+        }
+        if (exportCountry && seed.export_country) {
+            exportCountry.value = String(seed.export_country).toUpperCase().slice(0, 2);
+        }
+        if (exportTaxId) {
+            var fid = seed.export_foreign_tax_id || seed.foreign_tax_id || seed.buyer_nit || '';
+            if (fid) {
+                exportTaxId.value = String(fid);
+            }
+        }
+        toggleExportPanel();
         if (Array.isArray(seed.lines) && seed.lines.length) {
             tbody.innerHTML = '';
             var seedCur = String(seed.currency || 'GTQ').toUpperCase();
@@ -1037,6 +1108,10 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             fcamDueDate.value = defaultFcamDueDateYmd();
         }
         toggleFcamPanel();
+        if (exportCheck) {
+            exportCheck.checked = false;
+        }
+        toggleExportPanel();
         resetCuiGate();
         if (!needsCfCui) {
             generarBtn.disabled = false;
@@ -1211,7 +1286,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             showAlert(msgLinesRequired);
             return null;
         }
-        if (requireCui && needsCfCui && !cuiValidated) {
+        if (requireCui && needsCfCui && !cuiValidated && !isExportChecked()) {
             showAlert(msgCuiNotValidated);
             return null;
         }
@@ -1254,6 +1329,10 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
         fd.append('manual_currency', currencySelect ? String(currencySelect.value || 'GTQ') : 'GTQ');
         fd.append('manual_observaciones', observacionesInput ? String(observacionesInput.value || '').trim() : '');
         fd.append('manual_fcam_abonos_json', buildFcamAbonosJson());
+        fd.append('manual_export', isExportChecked() ? '1' : '0');
+        fd.append('manual_export_incoterm', exportIncoterm ? String(exportIncoterm.value || 'EXW') : 'EXW');
+        fd.append('manual_export_country', exportCountry ? String(exportCountry.value || 'US').trim().toUpperCase() : 'US');
+        fd.append('manual_export_foreign_tax_id', exportTaxId ? String(exportTaxId.value || '').trim() : (buyerNit || ''));
         if (issueDateInput) {
             fd.append('manual_issue_date', String(issueDateInput.value || issueDateDefault));
         }
@@ -1278,7 +1357,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 .then(function(r) { return r.text().then(function(t) { try { return { ok: r.ok, data: JSON.parse(t) }; } catch (e) { return { ok: false, data: null }; } }); })
                 .then(function(res) {
                     previewBtn.disabled = false;
-                    generarBtn.disabled = needsCfCui && !cuiValidated;
+                    generarBtn.disabled = needsCfCui && !cuiValidated && !isExportChecked();
                     if (openBtn) openBtn.disabled = false;
                     var j = res.data;
                     if (!j || !j.success || !j.pdf_base64) {
@@ -1294,7 +1373,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
                 })
                 .catch(function() {
                     previewBtn.disabled = false;
-                    generarBtn.disabled = needsCfCui && !cuiValidated;
+                    generarBtn.disabled = needsCfCui && !cuiValidated && !isExportChecked();
                     if (openBtn) openBtn.disabled = false;
                     showAlert(msgNet);
                 });

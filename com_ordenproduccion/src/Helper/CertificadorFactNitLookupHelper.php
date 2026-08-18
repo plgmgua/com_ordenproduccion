@@ -90,6 +90,26 @@ class CertificadorFactNitLookupHelper
     }
 
     /**
+     * True when the id is not CF and not a CUI (13 digits) — typically a foreign EIN/VAT for export FEL.
+     * SAT still requires Buyer.TaxID=CF on export; the foreign id goes in complemento EXP.
+     *
+     * @since  3.119.350
+     */
+    public static function billingIdIndicatesForeignTaxId(string $raw): bool
+    {
+        $t = strtoupper(trim($raw));
+        if ($t === '' || self::billingIdIndicatesConsumidorFinal($t)) {
+            return false;
+        }
+        $digits = self::digitsOnlyBillingId($t);
+        if (strlen($digits) === 13) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * GTQ: Totals strictly above this cannot use Consumidor Final (CF/C/F) for FACT; require CUI and manual billing path.
      *
      * Business rule aligns with Guatemala FEL limits for unidentified consumer over this amount.

@@ -59,6 +59,9 @@ class FelInvoiceIssuanceService
     /** Digifact NUC default document type (factura cambiaria). */
     private const DEFAULT_DIGIFACT_DOC_TYPE = 'FCAM';
 
+    /** SAT Edifact INCOTERM codes for complemento EXP. */
+    private const EXPORT_INCOTERMS = ['EXW', 'FCA', 'FAS', 'FOB', 'CFR', 'CIF', 'CPT', 'CIP', 'DDP', 'DAP', 'DAT', 'ZZZ'];
+
     /** Digifact NUC sector tax description for timbre de prensa (SAT / D1012). */
     private const TIMBRE_PRENSA_TAX_DESCRIPTION = 'TIMBRE DE PRENSA';
 
@@ -2534,6 +2537,7 @@ class FelInvoiceIssuanceService
                 'monto'  => \round($grandTotal, 2),
             ]],
             'currency'      => 'GTQ',
+            'export'        => false,
         ];
     }
 
@@ -2807,7 +2811,7 @@ class FelInvoiceIssuanceService
             $buyerPayload['TaxIDType'] = 'CUI';
         }
 
-        return [
+        $payload = [
             'Version'     => '1.00',
             'CountryCode' => 'GT',
             'Header'      => $header,
@@ -2851,6 +2855,16 @@ class FelInvoiceIssuanceService
                 'AdditionalInfo' => $additionalInfos,
             ],
         ];
+
+        $this->applyExportationToNucPayload(
+            $payload,
+            $normalizedOpts,
+            $buyerName,
+            $buyerStreet,
+            (string) ($normalizedOpts['export_foreign_tax_id'] ?? '')
+        );
+
+        return $payload;
     }
 
     /**
@@ -2930,6 +2944,15 @@ class FelInvoiceIssuanceService
             } elseif (isset($payload['Buyer']['TaxIDType'])) {
                 unset($payload['Buyer']['TaxIDType']);
             }
+        }
+
+        $normalizedAfter = $this->normalizeManualFelNucOptions($nucOptions, 0.0);
+        if (!empty($normalizedAfter['export'])) {
+            $foreignId = (string) ($normalizedAfter['export_foreign_tax_id'] ?? '');
+            if ($foreignId === '' || CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($foreignId)) {
+                $foreignId = trim($buyerNitRaw);
+            }
+            $this->applyExportationToNucPayload($payload, $normalizedAfter, $buyerName, $addr, $foreignId);
         }
 
         return $payload;
@@ -3072,6 +3095,12 @@ class FelInvoiceIssuanceService
         $felExtraPre = [
             'pdf_observaciones' => trim((string) $normalizedOpts['observaciones']),
         ];
+        if (!empty($normalizedOpts['export'])) {
+            $felExtraPre['export'] = true;
+            $felExtraPre['export_incoterm'] = (string) ($normalizedOpts['export_incoterm'] ?? 'EXW');
+            $felExtraPre['export_country'] = (string) ($normalizedOpts['export_country'] ?? 'US');
+            $felExtraPre['foreign_tax_id'] = (string) ($normalizedOpts['export_foreign_tax_id'] ?? '');
+        }
         if ($normalizedOpts['doc_type'] === 'FCAM') {
             $felExtraPre['complemento_abonos'] = $normalizedOpts['fcam_abonos'];
         }
@@ -3160,11 +3189,185 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * SAT/Digifact export FEL: Buyer.TaxID must be CF; foreign tax id + consignee live on complemento EXP.
+     *
+     * @param   array<string, mixed>  $payload
+     * @param   array<string, mixed>  $normalizedOpts
+     *
+     * @since  3.119.350
+     */
+    protected function applyExportationToNucPayload(
+        array &$payload,
+        array $normalizedOpts,
+        string $buyerName,
+        string $buyerAddress,
+        string $foreignTaxId
+    ): void {
+        if (empty($normalizedOpts['export'])) {
+            return;
+        }
+
+        $name = $this->clipNucExpText($buyerName !== '' ? $buyerName : 'Cliente', 50);
+        $addr = $this->clipNucExpText($buyerAddress !== '' ? $buyerAddress : 'N/A', 50);
+        $incoterm = (string) ($normalizedOpts['export_incoterm'] ?? 'EXW');
+        $country  = (string) ($normalizedOpts['export_country'] ?? 'US');
+        $foreign  = $this->clipNucExpText($foreignTaxId, 50);
+        if ($foreign === '' || CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($foreign)) {
+            $existing = trim((string) ($payload['Buyer']['TaxID'] ?? ''));
+            if ($existing !== '' && !CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($existing)) {
+                $foreign = $this->clipNucExpText($existing, 50);
+            }
+        }
+
+        if (!isset($payload['Header']) || !\is_array($payload['Header'])) {
+            $payload['Header'] = [];
+        }
+        $payload['Header']['AdditionalIssueDocInfo'] = [
+            ['Name' => 'Exp', 'Data' => null, 'Value' => 'Si'],
+        ];
+
+        if (isset($payload['Buyer']) && \is_array($payload['Buyer'])) {
+            $payload['Buyer']['TaxID'] = 'CF';
+            unset($payload['Buyer']['TaxIDType']);
+            $payload['Buyer']['Name'] = $buyerName !== '' ? $buyerName : $name;
+            $payload['Buyer']['TaxIDAdditionalInfo'] = [
+                ['Name' => 'DestinodelaVenta', 'Data' => null, 'Value' => 'Exportación'],
+            ];
+            $addrInfo = isset($payload['Buyer']['AddressInfo']) && \is_array($payload['Buyer']['AddressInfo'])
+                ? $payload['Buyer']['AddressInfo']
+                : [];
+            $addrInfo['Address']  = $addr;
+            $addrInfo['Country']  = $country;
+            if (trim((string) ($addrInfo['City'] ?? '')) === '' || $addrInfo['Country'] !== 'GT') {
+                $addrInfo['City']     = $addrInfo['City'] ?? '00000';
+                $addrInfo['District'] = $addrInfo['District'] ?? 'EXTERIOR';
+                $addrInfo['State']    = $addrInfo['State'] ?? 'EXTERIOR';
+            }
+            $payload['Buyer']['AddressInfo'] = $addrInfo;
+        }
+
+        if (isset($payload['Seller']['AdditionlInfo']) && \is_array($payload['Seller']['AdditionlInfo'])) {
+            $hasExportFrase = false;
+            foreach ($payload['Seller']['AdditionlInfo'] as $info) {
+                if (!\is_array($info)) {
+                    continue;
+                }
+                if (strtoupper((string) ($info['Name'] ?? '')) === 'TIPO FRASE'
+                    || (string) ($info['Name'] ?? '') === 'TipoFrase'
+                ) {
+                    if ((string) ($info['Value'] ?? '') === '4') {
+                        $hasExportFrase = true;
+                        break;
+                    }
+                }
+            }
+            if (!$hasExportFrase) {
+                $payload['Seller']['AdditionlInfo'][] = ['Name' => 'TipoFrase', 'Data' => '2', 'Value' => '4'];
+                $payload['Seller']['AdditionlInfo'][] = ['Name' => 'Escenario', 'Data' => '2', 'Value' => '1'];
+            }
+        }
+
+        $list = $payload['AdditionalDocumentInfo']['AdditionalInfo'] ?? [];
+        if (!\is_array($list)) {
+            $list = [];
+        }
+        $hasExp = false;
+        foreach ($list as $block) {
+            if (\is_array($block) && strtoupper((string) ($block['Code'] ?? '')) === 'EXP') {
+                $hasExp = true;
+                break;
+            }
+        }
+        if (!$hasExp) {
+            $expInfo = [
+                ['Name' => 'NombreConsignatarioODestinatario', 'Data' => null, 'Value' => $name],
+                ['Name' => 'DireccionConsignatarioODestinatario', 'Data' => null, 'Value' => $addr],
+                ['Name' => 'INCOTERM', 'Data' => null, 'Value' => $incoterm],
+                ['Name' => 'NombreComprador', 'Data' => null, 'Value' => $name],
+                ['Name' => 'DireccionComprador', 'Data' => null, 'Value' => $addr],
+            ];
+            if ($foreign !== '') {
+                $expInfo[] = ['Name' => 'CodigoComprador', 'Data' => null, 'Value' => $foreign];
+                $expInfo[] = ['Name' => 'CodigoConsignatarioODestinatario', 'Data' => null, 'Value' => $foreign];
+                $expInfo[] = ['Name' => 'OtraReferencia', 'Data' => null, 'Value' => $this->clipNucExpText('TAXID ' . $foreign, 50)];
+            }
+            $list[] = [
+                'Code'          => 'EXP',
+                'Type'          => 'COMPLEMENTO',
+                'AditionalInfo' => $expInfo,
+            ];
+            $payload['AdditionalDocumentInfo']['AdditionalInfo'] = $list;
+        }
+
+        if ($foreign !== '') {
+            $this->appendExportTaxIdToObservaciones($payload, $foreign);
+        }
+    }
+
+    /**
+     * @param   array<string, mixed>  $payload
+     */
+    protected function appendExportTaxIdToObservaciones(array &$payload, string $foreignTaxId): void
+    {
+        $list = $payload['AdditionalDocumentInfo']['AdditionalInfo'] ?? [];
+        if (!\is_array($list)) {
+            return;
+        }
+        $note = 'TAXID ' . $foreignTaxId;
+        foreach ($list as $i => $block) {
+            if (!\is_array($block) || strtoupper((string) ($block['Type'] ?? '')) !== 'ADENDA') {
+                continue;
+            }
+            $dataList = $block['AditionalData']['Data'] ?? [];
+            if (!\is_array($dataList)) {
+                continue;
+            }
+            foreach ($dataList as $j => $data) {
+                if (!\is_array($data)) {
+                    continue;
+                }
+                $infos = $data['Info'] ?? [];
+                if (!\is_array($infos)) {
+                    continue;
+                }
+                foreach ($infos as $k => $info) {
+                    if (!\is_array($info) || (string) ($info['Name'] ?? '') !== 'OBSERVACIONES') {
+                        continue;
+                    }
+                    $current = trim((string) ($info['Value'] ?? ''));
+                    if ($current !== '' && stripos($current, $foreignTaxId) !== false) {
+                        return;
+                    }
+                    $merged = $current === '' || $current === '-'
+                        ? $note
+                        : $this->clipNucExpText($current . ' | ' . $note, 70);
+                    $payload['AdditionalDocumentInfo']['AdditionalInfo'][$i]['AditionalData']['Data'][$j]['Info'][$k]['Value'] = $merged;
+
+                    return;
+                }
+            }
+        }
+    }
+
+    protected function clipNucExpText(string $value, int $max): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+        if (function_exists('mb_substr')) {
+            return (string) mb_substr($value, 0, $max);
+        }
+
+        return substr($value, 0, $max);
+    }
+
+    /**
      * Normalize manual FEL NUC options (document type, observaciones, FCAM abonos).
      *
      * @param   array<string, mixed>  $nucOptions
      *
-     * @return  array{doc_type: string, observaciones: string, fcam_abonos: list<array{numero: int, fecha: string, monto: float}>, currency: string, exchange_rate: ?float}
+     * @return  array{doc_type: string, observaciones: string, fcam_abonos: list<array{numero: int, fecha: string, monto: float}>, currency: string, exchange_rate: ?float, export: bool, export_incoterm: string, export_country: string, export_foreign_tax_id: string}
      *
      * @since   3.119.169
      */
@@ -3221,12 +3424,32 @@ class FelInvoiceIssuanceService
             }
         }
 
+        $export = !empty($nucOptions['export'])
+            && $nucOptions['export'] !== '0'
+            && $nucOptions['export'] !== false;
+        $incoterm = strtoupper(trim((string) ($nucOptions['export_incoterm'] ?? 'EXW')));
+        if (!\in_array($incoterm, self::EXPORT_INCOTERMS, true)) {
+            $incoterm = 'EXW';
+        }
+        $country = strtoupper(preg_replace('/[^A-Z]/', '', (string) ($nucOptions['export_country'] ?? 'US')) ?? 'US');
+        if (strlen($country) !== 2) {
+            $country = 'US';
+        }
+        $foreignTaxId = trim((string) ($nucOptions['export_foreign_tax_id'] ?? ''));
+        if ($foreignTaxId !== '') {
+            $foreignTaxId = preg_replace('/[\s]/', '', $foreignTaxId) ?? $foreignTaxId;
+        }
+
         return [
-            'doc_type'       => $docType,
-            'observaciones'  => $obs,
-            'fcam_abonos'    => $abonos,
-            'currency'       => $currency,
-            'exchange_rate'  => $exchangeRate,
+            'doc_type'              => $docType,
+            'observaciones'         => $obs,
+            'fcam_abonos'           => $abonos,
+            'currency'              => $currency,
+            'exchange_rate'         => $exchangeRate,
+            'export'                => $export,
+            'export_incoterm'       => $incoterm,
+            'export_country'        => $country,
+            'export_foreign_tax_id' => $foreignTaxId,
         ];
     }
 
@@ -3355,6 +3578,9 @@ class FelInvoiceIssuanceService
             'exchange_rate'   => $exchangeRate,
             'observaciones'   => $observaciones,
             'fcam_abonos'     => $fcamAbonos,
+            'export'          => !empty($felExtra['export']),
+            'export_incoterm' => trim((string) ($felExtra['export_incoterm'] ?? 'EXW')),
+            'export_country'  => strtoupper(trim((string) ($felExtra['export_country'] ?? 'US'))),
             'lines'           => $lines,
             'orden_ids'       => array_values(array_unique($ordenIds)),
             'cui_digits'      => $cuiDigits,
@@ -4043,6 +4269,12 @@ class FelInvoiceIssuanceService
             'pdf_observaciones'  => trim((string) $normalizedOpts['observaciones']),
             'source_invoice_id'  => $sourceInvoiceId,
         ];
+        if (!empty($normalizedOpts['export'])) {
+            $felExtraPre['export'] = true;
+            $felExtraPre['export_incoterm'] = (string) ($normalizedOpts['export_incoterm'] ?? 'EXW');
+            $felExtraPre['export_country'] = (string) ($normalizedOpts['export_country'] ?? 'US');
+            $felExtraPre['foreign_tax_id'] = (string) ($normalizedOpts['export_foreign_tax_id'] ?? '');
+        }
         if ($normalizedOpts['doc_type'] === 'FCAM') {
             $felExtraPre['complemento_abonos'] = $normalizedOpts['fcam_abonos'];
         }
