@@ -73,31 +73,50 @@ class QuotationEnvioFelHelper
             return [];
         }
         $db = $db ?? Factory::getContainer()->get(DatabaseInterface::class);
+        $found = [];
+
         $iCols = $db->getTableColumns('#__ordenproduccion_quotation_items', false);
         $iCols = \is_array($iCols) ? array_change_key_case($iCols, CASE_LOWER) : [];
-        if (!isset($iCols['pre_cotizacion_id'], $iCols['quotation_id'])) {
-            return [];
-        }
         $oCols = $db->getTableColumns('#__ordenproduccion_ordenes', false);
         $oCols = \is_array($oCols) ? array_change_key_case($oCols, CASE_LOWER) : [];
-        if (!isset($oCols['pre_cotizacion_id'])) {
-            return [];
+        if (isset($iCols['pre_cotizacion_id'], $iCols['quotation_id'], $oCols['pre_cotizacion_id'])) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select('DISTINCT ' . $db->quoteName('o.id'))
+                    ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                    ->innerJoin(
+                        $db->quoteName('#__ordenproduccion_quotation_items', 'i'),
+                        $db->quoteName('i.pre_cotizacion_id') . ' = ' . $db->quoteName('o.pre_cotizacion_id')
+                    )
+                    ->where($db->quoteName('i.quotation_id') . ' = ' . $quotationId)
+                    ->where($db->quoteName('i.pre_cotizacion_id') . ' > 0')
+                    ->where($db->quoteName('o.state') . ' = 1')
+            );
+            $found = array_merge($found, array_map('intval', $db->loadColumn() ?: []));
         }
-        $db->setQuery(
-            $db->getQuery(true)
-                ->select('DISTINCT ' . $db->quoteName('o.id'))
-                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
-                ->innerJoin(
-                    $db->quoteName('#__ordenproduccion_quotation_items', 'i'),
-                    $db->quoteName('i.pre_cotizacion_id') . ' = ' . $db->quoteName('o.pre_cotizacion_id')
-                )
-                ->where($db->quoteName('i.quotation_id') . ' = ' . $quotationId)
-                ->where($db->quoteName('i.pre_cotizacion_id') . ' > 0')
-                ->where($db->quoteName('o.state') . ' = 1')
-        );
-        $ids = $db->loadColumn() ?: [];
 
-        return array_values(array_unique(array_map('intval', $ids)));
+        try {
+            $cCols = $db->getTableColumns('#__ordenproduccion_pre_cotizacion_confirmation', false);
+            $cCols = \is_array($cCols) ? array_change_key_case($cCols, CASE_LOWER) : [];
+            if (isset($cCols['quotation_id'], $cCols['pre_cotizacion_id'], $oCols['pre_cotizacion_id'])) {
+                $db->setQuery(
+                    $db->getQuery(true)
+                        ->select('DISTINCT ' . $db->quoteName('o.id'))
+                        ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                        ->innerJoin(
+                            $db->quoteName('#__ordenproduccion_pre_cotizacion_confirmation', 'c'),
+                            $db->quoteName('c.pre_cotizacion_id') . ' = ' . $db->quoteName('o.pre_cotizacion_id')
+                        )
+                        ->where($db->quoteName('c.quotation_id') . ' = ' . $quotationId)
+                        ->where($db->quoteName('o.pre_cotizacion_id') . ' > 0')
+                        ->where($db->quoteName('o.state') . ' = 1')
+                );
+                $found = array_merge($found, array_map('intval', $db->loadColumn() ?: []));
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return array_values(array_unique(array_filter($found)));
     }
 
     public static function ordenHasEnvioCompletoHistorial(int $ordenId, ?DatabaseInterface $db = null): bool

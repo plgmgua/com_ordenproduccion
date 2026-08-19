@@ -134,9 +134,11 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             $workDesc = 'o.' . $db->quoteName('descripcion_de_trabajo');
         }
 
-        $clientName = 'o.' . $db->quoteName('client_name');
-        if (isset($cols['nombre_del_cliente']) && !isset($cols['client_name'])) {
+        $clientName = $db->quote('');
+        if (isset($cols['nombre_del_cliente'])) {
             $clientName = 'o.' . $db->quoteName('nombre_del_cliente');
+        } elseif (isset($cols['client_name'])) {
+            $clientName = 'o.' . $db->quoteName('client_name');
         }
 
         $orderNumber = 'o.' . $db->quoteName('orden_de_trabajo');
@@ -1244,6 +1246,29 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
      */
     protected function getOrdenIdsLinkedToInvoiceQuotations(object $inv): array
     {
+        $ids = $this->collectQuotationIdsForInvoice($inv);
+        $ordenIds = [];
+        foreach ($ids as $quotationId) {
+            foreach (QuotationEnvioFelHelper::getOrdenIdsForQuotation($quotationId) as $oid) {
+                $oid = (int) $oid;
+                if ($oid > 0) {
+                    $ordenIds[$oid] = true;
+                }
+            }
+        }
+
+        return array_map('intval', array_keys($ordenIds));
+    }
+
+    /**
+     * Numeric quotation PKs for this invoice: column, junction, and COT-… from NUC / notes.
+     *
+     * @return  int[]
+     *
+     * @since   3.119.353
+     */
+    protected function collectQuotationIdsForInvoice(object $inv): array
+    {
         $ids = [];
         $qid = (int) ($inv->quotation_id ?? 0);
         if ($qid > 0) {
@@ -1278,18 +1303,225 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             }
         }
 
-        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
-        $ordenIds = [];
-        foreach ($ids as $quotationId) {
-            foreach (QuotationEnvioFelHelper::getOrdenIdsForQuotation($quotationId) as $oid) {
-                $oid = (int) $oid;
-                if ($oid > 0) {
-                    $ordenIds[$oid] = true;
+        foreach ($this->collectCotizacionRefsFromInvoice($inv) as $ref) {
+            $resolved = $this->lookupQuotationIdByReference($ref);
+            if ($resolved > 0) {
+                $ids[] = $resolved;
+            }
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $ids))));
+    }
+
+    /**
+     * @return  list<string>
+     *
+     * @since   3.119.353
+     */
+    protected function collectCotizacionRefsFromInvoice(object $inv): array
+    {
+        $refs = [];
+        $push = static function (string $v) use (&$refs): void {
+            $v = trim($v);
+            if ($v === '' || $v === '-') {
+                return;
+            }
+            $refs[] = $v;
+        };
+
+        foreach (FelInvoiceHelper::parseNucAdditionalDocumentRowsFromFelRequest(
+            isset($inv->fel_request_json) ? (string) $inv->fel_request_json : null
+        ) as $row) {
+            $label = strtoupper(trim((string) ($row['label'] ?? '')));
+            $value = trim((string) ($row['value'] ?? ''));
+            if (\in_array($label, ['COTIZACION', 'COTIZACIÓN', 'CODE'], true) || stripos($value, 'COT-') === 0) {
+                $push($value);
+            }
+        }
+
+        $chunks = [
+            (string) ($inv->notes ?? ''),
+            (string) ($inv->work_description ?? ''),
+            (string) ($inv->fel_extra ?? ''),
+        ];
+        foreach ($chunks as $text) {
+            if ($text === '') {
+                continue;
+            }
+            if (preg_match_all('/COT-\d+/i', $text, $m)) {
+                foreach ($m[0] as $hit) {
+                    $push((string) $hit);
                 }
             }
         }
 
-        return array_map('intval', array_keys($ordenIds));
+        return array_values(array_unique($refs));
+    }
+
+    /**
+     * Resolve COT-001064 / COT-1064 via quotation_number (do not assume the digits are the PK).
+     *
+     * @since   3.119.353
+     */
+    protected function lookupQuotationIdByReference(string $ref): int
+    {
+        $ref = trim($ref);
+        if ($ref === '' || $ref === '-') {
+            return 0;
+        }
+
+        $candidates = [$ref];
+        if (preg_match('/^COT-(\d+)$/i', $ref, $m)) {
+            $n = (int) $m[1];
+            $candidates[] = 'COT-' . str_pad((string) $n, 5, '0', STR_PAD_LEFT);
+            $candidates[] = 'COT-' . str_pad((string) $n, 6, '0', STR_PAD_LEFT);
+            $candidates[] = 'COT-' . $n;
+        }
+        $candidates = array_values(array_unique($candidates));
+
+        $db = $this->getDatabase();
+        foreach ($candidates as $cand) {
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->select($db->quoteName('id'))
+                    ->from($db->quoteName('#__ordenproduccion_quotations'))
+                    ->where($db->quoteName('quotation_number') . ' = ' . $db->quote($cand))
+                    ->where($db->quoteName('state') . ' = 1')
+            );
+            $found = (int) $db->loadResult();
+            if ($found > 0) {
+                return $found;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Single published OT whose client name and invoice value match this factura (last-resort heal).
+     *
+     * @since   3.119.353
+     */
+    protected function findUniqueOrdenIdByClientAndAmount(object $inv): int
+    {
+        $amount = round((float) ($inv->invoice_amount ?? 0), 2);
+        $nameKey = $this->normalizeClientNameForAssoc(
+            (string) ($inv->client_name ?? $inv->fel_receptor_nombre ?? '')
+        );
+        if ($amount <= 0 || $nameKey === '') {
+            return 0;
+        }
+
+        $db = $this->getDatabase();
+        $exprs = $this->getOrdenColumnExprs($db);
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select([
+                    'o.id',
+                    $exprs['clientName'] . ' AS orden_client',
+                    $exprs['invoiceValue'] . ' AS orden_valor',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                ->where('o.' . $db->quoteName('state') . ' = 1')
+                ->setLimit(8000)
+        );
+        $hits = [];
+        foreach ($db->loadObjectList() ?: [] as $o) {
+            $oid = (int) ($o->id ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            if ($this->normalizeClientNameForAssoc((string) ($o->orden_client ?? '')) !== $nameKey) {
+                continue;
+            }
+            if (abs(round((float) ($o->orden_valor ?? 0), 2) - $amount) > 0.05) {
+                continue;
+            }
+            $hits[$oid] = true;
+        }
+
+        if (\count($hits) !== 1) {
+            return 0;
+        }
+
+        return (int) array_key_first($hits);
+    }
+
+    /**
+     * FEL invoices (import, cotización engine, or completed certification) may be linked to work orders.
+     *
+     * @since  3.119.353
+     */
+    protected function invoiceAllowsOrdenAssociation(object $inv): bool
+    {
+        $src = strtolower(trim((string) ($inv->invoice_source ?? '')));
+        if (\in_array($src, ['fel_import', 'cotizacion_fel'], true)) {
+            return true;
+        }
+        if (strtolower(trim((string) ($inv->fel_issue_status ?? ''))) === 'completed') {
+            return true;
+        }
+        $uuid = trim((string) ($inv->felplex_uuid ?? $inv->fel_autorizacion_uuid ?? ''));
+
+        return $uuid !== '';
+    }
+
+    /**
+     * Store quotation_id on the invoice when NUC COT-… resolved it and the column is empty.
+     *
+     * @since  3.119.353
+     */
+    protected function persistResolvedQuotationIdOnInvoice(object $inv): void
+    {
+        $invoiceId = (int) ($inv->id ?? 0);
+        if ($invoiceId < 1 || (int) ($inv->quotation_id ?? 0) > 0) {
+            return;
+        }
+        $ids = $this->collectQuotationIdsForInvoice($inv);
+        if ($ids === []) {
+            return;
+        }
+        try {
+            $db = $this->getDatabase();
+            $cols = $db->getTableColumns('#__ordenproduccion_invoices', false);
+            $cols = \is_array($cols) ? array_change_key_case($cols, CASE_LOWER) : [];
+            if (!isset($cols['quotation_id'])) {
+                return;
+            }
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_invoices'))
+                    ->set($db->quoteName('quotation_id') . ' = ' . (int) $ids[0])
+                    ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                    ->where('(' . $db->quoteName('quotation_id') . ' IS NULL OR ' . $db->quoteName('quotation_id') . ' = 0)')
+            );
+            $db->execute();
+        } catch (\Throwable $e) {
+        }
+    }
+
+    /**
+     * @since  3.119.353
+     */
+    protected function persistLegacyOrdenIdOnInvoice(int $invoiceId, int $ordenId): void
+    {
+        $invoiceId = (int) $invoiceId;
+        $ordenId   = (int) $ordenId;
+        if ($invoiceId < 1 || $ordenId < 1) {
+            return;
+        }
+        try {
+            $db = $this->getDatabase();
+            $db->setQuery(
+                $db->getQuery(true)
+                    ->update($db->quoteName('#__ordenproduccion_invoices'))
+                    ->set($db->quoteName('orden_id') . ' = ' . $ordenId)
+                    ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                    ->where('(' . $db->quoteName('orden_id') . ' IS NULL OR ' . $db->quoteName('orden_id') . ' = 0)')
+            );
+            $db->execute();
+        } catch (\Throwable $e) {
+        }
     }
 
     /**
@@ -1576,8 +1808,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             return 0;
         }
 
-        $src = (string) ($inv->invoice_source ?? '');
-        if ($src !== 'fel_import' && $src !== 'cotizacion_fel') {
+        if (!$this->invoiceAllowsOrdenAssociation($inv)) {
             return 0;
         }
 
@@ -1590,39 +1821,40 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             }
         }
 
+        $candidates = [];
         $labels = $this->collectWorkOrderLabelsFromInvoiceRow($inv);
-        $created = 0;
         foreach ($labels as $lb) {
             $oid = $this->resolveOrdenIdFromOtDisplayLabel($lb);
-            if ($oid < 1 || isset($have[$oid])) {
-                continue;
-            }
-            if ($this->addManualInvoiceOrdenAssociation(
-                $invoiceId,
-                $oid,
-                true,
-                ['auto', 'invoice_ot_metadata']
-            )) {
-                $have[$oid] = true;
-                $created++;
+            if ($oid > 0) {
+                $candidates[$oid] = ['auto', 'invoice_ot_metadata'];
             }
         }
 
         foreach ($this->getOrdenIdsLinkedToInvoiceQuotations($inv) as $oid) {
             $oid = (int) $oid;
+            if ($oid > 0 && !isset($candidates[$oid])) {
+                $candidates[$oid] = ['auto', 'cotizacion_fel_pre_lines'];
+            }
+        }
+
+        $byAmount = $this->findUniqueOrdenIdByClientAndAmount($inv);
+        if ($byAmount > 0 && !isset($candidates[$byAmount])) {
+            $candidates[$byAmount] = ['auto', 'client_amount_match'];
+        }
+
+        $created = 0;
+        foreach ($candidates as $oid => $reasons) {
+            $oid = (int) $oid;
             if ($oid < 1 || isset($have[$oid])) {
                 continue;
             }
-            if ($this->addManualInvoiceOrdenAssociation(
-                $invoiceId,
-                $oid,
-                true,
-                ['auto', 'cotizacion_fel_pre_lines']
-            )) {
+            if ($this->addManualInvoiceOrdenAssociation($invoiceId, $oid, true, $reasons)) {
                 $have[$oid] = true;
                 $created++;
             }
         }
+
+        $this->persistResolvedQuotationIdOnInvoice($inv);
 
         return $created;
     }
@@ -1652,8 +1884,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                 ->where($db->quoteName('state') . ' = 1')
         );
         $inv = $db->loadObject();
-        $src = (string) ($inv->invoice_source ?? '');
-        if (!$inv || ($src !== 'fel_import' && $src !== 'cotizacion_fel')) {
+        if (!$inv || !$this->invoiceAllowsOrdenAssociation($inv)) {
             return false;
         }
 
@@ -1713,7 +1944,9 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
 
         if ($ex) {
             if (($ex->status ?? '') === 'approved') {
-                return false;
+                $this->persistLegacyOrdenIdOnInvoice($invoiceId, $ordenId);
+
+                return true;
             }
             $db->setQuery(
                 $db->getQuery(true)
@@ -1726,8 +1959,13 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                     ->where($db->quoteName('id') . ' = ' . (int) $ex->id)
             );
             $db->execute();
+            if ($db->getAffectedRows() > 0) {
+                $this->persistLegacyOrdenIdOnInvoice($invoiceId, $ordenId);
 
-            return $db->getAffectedRows() > 0;
+                return true;
+            }
+
+            return false;
         }
 
         $db->setQuery(
@@ -1755,6 +1993,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
                 ]))
         );
         $db->execute();
+        $this->persistLegacyOrdenIdOnInvoice($invoiceId, $ordenId);
 
         return true;
     }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.353-STABLE] - 2026-08-19
+
+### Fixed
+- **Factura 574 / envío OT link:** opening the invoice now resolves `COT-001064` from NUC metadata (not only `quotation_id`), matches the unique client+amount OT, and no longer clears a successful link if the associate dropdown errors.
+
 ## [3.119.352-STABLE] - 2026-08-19
 
 ### Fixed

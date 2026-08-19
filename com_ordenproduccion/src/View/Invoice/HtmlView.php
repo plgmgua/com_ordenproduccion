@@ -237,26 +237,38 @@ class HtmlView extends BaseHtmlView
             }
             if ($matchModel) {
                 $this->invoiceOrdenMatchTableAvailable = $matchModel->isTableAvailable();
-                $this->associatedOrdenLinks = $matchModel->getAssociatedOrdenLinksForInvoice($id);
-                if ($this->invoiceOrdenMatchTableAvailable) {
-                    $src = (string) ($this->item->invoice_source ?? '');
-                    if (($src === 'fel_import' || $src === 'cotizacion_fel')
-                        && method_exists($matchModel, 'ensureInvoiceOrdenAssociationsFromFelMetadata')) {
-                        if ($matchModel->ensureInvoiceOrdenAssociationsFromFelMetadata($id) > 0) {
-                            $this->associatedOrdenLinks = $matchModel->getAssociatedOrdenLinksForInvoice($id);
-                        }
+                if ($this->invoiceOrdenMatchTableAvailable
+                    && method_exists($matchModel, 'ensureInvoiceOrdenAssociationsFromFelMetadata')) {
+                    try {
+                        $matchModel->ensureInvoiceOrdenAssociationsFromFelMetadata($id);
+                    } catch (\Throwable $e) {
+                        error_log('INVOICE_ORDEN_ENSURE: ' . $e->getMessage());
                     }
-
+                }
+                try {
+                    $this->associatedOrdenLinks = $matchModel->getAssociatedOrdenLinksForInvoice($id);
+                } catch (\Throwable $e) {
+                    $this->associatedOrdenLinks = [];
+                }
+                if ($this->invoiceOrdenMatchTableAvailable) {
                     $nitForDropdown = $assocNitRaw !== '' ? $assocNitRaw : null;
-                    $this->invoiceDetailOrdenDropdown = $matchModel->getOrdnesForInvoiceDetailDropdown($id, $nitForDropdown);
+                    try {
+                        $this->invoiceDetailOrdenDropdown = $matchModel->getOrdnesForInvoiceDetailDropdown($id, $nitForDropdown);
+                    } catch (\Throwable $e) {
+                        error_log('INVOICE_ORDEN_DROPDOWN: ' . $e->getMessage());
+                        $this->invoiceDetailOrdenDropdown = [];
+                    }
                     if ($assocNitRaw !== '' && InvoiceOrdenMatchModel::normalizeNitDigits($assocNitRaw) !== '') {
-                        $this->invoicesForAssocNitList = $matchModel->getInvoicesForAssocNitList($assocNitRaw, $id);
+                        try {
+                            $this->invoicesForAssocNitList = $matchModel->getInvoicesForAssocNitList($assocNitRaw, $id);
+                        } catch (\Throwable $e) {
+                            $this->invoicesForAssocNitList = [];
+                        }
                     }
                 }
             }
         } catch (\Throwable $e) {
-            $this->associatedOrdenLinks = [];
-            $this->invoiceDetailOrdenDropdown = [];
+            error_log('INVOICE_ORDEN_VIEW: ' . $e->getMessage());
         }
 
         $this->canDuplicateToManualFel         = false;
