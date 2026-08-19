@@ -52,9 +52,6 @@ foreach ($manualFelLinePresets as $presetRow) {
 }
 $manualFelLinesInitialTotal = round($manualFelLinesInitialTotal, 2);
 $manualFelDisplayTotal = $manualFelLinesInitialTotal;
-if ($manualFelQuotationTotalGtq > $manualFelDisplayTotal + 0.001) {
-    $manualFelDisplayTotal = $manualFelQuotationTotalGtq;
-}
 $manualFelTimbreTotalGtq = 0.0;
 foreach ($manualFelTimbreLines as $timbreRow) {
     $manualFelTimbreTotalGtq += round((float) ($timbreRow['amount'] ?? 0), 2);
@@ -464,13 +461,7 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
     }
     /** NUC grand: editable lines + timbre de prensa (sector tax, not a separate NUC Item). */
     function getFelGrandTotalGtq() {
-        var lineSum = sumLineTotals();
-        var timbreGtq = sumTimbreDisplayGtq();
-        var combined = round2(lineSum + timbreGtq);
-        if (quotationTotalGtq > combined + 0.01) {
-            return quotationTotalGtq;
-        }
-        return combined;
+        return round2(sumLineTotals() + sumTimbreDisplayGtq());
     }
     function getFelGrandTotalDisplay() {
         var gtq = getFelGrandTotalGtq();
@@ -507,8 +498,12 @@ if ($manualFelSeedFromInvoice !== null && trim((string) ($manualFelSeedFromInvoi
             }
             if (manualFelTotalCell) {
                 var matches = Math.abs(total - refTotal) < 0.02;
+                var over = total > refTotal + 0.02;
                 manualFelTotalCell.classList.toggle('text-success', matches);
-                manualFelTotalCell.classList.toggle('text-danger', !matches);
+                manualFelTotalCell.classList.toggle('text-danger', over);
+                if (!matches && !over) {
+                    manualFelTotalCell.classList.remove('text-success', 'text-danger');
+                }
             }
         } else if (manualFelTotalCell) {
             manualFelTotalCell.classList.remove('text-success', 'text-danger');
