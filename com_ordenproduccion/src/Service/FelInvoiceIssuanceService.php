@@ -3137,6 +3137,18 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Associate published work orders with a certified cotización FEL invoice (envío / auto-issue).
+     *
+     * @param   int[]  $ordenIds
+     *
+     * @since   3.119.352
+     */
+    public function associateInvoiceWithWorkOrders(int $invoiceId, array $ordenIds): void
+    {
+        $this->linkInvoiceToSelectedOrdens($invoiceId, $ordenIds);
+    }
+
+    /**
      * @param   int[]  $ordenIds
      */
     protected function linkInvoiceToSelectedOrdens(int $invoiceId, array $ordenIds): void
@@ -3163,7 +3175,7 @@ class FelInvoiceIssuanceService
                     $match->addManualInvoiceOrdenAssociation(
                         $invoiceId,
                         $oid,
-                        false,
+                        true,
                         ['manual', 'cotizacion_fel_manual']
                     );
                 } catch (\Throwable $e) {
@@ -6375,7 +6387,7 @@ class FelInvoiceIssuanceService
                         $match->addManualInvoiceOrdenAssociation(
                             $invoiceId,
                             $oid,
-                            false,
+                            true,
                             ['auto', 'cotizacion_fel_pre_lines']
                         );
                     } catch (\Throwable $e) {

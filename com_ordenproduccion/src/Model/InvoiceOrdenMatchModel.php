@@ -10,7 +10,9 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Model;
 
 defined('_JEXEC') or die;
 
+use Grimpsa\Component\Ordenproduccion\Site\Helper\CertificadorFactNitLookupHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\QuotationEnvioFelHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\MVC\Model\BaseDatabaseModel;
 
@@ -43,6 +45,26 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
     public static function normalizeNitDigits(?string $nit): string
     {
         return preg_replace('/\D/', '', (string) $nit);
+    }
+
+    /**
+     * Invoice ↔ orden NIT check. Digit NITs must match; CF/C/F matches CF (digits-only would treat CF as empty).
+     *
+     * @since  3.119.352
+     */
+    public static function nitsCompatibleForOrdenInvoice(?string $invoiceNit, ?string $ordenNit): bool
+    {
+        $dInv = self::normalizeNitDigits($invoiceNit);
+        $dOrd = self::normalizeNitDigits($ordenNit);
+        if ($dInv !== '' && $dOrd !== '' && $dInv === $dOrd) {
+            return true;
+        }
+
+        $invRaw = trim((string) $invoiceNit);
+        $ordRaw = trim((string) $ordenNit);
+
+        return CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($invRaw)
+            && CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($ordRaw);
     }
 
     /**
@@ -948,7 +970,7 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             $digits = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
         }
         if ($digits === '') {
-            return [];
+            return $this->getOrdnesForInvoiceDropdownWithoutNitDigits($inv, $exclude);
         }
 
         $exprs = $this->getOrdenColumnExprs($db);
@@ -1084,6 +1106,204 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         $override = ($assocNitRaw !== null && trim($assocNitRaw) !== '') ? trim($assocNitRaw) : null;
 
         return $this->getOrdnesForInvoiceDropdown($invoiceId, $exclude, $override);
+    }
+
+    /**
+     * Work orders that belong to this invoice's cotización(es), plus same-name CF órdenes.
+     * Used when receptor NIT is CF (no digits) so the usual digit filter would hide every OT.
+     *
+     * @param   object    $inv
+     * @param   int[]     $exclude
+     *
+     * @return  array<int, array{id: int, label: string}>
+     *
+     * @since   3.119.352
+     */
+    protected function getOrdnesForInvoiceDropdownWithoutNitDigits(object $inv, array $exclude): array
+    {
+        $trusted = $this->getOrdenIdsLinkedToInvoiceQuotations($inv);
+        foreach ($this->collectWorkOrderLabelsFromInvoiceRow($inv) as $lb) {
+            $oid = $this->resolveOrdenIdFromOtDisplayLabel($lb);
+            if ($oid > 0) {
+                $trusted[] = $oid;
+            }
+        }
+        $trusted = array_values(array_unique(array_filter(array_map('intval', $trusted))));
+
+        $clientKey = $this->normalizeClientNameForAssoc((string) ($inv->client_name ?? $inv->fel_receptor_nombre ?? ''));
+
+        $db = $this->getDatabase();
+        $exprs = $this->getOrdenColumnExprs($db);
+        $invoiceValExpr = $exprs['invoiceValue'];
+        $orderNumExpr = $exprs['orderNumber'];
+        $clientExpr = $exprs['clientName'];
+        $ordenDateExpr = $this->getOrdenDateColumnExpr($db);
+        $invoiceEmission = (string) ($inv->fel_fecha_emision ?? $inv->invoice_date ?? '');
+
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select([
+                    'o.id',
+                    'o.nit',
+                    $orderNumExpr . ' AS orden_num',
+                    $invoiceValExpr . ' AS orden_valor',
+                    $ordenDateExpr . ' AS orden_fecha',
+                    $clientExpr . ' AS orden_client',
+                ])
+                ->from($db->quoteName('#__ordenproduccion_ordenes', 'o'))
+                ->where('o.' . $db->quoteName('state') . ' = 1')
+                ->setLimit(8000)
+        );
+        $orders = $db->loadObjectList() ?: [];
+        $excludeFlip = array_flip(array_map('intval', $exclude));
+        $trustedFlip = array_flip($trusted);
+        $out = [];
+
+        foreach ($orders as $o) {
+            $oid = (int) ($o->id ?? 0);
+            if ($oid < 1 || isset($excludeFlip[$oid])) {
+                continue;
+            }
+            $include = isset($trustedFlip[$oid]);
+            if (!$include && $clientKey !== '') {
+                $ordKey = $this->normalizeClientNameForAssoc((string) ($o->orden_client ?? ''));
+                if ($ordKey !== '' && $ordKey === $clientKey
+                    && CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal((string) ($o->nit ?? 'CF'))
+                ) {
+                    $include = true;
+                }
+            }
+            if (!$include) {
+                continue;
+            }
+            $oFe = (string) ($o->orden_fecha ?? '');
+            if ($invoiceEmission !== '' && $oFe !== '' && !self::isOrdenDateWithinThreeMonthsOfInvoice($invoiceEmission, $oFe)) {
+                continue;
+            }
+            $num = trim((string) ($o->orden_num ?? ''));
+            if ($num === '') {
+                $num = 'ORD-' . str_pad((string) $oid, 6, '0', STR_PAD_LEFT);
+            }
+            $val = (float) ($o->orden_valor ?? 0);
+            $out[] = [
+                'id'    => $oid,
+                'label' => $num . ' — Q ' . number_format($val, 2),
+            ];
+        }
+
+        usort($out, static function ($a, $b) {
+            return strcasecmp($a['label'], $b['label']);
+        });
+
+        return $out;
+    }
+
+    /**
+     * Whether this work order is tied to the invoice via cotización / stored OT labels (safe to associate without NIT digits).
+     *
+     * @since  3.119.352
+     */
+    public function ordenIsTrustedForInvoice(int $invoiceId, int $ordenId): bool
+    {
+        $invoiceId = (int) $invoiceId;
+        $ordenId   = (int) $ordenId;
+        if ($invoiceId < 1 || $ordenId < 1) {
+            return false;
+        }
+
+        $db = $this->getDatabase();
+        $db->setQuery(
+            $db->getQuery(true)
+                ->select('*')
+                ->from($db->quoteName('#__ordenproduccion_invoices'))
+                ->where($db->quoteName('id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('state') . ' = 1')
+        );
+        $inv = $db->loadObject();
+        if (!$inv) {
+            return false;
+        }
+
+        $trusted = $this->getOrdenIdsLinkedToInvoiceQuotations($inv);
+        foreach ($this->collectWorkOrderLabelsFromInvoiceRow($inv) as $lb) {
+            $oid = $this->resolveOrdenIdFromOtDisplayLabel($lb);
+            if ($oid > 0) {
+                $trusted[] = $oid;
+            }
+        }
+
+        return in_array($ordenId, array_map('intval', $trusted), true);
+    }
+
+    /**
+     * @param   object  $inv
+     *
+     * @return  int[]
+     *
+     * @since   3.119.352
+     */
+    protected function getOrdenIdsLinkedToInvoiceQuotations(object $inv): array
+    {
+        $ids = [];
+        $qid = (int) ($inv->quotation_id ?? 0);
+        if ($qid > 0) {
+            $ids[] = $qid;
+        }
+
+        $invoiceId = (int) ($inv->id ?? 0);
+        if ($invoiceId > 0) {
+            try {
+                $db = $this->getDatabase();
+                $tables = $db->getTableList();
+                $want = $db->getPrefix() . 'ordenproduccion_invoice_quotations';
+                $has = false;
+                foreach ($tables as $t) {
+                    if (strcasecmp((string) $t, $want) === 0) {
+                        $has = true;
+                        break;
+                    }
+                }
+                if ($has) {
+                    $db->setQuery(
+                        $db->getQuery(true)
+                            ->select($db->quoteName('quotation_id'))
+                            ->from($db->quoteName('#__ordenproduccion_invoice_quotations'))
+                            ->where($db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                    );
+                    foreach ($db->loadColumn() ?: [] as $extra) {
+                        $ids[] = (int) $extra;
+                    }
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        $ordenIds = [];
+        foreach ($ids as $quotationId) {
+            foreach (QuotationEnvioFelHelper::getOrdenIdsForQuotation($quotationId) as $oid) {
+                $oid = (int) $oid;
+                if ($oid > 0) {
+                    $ordenIds[$oid] = true;
+                }
+            }
+        }
+
+        return array_map('intval', array_keys($ordenIds));
+    }
+
+    /**
+     * @since  3.119.352
+     */
+    protected function normalizeClientNameForAssoc(string $name): string
+    {
+        $name = strtoupper(trim($name));
+        if ($name === '') {
+            return '';
+        }
+        $name = preg_replace('/[^\p{L}\p{N}]+/u', '', $name) ?? $name;
+
+        return $name;
     }
 
     /**
@@ -1371,10 +1591,6 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         }
 
         $labels = $this->collectWorkOrderLabelsFromInvoiceRow($inv);
-        if ($labels === []) {
-            return 0;
-        }
-
         $created = 0;
         foreach ($labels as $lb) {
             $oid = $this->resolveOrdenIdFromOtDisplayLabel($lb);
@@ -1384,8 +1600,24 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
             if ($this->addManualInvoiceOrdenAssociation(
                 $invoiceId,
                 $oid,
-                false,
+                true,
                 ['auto', 'invoice_ot_metadata']
+            )) {
+                $have[$oid] = true;
+                $created++;
+            }
+        }
+
+        foreach ($this->getOrdenIdsLinkedToInvoiceQuotations($inv) as $oid) {
+            $oid = (int) $oid;
+            if ($oid < 1 || isset($have[$oid])) {
+                continue;
+            }
+            if ($this->addManualInvoiceOrdenAssociation(
+                $invoiceId,
+                $oid,
+                true,
+                ['auto', 'cotizacion_fel_pre_lines']
             )) {
                 $have[$oid] = true;
                 $created++;
@@ -1446,9 +1678,9 @@ class InvoiceOrdenMatchModel extends BaseDatabaseModel
         }
 
         if (!$allowCrossClientNit) {
-            $dInv = self::normalizeNitDigits($inv->fel_receptor_id ?? $inv->client_nit ?? '');
-            $dOrd = self::normalizeNitDigits($ord->nit ?? '');
-            if ($dInv === '' || $dOrd === '' || $dInv !== $dOrd) {
+            $invNit = (string) ($inv->fel_receptor_id ?? $inv->client_nit ?? '');
+            $ordNit = (string) ($ord->nit ?? '');
+            if (!self::nitsCompatibleForOrdenInvoice($invNit, $ordNit)) {
                 return false;
             }
 

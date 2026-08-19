@@ -239,5 +239,8 @@ class QuotationEnvioFelHelper
             return;
         }
         $fel->processInvoice($invoiceId, true);
+        if (\is_callable([$fel, 'associateInvoiceWithWorkOrders'])) {
+            $fel->associateInvoiceWithWorkOrders($invoiceId, $ordenIds);
+        }
     }
 }

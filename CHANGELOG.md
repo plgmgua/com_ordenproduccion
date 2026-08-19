@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.352-STABLE] - 2026-08-19
+
+### Fixed
+- **Factura ↔ orden de trabajo:** envío-completo FEL did not link the OT when the client is **CF**. Digit-only NIT matching treated `CF` as empty, so association was skipped. Opening an existing factura (e.g. 574 / COT-001064 / ORD-007375) now heals the link from the cotización.
+
 ## [3.119.351-STABLE] - 2026-08-18
 
 ### Fixed

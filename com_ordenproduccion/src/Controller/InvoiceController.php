@@ -223,6 +223,9 @@ class InvoiceController extends BaseController
                 && $dOrd !== ''
                 && $dAssoc === $dOrd
                 && $dInv !== $dOrd;
+            if (!$allowCross && $model->ordenIsTrustedForInvoice($invoiceId, $ordenId)) {
+                $allowCross = true;
+            }
 
             $ok = $model->addManualInvoiceOrdenAssociation($invoiceId, $ordenId, $allowCross);
             $this->app->enqueueMessage(
