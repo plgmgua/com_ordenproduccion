@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.354-STABLE] - 2026-08-19
+
+### Fixed
+- **Factura manual:** Total follows edited lines (plus timbre). It no longer stays at the full cotización amount after removing lines, so split invoices (e.g. Q30,000 of Q40,770.14) display the correct grand total.
+
 ## [3.119.353-STABLE] - 2026-08-19
 
 ### Fixed
