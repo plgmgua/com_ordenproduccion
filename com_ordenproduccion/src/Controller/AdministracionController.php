@@ -3796,6 +3796,11 @@ class AdministracionController extends BaseController
             return;
         }
 
+        $lang = $app->getLanguage();
+        $tag  = $lang->getTag() ?: 'es-ES';
+        $lang->load('com_ordenproduccion', JPATH_SITE, $tag, true);
+        $lang->load('com_ordenproduccion', JPATH_SITE . '/components/com_ordenproduccion', $tag, true);
+
         $sheets = SatFacturasReconciliationHelper::buildExportSheets($report);
 
         $autoload = JPATH_ROOT . '/vendor/autoload.php';

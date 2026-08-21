@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.359-STABLE] - 2026-08-21
+
+### Fixed
+- **SAT conciliación Excel:** Headers and Digifact analysis cells now show Spanish labels (e.g. Relacionado a TDP, Enviado Q … → certificado Q …) instead of COM_* language keys when the language file is not loaded on the raw download.
+
 ## [3.119.358-STABLE] - 2026-08-21
 
 ### Added

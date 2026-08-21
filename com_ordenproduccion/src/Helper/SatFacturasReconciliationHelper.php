@@ -677,13 +677,13 @@ class SatFacturasReconciliationHelper
     {
         $labels = [];
         if (\in_array('amount', $issues, true)) {
-            $labels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_AMOUNT');
+            $labels[] = self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_AMOUNT', 'Monto');
         }
         if (\in_array('status', $issues, true)) {
-            $labels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_STATUS');
+            $labels[] = self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_STATUS', 'Estado');
         }
         if (\in_array('timbre', $issues, true)) {
-            $labels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_TIMBRE');
+            $labels[] = self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_TIMBRE', 'Timbre de prensa');
         }
 
         return implode(', ', $labels);
@@ -708,13 +708,17 @@ class SatFacturasReconciliationHelper
         }
 
         if (\in_array('no_artifacts', $flags, true)) {
-            return Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NO_LOG');
+            return self::txt(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NO_LOG',
+                'No hay NUC ni XML de certificación para comparar.'
+            );
         }
 
         if (isset($analysis['sent_total'], $analysis['xml_total'])
             && $analysis['sent_total'] !== null && $analysis['xml_total'] !== null) {
-            $bits[] = Text::sprintf(
+            $bits[] = self::txtSprintf(
                 'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_SENT_XML',
+                'Enviado Q %s → certificado Q %s.',
                 $fmtQ($analysis['sent_total']),
                 $fmtQ($analysis['xml_total'])
             );
@@ -722,30 +726,44 @@ class SatFacturasReconciliationHelper
         if (!empty($analysis['timbre_related'])
             || (float) ($analysis['sent_timbre'] ?? 0) > 0
             || (float) ($analysis['xml_timbre'] ?? 0) > 0) {
-            $bits[] = Text::sprintf(
+            $bits[] = self::txtSprintf(
                 'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE',
+                'TDP enviado Q %s → SAT Q %s.',
                 $fmtQ($analysis['sent_timbre'] ?? 0),
                 $fmtQ($analysis['xml_timbre'] ?? 0)
             );
         }
         if (\in_array('timbre_absorbed', $flags, true)) {
-            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ABSORBED');
+            $bits[] = self::txt(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ABSORBED',
+                'Digifact restó el TDP del precio del producto (el GranTotal no subió).'
+            );
         }
         if (\in_array('timbre_added', $flags, true)) {
-            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ADDED');
+            $bits[] = self::txt(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ADDED',
+                'SAT sumó el TDP al GranTotal respecto a lo enviado.'
+            );
         }
         if (\in_array('timbre_recalculated', $flags, true)) {
-            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_RECALC');
+            $bits[] = self::txt(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_RECALC',
+                'SAT recalculó el Timbre de Prensa (base gravable / 1.12).'
+            );
         }
         if (\in_array('db_ne_xml', $flags, true) && isset($analysis['xml_total'])) {
-            $bits[] = Text::sprintf(
+            $bits[] = self::txtSprintf(
                 'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_DB_XML',
+                'Total sistema Q %s ≠ XML certificado Q %s.',
                 $fmtQ($dbTotal),
                 $fmtQ($analysis['xml_total'])
             );
         }
         if ($bits === [] && empty($analysis['timbre_related'])) {
-            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NOT_TIMBRE');
+            $bits[] = self::txt(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NOT_TIMBRE',
+                'La diferencia no parece ser Timbre de Prensa (revise IVA u otros impuestos).'
+            );
         }
 
         return implode(' ', $bits);
@@ -762,13 +780,13 @@ class SatFacturasReconciliationHelper
      */
     public static function buildExportSheets(array $report): array
     {
-        $yes = Text::_('JYES');
-        $no  = Text::_('JNO');
+        $yes = self::txt('JYES', 'Sí');
+        $no  = self::txt('JNO', 'No');
 
         $summaryRows = [
-            [Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_OK_COUNT_LABEL'), (int) ($report['matched_ok_count'] ?? 0)],
-            [Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISMATCH_COUNT_LABEL'), count($report['mismatches'] ?? [])],
-            [Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_DB_COUNT_LABEL'), count($report['missing_in_db'] ?? [])],
+            [self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_OK_COUNT_LABEL', 'Facturas coincidentes'), (int) ($report['matched_ok_count'] ?? 0)],
+            [self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_MISMATCH_COUNT_LABEL', 'Facturas con diferencias'), count($report['mismatches'] ?? [])],
+            [self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_DB_COUNT_LABEL', 'SAT sin registro interno'), count($report['missing_in_db'] ?? [])],
         ];
         foreach ($report['files'] ?? [] as $file) {
             if (!\is_array($file)) {
@@ -794,8 +812,10 @@ class SatFacturasReconciliationHelper
                 round((float) ($m['sat_total'] ?? 0), 2),
                 round((float) ($m['db_total'] ?? 0), 2),
                 trim((string) ($m['sat_estado'] ?? '')),
-                trim((string) ($m['db_status'] ?? '')),
-                $originKey !== '' ? Text::_($originKey) : Text::_('COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN'),
+                self::formatDbStatusForExport((string) ($m['db_status'] ?? '')),
+                $originKey !== ''
+                    ? self::formatOriginForExport($originKey)
+                    : self::txt('COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN', 'Otro / indeterminado'),
                 self::formatIssueLabels($m['issues'] ?? []),
                 isset($analysis['sent_total']) && $analysis['sent_total'] !== null ? round((float) $analysis['sent_total'], 2) : '',
                 isset($analysis['xml_total']) && $analysis['xml_total'] !== null ? round((float) $analysis['xml_total'], 2) : '',
@@ -831,57 +851,114 @@ class SatFacturasReconciliationHelper
 
         return [
             [
-                'title'      => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_SUMMARY'),
+                'title'      => self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_SUMMARY', 'Resumen'),
                 'headers'    => [
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DETAIL'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RESULT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DETAIL', 'Detalle'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RESULT', 'Resultado'),
                 ],
                 'rows'       => $summaryRows,
                 'money_cols' => [],
             ],
             [
-                'title'      => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_MISMATCHES'),
+                'title'      => self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_MISMATCHES', 'Diferencias'),
                 'headers'    => [
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NUMERO'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_TOTAL'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ORIGIN'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ISSUES'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SENT_TOTAL'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_XML_TOTAL'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SENT_TDP'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_XML_TDP'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_TDP_RELATED'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ANALYSIS'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NIT'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FECHA'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_INVOICE_ID'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FILE'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE', 'Serie'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NUMERO', 'Número'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID', 'UUID'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL', 'Total SAT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_TOTAL', 'Total sistema'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO', 'Estado SAT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO', 'Estado sistema'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ORIGIN', 'Origen (sistema)'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ISSUES', 'Diferencias'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SENT_TOTAL', 'Total enviado Digifact'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_XML_TOTAL', 'Total XML certificado'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SENT_TDP', 'TDP enviado'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_XML_TDP', 'TDP SAT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_TDP_RELATED', 'Relacionado a TDP'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ANALYSIS', 'Análisis Digifact'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR', 'Receptor'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NIT', 'NIT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FECHA', 'Fecha emisión'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_INVOICE_ID', 'ID factura'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FILE', 'Archivo'),
                 ],
                 'rows'       => $mismatchRows,
                 'money_cols' => [4, 5, 10, 11, 12, 13],
             ],
             [
-                'title'      => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_MISSING_DB'),
+                'title'      => self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_MISSING_DB', 'SAT sin registro'),
                 'headers'    => [
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NUMERO'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NIT'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FECHA'),
-                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FILE'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE', 'Serie'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NUMERO', 'Número'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID', 'UUID'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL', 'Total SAT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO', 'Estado SAT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR', 'Receptor'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NIT', 'NIT'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FECHA', 'Fecha emisión'),
+                    self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FILE', 'Archivo'),
                 ],
                 'rows'       => $missingRows,
                 'money_cols' => [4],
             ],
         ];
+    }
+
+    /**
+     * Resolve a language key; never return the raw COM_* constant.
+     *
+     * @since  3.119.359
+     */
+    protected static function txt(string $key, string $fallback): string
+    {
+        $translated = Text::_($key);
+        if ($translated === '' || $translated === $key || str_starts_with($translated, 'COM_')) {
+            return $fallback;
+        }
+
+        return $translated;
+    }
+
+    /**
+     * @since  3.119.359
+     */
+    protected static function txtSprintf(string $key, string $fallback, ...$args): string
+    {
+        return sprintf(self::txt($key, $fallback), ...$args);
+    }
+
+    /**
+     * @since  3.119.359
+     */
+    protected static function formatDbStatusForExport(string $status): string
+    {
+        $status = strtolower(trim($status));
+        if ($status === 'cancelled') {
+            return self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_DB_CANCELLED', 'Anulada');
+        }
+        if ($status === 'active') {
+            return self::txt('COM_ORDENPRODUCCION_INVOICES_SAT_DB_ACTIVE', 'Vigente');
+        }
+
+        return $status;
+    }
+
+    /**
+     * @since  3.119.359
+     */
+    protected static function formatOriginForExport(string $originKey): string
+    {
+        $fallbacks = [
+            'COM_ORDENPRODUCCION_INVOICE_ORIGIN_AUTO_ENVIO'      => 'Automática — envío / cola FEL',
+            'COM_ORDENPRODUCCION_INVOICE_ORIGIN_AUTO_SCHEDULED'  => 'Automática — fecha programada (08:00)',
+            'COM_ORDENPRODUCCION_INVOICE_ORIGIN_MANUAL_FEL'      => 'Manual — factura manual (cotización)',
+            'COM_ORDENPRODUCCION_INVOICE_ORIGIN_MANUAL_DUPLICATE'=> 'Manual — duplicada desde otra factura',
+            'COM_ORDENPRODUCCION_INVOICE_ORIGIN_FEL_IMPORT'      => 'Importada — XML SAT',
+            'COM_ORDENPRODUCCION_INVOICE_ORIGIN_ORDER'           => 'Orden de trabajo',
+            'COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN'         => 'Otro / indeterminado',
+        ];
+
+        return self::txt($originKey, $fallbacks[$originKey] ?? $originKey);
     }
 }
