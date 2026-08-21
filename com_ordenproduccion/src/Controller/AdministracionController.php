@@ -3763,8 +3763,166 @@ class AdministracionController extends BaseController
             'mismatches'       => $mismatches,
             'missing_in_db'    => $missingInDb,
         ]);
+        $app->getSession()->set('com_ordenproduccion.invoices_sat_report_show', true);
 
         $app->redirect($redirectUrl);
+    }
+
+    /**
+     * Download the last SAT conciliación report as Excel (.xlsx) or CSV.
+     *
+     * @return  void
+     *
+     * @since   3.119.358
+     */
+    public function exportInvoicesSatExcel()
+    {
+        $app = Factory::getApplication();
+        $user = Factory::getUser();
+        $redirectUrl = Route::_('index.php?option=com_ordenproduccion&view=administracion&tab=invoices&invoices_subtab=lista', false);
+
+        if ($user->guest || !AccessHelper::isInAdministracionOrAdmonGroup()) {
+            $app->enqueueMessage(Text::_('JGLOBAL_AUTH_ALERT'), 'error');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $report = $app->getSession()->get('com_ordenproduccion.invoices_sat_report', null);
+        if (!\is_array($report)) {
+            $app->enqueueMessage(Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_EXPORT_ERROR'), 'warning');
+            $app->redirect($redirectUrl);
+
+            return;
+        }
+
+        $sheets = SatFacturasReconciliationHelper::buildExportSheets($report);
+
+        $autoload = JPATH_ROOT . '/vendor/autoload.php';
+        if (is_file($autoload)) {
+            require_once $autoload;
+            if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
+                try {
+                    $this->exportSatReconciliationXlsx($sheets, $app);
+
+                    return;
+                } catch (\Throwable $e) {
+                    // Fall through to CSV
+                }
+            }
+        }
+
+        $this->exportSatReconciliationCsv($sheets, $app);
+    }
+
+    /**
+     * @param   list<array{title:string, headers:string[], rows:list<array>, money_cols:int[]}>  $sheets
+     *
+     * @since   3.119.358
+     */
+    protected function exportSatReconciliationXlsx(array $sheets, $app): void
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $first = true;
+
+        foreach ($sheets as $sheetDef) {
+            $title = self::sanitizeExcelSheetTitle((string) ($sheetDef['title'] ?? 'Hoja'));
+            if ($first) {
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setTitle($title);
+                $first = false;
+            } else {
+                $sheet = $spreadsheet->createSheet();
+                $sheet->setTitle($title);
+            }
+
+            $headers = $sheetDef['headers'] ?? [];
+            $rows    = $sheetDef['rows'] ?? [];
+            $moneyCols = $sheetDef['money_cols'] ?? [];
+            $sheet->fromArray($headers, null, 'A1');
+            $nCols = max(1, count($headers));
+            $lastCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nCols);
+            $headerStyle = $sheet->getStyle('A1:' . $lastCol . '1');
+            $headerStyle->getFont()->setBold(true);
+            $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+            $headerStyle->getFill()->getStartColor()->setARGB('FF667eea');
+            $headerStyle->getFont()->getColor()->setARGB('FFFFFFFF');
+
+            $rowIndex = 2;
+            foreach ($rows as $row) {
+                $sheet->fromArray(array_values($row), null, 'A' . $rowIndex);
+                $rowIndex++;
+            }
+            if ($rowIndex > 2 && $moneyCols !== []) {
+                foreach ($moneyCols as $colNum) {
+                    $colNum = (int) $colNum;
+                    if ($colNum < 1) {
+                        continue;
+                    }
+                    $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colNum);
+                    $sheet->getStyle($letter . '2:' . $letter . ($rowIndex - 1))
+                        ->getNumberFormat()
+                        ->setFormatCode('#,##0.00');
+                }
+            }
+            for ($ci = 1; $ci <= $nCols; $ci++) {
+                $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ci))->setAutoSize(true);
+            }
+            $sheet->freezePane('A2');
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $filename = 'conciliacion-sat-' . date('Y-m-d-His') . '.xlsx';
+        @ob_clean();
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        $app->close();
+    }
+
+    /**
+     * @param   list<array{title:string, headers:string[], rows:list<array>}>  $sheets
+     *
+     * @since   3.119.358
+     */
+    protected function exportSatReconciliationCsv(array $sheets, $app): void
+    {
+        $filename = 'conciliacion-sat-' . date('Y-m-d-His') . '.csv';
+        @ob_clean();
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, must-revalidate');
+        $out = fopen('php://output', 'w');
+        fprintf($out, "\xEF\xBB\xBF");
+        foreach ($sheets as $sheetDef) {
+            fputcsv($out, [(string) ($sheetDef['title'] ?? '')]);
+            fputcsv($out, $sheetDef['headers'] ?? []);
+            foreach ($sheetDef['rows'] ?? [] as $row) {
+                fputcsv($out, array_values($row));
+            }
+            fputcsv($out, []);
+        }
+        fclose($out);
+        $app->close();
+    }
+
+    /**
+     * Excel sheet titles: max 31 chars, no \\ / ? * [ ]
+     *
+     * @since   3.119.358
+     */
+    protected static function sanitizeExcelSheetTitle(string $title): string
+    {
+        $title = trim($title);
+        $title = str_replace(['\\', '/', '?', '*', '[', ']'], ' ', $title);
+        $title = preg_replace('/\s+/', ' ', $title) ?? $title;
+        if ($title === '') {
+            $title = 'Hoja';
+        }
+
+        return mb_substr($title, 0, 31);
     }
 
     /**

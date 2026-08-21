@@ -11,6 +11,7 @@ namespace Grimpsa\Component\Ordenproduccion\Site\Helper;
 defined('_JEXEC') or die;
 
 use Joomla\CMS\Factory;
+use Joomla\CMS\Language\Text;
 use Joomla\Database\DatabaseInterface;
 
 /**
@@ -661,5 +662,226 @@ class SatFacturasReconciliationHelper
     protected static function dbStatusLabel(object $invoice): string
     {
         return InvoiceListHelper::isInvoiceCancelled($invoice) ? 'cancelled' : 'active';
+    }
+
+    /**
+     * Human-readable difference tags for the SAT report UI and Excel export.
+     *
+     * @param   string[]  $issues
+     *
+     * @return  string
+     *
+     * @since   3.119.358
+     */
+    public static function formatIssueLabels(array $issues): string
+    {
+        $labels = [];
+        if (\in_array('amount', $issues, true)) {
+            $labels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_AMOUNT');
+        }
+        if (\in_array('status', $issues, true)) {
+            $labels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_STATUS');
+        }
+        if (\in_array('timbre', $issues, true)) {
+            $labels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_TIMBRE');
+        }
+
+        return implode(', ', $labels);
+    }
+
+    /**
+     * Digifact sent-vs-certified explanation for one mismatch row.
+     *
+     * @param   array<string, mixed>  $analysis
+     *
+     * @since   3.119.358
+     */
+    public static function formatDigifactAnalysisText(array $analysis, float $dbTotal = 0.0): string
+    {
+        $bits = [];
+        $fmtQ = static function ($v): string {
+            return number_format((float) $v, 2, '.', ',');
+        };
+        $flags = $analysis['flags'] ?? [];
+        if (!\is_array($flags)) {
+            $flags = [];
+        }
+
+        if (\in_array('no_artifacts', $flags, true)) {
+            return Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NO_LOG');
+        }
+
+        if (isset($analysis['sent_total'], $analysis['xml_total'])
+            && $analysis['sent_total'] !== null && $analysis['xml_total'] !== null) {
+            $bits[] = Text::sprintf(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_SENT_XML',
+                $fmtQ($analysis['sent_total']),
+                $fmtQ($analysis['xml_total'])
+            );
+        }
+        if (!empty($analysis['timbre_related'])
+            || (float) ($analysis['sent_timbre'] ?? 0) > 0
+            || (float) ($analysis['xml_timbre'] ?? 0) > 0) {
+            $bits[] = Text::sprintf(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE',
+                $fmtQ($analysis['sent_timbre'] ?? 0),
+                $fmtQ($analysis['xml_timbre'] ?? 0)
+            );
+        }
+        if (\in_array('timbre_absorbed', $flags, true)) {
+            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ABSORBED');
+        }
+        if (\in_array('timbre_added', $flags, true)) {
+            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ADDED');
+        }
+        if (\in_array('timbre_recalculated', $flags, true)) {
+            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_RECALC');
+        }
+        if (\in_array('db_ne_xml', $flags, true) && isset($analysis['xml_total'])) {
+            $bits[] = Text::sprintf(
+                'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_DB_XML',
+                $fmtQ($dbTotal),
+                $fmtQ($analysis['xml_total'])
+            );
+        }
+        if ($bits === [] && empty($analysis['timbre_related'])) {
+            $bits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NOT_TIMBRE');
+        }
+
+        return implode(' ', $bits);
+    }
+
+    /**
+     * Workbook sheets for the SAT conciliación Excel export.
+     *
+     * @param   array<string, mixed>  $report  Session payload from validateInvoicesSatExcel()
+     *
+     * @return  list<array{title:string, headers:string[], rows:list<array>, money_cols:int[]}>
+     *
+     * @since   3.119.358
+     */
+    public static function buildExportSheets(array $report): array
+    {
+        $yes = Text::_('JYES');
+        $no  = Text::_('JNO');
+
+        $summaryRows = [
+            [Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_OK_COUNT_LABEL'), (int) ($report['matched_ok_count'] ?? 0)],
+            [Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISMATCH_COUNT_LABEL'), count($report['mismatches'] ?? [])],
+            [Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_MISSING_DB_COUNT_LABEL'), count($report['missing_in_db'] ?? [])],
+        ];
+        foreach ($report['files'] ?? [] as $file) {
+            if (!\is_array($file)) {
+                continue;
+            }
+            $summaryRows[] = [
+                trim((string) ($file['file'] ?? '')),
+                trim((string) ($file['message'] ?? $file['status'] ?? '')),
+            ];
+        }
+
+        $mismatchRows = [];
+        foreach ($report['mismatches'] ?? [] as $m) {
+            if (!\is_array($m)) {
+                continue;
+            }
+            $analysis = \is_array($m['digifact_analysis'] ?? null) ? $m['digifact_analysis'] : [];
+            $originKey = trim((string) ($m['creation_method_key'] ?? ''));
+            $mismatchRows[] = [
+                trim((string) ($m['serie'] ?? '')),
+                trim((string) ($m['numero'] ?? '')),
+                trim((string) ($m['uuid'] ?? '')),
+                round((float) ($m['sat_total'] ?? 0), 2),
+                round((float) ($m['db_total'] ?? 0), 2),
+                trim((string) ($m['sat_estado'] ?? '')),
+                trim((string) ($m['db_status'] ?? '')),
+                $originKey !== '' ? Text::_($originKey) : Text::_('COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN'),
+                self::formatIssueLabels($m['issues'] ?? []),
+                isset($analysis['sent_total']) && $analysis['sent_total'] !== null ? round((float) $analysis['sent_total'], 2) : '',
+                isset($analysis['xml_total']) && $analysis['xml_total'] !== null ? round((float) $analysis['xml_total'], 2) : '',
+                isset($analysis['sent_timbre']) && $analysis['sent_timbre'] !== null ? round((float) $analysis['sent_timbre'], 2) : '',
+                isset($analysis['xml_timbre']) && $analysis['xml_timbre'] !== null ? round((float) $analysis['xml_timbre'], 2) : '',
+                !empty($analysis['timbre_related']) ? $yes : $no,
+                self::formatDigifactAnalysisText($analysis, (float) ($m['db_total'] ?? 0)),
+                trim((string) ($m['receptor'] ?? '')),
+                trim((string) ($m['nit'] ?? '')),
+                trim((string) ($m['fecha_emision'] ?? '')),
+                (int) ($m['invoice_id'] ?? 0),
+                trim((string) ($m['source_file'] ?? '')),
+            ];
+        }
+
+        $missingRows = [];
+        foreach ($report['missing_in_db'] ?? [] as $m) {
+            if (!\is_array($m)) {
+                continue;
+            }
+            $missingRows[] = [
+                trim((string) ($m['serie'] ?? '')),
+                trim((string) ($m['numero'] ?? '')),
+                trim((string) ($m['uuid'] ?? '')),
+                round((float) ($m['sat_total'] ?? 0), 2),
+                trim((string) ($m['sat_estado'] ?? '')),
+                trim((string) ($m['receptor'] ?? '')),
+                trim((string) ($m['nit'] ?? '')),
+                trim((string) ($m['fecha_emision'] ?? '')),
+                trim((string) ($m['source_file'] ?? '')),
+            ];
+        }
+
+        return [
+            [
+                'title'      => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_SUMMARY'),
+                'headers'    => [
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DETAIL'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RESULT'),
+                ],
+                'rows'       => $summaryRows,
+                'money_cols' => [],
+            ],
+            [
+                'title'      => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_MISMATCHES'),
+                'headers'    => [
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NUMERO'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_TOTAL'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ORIGIN'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ISSUES'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SENT_TOTAL'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_XML_TOTAL'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SENT_TDP'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_XML_TDP'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_TDP_RELATED'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ANALYSIS'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NIT'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FECHA'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_INVOICE_ID'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FILE'),
+                ],
+                'rows'       => $mismatchRows,
+                'money_cols' => [4, 5, 10, 11, 12, 13],
+            ],
+            [
+                'title'      => Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_SHEET_MISSING_DB'),
+                'headers'    => [
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SERIE'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NUMERO'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_UUID'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_TOTAL'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_SAT_ESTADO'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_RECEPTOR'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_NIT'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FECHA'),
+                    Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_FILE'),
+                ],
+                'rows'       => $missingRows,
+                'money_cols' => [4],
+            ],
+        ];
     }
 }

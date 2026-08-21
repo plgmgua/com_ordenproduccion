@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.358-STABLE] - 2026-08-21
+
+### Added
+- **Reporte conciliación SAT:** Export to Excel (.xlsx) with Resumen, Diferencias (including Digifact sent vs certified and Timbre de Prensa), and SAT sin registro sheets.
+
 ## [3.119.357-STABLE] - 2026-08-21
 
 ### Added

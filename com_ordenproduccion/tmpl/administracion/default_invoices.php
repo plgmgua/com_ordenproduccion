@@ -19,6 +19,7 @@ use Grimpsa\Component\Ordenproduccion\Site\Helper\AccessHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\FelInvoiceHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\InvoiceListHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Helper\RetencionPdfHelper;
+use Grimpsa\Component\Ordenproduccion\Site\Helper\SatFacturasReconciliationHelper;
 use Grimpsa\Component\Ordenproduccion\Site\Model\InvoiceOrdenMatchModel;
 
 // Get invoices data from view (get() ensures value when layout data is used)
@@ -35,10 +36,11 @@ if ($importReport !== null) {
     Factory::getApplication()->getSession()->set('com_ordenproduccion.import_report', null);
 }
 $satReport = Factory::getApplication()->getSession()->get('com_ordenproduccion.invoices_sat_report', null);
-$satShowModal = is_array($satReport);
+$satShowModal = (bool) Factory::getApplication()->getSession()->get('com_ordenproduccion.invoices_sat_report_show', false);
 if ($satShowModal) {
-    Factory::getApplication()->getSession()->set('com_ordenproduccion.invoices_sat_report', null);
+    Factory::getApplication()->getSession()->set('com_ordenproduccion.invoices_sat_report_show', false);
 }
+$satHasExport = is_array($satReport);
 $satFileReports = $satShowModal ? ($satReport['files'] ?? []) : [];
 $satMismatches = $satShowModal ? ($satReport['mismatches'] ?? []) : [];
 $satMissingInDb = $satShowModal ? ($satReport['missing_in_db'] ?? []) : [];
@@ -984,6 +986,12 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                 <i class="fas fa-check-double"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_VALIDATE'); ?>
             </button>
         </form>
+        <?php if ($satHasExport): ?>
+        <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.exportInvoicesSatExcel&format=raw'); ?>"
+           class="btn btn-outline-success btn-sm" target="_blank" rel="noopener">
+            <i class="fas fa-file-excel"></i> <?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_EXPORT'); ?>
+        </a>
+        <?php endif; ?>
         <?php
         $state = $this->state ?? new \Joomla\Registry\Registry();
         $exportUrl = Route::_('index.php?option=com_ordenproduccion&task=administracion.exportInvoicesExcel&format=raw');
@@ -1063,64 +1071,14 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                 <tbody>
                                     <?php foreach ($satMismatches as $m):
                                         $issues = $m['issues'] ?? [];
-                                        $issueLabels = [];
-                                        if (in_array('amount', $issues, true)) {
-                                            $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_AMOUNT');
-                                        }
-                                        if (in_array('status', $issues, true)) {
-                                            $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_STATUS');
-                                        }
-                                        if (in_array('timbre', $issues, true)) {
-                                            $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_TIMBRE');
-                                        }
+                                        $issueLabels = SatFacturasReconciliationHelper::formatIssueLabels($issues);
                                         $serieNum = trim(($m['serie'] ?? '') . ' | ' . ($m['numero'] ?? ''), ' |');
                                         $invoiceId = (int) ($m['invoice_id'] ?? 0);
                                         $analysis = is_array($m['digifact_analysis'] ?? null) ? $m['digifact_analysis'] : [];
-                                        $analysisBits = [];
-                                        $fmtQ = static function ($v): string {
-                                            return number_format((float) $v, 2, '.', ',');
-                                        };
-                                        if (($analysis['flags'][0] ?? '') === 'no_artifacts' || in_array('no_artifacts', $analysis['flags'] ?? [], true)) {
-                                            $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NO_LOG');
-                                        } else {
-                                            if (isset($analysis['sent_total'], $analysis['xml_total'])
-                                                && $analysis['sent_total'] !== null && $analysis['xml_total'] !== null) {
-                                                $analysisBits[] = Text::sprintf(
-                                                    'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_SENT_XML',
-                                                    $fmtQ($analysis['sent_total']),
-                                                    $fmtQ($analysis['xml_total'])
-                                                );
-                                            }
-                                            if (!empty($analysis['timbre_related'])
-                                                || (float) ($analysis['sent_timbre'] ?? 0) > 0
-                                                || (float) ($analysis['xml_timbre'] ?? 0) > 0) {
-                                                $analysisBits[] = Text::sprintf(
-                                                    'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE',
-                                                    $fmtQ($analysis['sent_timbre'] ?? 0),
-                                                    $fmtQ($analysis['xml_timbre'] ?? 0)
-                                                );
-                                            }
-                                            $flags = $analysis['flags'] ?? [];
-                                            if (in_array('timbre_absorbed', $flags, true)) {
-                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ABSORBED');
-                                            }
-                                            if (in_array('timbre_added', $flags, true)) {
-                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ADDED');
-                                            }
-                                            if (in_array('timbre_recalculated', $flags, true)) {
-                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_RECALC');
-                                            }
-                                            if (in_array('db_ne_xml', $flags, true) && isset($analysis['xml_total'])) {
-                                                $analysisBits[] = Text::sprintf(
-                                                    'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_DB_XML',
-                                                    $fmtQ($m['db_total'] ?? 0),
-                                                    $fmtQ($analysis['xml_total'])
-                                                );
-                                            }
-                                            if ($analysisBits === [] && empty($analysis['timbre_related'])) {
-                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NOT_TIMBRE');
-                                            }
-                                        }
+                                        $analysisText = SatFacturasReconciliationHelper::formatDigifactAnalysisText(
+                                            $analysis,
+                                            (float) ($m['db_total'] ?? 0)
+                                        );
                                     ?>
                                     <tr>
                                         <td>
@@ -1139,8 +1097,8 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                             $originKey = trim((string) ($m['creation_method_key'] ?? ''));
                                             echo $originKey !== '' ? Text::_($originKey) : Text::_('COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN');
                                         ?></td>
-                                        <td><?php echo htmlspecialchars(implode(', ', $issueLabels), ENT_QUOTES, 'UTF-8'); ?></td>
-                                        <td class="small"><?php echo htmlspecialchars(implode(' ', $analysisBits), ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td><?php echo htmlspecialchars($issueLabels, ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td class="small"><?php echo htmlspecialchars($analysisText, ENT_QUOTES, 'UTF-8'); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -1186,6 +1144,12 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                     <?php endif; ?>
                 </div>
                 <div class="modal-footer">
+                    <?php if ($satHasExport): ?>
+                    <a href="<?php echo Route::_('index.php?option=com_ordenproduccion&task=administracion.exportInvoicesSatExcel&format=raw'); ?>"
+                       class="btn btn-success btn-sm" target="_blank" rel="noopener">
+                        <i class="fas fa-file-excel me-1"></i><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_EXPORT'); ?>
+                    </a>
+                    <?php endif; ?>
                     <button type="button" class="btn btn-primary btn-sm" data-bs-dismiss="modal"><?php echo Text::_('JCLOSE'); ?></button>
                 </div>
             </div>
