@@ -2512,6 +2512,75 @@ class FelInvoiceIssuanceService
     }
 
     /**
+     * Merge timbre de prensa amounts from several cotizaciones (keyed by pre_cotizacion_id).
+     *
+     * @param   int[]  $quotationIds
+     *
+     * @return  array<int, float>
+     *
+     * @since   3.119.355
+     */
+    protected function loadTimbreAmountsByPreIdForQuotations(array $quotationIds): array
+    {
+        $map  = [];
+        $seen = [];
+        foreach ($quotationIds as $quotationId) {
+            $quotationId = (int) $quotationId;
+            if ($quotationId < 1 || isset($seen[$quotationId])) {
+                continue;
+            }
+            $seen[$quotationId] = true;
+            foreach ($this->loadTimbreAmountsByPreIdForQuotation($quotationId) as $preId => $amt) {
+                $preId = (int) $preId;
+                if ($preId < 1 || isset($map[$preId])) {
+                    continue;
+                }
+                $map[$preId] = (float) $amt;
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Cotización IDs whose DB timbre lines should attach to a manual FEL NUC.
+     *
+     * @param   list<array<string, mixed>>  $manualLines
+     * @param   int[]                       $additionalQuotationIds
+     *
+     * @return  int[]
+     *
+     * @since   3.119.355
+     */
+    protected function resolveTimbreQuotationIdsForManualInput(
+        int $primaryQuotationId,
+        array $manualLines,
+        array $additionalQuotationIds = []
+    ): array {
+        $ids = [];
+        if ($primaryQuotationId > 0) {
+            $ids[] = $primaryQuotationId;
+        }
+        foreach ($additionalQuotationIds as $qid) {
+            $qid = (int) $qid;
+            if ($qid > 0) {
+                $ids[] = $qid;
+            }
+        }
+        foreach ($manualLines as $line) {
+            if (!\is_array($line)) {
+                continue;
+            }
+            $qid = (int) ($line['quotation_id'] ?? 0);
+            if ($qid > 0) {
+                $ids[] = $qid;
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
      * Default Digifact NUC options: FCAM with a single abono due in 30 days.
      *
      * @return  array<string, mixed>
@@ -2551,6 +2620,7 @@ class FelInvoiceIssuanceService
      * @param   list<object>  $lines  From {@see loadQuotationLines()}
      * @param   string|null   $nucBuyerTaxIdOverride  When billing is CF/C/F: optional digits-only CUI for `Buyer.TaxID`; adds `Buyer.TaxIDType` = `CUI` (FACT CUI).
      * @param   string|null   $buyerNameOverride        Optional Buyer.Name (invoice receptor nombre).
+     * @param   int[]         $timbreQuotationIds       Extra cotización IDs to load timbre from (manual multi-quote). Empty = primary quotation only.
      *
      * @return  array<string, mixed>
      *
@@ -2564,7 +2634,8 @@ class FelInvoiceIssuanceService
         ?string $buyerNameOverride = null,
         ?\DateTimeInterface $issuedAt = null,
         array $additionalCotizacionRefs = [],
-        array $nucOptions = []
+        array $nucOptions = [],
+        array $timbreQuotationIds = []
     ): array {
         $buyerTaxIdRaw = trim((string) ($quotation->client_nit ?? ''));
         $isCfBuyer     = CertificadorFactNitLookupHelper::billingIdIndicatesConsumidorFinal($buyerTaxIdRaw);
@@ -2595,11 +2666,13 @@ class FelInvoiceIssuanceService
 
         $quotationId  = (int) ($quotation->id ?? 0);
         $timbreByPreId = $this->collectTimbreAmountsByPreIdFromLines($lines);
-        if ($quotationId > 0) {
-            foreach ($this->loadTimbreAmountsByPreIdForQuotation($quotationId) as $preId => $amt) {
-                if (!isset($timbreByPreId[$preId])) {
-                    $timbreByPreId[$preId] = $amt;
-                }
+        $timbreSourceIds = array_values(array_unique(array_filter(array_map('intval', $timbreQuotationIds))));
+        if ($timbreSourceIds === [] && $quotationId > 0) {
+            $timbreSourceIds = [$quotationId];
+        }
+        foreach ($this->loadTimbreAmountsByPreIdForQuotations($timbreSourceIds) as $preId => $amt) {
+            if (!isset($timbreByPreId[$preId])) {
+                $timbreByPreId[$preId] = $amt;
             }
         }
 
@@ -2871,6 +2944,7 @@ class FelInvoiceIssuanceService
      * Build Digifact NUC from manually edited buyer/lines (cotización «Factura manual»).
      *
      * @param   list<array{descripcion:string, cantidad:float, precio_unitario:float}>  $manualLines
+     * @param   int[]  $additionalQuotationIds  Extra cotizaciones included in the same invoice (timbre loaded from each).
      *
      * @return  array<string, mixed>
      */
@@ -2884,7 +2958,8 @@ class FelInvoiceIssuanceService
         ?string $nucBuyerTaxIdOverride = null,
         ?\DateTimeInterface $issuedAt = null,
         array $additionalCotizacionRefs = [],
-        array $nucOptions = []
+        array $nucOptions = [],
+        array $additionalQuotationIds = []
     ): array {
         $lineRows = [];
         foreach ($manualLines as $line) {
@@ -2906,9 +2981,16 @@ class FelInvoiceIssuanceService
             $row->valor_unitario     = $unit;
             $row->subtotal           = round($qty * $unit, 2);
             $row->pre_cotizacion_id  = (int) ($line['pre_cotizacion_id'] ?? 0);
+            $row->quotation_id       = (int) ($line['quotation_id'] ?? ($quotation->id ?? 0));
             $row->item_type          = self::normalizeDigifactItemType((string) ($line['item_type'] ?? 'Bien'));
             $lineRows[]              = $row;
         }
+
+        $timbreQuotationIds = $this->resolveTimbreQuotationIdsForManualInput(
+            (int) ($quotation->id ?? 0),
+            $manualLines,
+            $additionalQuotationIds
+        );
 
         $payload = $this->buildDigifactNucJsonPayload(
             $quotation,
@@ -2918,7 +3000,8 @@ class FelInvoiceIssuanceService
             $buyerName !== '' ? $buyerName : null,
             $issuedAt,
             $additionalCotizacionRefs,
-            $nucOptions
+            $nucOptions,
+            $timbreQuotationIds
         );
 
         $addr = trim($buyerAddress);
@@ -3042,7 +3125,8 @@ class FelInvoiceIssuanceService
             $nucBuyerTaxIdOverride,
             $issuedAt,
             $additionalRefs,
-            $nucOptions
+            $nucOptions,
+            $additionalQuotationIds
         );
         if (($payload['Items'] ?? []) === []) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')];
@@ -4840,7 +4924,8 @@ class FelInvoiceIssuanceService
             $nucBuyerTaxIdOverride,
             $issuedAt,
             $additionalRefs,
-            $nucOptions
+            $nucOptions,
+            $additionalQuotationIds
         );
         if (($payload['Items'] ?? []) === []) {
             return ['success' => false, 'message' => Text::_('COM_ORDENPRODUCCION_MANUAL_FEL_LINES_REQUIRED')];

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.355-STABLE] - 2026-08-21
+
+### Fixed
+- **Factura manual + cotizaciones adicionales:** Timbre de prensa from extra quotes (not only the primary cotización) is now loaded into the Digifact NUC as `TIMBRE DE PRENSA` sector tax. Previously the modal showed the tax (e.g. Q 1.43) but certification omitted it, so the FEL total was short.
+
 ## [3.119.354-STABLE] - 2026-08-19
 
 ### Fixed
