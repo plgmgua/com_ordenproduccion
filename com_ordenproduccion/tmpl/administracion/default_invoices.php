@@ -1057,6 +1057,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_DB_ESTADO'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ORIGIN'); ?></th>
                                         <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ISSUES'); ?></th>
+                                        <th><?php echo Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_COL_ANALYSIS'); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1069,8 +1070,57 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                         if (in_array('status', $issues, true)) {
                                             $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_STATUS');
                                         }
+                                        if (in_array('timbre', $issues, true)) {
+                                            $issueLabels[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ISSUE_TIMBRE');
+                                        }
                                         $serieNum = trim(($m['serie'] ?? '') . ' | ' . ($m['numero'] ?? ''), ' |');
                                         $invoiceId = (int) ($m['invoice_id'] ?? 0);
+                                        $analysis = is_array($m['digifact_analysis'] ?? null) ? $m['digifact_analysis'] : [];
+                                        $analysisBits = [];
+                                        $fmtQ = static function ($v): string {
+                                            return number_format((float) $v, 2, '.', ',');
+                                        };
+                                        if (($analysis['flags'][0] ?? '') === 'no_artifacts' || in_array('no_artifacts', $analysis['flags'] ?? [], true)) {
+                                            $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NO_LOG');
+                                        } else {
+                                            if (isset($analysis['sent_total'], $analysis['xml_total'])
+                                                && $analysis['sent_total'] !== null && $analysis['xml_total'] !== null) {
+                                                $analysisBits[] = Text::sprintf(
+                                                    'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_SENT_XML',
+                                                    $fmtQ($analysis['sent_total']),
+                                                    $fmtQ($analysis['xml_total'])
+                                                );
+                                            }
+                                            if (!empty($analysis['timbre_related'])
+                                                || (float) ($analysis['sent_timbre'] ?? 0) > 0
+                                                || (float) ($analysis['xml_timbre'] ?? 0) > 0) {
+                                                $analysisBits[] = Text::sprintf(
+                                                    'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE',
+                                                    $fmtQ($analysis['sent_timbre'] ?? 0),
+                                                    $fmtQ($analysis['xml_timbre'] ?? 0)
+                                                );
+                                            }
+                                            $flags = $analysis['flags'] ?? [];
+                                            if (in_array('timbre_absorbed', $flags, true)) {
+                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ABSORBED');
+                                            }
+                                            if (in_array('timbre_added', $flags, true)) {
+                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_ADDED');
+                                            }
+                                            if (in_array('timbre_recalculated', $flags, true)) {
+                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_TIMBRE_RECALC');
+                                            }
+                                            if (in_array('db_ne_xml', $flags, true) && isset($analysis['xml_total'])) {
+                                                $analysisBits[] = Text::sprintf(
+                                                    'COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_DB_XML',
+                                                    $fmtQ($m['db_total'] ?? 0),
+                                                    $fmtQ($analysis['xml_total'])
+                                                );
+                                            }
+                                            if ($analysisBits === [] && empty($analysis['timbre_related'])) {
+                                                $analysisBits[] = Text::_('COM_ORDENPRODUCCION_INVOICES_SAT_ANALYSIS_NOT_TIMBRE');
+                                            }
+                                        }
                                     ?>
                                     <tr>
                                         <td>
@@ -1090,6 +1140,7 @@ tr.invoice-row-cancelled { background: #faf5f5; }
                                             echo $originKey !== '' ? Text::_($originKey) : Text::_('COM_ORDENPRODUCCION_INVOICE_ORIGIN_UNKNOWN');
                                         ?></td>
                                         <td><?php echo htmlspecialchars(implode(', ', $issueLabels), ENT_QUOTES, 'UTF-8'); ?></td>
+                                        <td class="small"><?php echo htmlspecialchars(implode(' ', $analysisBits), ENT_QUOTES, 'UTF-8'); ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>

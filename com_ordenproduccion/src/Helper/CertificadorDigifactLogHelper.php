@@ -156,4 +156,39 @@ class CertificadorDigifactLogHelper
             // Avoid breaking FEL flow if logging fails
         }
     }
+
+    /**
+     * Latest Digifact certify log for an invoice (NUC request + response body).
+     *
+     * @since  3.119.357
+     */
+    public static function loadLatestCertifyForInvoice(int $invoiceId): ?object
+    {
+        $invoiceId = (int) $invoiceId;
+        if ($invoiceId < 1 || !self::tableExists()) {
+            return null;
+        }
+
+        try {
+            $db = Factory::getContainer()->get(DatabaseInterface::class);
+            $query = $db->getQuery(true)
+                ->select([
+                    $db->quoteName('request_body'),
+                    $db->quoteName('response_body'),
+                    $db->quoteName('operation'),
+                    $db->quoteName('created'),
+                ])
+                ->from($db->quoteName(self::TABLE))
+                ->where($db->quoteName('invoice_id') . ' = ' . $invoiceId)
+                ->where($db->quoteName('operation') . ' LIKE ' . $db->quote('%certify%'))
+                ->order($db->quoteName('created') . ' DESC')
+                ->setLimit(1);
+            $db->setQuery($query);
+            $row = $db->loadObject();
+
+            return $row ?: null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
 }
