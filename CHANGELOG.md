@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.357-STABLE] - 2026-08-21
+
+### Added
+- **Reporte conciliación SAT:** Amount mismatches now compare the Digifact NUC we sent with the certified XML (and logs). The report shows sent vs certified totals, TDP sent vs SAT TDP, and whether Digifact absorbed, added, or recalculated Timbre de Prensa.
+
 ## [3.119.356-STABLE] - 2026-08-21
 
 ### Fixed
