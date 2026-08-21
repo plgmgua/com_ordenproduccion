@@ -665,6 +665,25 @@ final class ImpuestoImprentaHelper
         return $items;
     }
 
+    /**
+     * SAT FEL 2.11 / Digifact D101: TDP Amount = gravable × tarifa (param %, default 0.50).
+     * When IVA unidad gravable is 1, gravable = IVA-inclusive line ÷ 1.12.
+     *
+     * @since  3.119.356
+     */
+    public static function computeSatTimbreMontoImpuesto(float $ivaInclusiveLineTotal): float
+    {
+        $ivaInclusiveLineTotal = max(0.0, $ivaInclusiveLineTotal);
+        $pct                     = self::getParamPercent();
+        if ($pct <= 0.0 || $ivaInclusiveLineTotal <= 0.0) {
+            return 0.0;
+        }
+
+        $gravable = $ivaInclusiveLineTotal / 1.12;
+
+        return round($gravable * ($pct / 100.0), 6);
+    }
+
     public static function computeImpuestoAmount(
         float $lineValue,
         string $lineDescription,
@@ -678,7 +697,7 @@ final class ImpuestoImprentaHelper
             return 0.0;
         }
 
-        return round($lineValue * ($pct / 100.0), 2);
+        return round(self::computeSatTimbreMontoImpuesto($lineValue), 2);
     }
 
     /**

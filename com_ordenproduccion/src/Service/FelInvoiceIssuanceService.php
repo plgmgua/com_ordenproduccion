@@ -628,8 +628,22 @@ class FelInvoiceIssuanceService
             return [];
         }
 
+        $lines = $this->loadQuotationLines($quotationId);
+        $productTotalByPre = [];
+        foreach ($lines as $row) {
+            if (!\is_object($row) || ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
+                continue;
+            }
+            $preId = (int) ($row->pre_cotizacion_id ?? 0);
+            if ($preId < 1) {
+                continue;
+            }
+            $productTotalByPre[$preId] = ($productTotalByPre[$preId] ?? 0.0)
+                + (float) $this->getLineTotalsForFelRow($row)['line_total'];
+        }
+
         $out = [];
-        foreach ($this->loadQuotationLines($quotationId) as $row) {
+        foreach ($lines as $row) {
             if (!ImpuestoImprentaHelper::isImpuestoLineItem($row)) {
                 continue;
             }
@@ -638,6 +652,12 @@ class FelInvoiceIssuanceService
                 $forPreId = ImpuestoImprentaHelper::parseImpuestoLineForPreId((string) ($row->descripcion ?? ''));
             }
             $amount = round($this->getLineTotalsForFelRow($row)['line_total'], 2);
+            if ($forPreId > 0 && isset($productTotalByPre[$forPreId])) {
+                $satAmt = round(ImpuestoImprentaHelper::computeSatTimbreMontoImpuesto($productTotalByPre[$forPreId]), 2);
+                if ($satAmt > 0.000001) {
+                    $amount = $satAmt;
+                }
+            }
             if ($amount <= 0.000001) {
                 continue;
             }
@@ -2456,6 +2476,12 @@ class FelInvoiceIssuanceService
             }
 
             $taxable = $this->resolveNucItemIvaTaxableAmount($items[$itemIndex]);
+            $satTimbre = ImpuestoImprentaHelper::computeSatTimbreMontoImpuesto(
+                $taxable * (1 + self::IVA_RATE)
+            );
+            if ($satTimbre > 0.000001) {
+                $timbreAmt = $satTimbre;
+            }
             $this->appendTimbreTaxToNucItem($items[$itemIndex], $taxable, $timbreAmt);
             $totalTimbre += $timbreAmt;
             $grand += $timbreAmt;
@@ -2710,7 +2736,10 @@ class FelInvoiceIssuanceService
             $itemTotal = $lineTotal;
             $preId = (int) ($row->pre_cotizacion_id ?? 0);
             if ($preId > 0 && isset($timbreByPreId[$preId])) {
-                $timbreAmt = round((float) $timbreByPreId[$preId], 2);
+                $timbreAmt = ImpuestoImprentaHelper::computeSatTimbreMontoImpuesto($lineTotal);
+                if ($timbreAmt <= 0.000001) {
+                    $timbreAmt = round((float) $timbreByPreId[$preId], 2);
+                }
                 if ($timbreAmt > 0.000001) {
                     $taxes[] = $this->buildTimbrePrensaNucTaxEntry($taxable, $timbreAmt);
                     $totalTimbre += $timbreAmt;
@@ -5981,6 +6010,15 @@ class FelInvoiceIssuanceService
             'orden_de_trabajo'       => $otLabelsJoined,
         ];
         $update = $this->filterToExistingColumns($update);
+        if (!empty($interpret['xml'])) {
+            $parsedSat = FelXmlHelper::parseFelXml($interpret['xml']);
+            if (!empty($parsedSat['success']) && isset($parsedSat['data']['invoice_amount'])) {
+                $satGranTotal = round((float) $parsedSat['data']['invoice_amount'], 2);
+                if ($satGranTotal > 0.000001) {
+                    $update['invoice_amount'] = $satGranTotal;
+                }
+            }
+        }
         $this->updateInvoiceFields($invoiceId, $update);
 
         if (!$this->skipAutoLinkOrdensOnFinalize && $quotationId > 0) {

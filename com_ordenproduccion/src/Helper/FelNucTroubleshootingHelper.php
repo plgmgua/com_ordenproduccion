@@ -160,7 +160,7 @@ final class FelNucTroubleshootingHelper
                     'Timbre cotización PRE-' . $preId,
                     'fail',
                     'DB Q ' . number_format($dbTimbre, 2) . ' vs esperado Q ' . number_format($expectedTimbre, 2)
-                    . ' (' . $impuestoPct . '% de Q ' . number_format($total, 2) . ')'
+                    . ' (' . $impuestoPct . '% del monto gravable = línea/1.12)'
                 );
                 $suggestedFixes['recalc_quotation_timbre'] = [
                     'id'     => 'recalc_quotation_timbre',

@@ -879,18 +879,27 @@ final class InvoiceGrimpsaTemplatePdfHelper
 
             $timbreAmt = self::rowTimbrePrensa($row);
             $productRow = $row;
-            if ($timbreAmt > 0.000001 && isset($productRow['impuestos']) && \is_array($productRow['impuestos'])) {
-                $productRow['impuestos'] = array_values(array_filter(
-                    $productRow['impuestos'],
-                    static function ($im): bool {
-                        if (!\is_array($im)) {
-                            return false;
-                        }
-                        $name = strtoupper(trim((string) ($im['nombre_corto'] ?? '')));
+            if ($timbreAmt > 0.000001) {
+                $precioNet = (float) ($productRow['precio'] ?? 0);
+                $lineTotal = (float) ($productRow['subtotal'] ?? 0);
+                if ($precioNet > 0.000001) {
+                    $productRow['subtotal'] = round($precioNet, 2);
+                } elseif ($lineTotal > $timbreAmt) {
+                    $productRow['subtotal'] = round($lineTotal - $timbreAmt, 2);
+                }
+                if (isset($productRow['impuestos']) && \is_array($productRow['impuestos'])) {
+                    $productRow['impuestos'] = array_values(array_filter(
+                        $productRow['impuestos'],
+                        static function ($im): bool {
+                            if (!\is_array($im)) {
+                                return false;
+                            }
+                            $name = strtoupper(trim((string) ($im['nombre_corto'] ?? '')));
 
-                        return $name === 'IVA' || (str_contains($name, 'IVA') && !str_contains($name, 'TIMBRE'));
-                    }
-                ));
+                            return $name === 'IVA' || (str_contains($name, 'IVA') && !str_contains($name, 'TIMBRE'));
+                        }
+                    ));
+                }
             }
             $productRow['numero_linea'] = $lineNum++;
             $out[] = $productRow;
@@ -1030,6 +1039,7 @@ final class InvoiceGrimpsaTemplatePdfHelper
                 }
                 $merged['descuento']       = (float) ($felLn['descuento'] ?? $merged['descuento'] ?? 0);
                 $merged['otros_descuento'] = (float) ($felLn['otros_descuento'] ?? $merged['otros_descuento'] ?? 0);
+                $merged['precio']          = (float) ($felLn['precio'] ?? $merged['precio'] ?? 0);
                 $merged['subtotal']       = (float) ($felLn['subtotal'] ?? $merged['subtotal'] ?? 0);
 
                 $impFel = isset($felLn['impuestos']) && \is_array($felLn['impuestos']) ? $felLn['impuestos'] : [];

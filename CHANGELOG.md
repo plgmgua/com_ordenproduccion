@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.119.356-STABLE] - 2026-08-21
+
+### Fixed
+- **Timbre de prensa / FEL:** Amount follows SAT 2.11 (0.50% of IVA-exclusive gravable = línea/1.12), and NUC `TotalItem` is Precio + TDP so Digifact no longer subtracts TDP from the product price. Invoice TOTALES is synced from SAT `GranTotal`. Recalculate cotización impuesto lines (or re-issue) so the factura matches SAT.gob.gt.
+
 ## [3.119.355-STABLE] - 2026-08-21
 
 ### Fixed
